@@ -2,6 +2,7 @@ import { Store } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { vendorAppUrl } from '@/lib/appUrls'
 import { VENDOR_SIGNUP_PATH } from '@/lib/vendorSignupPaths'
+import { LandingThemeToggle } from '@/components/landing/LandingThemeToggle'
 
 type Props = { variant?: 'home' | 'campaign' }
 
@@ -12,8 +13,8 @@ export function LandingHeader({ variant = 'home' }: Props) {
 
   return (
     <>
-      <header className="kiterp-landing-header fixed top-0 inset-x-0 z-50 border-b border-[#1e3d34]/06 bg-white/90 backdrop-blur-xl supports-[backdrop-filter]:bg-white/80 shadow-[0_1px_0_rgba(30,61,52,0.04)]">
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#64C3A0]/55 to-transparent" aria-hidden />
+      <header className="kiterp-landing-header fixed top-0 inset-x-0 z-50 backdrop-blur-xl">
+        <div className="absolute inset-x-0 top-0 h-px kiterp-landing-header-sheen" aria-hidden />
         <div className="kiterp-landing-header-inner mx-auto flex h-14 sm:h-[4.25rem] w-full items-center justify-between gap-2 sm:gap-4">
           <Link
             to="/"
@@ -22,33 +23,34 @@ export function LandingHeader({ variant = 'home' }: Props) {
             <span className="flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-xl bg-[linear-gradient(145deg,#7dceb0,#64C3A0)] text-white shadow-sm shadow-[#64C3A0]/30 ring-1 ring-white/40 transition group-hover:scale-[1.03]">
               <Store className="w-4 h-4 sm:w-[18px] sm:h-[18px]" strokeWidth={2.25} />
             </span>
-            <span className="font-bold text-base sm:text-[17px] tracking-tight text-[#1e3d34]">
-              KIT <span className="text-[#3d9a7a]">ERP</span>
+            <span className="kiterp-landing-brand font-bold text-base sm:text-[17px] tracking-tight">
+              KIT <span className="kiterp-landing-brand-accent">ERP</span>
             </span>
           </Link>
 
-          <nav className="hidden md:flex items-center gap-1 text-sm font-medium text-[#1e3d34]/70" aria-label="Primary">
+          <nav className="kiterp-landing-nav hidden md:flex items-center gap-1 text-sm font-medium" aria-label="Primary">
             {variant === 'campaign' ? (
-              <Link to="/apps" className="rounded-full px-3 py-1.5 hover:text-[#1e3d34] hover:bg-[#eef9f4] transition-colors">
+              <Link to="/apps" className="kiterp-landing-nav-link rounded-full px-3 py-1.5 transition-colors">
                 Apps
               </Link>
             ) : (
-              <a href={appsHref} className="rounded-full px-3 py-1.5 hover:text-[#1e3d34] hover:bg-[#eef9f4] transition-colors">
+              <a href={appsHref} className="kiterp-landing-nav-link rounded-full px-3 py-1.5 transition-colors">
                 Apps
               </a>
             )}
-            <a href={pricingHref} className="rounded-full px-3 py-1.5 hover:text-[#1e3d34] hover:bg-[#eef9f4] transition-colors">
+            <a href={pricingHref} className="kiterp-landing-nav-link rounded-full px-3 py-1.5 transition-colors">
               Pricing
             </a>
-            <a href={communityHref} className="rounded-full px-3 py-1.5 hover:text-[#1e3d34] hover:bg-[#eef9f4] transition-colors">
+            <a href={communityHref} className="kiterp-landing-nav-link rounded-full px-3 py-1.5 transition-colors">
               Community
             </a>
           </nav>
 
           <div className="flex shrink-0 items-center gap-1 sm:gap-2.5">
+            <LandingThemeToggle />
             <a
               href={`${vendorAppUrl}/login`}
-              className="inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-1.5 sm:border sm:border-[#1e3d34]/10 sm:bg-white sm:px-4 sm:py-2 text-sm font-medium text-[#1e3d34]/75 hover:text-[#1e3d34] sm:hover:border-[#64C3A0]/35 sm:hover:bg-[#eef9f4] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#64C3A0]/40"
+              className="kiterp-landing-signin inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-1.5 sm:px-4 sm:py-2 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#64C3A0]/40"
             >
               Sign in
             </a>
