@@ -485,7 +485,7 @@ export function POSBookingPanel({
                       className={`absolute top-1 bottom-1 rounded-lg border-2 ${
                         hasConflict
                           ? 'bg-red-400/30 border-red-500'
-                          : 'bg-primary/50/30 border-primary'
+                          : 'bg-primary/30 border-primary'
                       }`}
                       style={{ left: `${selectedFromPct}%`, width: `${Math.max(1.5, selectedToPct - selectedFromPct)}%` }}
                     />
@@ -523,7 +523,7 @@ export function POSBookingPanel({
                   </div>
                   {selectedDuration > 0 && (
                     <div className="flex items-center gap-1.5">
-                      <div className={`w-3 h-2.5 rounded border-2 ${hasConflict ? 'bg-red-400/30 border-red-500' : 'bg-primary/50/30 border-primary'}`} />
+                      <div className={`w-3 h-2.5 rounded border-2 ${hasConflict ? 'bg-red-400/30 border-red-500' : 'bg-primary/30 border-primary'}`} />
                       <span className="text-xs text-gray-500">Your slot</span>
                     </div>
                   )}

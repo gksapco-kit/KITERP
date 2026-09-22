@@ -825,11 +825,11 @@ export default function BookingsPage() {
               </div>
             </div>
 
-            {/* ── Body — three columns (drag handles to resize) ── */}
-            <div className="flex-1 overflow-hidden flex min-h-0">
+            {/* ── Body — three columns; stack below md (drag handles on md+) ── */}
+            <div className={bm.bodyCols}>
 
               {/* COL 1 — Who & What (narrow) */}
-              <div className={`shrink-0 flex flex-col overflow-y-auto ${bm.colMuted}`}
+              <div className={`${bm.colStack} md:shrink-0 flex flex-col md:overflow-y-auto ${bm.colMuted}`}
                 style={{ width: modalWidths[0], minWidth: 160 }}>
                 <div className="px-3 pt-3 pb-2 space-y-2.5">
                   <p className={bm.sectionTitle}>Who &amp; What</p>
@@ -1059,10 +1059,12 @@ export default function BookingsPage() {
                 </div>
               </div>
 
-              <DragHandle onMouseDown={e => startModalResize(0, e.clientX)} className={bm.dragHandle} />
+              <div className="hidden md:contents">
+                <DragHandle onMouseDown={e => startModalResize(0, e.clientX)} className={bm.dragHandle} />
+              </div>
 
               {/* COL 2 — When (scheduling) */}
-              <div className={`shrink-0 flex flex-col overflow-y-auto ${bm.colMain}`}
+              <div className={`${bm.colStack} md:shrink-0 flex flex-col md:overflow-y-auto ${bm.colMain}`}
                 style={{ width: modalWidths[1], minWidth: 150 }}>
                 <div className="px-3 pt-3 pb-2 space-y-2.5">
                   <p className={bm.sectionTitle}>When</p>
@@ -1136,10 +1138,12 @@ export default function BookingsPage() {
                 </div>
               </div>
 
-              <DragHandle onMouseDown={e => startModalResize(1, e.clientX)} className={bm.dragHandleMain} />
+              <div className="hidden md:contents">
+                <DragHandle onMouseDown={e => startModalResize(1, e.clientX)} className={bm.dragHandleMain} />
+              </div>
 
               {/* COL 3 — Availability panel */}
-              <div className={`flex-1 min-w-0 flex flex-col overflow-y-auto ${bm.colMain}`}>
+              <div className={`w-full md:flex-1 min-w-0 flex flex-col md:overflow-y-auto ${bm.colMain}`}>
                 <div className="px-3 pt-3 pb-2 space-y-2.5">
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div>
@@ -1200,7 +1204,7 @@ export default function BookingsPage() {
                           {startTime && endTime && selectedDuration > 0 && (() => {
                             const fp = slotPct(startTime); const tp = slotPct(endTime)
                             return (
-                              <div className={`absolute top-1 bottom-1 rounded-lg border-2 ${hasConflict ? 'bg-red-400/30 border-red-500' : 'bg-primary/50/40 border-primary'}`}
+                              <div className={`absolute top-1 bottom-1 rounded-lg border-2 ${hasConflict ? bm.conflictSlotFill : bm.yourSlotFill}`}
                                 style={{ left: `${fp}%`, width: `${Math.max(2, tp - fp)}%` }} />
                             )
                           })()}
@@ -1224,7 +1228,7 @@ export default function BookingsPage() {
                         <div className="flex items-center gap-4 mt-1.5 flex-wrap">
                           <div className="flex items-center gap-1.5"><div className="w-3 h-2 rounded-sm bg-rose-500 opacity-70" /><span className={bm.timelineLabel}>Booked{selectedStaff ? ` (${serviceProviders.find(p=>p.id===selectedStaff)?.name||'same provider'})` : ''}</span></div>
                           {selectedStaff && <div className="flex items-center gap-1.5"><div className="w-3 h-2 rounded-sm bg-amber-400 opacity-70" /><span className={bm.timelineLabel}>Other provider</span></div>}
-                          {selectedDuration > 0 && <div className="flex items-center gap-1.5"><div className={`w-3 h-2 rounded-sm border ${hasConflict ? 'bg-red-400/30 border-red-500' : 'bg-primary/50/40 border-primary'}`} /><span className={bm.timelineLabel}>Your slot</span></div>}
+                          {selectedDuration > 0 && <div className="flex items-center gap-1.5"><div className={`w-3 h-2 rounded-sm border ${hasConflict ? bm.conflictSlotFill : bm.yourSlotFill}`} /><span className={bm.timelineLabel}>Your slot</span></div>}
                         </div>
                       </div>
 

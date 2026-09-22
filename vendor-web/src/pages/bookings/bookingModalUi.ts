@@ -5,6 +5,11 @@ export const bookingModalUi = {
   shell: 'bg-card rounded-xl shadow-2xl border border-border text-foreground',
   colMuted: 'bg-muted/20',
   colMain: 'bg-card',
+  bodyCols:
+    'flex-1 min-h-0 overflow-y-auto md:overflow-hidden flex flex-col md:flex-row',
+  colStack: 'w-full max-md:!w-full max-md:!min-w-0 border-b border-border md:border-b-0',
+  yourSlotFill: 'bg-primary/30 border-primary',
+  conflictSlotFill: 'bg-red-400/30 border-red-500',
   dragHandle: 'bg-transparent',
   dragHandleMain: 'bg-transparent',
   sectionTitle: 'text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2',

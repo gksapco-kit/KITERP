@@ -237,10 +237,10 @@ export function CreateBookingModal({
           </button>
         </div>
 
-        {/* Body — three columns */}
-        <div className="flex-1 overflow-hidden flex min-h-0">
+        {/* Body — three columns; stack below md */}
+        <div className={bm.bodyCols}>
           {/* ── COL 1: Who & What ──────────────────────────────────────────── */}
-          <div className={`w-56 shrink-0 overflow-y-auto px-3 py-3 space-y-2.5 ${bm.colMuted}`}>
+          <div className={`${bm.colStack} md:w-56 shrink-0 md:overflow-y-auto px-3 py-3 space-y-2.5 ${bm.colMuted}`}>
             <p className={bm.sectionTitle}>Who &amp; What</p>
 
             {/* Customer */}
@@ -393,7 +393,7 @@ export function CreateBookingModal({
           </div>
 
           {/* ── COL 2: When ────────────────────────────────────────────────── */}
-          <div className={`w-48 shrink-0 overflow-y-auto px-3 py-3 space-y-2.5 ${bm.colMain}`}>
+          <div className={`${bm.colStack} md:w-48 shrink-0 md:overflow-y-auto px-3 py-3 space-y-2.5 ${bm.colMain}`}>
             <p className={bm.sectionTitle}>When</p>
 
             {/* Date */}
@@ -438,7 +438,7 @@ export function CreateBookingModal({
           </div>
 
           {/* ── COL 3: Availability ─────────────────────────────────────────── */}
-          <div className={`flex-1 min-w-0 overflow-y-auto px-3 py-3 space-y-2.5 ${bm.colMain}`}>
+          <div className={`w-full md:flex-1 min-w-0 md:overflow-y-auto px-3 py-3 space-y-2.5 ${bm.colMain}`}>
             <div className="flex items-center justify-between">
               <p className={`${bm.sectionTitle} mb-0`}>Availability</p>
               {dateSlotsLoading
@@ -460,7 +460,7 @@ export function CreateBookingModal({
                       style={{ left: `${((h*60-SLOT_START)/SLOT_SPAN)*100}%` }} />
                   ))}
                   {selFromPct !== null && selToPct !== null && selectedDuration > 0 && (
-                    <div className={`absolute top-1 bottom-1 rounded-lg border-2 ${hasConflict ? 'bg-red-400/30 border-red-500' : 'bg-primary/50/30 border-primary'}`}
+                    <div className={`absolute top-1 bottom-1 rounded-lg border-2 ${hasConflict ? bm.conflictSlotFill : bm.yourSlotFill}`}
                       style={{ left: `${selFromPct}%`, width: `${Math.max(1.5, selToPct-selFromPct)}%` }} />
                   )}
                   {activeSlots.map((slot: any) => {
@@ -481,7 +481,7 @@ export function CreateBookingModal({
                 </div>
                 <div className="flex items-center gap-4 mt-2">
                   <div className="flex items-center gap-1.5"><div className="w-3 h-2.5 rounded bg-rose-500 opacity-75"/><span className={bm.hint}>Booked</span></div>
-                  {selectedDuration > 0 && <div className="flex items-center gap-1.5"><div className={`w-3 h-2.5 rounded border-2 ${hasConflict ? 'bg-red-400/30 border-red-500' : 'bg-primary/50/30 border-primary'}`}/><span className={bm.hint}>Your slot</span></div>}
+                  {selectedDuration > 0 && <div className="flex items-center gap-1.5"><div className={`w-3 h-2.5 rounded border-2 ${hasConflict ? bm.conflictSlotFill : bm.yourSlotFill}`}/><span className={bm.hint}>Your slot</span></div>}
                 </div>
               </div>
             )}

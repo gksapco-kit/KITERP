@@ -713,7 +713,7 @@ export default function RentalReportsPage() {
       </div>
 
       {/* Filter bar */}
-      <div className="sticky top-0 z-20 rounded-xl border border-border bg-card/95 backdrop-blur p-3 shadow-sm space-y-3">
+      <div className="sticky top-14 z-20 rounded-xl border border-border bg-card/95 backdrop-blur p-3 shadow-sm space-y-3">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-1.5 text-xs font-medium text-gray-500">
             <Calendar className="w-4 h-4" /> Period

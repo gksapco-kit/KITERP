@@ -68,19 +68,19 @@ function TierEditor({
       {tiers.length === 0 && (
         <p className="text-[10px] text-muted-foreground">No tiers yet — add at least one so guests can buy tickets.</p>
       )}
-      {/* Column headers */}
+      {/* Column headers — desktop only; fields are labeled on small screens */}
       {tiers.length > 0 && (
-        <div className="grid grid-cols-[minmax(0,1.4fr)_4.5rem_3.5rem_4rem_auto_auto] gap-1 px-0.5">
-          {['Tier Name', 'Price', 'Currency', 'Remaining', '', ''].map(h => (
-            <p key={h} className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">{h}</p>
+        <div className="hidden grid-cols-[minmax(0,1.4fr)_4.5rem_3.5rem_4rem_auto_auto] gap-1 px-0.5 sm:grid">
+          {['Tier Name', 'Price', 'Currency', 'Remaining', '', ''].map((h, i) => (
+            <p key={i} className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">{h}</p>
           ))}
         </div>
       )}
       {tiers.map((t, idx) => (
         <div key={idx} className="space-y-1 rounded-md bg-muted/20 p-1.5">
-          <div className="grid grid-cols-[minmax(0,1.4fr)_4.5rem_3.5rem_4rem_auto_auto] gap-1 items-center">
+          <div className="grid grid-cols-2 gap-1 items-center sm:grid-cols-[minmax(0,1.4fr)_4.5rem_3.5rem_4rem_auto_auto]">
             <Input
-              className="h-7 text-xs"
+              className="col-span-2 h-7 text-xs sm:col-span-1"
               value={t.name}
               onChange={e => update(idx, { name: e.target.value })}
               placeholder="General Admission"
@@ -104,7 +104,7 @@ function TierEditor({
               aria-label="Currency"
             />
             <Input
-              className="h-7 text-xs"
+              className="col-span-2 h-7 text-xs sm:col-span-1"
               type="number"
               min={0}
               value={t.remaining}
@@ -112,27 +112,29 @@ function TierEditor({
               placeholder="0"
               aria-label="Remaining tickets"
             />
-            <button
-              type="button"
-              onClick={() => update(idx, { popular: !t.popular })}
-              title={t.popular ? 'Popular' : 'Mark popular'}
-              className={cn(
-                'flex h-7 w-7 items-center justify-center rounded-md border transition-colors',
-                t.popular
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-border bg-background text-muted-foreground hover:border-primary/40',
-              )}
-            >
-              <Star className="h-3 w-3" />
-            </button>
-            <button
-              type="button"
-              onClick={() => remove(idx)}
-              className="flex h-7 w-7 items-center justify-center rounded-md text-destructive hover:bg-destructive/10"
-              title="Remove tier"
-            >
-              <Trash2 className="h-3.5 w-3.5 text-red-600" />
-            </button>
+            <div className="col-span-2 flex items-center justify-end gap-1 sm:contents">
+              <button
+                type="button"
+                onClick={() => update(idx, { popular: !t.popular })}
+                title={t.popular ? 'Popular' : 'Mark popular'}
+                className={cn(
+                  'flex h-7 w-7 items-center justify-center rounded-md border transition-colors',
+                  t.popular
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'border-border bg-background text-muted-foreground hover:border-primary/40',
+                )}
+              >
+                <Star className="h-3 w-3" />
+              </button>
+              <button
+                type="button"
+                onClick={() => remove(idx)}
+                className="flex h-7 w-7 items-center justify-center rounded-md text-destructive hover:bg-destructive/10"
+                title="Remove tier"
+              >
+                <Trash2 className="h-3.5 w-3.5 text-red-600" />
+              </button>
+            </div>
           </div>
           <textarea
             value={(t.perks ?? []).join('\n')}
@@ -269,7 +271,7 @@ function EventModal({
         />
         <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
           <ModalBody className="space-y-1.5 overflow-y-auto px-3 pb-2 pt-0">
-            <div className="grid grid-cols-[3.75rem_minmax(0,1.3fr)_minmax(0,1fr)] gap-1.5 items-end">
+            <div className="grid grid-cols-[3.75rem_minmax(0,1fr)] gap-1.5 items-end sm:grid-cols-[3.75rem_minmax(0,1.3fr)_minmax(0,1fr)]">
               <ImageSourcePicker
                 title="Event banner"
                 uploading={imageUploading}
@@ -305,7 +307,7 @@ function EventModal({
                 <Label className={labelCls}>Event title *</Label>
                 <Input className={inputCls} value={title} onChange={e => setTitle(e.target.value)} required autoFocus placeholder="Field Notes — A Night of Ambient" />
               </div>
-              <div className={fieldGap}>
+              <div className={cn(fieldGap, 'col-span-2 sm:col-span-1')}>
                 <Label className={labelCls}>Tagline</Label>
                 <Input className={inputCls} value={tagline} onChange={e => setTagline(e.target.value)} placeholder="Live electronic & strings" />
               </div>
