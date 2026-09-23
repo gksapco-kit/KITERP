@@ -12,7 +12,6 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
@@ -398,39 +397,48 @@ function TermDialog({
     onClose()
   }
 
+  const field = 'space-y-1'
+  const labelCls = 'text-xs'
+  const inputCls = 'h-8'
+
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+      <DialogContent className="max-w-2xl gap-3 overflow-hidden p-5">
+        <DialogHeader className="static shrink-0 space-y-0 pr-8">
+          <DialogTitle className="flex items-center gap-2 text-base">
             <CalendarClock className="h-4 w-4 text-primary" />
             {editing ? 'Edit Payment Term' : 'New Payment Term'}
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs value={tab} onValueChange={v => setTab(v as typeof tab)} className="mt-4">
-          <TabsList className="mb-2 gap-1.5">
-            <TabsTrigger value="rules" className="px-4">General</TabsTrigger>
-            <TabsTrigger value="stages" className="px-4">Stages</TabsTrigger>
-            <TabsTrigger value="discounts" className="px-4">Discounts</TabsTrigger>
-            {editing && <TabsTrigger value="preview" className="px-4">Preview</TabsTrigger>}
+        <Tabs
+          value={tab}
+          onValueChange={v => setTab(v as typeof tab)}
+          className="flex min-h-0 flex-1 flex-col"
+        >
+          <TabsList className="mb-0 h-8 w-fit shrink-0 gap-0.5">
+            <TabsTrigger value="rules" className="h-6 px-3 text-xs">General</TabsTrigger>
+            <TabsTrigger value="stages" className="h-6 px-3 text-xs">Stages</TabsTrigger>
+            <TabsTrigger value="discounts" className="h-6 px-3 text-xs">Discounts</TabsTrigger>
+            {editing && <TabsTrigger value="preview" className="h-6 px-3 text-xs">Preview</TabsTrigger>}
           </TabsList>
 
           {/* ── General tab ── */}
-          <TabsContent value="rules" className="space-y-4 pt-1">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label>Code <span className="text-red-500">*</span></Label>
+          <TabsContent value="rules" className="mt-3 space-y-2.5">
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+              <div className={field}>
+                <Label className={labelCls}>Code <span className="text-red-500">*</span></Label>
                 <Input
+                  className={inputCls}
                   placeholder="e.g. NET30, ADV50"
                   value={form.code}
                   onChange={e => set('code', e.target.value.toUpperCase())}
                 />
               </div>
-              <div className="space-y-1">
-                <Label>Used for</Label>
+              <div className={field}>
+                <Label className={labelCls}>Used for</Label>
                 <Select value={form.usage} onValueChange={v => set('usage', v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className={inputCls}><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {USAGE_OPTIONS.map(o => (
                       <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
@@ -438,125 +446,126 @@ function TermDialog({
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-
-            <div className="space-y-1">
-              <Label>Name <span className="text-red-500">*</span></Label>
-              <Input
-                placeholder="e.g. Net 30 days"
-                value={form.name}
-                onChange={e => set('name', e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-1">
-              <Label>Description (optional)</Label>
-              <Textarea
-                rows={2}
-                value={form.description}
-                onChange={e => set('description', e.target.value)}
-              />
-            </div>
-
-            <Separator />
-
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              Due date clock
-            </p>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label>Clock starts from</Label>
-                <Select value={form.starts_from} onValueChange={v => set('starts_from', v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {STARTS_FROM_OPTIONS.map(o => (
-                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label>Offset (days after anchor)</Label>
+              <div className={field}>
+                <Label className={labelCls}>Name <span className="text-red-500">*</span></Label>
                 <Input
-                  type="number" min={0}
-                  value={form.start_offset_days}
-                  onChange={e => set('start_offset_days', e.target.value)}
+                  className={inputCls}
+                  placeholder="e.g. Net 30 days"
+                  value={form.name}
+                  onChange={e => set('name', e.target.value)}
+                />
+              </div>
+              <div className={field}>
+                <Label className={labelCls}>Description (optional)</Label>
+                <Input
+                  className={inputCls}
+                  placeholder="Short note for this term"
+                  value={form.description}
+                  onChange={e => set('description', e.target.value)}
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1">
-                <Label>Fix start to day</Label>
-                <Input
-                  type="number" min={1} max={31}
-                  placeholder="e.g. 15 (31=month end)"
-                  value={form.start_on_day}
-                  onChange={e => set('start_on_day', e.target.value)}
-                />
+            <div className="space-y-2.5 rounded-lg border border-border/70 bg-muted/20 p-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Due date clock
+              </p>
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                <div className={field}>
+                  <Label className={labelCls}>Clock starts from</Label>
+                  <Select value={form.starts_from} onValueChange={v => set('starts_from', v)}>
+                    <SelectTrigger className={inputCls}><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {STARTS_FROM_OPTIONS.map(o => (
+                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className={field}>
+                  <Label className={labelCls}>Offset (days after anchor)</Label>
+                  <Input
+                    className={inputCls}
+                    type="number" min={0}
+                    value={form.start_offset_days}
+                    onChange={e => set('start_offset_days', e.target.value)}
+                  />
+                </div>
               </div>
-              <div className="space-y-1">
-                <Label>Shift months forward</Label>
-                <Input
-                  type="number" min={0}
-                  value={form.start_shift_months}
-                  onChange={e => set('start_shift_months', e.target.value)}
-                />
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+                <div className={field}>
+                  <Label className={labelCls}>Fix start to day</Label>
+                  <Input
+                    className={inputCls}
+                    type="number" min={1} max={31}
+                    placeholder="15 (31=month end)"
+                    value={form.start_on_day}
+                    onChange={e => set('start_on_day', e.target.value)}
+                  />
+                </div>
+                <div className={field}>
+                  <Label className={labelCls}>Shift months forward</Label>
+                  <Input
+                    className={inputCls}
+                    type="number" min={0}
+                    value={form.start_shift_months}
+                    onChange={e => set('start_shift_months', e.target.value)}
+                  />
+                </div>
+                <div className={field}>
+                  <Label className={labelCls}>Grace days</Label>
+                  <Input
+                    className={inputCls}
+                    type="number" min={0}
+                    value={form.grace_days}
+                    onChange={e => set('grace_days', e.target.value)}
+                  />
+                </div>
               </div>
-              <div className="space-y-1">
-                <Label>Grace days</Label>
-                <Input
-                  type="number" min={0}
-                  value={form.grace_days}
-                  onChange={e => set('grace_days', e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Switch
-                  id="round-month-end"
-                  checked={form.round_to_month_end}
-                  onCheckedChange={v => set('round_to_month_end', v)}
-                />
-                <Label htmlFor="round-month-end" className="cursor-pointer">
-                  Round due date to month end
-                </Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Switch
-                  id="is-default"
-                  checked={form.is_default}
-                  onCheckedChange={v => set('is_default', v)}
-                />
-                <Label htmlFor="is-default" className="cursor-pointer">
-                  Set as default
-                </Label>
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="round-month-end"
+                    checked={form.round_to_month_end}
+                    onCheckedChange={v => set('round_to_month_end', v)}
+                  />
+                  <Label htmlFor="round-month-end" className="cursor-pointer text-xs">
+                    Round due date to month end
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="is-default"
+                    checked={form.is_default}
+                    onCheckedChange={v => set('is_default', v)}
+                  />
+                  <Label htmlFor="is-default" className="cursor-pointer text-xs">
+                    Set as default
+                  </Label>
+                </div>
               </div>
             </div>
           </TabsContent>
 
           {/* ── Stages tab ── */}
-          <TabsContent value="stages" className="pt-1">
+          <TabsContent value="stages" className="mt-3 min-h-0 overflow-y-auto">
             <StagesEditor stages={form.stages} onChange={v => set('stages', v)} />
           </TabsContent>
 
           {/* ── Discounts tab ── */}
-          <TabsContent value="discounts" className="pt-1">
+          <TabsContent value="discounts" className="mt-3 min-h-0 overflow-y-auto">
             <DiscountsEditor discounts={form.discounts} onChange={v => set('discounts', v)} />
           </TabsContent>
 
           {/* ── Preview tab ── */}
           {editing && (
-            <TabsContent value="preview" className="pt-1">
+            <TabsContent value="preview" className="mt-3 min-h-0 overflow-y-auto">
               <PreviewPanel termId={editing.id} />
             </TabsContent>
           )}
         </Tabs>
 
-        <DialogFooter>
+        <DialogFooter className="static shrink-0 gap-2 pt-3 sm:space-x-0">
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={handleSave} disabled={!canSave || createMut.isPending || updateMut.isPending}>
             {editing ? 'Save changes' : 'Create'}
