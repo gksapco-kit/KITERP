@@ -155,12 +155,12 @@ export function QuickCreateCustomerModal({
       >
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h3 className="font-bold text-gray-900 flex items-center gap-2 text-base">
+          <h3 className="font-bold text-foreground flex items-center gap-2 text-base">
             <UserPlus className="w-5 h-5 text-primary" />
             Quick Create Customer
           </h3>
-          <button type="button" data-escape-close aria-label="Close" onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
-            <X className="w-4 h-4 text-gray-500" />
+          <button type="button" data-escape-close aria-label="Close" onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
+            <X className="w-4 h-4 text-muted-foreground" />
           </button>
         </div>
 
@@ -180,7 +180,7 @@ export function QuickCreateCustomerModal({
           <div>
             <Label className="text-xs font-medium">
               Phone {!email ? '*' : ''}
-              {dupLoading && <span className="ml-1 text-xs text-gray-400 font-normal">Checking…</span>}
+              {dupLoading && <span className="ml-1 text-xs text-muted-foreground font-normal">Checking…</span>}
             </Label>
             <PhoneInput
               value={phone}
@@ -200,7 +200,7 @@ export function QuickCreateCustomerModal({
             />
           </div>
 
-          <p className="text-xs text-gray-400">Phone or email is required.</p>
+          <p className="text-xs text-muted-foreground">Phone or email is required.</p>
         </div>
 
         {/* Duplicate warning */}

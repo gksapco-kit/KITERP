@@ -103,7 +103,7 @@ const fmtNum = (n: number) => (n || 0).toLocaleString('en-IN')
 const REPORTS: SalesReport[] = [
   {
     id: 'trend', title: 'Sales Trend', desc: 'Daily revenue & order volume over the period',
-    icon: TrendingUp, accent: 'text-emerald-600', bg: 'bg-emerald-50', chart: 'area', money: true,
+    icon: TrendingUp, accent: 'text-emerald-600', bg: 'bg-emerald-500/10', chart: 'area', money: true,
     trend: (o) => o.trend,
     series: (o) => o.trend.map(t => ({ label: t.date, value: t.revenue })),
     columns: [
@@ -117,7 +117,7 @@ const REPORTS: SalesReport[] = [
   },
   {
     id: 'status', title: 'Orders by Status', desc: 'Distribution across fulfilment stages',
-    icon: ShoppingCart, accent: 'text-blue-600', bg: 'bg-blue-50', chart: 'donut', money: false,
+    icon: ShoppingCart, accent: 'text-blue-600', bg: 'bg-blue-500/10', chart: 'donut', money: false,
     series: (o) => o.by_status.map(r => ({ label: r.status, value: r.orders })),
     columns: [
       { key: 'status', label: 'Status' },
@@ -129,7 +129,7 @@ const REPORTS: SalesReport[] = [
   },
   {
     id: 'source', title: 'Sales by Channel', desc: 'Online, POS, bookings & other sources',
-    icon: PieChartIcon, accent: 'text-violet-600', bg: 'bg-violet-50', chart: 'donut', money: true,
+    icon: PieChartIcon, accent: 'text-violet-600', bg: 'bg-violet-500/10', chart: 'donut', money: true,
     series: (o) => o.by_source.map(r => ({ label: r.source, value: r.revenue })),
     columns: [
       { key: 'source', label: 'Channel' },
@@ -141,7 +141,7 @@ const REPORTS: SalesReport[] = [
   },
   {
     id: 'payment', title: 'Payment Methods', desc: 'Revenue split by tender type',
-    icon: CreditCard, accent: 'text-indigo-600', bg: 'bg-indigo-50', chart: 'bars', money: true,
+    icon: CreditCard, accent: 'text-indigo-600', bg: 'bg-indigo-500/10', chart: 'bars', money: true,
     series: (o) => o.by_payment_method.map(r => ({ label: r.method, value: r.revenue })),
     columns: [
       { key: 'method', label: 'Method' },
@@ -152,7 +152,7 @@ const REPORTS: SalesReport[] = [
   },
   {
     id: 'store', title: 'Sales by Business Unit', desc: 'Revenue contribution per outlet',
-    icon: StoreIcon, accent: 'text-cyan-600', bg: 'bg-cyan-50', chart: 'hbars', money: true,
+    icon: StoreIcon, accent: 'text-cyan-600', bg: 'bg-cyan-500/10', chart: 'hbars', money: true,
     series: (o) => o.by_store.slice(0, 8).map(r => ({ label: r.store_name, value: r.revenue })),
     columns: [
       { key: 'store_name', label: 'Business unit' },
@@ -164,7 +164,7 @@ const REPORTS: SalesReport[] = [
   },
   {
     id: 'top_products', title: 'Top Products', desc: 'Best sellers by revenue',
-    icon: Package, accent: 'text-orange-600', bg: 'bg-orange-50', chart: 'hbars', money: true,
+    icon: Package, accent: 'text-orange-600', bg: 'bg-orange-500/10', chart: 'hbars', money: true,
     series: (o) => o.top_products.slice(0, 8).map(r => ({ label: r.name, value: r.revenue })),
     columns: [
       { key: 'name', label: 'Product' },
@@ -176,7 +176,7 @@ const REPORTS: SalesReport[] = [
   },
   {
     id: 'top_customers', title: 'Top Customers', desc: 'Highest-spending customers',
-    icon: Users, accent: 'text-pink-600', bg: 'bg-pink-50', chart: 'hbars', money: true,
+    icon: Users, accent: 'text-pink-600', bg: 'bg-pink-500/10', chart: 'hbars', money: true,
     series: (o) => o.top_customers.slice(0, 8).map(r => ({ label: r.name, value: r.spent })),
     columns: [
       { key: 'name', label: 'Customer' },
@@ -189,7 +189,7 @@ const REPORTS: SalesReport[] = [
   },
   {
     id: 'category', title: 'Sales by Category', desc: 'Revenue grouped by product category',
-    icon: Boxes, accent: 'text-teal-600', bg: 'bg-teal-50', chart: 'bars', money: true,
+    icon: Boxes, accent: 'text-teal-600', bg: 'bg-teal-500/10', chart: 'bars', money: true,
     series: (o) => o.by_category.slice(0, 10).map(r => ({ label: r.category, value: r.revenue })),
     columns: [
       { key: 'category', label: 'Category' },
@@ -201,7 +201,7 @@ const REPORTS: SalesReport[] = [
   },
   {
     id: 'coupons', title: 'Coupons & Discounts', desc: 'Promo usage and discount value',
-    icon: BadgePercent, accent: 'text-lime-600', bg: 'bg-lime-50', chart: 'hbars', money: true,
+    icon: BadgePercent, accent: 'text-lime-600', bg: 'bg-lime-500/10', chart: 'hbars', money: true,
     series: (o) => o.coupons.slice(0, 8).map(r => ({ label: r.coupon, value: r.discount })),
     columns: [
       { key: 'coupon', label: 'Coupon' },
@@ -213,7 +213,7 @@ const REPORTS: SalesReport[] = [
   },
   {
     id: 'hourly', title: 'Sales by Hour', desc: 'Peak ordering hours of the day',
-    icon: Clock, accent: 'text-amber-600', bg: 'bg-amber-50', chart: 'bars', money: false,
+    icon: Clock, accent: 'text-amber-600', bg: 'bg-amber-500/10', chart: 'bars', money: false,
     series: (o) => o.hourly.map(r => ({ label: `${String(r.hour).padStart(2, '0')}h`, value: r.orders })),
     columns: [
       { key: 'hour', label: 'Hour' },
@@ -224,7 +224,7 @@ const REPORTS: SalesReport[] = [
   },
   {
     id: 'dow', title: 'Sales by Weekday', desc: 'Order volume by day of week',
-    icon: CalendarDays, accent: 'text-rose-600', bg: 'bg-rose-50', chart: 'bars', money: false,
+    icon: CalendarDays, accent: 'text-rose-600', bg: 'bg-rose-500/10', chart: 'bars', money: false,
     series: (o) => o.by_dow.map(r => ({ label: r.label, value: r.orders })),
     columns: [
       { key: 'label', label: 'Weekday' },
@@ -235,7 +235,7 @@ const REPORTS: SalesReport[] = [
   },
   {
     id: 'paystatus', title: 'Payment Status', desc: 'Paid vs pending vs refunded',
-    icon: Percent, accent: 'text-fuchsia-600', bg: 'bg-fuchsia-50', chart: 'donut', money: false,
+    icon: Percent, accent: 'text-fuchsia-600', bg: 'bg-fuchsia-500/10', chart: 'donut', money: false,
     series: (o) => o.by_payment_status.map(r => ({ label: r.status, value: r.orders })),
     columns: [
       { key: 'status', label: 'Payment status' },
@@ -268,7 +268,7 @@ const REPORTS: SalesReport[] = [
 // ════════════════════════════════════════════════════════════════════════════
 function DeltaBadge({ kpi, invert = false }: { kpi: SalesKpi; invert?: boolean }) {
   if (kpi.delta_pct === null || kpi.delta_pct === undefined) {
-    return <span className="text-xs text-gray-400">— vs prev</span>
+    return <span className="text-xs text-muted-foreground">— vs prev</span>
   }
   const up = kpi.delta_pct >= 0
   const good = invert ? !up : up
@@ -293,7 +293,7 @@ function MiniChart({ report, data }: { report: SalesReport; data: SalesOverview 
       <div className="grid grid-cols-2 gap-2">
         {tiles.map(t => (
           <div key={t.label} className="rounded-lg bg-muted/50 px-3 py-2">
-            <p className="text-[11px] text-gray-500">{t.label}</p>
+            <p className="text-[11px] text-muted-foreground">{t.label}</p>
             <p className="text-base font-semibold text-foreground">{t.value}</p>
           </div>
         ))}
@@ -304,7 +304,7 @@ function MiniChart({ report, data }: { report: SalesReport; data: SalesOverview 
     return <TrendArea data={report.trend(data)} height={120} compact metric="revenue" />
   }
   const series = report.series(data).map(s => ({ label: s.label, value: s.value }))
-  if (series.length === 0) return <div className="h-[120px] grid place-items-center text-xs text-gray-400">No data</div>
+  if (series.length === 0) return <div className="h-[120px] grid place-items-center text-xs text-muted-foreground">No data</div>
   if (report.chart === 'donut') return <DonutChart data={series} height={120} compact money={report.money} />
   if (report.chart === 'hbars') return <HBarsChart data={series.slice(0, 5)} height={120} money={report.money} />
   return <BarsChart data={series} height={120} compact money={report.money} />
@@ -314,7 +314,7 @@ function DetailChart({ report, data }: { report: SalesReport; data: SalesOvervie
   if (report.chart === 'stats') return null
   if (report.chart === 'area' && report.trend) return <TrendDual data={report.trend(data)} height={320} />
   const series = report.series(data)
-  if (series.length === 0) return <div className="h-[320px] grid place-items-center text-sm text-gray-400">No data for this period</div>
+  if (series.length === 0) return <div className="h-[320px] grid place-items-center text-sm text-muted-foreground">No data for this period</div>
   if (report.chart === 'donut') return <DonutChart data={series} height={320} money={report.money} />
   if (report.chart === 'hbars') return <HBarsChart data={series.slice(0, 15)} height={Math.max(320, series.slice(0, 15).length * 34)} money={report.money} />
   return <BarsChart data={series} height={320} money={report.money} />
@@ -460,7 +460,7 @@ function ReportDetailModal({ report, data, rangeLabel, from, to, storeId, onClos
             </div>
             <div className="min-w-0">
               <h2 className="text-lg font-semibold text-foreground truncate">{report.title}</h2>
-              <p className="text-xs text-gray-500 truncate">{report.desc} · {rangeLabel}</p>
+              <p className="text-xs text-muted-foreground truncate">{report.desc} · {rangeLabel}</p>
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0 flex-wrap">
@@ -473,24 +473,24 @@ function ReportDetailModal({ report, data, rangeLabel, from, to, storeId, onClos
             </button>
             <button
               onClick={() => exportCsv(report, data, rangeLabel)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-accent"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent"
             >
               <FileDown className="w-3.5 h-3.5" /> CSV
             </button>
             <button
               onClick={handlePdf}
               disabled={pdfLoading}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-accent disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent disabled:opacity-50"
             >
               <Download className="w-3.5 h-3.5" /> {pdfLoading ? 'Generating…' : 'PDF'}
             </button>
             <button
               onClick={handlePrint}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-accent"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent"
             >
               <Printer className="w-3.5 h-3.5" /> Print
             </button>
-            <button onClick={onClose} className="rounded-lg p-1.5 text-gray-500 hover:bg-accent" aria-label="Close">
+            <button onClick={onClose} className="rounded-lg p-1.5 text-muted-foreground hover:bg-accent" aria-label="Close">
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -508,7 +508,7 @@ function ReportDetailModal({ report, data, rangeLabel, from, to, storeId, onClos
                 <thead className="sticky top-0 bg-muted/70 backdrop-blur">
                   <tr>
                     {report.columns.map(c => (
-                      <th key={c.key} className={cn('px-4 py-2.5 text-xs font-semibold text-gray-600', c.align === 'right' ? 'text-right' : 'text-left')}>
+                      <th key={c.key} className={cn('px-4 py-2.5 text-xs font-semibold text-muted-foreground', c.align === 'right' ? 'text-right' : 'text-left')}>
                         {c.label}
                       </th>
                     ))}
@@ -516,14 +516,14 @@ function ReportDetailModal({ report, data, rangeLabel, from, to, storeId, onClos
                 </thead>
                 <tbody className="divide-y divide-border">
                   {rows.length === 0 ? (
-                    <tr><td colSpan={report.columns.length} className="px-4 py-8 text-center text-gray-400">No data for this period</td></tr>
+                    <tr><td colSpan={report.columns.length} className="px-4 py-8 text-center text-muted-foreground">No data for this period</td></tr>
                   ) : rows.map((r, i) => (
                     <tr key={i} className="hover:bg-accent/50">
                       {report.columns.map(c => {
                         const v = r[c.key]
                         const display = c.money ? fmtMoney(Number(v) || 0) : (v ?? '—')
                         return (
-                          <td key={c.key} className={cn('px-4 py-2.5', c.align === 'right' ? 'text-right tabular-nums font-medium text-foreground' : 'text-gray-700')}>
+                          <td key={c.key} className={cn('px-4 py-2.5', c.align === 'right' ? 'text-right tabular-nums font-medium text-foreground' : 'text-foreground')}>
                             {display as React.ReactNode}
                           </td>
                         )
@@ -606,13 +606,13 @@ export default function SalesManagerPage() {
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <BarChart3 className="w-6 h-6 text-primary" /> Sales Report Analytics
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-muted-foreground mt-1">
             Summary & detailed sales reporting across orders, channels, products and customers.
           </p>
         </div>
         <button
           onClick={() => refetch()}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm font-medium text-gray-700 hover:bg-accent"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground hover:bg-accent"
         >
           <RefreshCw className={cn('w-4 h-4', isFetching && 'animate-spin')} /> Refresh
         </button>
@@ -621,7 +621,7 @@ export default function SalesManagerPage() {
       {/* Filter bar */}
       <div className="sticky top-14 z-20 rounded-xl border border-border bg-card/95 backdrop-blur p-3 shadow-sm space-y-3">
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-1.5 text-xs font-medium text-gray-500">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
             <Calendar className="w-4 h-4" /> Period
           </div>
           <div className="flex flex-wrap items-center gap-1 bg-muted p-1 rounded-xl">
@@ -631,7 +631,7 @@ export default function SalesManagerPage() {
                 onClick={() => setRangeKey(r.key)}
                 className={cn(
                   'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
-                  rangeKey === r.key ? 'bg-card text-primary shadow-sm' : 'text-gray-600 hover:text-foreground',
+                  rangeKey === r.key ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground',
                 )}
               >
                 {r.label}
@@ -642,12 +642,12 @@ export default function SalesManagerPage() {
             <div className="flex items-center gap-2">
               <input type="date" value={customFrom} max={customTo || undefined} onChange={e => setCustomFrom(e.target.value)}
                 className="rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs" />
-              <span className="text-gray-400 text-xs">to</span>
+              <span className="text-muted-foreground text-xs">to</span>
               <input type="date" value={customTo} min={customFrom || undefined} onChange={e => setCustomTo(e.target.value)}
                 className="rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs" />
             </div>
           )}
-          <div className="flex items-center gap-1.5 text-xs font-medium text-gray-500 ml-auto">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground ml-auto">
             <StoreIcon className="w-4 h-4" /> Unit
           </div>
           <Select
@@ -657,7 +657,7 @@ export default function SalesManagerPage() {
             options={storeOptions}
           />
         </div>
-        <div className="flex items-center justify-between gap-2 text-xs text-gray-500 px-1">
+        <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground px-1">
           <span>Showing <strong className="text-foreground">{rangeLabel}</strong>{storeId ? ` · ${stores.find(s => s.id === storeId)?.name ?? ''}` : ' · all units'}</span>
           {data && <span>vs previous period {prettyDate(data.range.prev_from)} – {prettyDate(data.range.prev_to)}</span>}
         </div>
@@ -670,7 +670,7 @@ export default function SalesManagerPage() {
           ))}
         </div>
       ) : !data ? (
-        <div className="rounded-xl border border-border bg-card p-10 text-center text-gray-500">
+        <div className="rounded-xl border border-border bg-card p-10 text-center text-muted-foreground">
           Unable to load sales data. Try refreshing.
         </div>
       ) : (
@@ -690,7 +690,7 @@ export default function SalesManagerPage() {
                   <p className="text-xl font-bold text-foreground tabular-nums">
                     {k.money ? fmtMoney(kpi.value) : fmtNum(kpi.value)}
                   </p>
-                  <p className="text-xs text-gray-500 mt-0.5">{k.label}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{k.label}</p>
                 </>
               )
               return href ? (
@@ -717,10 +717,10 @@ export default function SalesManagerPage() {
                   const Icon = l.icon
                   return (
                     <Link key={l.to} to={l.to}
-                      className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-gray-700 hover:bg-accent transition-colors">
+                      className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-foreground hover:bg-accent transition-colors">
                       <Icon className="w-4 h-4 text-primary/80 shrink-0" />
                       <span className="font-medium">{l.label}</span>
-                      <ArrowRight className="w-3.5 h-3.5 text-gray-300 ml-auto" />
+                      <ArrowRight className="w-3.5 h-3.5 text-muted-foreground/50 ml-auto" />
                     </Link>
                   )
                 })}
@@ -730,7 +730,7 @@ export default function SalesManagerPage() {
               <div className="flex items-center justify-between mb-2">
                 <div>
                   <h2 className="text-sm font-semibold text-foreground">Sales Trend</h2>
-                  <p className="text-xs text-gray-500">Revenue & orders over the selected period</p>
+                  <p className="text-xs text-muted-foreground">Revenue & orders over the selected period</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -741,7 +741,7 @@ export default function SalesManagerPage() {
                   </button>
                   <Link
                     to={reportsPageUrl('trend', from, to, storeId || undefined)}
-                    className="inline-flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-primary"
+                    className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-primary"
                     title="Open in full Reports engine"
                   >
                     <ExternalLink className="w-3.5 h-3.5" /> Full Report
@@ -773,20 +773,20 @@ export default function SalesManagerPage() {
                       </div>
                       <div className="min-w-0">
                         <h3 className="text-sm font-semibold text-foreground truncate">{report.title}</h3>
-                        <p className="text-[11px] text-gray-500 truncate">{report.desc}</p>
+                        <p className="text-[11px] text-muted-foreground truncate">{report.desc}</p>
                       </div>
                     </button>
                     <div className="flex items-center gap-1 shrink-0 ml-2">
                       <button
                         onClick={() => setOpenReport(report.id)}
-                        className="rounded p-1 text-gray-300 hover:text-primary"
+                        className="rounded p-1 text-muted-foreground/50 hover:text-primary"
                         title="Expand detail"
                       >
                         <Maximize2 className="w-3.5 h-3.5" />
                       </button>
                       <Link
                         to={deepHref}
-                        className="rounded p-1 text-gray-300 hover:text-primary"
+                        className="rounded p-1 text-muted-foreground/50 hover:text-primary"
                         title="Open in full Reports engine"
                         onClick={e => e.stopPropagation()}
                       >
@@ -802,7 +802,7 @@ export default function SalesManagerPage() {
                   </button>
                   {stat && (
                     <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
-                      <span className="text-xs text-gray-500">{stat.label}</span>
+                      <span className="text-xs text-muted-foreground">{stat.label}</span>
                       <span className="text-sm font-semibold text-foreground tabular-nums">{stat.value}</span>
                     </div>
                   )}

@@ -12,10 +12,10 @@ const KOT_STATUSES = ['new', 'preparing', 'ready', 'done'] as const
 type KOTStatus = typeof KOT_STATUSES[number]
 
 const STATUS_CONFIG: Record<KOTStatus, { label: string; badge: string }> = {
-  new:       { label: 'New',       badge: 'bg-blue-100 text-blue-700' },
-  preparing: { label: 'Preparing', badge: 'bg-amber-100 text-amber-800' },
-  ready:     { label: 'Ready',     badge: 'bg-emerald-100 text-emerald-800' },
-  done:      { label: 'Done',      badge: 'bg-gray-100 text-gray-500' },
+  new:       { label: 'New',       badge: 'bg-blue-500/15 text-blue-700 dark:text-blue-300' },
+  preparing: { label: 'Preparing', badge: 'bg-amber-500/15 text-amber-800 dark:text-amber-300' },
+  ready:     { label: 'Ready',     badge: 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300' },
+  done:      { label: 'Done',      badge: 'bg-muted text-muted-foreground' },
 }
 
 function elapsed(dateStr: string | null | undefined): string {
@@ -59,13 +59,13 @@ export default function RestaurantKitchenPage() {
     <div className="max-w-6xl mx-auto space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
             <ChefHat className="w-6 h-6 text-orange-600" /> Kitchen Board
           </h1>
-          <p className="text-sm text-gray-500 mt-1">Live KOT tickets — refreshes every 8 seconds.</p>
+          <p className="text-sm text-muted-foreground mt-1">Live KOT tickets — refreshes every 5 seconds.</p>
         </div>
         <div className="flex flex-wrap gap-2 items-center">
-          <label className="flex items-center gap-2 text-xs text-gray-600 select-none cursor-pointer">
+          <label className="flex items-center gap-2 text-xs text-muted-foreground select-none cursor-pointer">
             <input
               type="checkbox"
               checked={showDone}
@@ -80,11 +80,11 @@ export default function RestaurantKitchenPage() {
       </div>
 
       {isLoading && (
-        <div className="flex justify-center py-16 text-gray-400"><Loader2 className="w-8 h-8 animate-spin" /></div>
+        <div className="flex justify-center py-16 text-muted-foreground"><Loader2 className="w-8 h-8 animate-spin" /></div>
       )}
 
       {!isLoading && sorted.length === 0 && (
-        <p className="text-sm text-gray-500 py-8 text-center border rounded-xl bg-gray-50">
+        <p className="text-sm text-muted-foreground py-8 text-center border border-border rounded-xl bg-muted/40">
           No active KOT tickets.
         </p>
       )}
@@ -96,52 +96,52 @@ export default function RestaurantKitchenPage() {
             <div
               key={kot.id}
               className={cn(
-                'rounded-xl border bg-white p-4 shadow-sm flex flex-col gap-3',
-                kot.status === 'ready' && 'border-emerald-300 shadow-emerald-100',
-                kot.status === 'new' && 'border-blue-200',
-                kot.order_status === 'voided' && 'opacity-75 border-red-200 border-dashed',
+                'rounded-xl border border-border bg-card p-4 shadow-sm flex flex-col gap-3',
+                kot.status === 'ready' && 'border-emerald-500/40 shadow-sm shadow-emerald-500/10',
+                kot.status === 'new' && 'border-blue-500/35',
+                kot.order_status === 'voided' && 'opacity-75 border-red-500/40 border-dashed',
               )}
             >
               {/* Ticket header */}
               <div className="flex justify-between items-start gap-2">
                 <div>
-                  <p className="font-mono text-xs text-gray-400">KOT #{kot.kot_number}</p>
-                  <p className="font-semibold text-gray-900 text-base">
+                  <p className="font-mono text-xs text-muted-foreground">KOT #{kot.kot_number}</p>
+                  <p className="font-semibold text-foreground text-base">
                     {kot.table_label ? `Table ${kot.table_label}` : 'Counter'}
                   </p>
                   {kot.covers != null && (
-                    <p className="text-xs text-gray-500">{kot.covers} cover{kot.covers !== 1 ? 's' : ''}</p>
+                    <p className="text-xs text-muted-foreground">{kot.covers} cover{kot.covers !== 1 ? 's' : ''}</p>
                   )}
                 </div>
                 <div className="flex flex-col items-end gap-1 shrink-0">
                   {kot.order_status === 'voided' && (
-                    <span className="text-xs font-bold uppercase px-2 py-0.5 rounded-full border border-red-300 text-red-700 bg-red-50">
+                    <span className="text-xs font-bold uppercase px-2 py-0.5 rounded-full border border-red-500/40 text-red-700 dark:text-red-300 bg-red-500/10">
                       Order voided
                     </span>
                   )}
                   <span className={cn('text-xs font-bold uppercase px-2 py-0.5 rounded-full', cfg.badge)}>
                     {cfg.label}
                   </span>
-                  <span className="text-xs text-gray-400 flex items-center gap-0.5">
+                  <span className="text-xs text-muted-foreground flex items-center gap-0.5">
                     <Clock className="w-3 h-3" />{elapsed(kot.created_at)}
                   </span>
                 </div>
               </div>
 
               {/* Items */}
-              <ul className="text-sm text-gray-700 space-y-1 border-t pt-2">
+              <ul className="text-sm text-foreground space-y-1 border-t border-border pt-2">
                 {(kot.items ?? []).map((line, i) => (
                   <li key={i} className="flex justify-between gap-2">
                     <span className="font-medium">{line.qty}× {line.name}</span>
                     {line.notes && (
-                      <span className="text-xs text-gray-400 italic truncate max-w-[100px]">{line.notes}</span>
+                      <span className="text-xs text-muted-foreground italic truncate max-w-[100px]">{line.notes}</span>
                     )}
                   </li>
                 ))}
               </ul>
 
               {kot.notes && (
-                <p className="text-xs text-amber-700 bg-amber-50 rounded px-2 py-1 italic">{kot.notes}</p>
+                <p className="text-xs text-amber-800 dark:text-amber-300 bg-amber-500/10 rounded px-2 py-1 italic">{kot.notes}</p>
               )}
 
               {/* Order link */}
@@ -153,7 +153,7 @@ export default function RestaurantKitchenPage() {
               </Link>
 
               {/* Status buttons */}
-              <div className="flex flex-wrap gap-1.5 border-t pt-2">
+              <div className="flex flex-wrap gap-1.5 border-t border-border pt-2">
                 {KOT_STATUSES.map(st => (
                   <Button
                     key={st}

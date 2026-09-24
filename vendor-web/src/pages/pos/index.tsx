@@ -972,14 +972,14 @@ export default function POS() {
         </div>
 
         {/* Transaction mode */}
-        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+        <div className="flex gap-1 bg-muted rounded-lg p-1">
           {([
             { key: 'sale' as TxnMode, label: 'Sale', icon: ShoppingCart, color: 'text-green-600' },
             { key: 'return' as TxnMode, label: 'Return', icon: RotateCcw, color: 'text-red-600' },
           ]).map(m => (
             <button key={m.key} onClick={() => switchMode(m.key)}
               className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                txnMode === m.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                txnMode === m.key ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
               }`}
             ><m.icon className={`w-3.5 h-3.5 ${txnMode === m.key ? m.color : ''}`} /> {m.label}</button>
           ))}
@@ -1298,18 +1298,18 @@ export default function POS() {
         ) : (
           <>
             {/* Filter tabs — card view */}
-            <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+            <div className="flex gap-1 bg-muted rounded-lg p-1">
               <button onClick={() => setFilter('all')}
-                className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md text-xs font-medium transition-colors ${filter === 'all' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md text-xs font-medium transition-colors ${filter === 'all' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
               >All ({products.length + services.length})</button>
               <button onClick={() => setFilter('products')}
-                className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md text-xs font-medium transition-colors ${filter === 'products' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md text-xs font-medium transition-colors ${filter === 'products' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
               ><Package className="w-3.5 h-3.5" /> Products ({products.reduce((n: number, p: any) => {
                   const av = (p.variants || []).filter((v: any) => v.is_active !== false)
                   return n + (av.length > 0 ? av.length : 1)
                 }, 0)})</button>
               <button onClick={() => setFilter('services')}
-                className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md text-xs font-medium transition-colors ${filter === 'services' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md text-xs font-medium transition-colors ${filter === 'services' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
               ><Wrench className="w-3.5 h-3.5" /> Services ({services.length})</button>
             </div>
 
@@ -1318,7 +1318,7 @@ export default function POS() {
               {(filter === 'all' || filter === 'products') && products.length > 0 && (
                 <>
                   {filter === 'all' && (
-                    <div className="flex items-center gap-1.5 px-2 py-1 sticky top-0 bg-gray-50/90 backdrop-blur-sm rounded text-xs font-medium text-gray-500 uppercase tracking-wide z-10">
+                    <div className="flex items-center gap-1.5 px-2 py-1 sticky top-0 bg-muted/90 backdrop-blur-sm rounded text-xs font-medium text-muted-foreground uppercase tracking-wide z-10">
                       <Package className="w-3 h-3 text-blue-500" /> Products
                     </div>
                   )}
@@ -1330,7 +1330,7 @@ export default function POS() {
                     if (hasVariants) {
                       return activeVariants.map((v: any) => (
                         <div key={`p-${p.id}-v-${v.id}`}
-                          className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg border hover:bg-blue-50 hover:border-blue-200 transition-colors text-left group">
+                          className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg border hover:bg-accent hover:border-primary/30 transition-colors text-left group">
                           <button
                             className="flex items-center gap-2.5 min-w-0 flex-1 text-left"
                             onClick={() => addToCart({ id: p.id, variant_id: v.id, name: `${p.name}${v.name ? ` — ${v.name}` : ''}`, sku: v.sku || p.sku, price: v.price || p.price || 0, tax_rate: v.tax_rate ?? p.tax_rate ?? p.gst_rate ?? 0, hsn_code: v.hsn_code || p.hsn_code, item_type: 'product', image_url: imgUrl })}>
@@ -1361,7 +1361,7 @@ export default function POS() {
                     return [(
                       <button key={`p-${p.id}`}
                         onClick={() => handleProductAdd({ id: p.id, name: p.name, sku: p.sku, price: p.price || 0, tax_rate: p.tax_rate || p.gst_rate || 0, hsn_code: p.hsn_code, item_type: 'product', image_url: imgUrl })}
-                        className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg border hover:bg-blue-50 hover:border-blue-200 transition-colors text-left">
+                        className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg border hover:bg-accent hover:border-primary/30 transition-colors text-left">
                         <div className="flex items-center gap-2.5 min-w-0">
                           <CatalogImage url={imgUrl} type="product" />
                           <div className="min-w-0">
@@ -1382,7 +1382,7 @@ export default function POS() {
               {(filter === 'all' || filter === 'services') && services.length > 0 && (
                 <>
                   {filter === 'all' && (
-                    <div className="flex items-center gap-1.5 px-2 py-1 sticky top-0 bg-gray-50/90 backdrop-blur-sm rounded text-xs font-medium text-gray-500 uppercase tracking-wide z-10">
+                    <div className="flex items-center gap-1.5 px-2 py-1 sticky top-0 bg-muted/90 backdrop-blur-sm rounded text-xs font-medium text-muted-foreground uppercase tracking-wide z-10">
                       <Wrench className="w-3 h-3 text-primary/80" /> Services
                     </div>
                   )}
@@ -1522,7 +1522,7 @@ export default function POS() {
                   <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-thin">
                     {recentCustomers.map(cust => (
                       <button key={cust.id} onClick={() => selectCustomer(cust)}
-                        className="shrink-0 flex items-center gap-1.5 px-2.5 py-1 bg-white border border-gray-200 rounded-full text-xs hover:bg-blue-50 hover:border-blue-200 transition-colors"
+                        className="shrink-0 flex items-center gap-1.5 px-2.5 py-1 bg-white border border-gray-200 rounded-full text-xs hover:bg-accent hover:border-primary/30 transition-colors"
                       >
                         <User className="w-3 h-3 text-gray-400" />
                         <span className="font-medium text-gray-700 truncate max-w-[80px]">{cust.full_name}</span>
@@ -1857,7 +1857,7 @@ export default function POS() {
                         })
                         setVariantPickerProduct(null)
                       }}
-                      className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg border hover:bg-blue-50 hover:border-blue-200 transition-colors text-left"
+                      className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg border hover:bg-accent hover:border-primary/30 transition-colors text-left"
                     >
                       <div className="min-w-0">
                         <p className="text-sm font-medium truncate">{v.name || variantPickerProduct.name}</p>
@@ -3825,7 +3825,7 @@ function POSInvoiceSettingsModal({
           ] as const).map(tab => (
             <button key={tab.key} onClick={() => setActiveTab(tab.key)}
               className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === tab.key ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                activeTab === tab.key ? 'border-blue-500 text-blue-600' : 'border-transparent text-muted-foreground hover:text-foreground'
               }`}>
               <tab.icon className="w-3.5 h-3.5" />{tab.label}
             </button>

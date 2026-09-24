@@ -99,8 +99,8 @@ type SalesDayRow = { date: string; orders: number; revenue: number }
 // CONSTANTS
 // ═══════════════════════════════════════════════════════════════════════════════
 const REPORTS: ReportDef[] = [
-  { id: 'sales_overview',   label: 'Sales Overview',     description: 'Daily sales trend with revenue & order counts',      icon: BarChart3,   color: 'text-blue-600',    bg: 'bg-blue-50' },
-  { id: 'revenue_summary',  label: 'Revenue Summary',    description: 'Revenue by today, week, month & year',              icon: IndianRupee,  color: 'text-emerald-600', bg: 'bg-emerald-50' },
+  { id: 'sales_overview',   label: 'Sales Overview',     description: 'Daily sales trend with revenue & order counts',      icon: BarChart3,   color: 'text-blue-600',    bg: 'bg-blue-500/10' },
+  { id: 'revenue_summary',  label: 'Revenue Summary',    description: 'Revenue by today, week, month & year',              icon: IndianRupee,  color: 'text-emerald-600', bg: 'bg-emerald-500/10' },
   { id: 'orders_status',    label: 'Orders by Status',   description: 'Order distribution across fulfilment stages',       icon: ShoppingCart, color: 'text-primary',  bg: 'bg-accent' },
   { id: 'top_products',     label: 'Top Products',       description: 'Best-performing products by stock & price',         icon: Package,      color: 'text-orange-600',  bg: 'bg-orange-50' },
   { id: 'top_customers',    label: 'Top Customers',      description: 'Highest-spending customers and order frequency',    icon: Users,        color: 'text-pink-600',    bg: 'bg-pink-50' },
@@ -123,7 +123,7 @@ const DATE_RANGES: { label: string; value: DateRange; days: number }[] = [
 
 const STATUS_COLORS: Record<string, { bar: string; badge: string; dot: string; hex: string }> = {
   pending:     { bar: 'bg-amber-400',  badge: 'bg-amber-100 text-amber-800',   dot: 'bg-amber-400',  hex: '#f59e0b' },
-  confirmed:   { bar: 'bg-blue-500',   badge: 'bg-blue-100 text-blue-800',     dot: 'bg-blue-500',   hex: '#3b82f6' },
+  confirmed:   { bar: 'bg-blue-500/100',   badge: 'bg-blue-100 text-blue-800',     dot: 'bg-blue-500/100',   hex: '#3b82f6' },
   shipped:     { bar: 'bg-primary', badge: 'bg-primary/12 text-primary', dot: 'bg-primary', hex: '#64C3A0' },
   delivered:   { bar: 'bg-green-500',  badge: 'bg-green-100 text-green-800',   dot: 'bg-green-500',  hex: '#22c55e' },
   cancelled:   { bar: 'bg-red-400',    badge: 'bg-red-100 text-red-800',       dot: 'bg-red-400',    hex: '#ef4444' },
@@ -162,8 +162,8 @@ const MRP_OPTIONAL_COLS: { id: string; label: string }[] = [
 ]
 
 const SMART_TRIGGERS: { id: string; label: string; description: string; icon: React.ElementType; color: string; bg: string; badge?: string }[] = [
-  { id: 'daily_revenue',    label: 'Daily Revenue Digest',    description: 'End-of-day summary of revenue & orders',           icon: IndianRupee,  color: 'text-emerald-600', bg: 'bg-emerald-50', badge: 'Daily' },
-  { id: 'new_order',        label: 'New Order Alert',          description: 'Instant alert when a new order is placed',         icon: ShoppingCart, color: 'text-blue-600',    bg: 'bg-blue-50',    badge: 'Instant' },
+  { id: 'daily_revenue',    label: 'Daily Revenue Digest',    description: 'End-of-day summary of revenue & orders',           icon: IndianRupee,  color: 'text-emerald-600', bg: 'bg-emerald-500/10', badge: 'Daily' },
+  { id: 'new_order',        label: 'New Order Alert',          description: 'Instant alert when a new order is placed',         icon: ShoppingCart, color: 'text-blue-600',    bg: 'bg-blue-500/10',    badge: 'Instant' },
   { id: 'low_stock',        label: 'Low Stock Alert',          description: 'Alert when any product stock drops below 10',      icon: Package,      color: 'text-orange-600',  bg: 'bg-orange-50',  badge: 'Instant' },
   { id: 'booking_reminder', label: 'Booking Reminder',         description: "Today's upcoming service bookings summary",        icon: BookOpen,     color: 'text-cyan-600',    bg: 'bg-cyan-50',    badge: 'Morning' },
   { id: 'weekly_perf',      label: 'Weekly Performance',       description: 'Week-over-week revenue and order comparison',      icon: TrendingUp,   color: 'text-primary',  bg: 'bg-accent',  badge: 'Weekly' },
@@ -410,7 +410,7 @@ function Legend({ segments, total, onSegmentClick }: {
         const pct = Math.round((seg.value / total) * 100)
         return (
         <div key={i}
-          className={`group rounded-xl px-2.5 py-1.5 -mx-1 transition-colors ${onSegmentClick ? 'cursor-pointer hover:bg-gray-50' : ''}`}
+          className={`group rounded-xl px-2.5 py-1.5 -mx-1 transition-colors ${onSegmentClick ? 'cursor-pointer hover:bg-accent/50' : ''}`}
           onClick={() => onSegmentClick?.(seg.label)}
         >
           <div className="flex items-center gap-2 mb-1">
@@ -474,11 +474,11 @@ function StatCard({ label, value, sub, icon: Icon, bg, color }: {
   label: string; value: string | number; sub?: string; icon: React.ElementType; bg: string; color: string
 }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200/80 p-5">
+    <div className="bg-card rounded-xl border border-border p-5">
       <div className="flex items-start justify-between">
-        <div><p className="text-xs font-medium text-gray-500">{label}</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
-          {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
+        <div><p className="text-xs font-medium text-muted-foreground">{label}</p>
+          <p className="text-2xl font-bold text-foreground mt-1">{value}</p>
+          {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
         </div>
         <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center shrink-0`}><Icon className={`w-5 h-5 ${color}`} /></div>
       </div>
@@ -491,15 +491,15 @@ function Section({ title, action, children, viewReport, onViewReport }: {
   viewReport?: string; onViewReport?: (id: ReportId) => void
 }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-200/80 overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-4 border-b">
-        <h3 className="font-semibold text-gray-900 text-sm">{title}</h3>
+    <div className="bg-card rounded-2xl border border-border overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+        <h3 className="font-semibold text-foreground text-sm">{title}</h3>
         <div className="flex items-center gap-2">
           {action}
           {viewReport && onViewReport && (
             <button
               onClick={() => onViewReport(viewReport as ReportId)}
-              className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-lg transition-colors"
+              className="flex items-center gap-1 text-xs font-medium text-blue-600 dark:text-blue-300 hover:text-blue-700 bg-blue-500/10 hover:bg-blue-500/20 px-2.5 py-1 rounded-lg transition-colors"
             >
               <ArrowUpRight className="w-3 h-3" /> View Report
             </button>
@@ -1250,7 +1250,7 @@ export default function ReportsPage() {
       {/* ── Header ────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex-1 min-w-0">
-          <h1 className="text-xl font-bold text-gray-900">Reports & Insights</h1>
+          <h1 className="text-xl font-bold text-foreground">Reports & Insights</h1>
           <p className="text-xs text-muted-foreground mt-0.5">Analyse Your Store Performance With Downloadable Reports</p>
         </div>
         <div className="flex items-center gap-2">
@@ -1331,7 +1331,7 @@ export default function ReportsPage() {
               <div className="max-h-80 overflow-y-auto p-2 space-y-0.5">
                 {filteredReports.map(r => (
                   <button key={r.id} onClick={() => { setActiveReport(r.id); setSelectorOpen(false); setSelectorSearch(''); resetToolbar() }}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-150 ${activeReport === r.id ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50'}`}>
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-150 ${activeReport === r.id ? 'bg-blue-500/10 text-blue-700' : 'hover:bg-accent/50'}`}>
                     <div className={`p-1.5 rounded-lg shrink-0 ${r.bg}`}><r.icon className={`w-4 h-4 ${r.color}`} /></div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900">{r.label}</p>
@@ -1477,7 +1477,7 @@ export default function ReportsPage() {
                             </button>
                           ))}
                           <button onClick={() => updateContact(contact.id, { reports: REPORTS.map(r => r.id), smart_triggers: SMART_TRIGGERS.map(t => t.id) })}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-blue-300 bg-blue-50/50 text-xs font-medium text-blue-800 hover:bg-blue-100 transition-colors">
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-blue-500/40 bg-blue-500/10 text-xs font-medium text-blue-800 dark:text-blue-300 hover:bg-blue-500/20 transition-colors">
                             ⚡ Select All
                           </button>
                           <button onClick={() => updateContact(contact.id, { reports: [], smart_triggers: [] })}
@@ -1698,8 +1698,8 @@ export default function ReportsPage() {
             const sorted   = sortKey ? sortData(filtered, sortKey, sortDir) : filtered
             return <>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard label="Total Revenue" value={formatCurrency(dashboard?.total_revenue ?? 0)} icon={IndianRupee} bg="bg-emerald-50" color="text-emerald-600" />
-                <StatCard label="Total Orders"  value={dashboard?.total_orders ?? 0} icon={ShoppingCart} bg="bg-blue-50" color="text-blue-600" />
+                <StatCard label="Total Revenue" value={formatCurrency(dashboard?.total_revenue ?? 0)} icon={IndianRupee} bg="bg-emerald-500/10" color="text-emerald-600" />
+                <StatCard label="Total Orders"  value={dashboard?.total_orders ?? 0} icon={ShoppingCart} bg="bg-blue-500/10" color="text-blue-600" />
                 <StatCard label="Today Revenue" value={formatCurrency(dashboard?.today_revenue ?? 0)} icon={TrendingUp} bg="bg-accent" color="text-primary" />
                 <StatCard label="Today Orders"  value={dashboard?.today_orders ?? 0} icon={Clock} bg="bg-amber-50" color="text-amber-600" />
               </div>
@@ -1715,15 +1715,15 @@ export default function ReportsPage() {
                 <ReportToolbar search={search} onSearch={setSearch} placeholder="Search by date…" />
                 <div className="overflow-auto max-h-72">
                   <ResizableTable tableId="rpt-daily-sales" defaultWidths={[120, 80, 110, 110]}>
-                    <thead className="sticky top-0 bg-white"><tr className="border-b text-left text-xs font-medium text-gray-500 uppercase">
+                    <thead className="sticky top-0 bg-card"><tr className="border-b text-left text-xs font-medium text-gray-500 uppercase">
                       <SortHeader label="Date" sortKey="date" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <SortHeader label="Orders" sortKey="orders" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <SortHeader label="Revenue" sortKey="revenue" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <th className="py-2 text-right"><TableColumnLabel>Avg Order</TableColumnLabel></th>
                     </tr></thead>
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody className="divide-y divide-border">
                       {sorted.map(r => (
-                        <tr key={r.date} className="hover:bg-gray-50">
+                        <tr key={r.date} className="hover:bg-accent/50">
                           <td className="py-2 pr-4 text-gray-700">{r.date}</td>
                           <td className="py-2 pr-4 text-right font-medium">{r.orders}</td>
                           <td className="py-2 pr-4 text-right font-medium text-emerald-700">{formatCurrency(r.revenue)}</td>
@@ -1740,9 +1740,9 @@ export default function ReportsPage() {
           {/* ══ REVENUE SUMMARY ════════════════════════════════════ */}
           {activeReport === 'revenue_summary' && <>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {[{ l: 'Today', v: revenue?.today ?? 0, i: Clock, b: 'bg-blue-50', c: 'text-blue-600' },
+              {[{ l: 'Today', v: revenue?.today ?? 0, i: Clock, b: 'bg-blue-500/10', c: 'text-blue-600' },
                 { l: 'This Week', v: revenue?.this_week ?? 0, i: Calendar, b: 'bg-accent', c: 'text-primary' },
-                { l: 'This Month', v: revenue?.this_month ?? 0, i: BarChart3, b: 'bg-emerald-50', c: 'text-emerald-600' },
+                { l: 'This Month', v: revenue?.this_month ?? 0, i: BarChart3, b: 'bg-emerald-500/10', c: 'text-emerald-600' },
                 { l: 'This Year', v: revenue?.this_fy ?? 0, i: TrendingUp, b: 'bg-amber-50', c: 'text-amber-600' },
               ].map(s => <StatCard key={s.l} label={s.l} value={formatCurrency(s.v)} icon={s.i} bg={s.b} color={s.c} />)}
             </div>
@@ -1761,7 +1761,7 @@ export default function ReportsPage() {
           {/* ══ ORDERS BY STATUS ═══════════════════════════════════ */}
           {activeReport === 'orders_status' && <>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard label="Total Orders" value={statusTotal} icon={ShoppingCart} bg="bg-blue-50" color="text-blue-600" />
+              <StatCard label="Total Orders" value={statusTotal} icon={ShoppingCart} bg="bg-blue-500/10" color="text-blue-600" />
               <StatCard label="Delivered"    value={statusSegments.find(s => s.label === 'delivered')?.value ?? 0} icon={CheckCircle} bg="bg-green-50" color="text-green-600" />
               <StatCard label="Pending"      value={statusSegments.find(s => s.label === 'pending')?.value ?? 0} icon={Clock} bg="bg-amber-50" color="text-amber-600" />
               <StatCard label="Cancelled"    value={statusSegments.find(s => s.label === 'cancelled')?.value ?? 0} icon={AlertCircle} bg="bg-red-50" color="text-red-600" />
@@ -1788,7 +1788,7 @@ export default function ReportsPage() {
                     const c = STATUS_COLORS[seg.label] || { bar: 'bg-gray-400', badge: 'bg-gray-100 text-gray-700', dot: 'bg-gray-400' }
                     return (
                       <button key={seg.label} onClick={() => navigate(`/orders?status=${seg.label}`)}
-                        className="flex items-center gap-3 w-full group hover:bg-gray-50 rounded-lg px-1 py-0.5 transition-colors">
+                        className="flex items-center gap-3 w-full group hover:bg-accent/50 rounded-lg px-1 py-0.5 transition-colors">
                         <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${c.dot}`} />
                         <span className="text-sm capitalize text-gray-700 w-24 text-left group-hover:text-blue-600 transition-colors">{seg.label}</span>
                         <div className="h-2 bg-gray-100 rounded-full overflow-hidden flex-1"><div className={`h-full rounded-full ${c.bar}`} style={{ width: `${Math.min(100, (seg.value / statusTotal) * 100)}%` }} /></div>
@@ -1810,8 +1810,8 @@ export default function ReportsPage() {
             return <>
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                 <StatCard label="Total Products" value={dashboard?.total_products ?? 0} icon={Package} bg="bg-teal-50" color="text-teal-600" />
-                <StatCard label="Avg Price" value={productRows.length ? formatCurrency(productRows.reduce((s: number, p: any) => s + (p.price || 0), 0) / productRows.length) : '—'} icon={IndianRupee} bg="bg-emerald-50" color="text-emerald-600" />
-                <StatCard label="Total Stock" value={productRows.reduce((s: number, p: any) => s + (p.stock || 0), 0)} icon={Layers} bg="bg-blue-50" color="text-blue-600" />
+                <StatCard label="Avg Price" value={productRows.length ? formatCurrency(productRows.reduce((s: number, p: any) => s + (p.price || 0), 0) / productRows.length) : '—'} icon={IndianRupee} bg="bg-emerald-500/10" color="text-emerald-600" />
+                <StatCard label="Total Stock" value={productRows.reduce((s: number, p: any) => s + (p.stock || 0), 0)} icon={Layers} bg="bg-blue-500/10" color="text-blue-600" />
               </div>
               <Section title="Top Products" viewReport="inventory_report" onViewReport={setActiveReport}>
                 <ReportToolbar search={search} onSearch={setSearch} placeholder="Search products…"
@@ -1820,20 +1820,20 @@ export default function ReportsPage() {
                   onFilter={setFilterVal} />
                 <div className="overflow-auto max-h-96">
                   <ResizableTable tableId="rpt-top-products" defaultWidths={[40, 240, 100, 90]}>
-                    <thead className="sticky top-0 bg-white"><tr className="border-b text-left text-xs font-medium text-gray-500 uppercase">
+                    <thead className="sticky top-0 bg-card"><tr className="border-b text-left text-xs font-medium text-gray-500 uppercase">
                       <th className="py-2 pr-2 w-8"><TableColumnLabel>#</TableColumnLabel></th>
                       <SortHeader label="Product" sortKey="name" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <SortHeader label="Price" sortKey="price" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <SortHeader label="Stock" sortKey="stock" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                     </tr></thead>
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody className="divide-y divide-border">
                       {sorted.filter((p: any) => {
                         if (filterVal === 'low') return (p.stock || 0) < 10
                         if (filterVal === 'medium') return (p.stock || 0) >= 10 && (p.stock || 0) <= 50
                         if (filterVal === 'high') return (p.stock || 0) > 50
                         return true
                       }).map((p: any, i: number) => (
-                        <tr key={p.id} className="hover:bg-gray-50 cursor-pointer" onClick={onClickableTableRow(() => navigate(`/products/${p.id}`))}>
+                        <tr key={p.id} className="hover:bg-accent/50 cursor-pointer" onClick={onClickableTableRow(() => navigate(`/products/${p.id}`))}>
                           <td className="py-2 pr-2 text-gray-400">{i + 1}</td>
                           <td className="py-2 pr-4 font-medium text-blue-600 hover:underline">{p.name}</td>
                           <td className="py-2 pr-4 text-right">{formatCurrency(p.price)}</td>
@@ -1854,22 +1854,22 @@ export default function ReportsPage() {
             return <>
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                 <StatCard label="Total Customers" value={dashboard?.total_customers ?? 0} icon={Users} bg="bg-pink-50" color="text-pink-600" />
-                <StatCard label="Total Revenue" value={formatCurrency(dashboard?.total_revenue ?? 0)} icon={IndianRupee} bg="bg-emerald-50" color="text-emerald-600" />
+                <StatCard label="Total Revenue" value={formatCurrency(dashboard?.total_revenue ?? 0)} icon={IndianRupee} bg="bg-emerald-500/10" color="text-emerald-600" />
                 <StatCard label="Avg Spend" value={customerRows.length ? formatCurrency(customerRows.reduce((s: number, c: any) => s + (c.spent || 0), 0) / customerRows.length) : '—'} icon={TrendingUp} bg="bg-accent" color="text-primary" />
               </div>
               <Section title="Top Customers" viewReport="reviews_report" onViewReport={setActiveReport}>
                 <ReportToolbar search={search} onSearch={setSearch} placeholder="Search by name or email…" />
                 <div className="overflow-auto max-h-96">
                   <ResizableTable tableId="rpt-top-customers" defaultWidths={[40, 200, 80, 100]}>
-                    <thead className="sticky top-0 bg-white"><tr className="border-b text-left text-xs font-medium text-gray-500 uppercase">
+                    <thead className="sticky top-0 bg-card"><tr className="border-b text-left text-xs font-medium text-gray-500 uppercase">
                       <th className="py-2 pr-2 w-8"><TableColumnLabel>#</TableColumnLabel></th>
                       <SortHeader label="Customer" sortKey="name" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <SortHeader label="Orders" sortKey="orders" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <SortHeader label="Spent" sortKey="spent" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                     </tr></thead>
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody className="divide-y divide-border">
                       {sorted.map((c: any, i: number) => (
-                        <tr key={c.id} className="hover:bg-gray-50 cursor-pointer" onClick={onClickableTableRow(() => navigate(`/customers/${c.id}`))}>
+                        <tr key={c.id} className="hover:bg-accent/50 cursor-pointer" onClick={onClickableTableRow(() => navigate(`/customers/${c.id}`))}>
                           <td className="py-2 pr-2 text-gray-400">{i + 1}</td>
                           <td className="py-2 pr-4"><p className="font-medium text-blue-600 hover:underline">{c.name}</p><p className="text-xs text-gray-400">{c.email}</p></td>
                           <td className="py-2 pr-4 text-right">{c.orders}</td>
@@ -1892,9 +1892,9 @@ export default function ReportsPage() {
             return <>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard label="Total POS Sales" value={posStats.count} icon={Receipt} bg="bg-indigo-50" color="text-indigo-600" />
-                <StatCard label="POS Revenue" value={formatCurrency(posStats.rev)} icon={IndianRupee} bg="bg-emerald-50" color="text-emerald-600" />
+                <StatCard label="POS Revenue" value={formatCurrency(posStats.rev)} icon={IndianRupee} bg="bg-emerald-500/10" color="text-emerald-600" />
                 <StatCard label="Avg Transaction" value={formatCurrency(posStats.avg)} icon={TrendingUp} bg="bg-amber-50" color="text-amber-600" />
-                <StatCard label="POS Today" value={formatCurrency(dashboard?.pos_today ?? 0)} icon={Clock} bg="bg-blue-50" color="text-blue-600" />
+                <StatCard label="POS Today" value={formatCurrency(dashboard?.pos_today ?? 0)} icon={Clock} bg="bg-blue-500/10" color="text-blue-600" />
               </div>
               {methodSegs.length > 0 && (
                 <Section title="Payment Method Breakdown" action={
@@ -1916,7 +1916,7 @@ export default function ReportsPage() {
                   filterOptions={Object.keys(posStats.byMethod).map(m => ({ value: m, label: m }))} onFilter={setFilterVal} />
                 <div className="overflow-auto max-h-96">
                   <ResizableTable tableId="rpt-pos-orders" defaultWidths={[100, 100, 140, 90, 100, 90]}>
-                    <thead className="sticky top-0 bg-white"><tr className="border-b text-left text-xs font-medium text-gray-500 uppercase">
+                    <thead className="sticky top-0 bg-card"><tr className="border-b text-left text-xs font-medium text-gray-500 uppercase">
                       <SortHeader label="Date" sortKey="created_at" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <SortHeader label="Order #" sortKey="order_number" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <th className="py-2 pr-4"><TableColumnLabel>Customer</TableColumnLabel></th>
@@ -1924,10 +1924,10 @@ export default function ReportsPage() {
                       <th className="py-2 pr-4"><TableColumnLabel>Payment</TableColumnLabel></th>
                       <th className="py-2"><TableColumnLabel>Status</TableColumnLabel></th>
                     </tr></thead>
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody className="divide-y divide-border">
                       {sorted.slice(0, 30).map((o: any) => {
                         const sc = STATUS_COLORS[o.status] || { badge: 'bg-gray-100 text-gray-700' }
-                        return <tr key={o.id} className="hover:bg-gray-50 cursor-pointer" onClick={onClickableTableRow(() => navigate(`/orders/${o.id}`))}>
+                        return <tr key={o.id} className="hover:bg-accent/50 cursor-pointer" onClick={onClickableTableRow(() => navigate(`/orders/${o.id}`))}>
                           <td className="py-2 pr-4 text-gray-500 whitespace-nowrap">{new Date(o.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</td>
                           <td className="py-2 pr-4 font-medium text-blue-600">{o.order_number}</td>
                           <td className="py-2 pr-4 text-gray-600">{o.customer_name || <span className="italic text-gray-400">Walk-in</span>}</td>
@@ -1975,17 +1975,17 @@ export default function ReportsPage() {
                   filterOptions={Object.keys(bookingStats.byStatus).map(s => ({ value: s, label: s }))} onFilter={setFilterVal} />
                 <div className="overflow-auto max-h-96">
                   <ResizableTable tableId="rpt-bookings" defaultWidths={[100, 120, 160, 150, 90]}>
-                    <thead className="sticky top-0 bg-white"><tr className="border-b text-left text-xs font-medium text-gray-500 uppercase">
+                    <thead className="sticky top-0 bg-card"><tr className="border-b text-left text-xs font-medium text-gray-500 uppercase">
                       <SortHeader label="Date" sortKey="booking_date" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <SortHeader label="Booking #" sortKey="booking_number" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <th className="py-2 pr-4"><TableColumnLabel>Service</TableColumnLabel></th>
                       <th className="py-2 pr-4"><TableColumnLabel>Customer</TableColumnLabel></th>
                       <th className="py-2"><TableColumnLabel>Status</TableColumnLabel></th>
                     </tr></thead>
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody className="divide-y divide-border">
                       {sorted.slice(0, 30).map((b: any) => {
                         const sc = STATUS_COLORS[b.status] || { badge: 'bg-gray-100 text-gray-700' }
-                        return <tr key={b.id} className="hover:bg-gray-50 cursor-pointer" onClick={onClickableTableRow(() => navigate(`/bookings/${b.id}`))}>
+                        return <tr key={b.id} className="hover:bg-accent/50 cursor-pointer" onClick={onClickableTableRow(() => navigate(`/bookings/${b.id}`))}>
                           <td className="py-2 pr-4 text-gray-500">{b.booking_date ? new Date(b.booking_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—'}</td>
                           <td className="py-2 pr-4 font-medium text-blue-600">{b.booking_number || '—'}</td>
                           <td className="py-2 pr-4 text-gray-600">{b.service_name || '—'}</td>
@@ -2016,10 +2016,10 @@ export default function ReportsPage() {
             ]
             return <>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard label="Total Invoices" value={invoiceStats.total} icon={FileText} bg="bg-blue-50" color="text-blue-600" />
+                <StatCard label="Total Invoices" value={invoiceStats.total} icon={FileText} bg="bg-blue-500/10" color="text-blue-600" />
                 <StatCard label="Paid" value={invoiceStats.paidCount} sub={formatCurrency(invoiceStats.paidTotal)} icon={CheckCircle} bg="bg-green-50" color="text-green-600" />
                 <StatCard label="Unpaid" value={invoiceStats.unpaidCount} sub={formatCurrency(invoiceStats.unpaidTotal)} icon={Clock} bg="bg-amber-50" color="text-amber-600" />
-                <StatCard label="Total Value" value={formatCurrency(invoiceStats.paidTotal + invoiceStats.unpaidTotal)} icon={IndianRupee} bg="bg-emerald-50" color="text-emerald-600" />
+                <StatCard label="Total Value" value={formatCurrency(invoiceStats.paidTotal + invoiceStats.unpaidTotal)} icon={IndianRupee} bg="bg-emerald-500/10" color="text-emerald-600" />
               </div>
               <Section title="Paid vs Unpaid" viewReport="orders_status" onViewReport={setActiveReport}><PieDonut segments={invSegs} donut /></Section>
               <Section title="All Invoices">
@@ -2027,17 +2027,17 @@ export default function ReportsPage() {
                   filterLabel="Status" filterValue={filterVal} filterOptions={[{ value: 'paid', label: 'Paid' }, { value: 'unpaid', label: 'Unpaid' }]} onFilter={setFilterVal} />
                 <div className="overflow-auto max-h-96">
                   <ResizableTable tableId="rpt-invoices" defaultWidths={[100, 110, 150, 90, 90]}>
-                    <thead className="sticky top-0 bg-white"><tr className="border-b text-left text-xs font-medium text-gray-500 uppercase">
+                    <thead className="sticky top-0 bg-card"><tr className="border-b text-left text-xs font-medium text-gray-500 uppercase">
                       <SortHeader label="Date" sortKey="created_at" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <SortHeader label="Order #" sortKey="order_number" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <th className="py-2 pr-4"><TableColumnLabel>Customer</TableColumnLabel></th>
                       <SortHeader label="Total" sortKey="total" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <th className="py-2"><TableColumnLabel>Status</TableColumnLabel></th>
                     </tr></thead>
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody className="divide-y divide-border">
                       {sorted.slice(0, 30).map((o: any) => {
                         const sc = STATUS_COLORS[o.status] || { badge: 'bg-gray-100 text-gray-700' }
-                        return <tr key={o.id} className="hover:bg-gray-50 cursor-pointer" onClick={onClickableTableRow(() => navigate(`/orders/${o.id}`))}>
+                        return <tr key={o.id} className="hover:bg-accent/50 cursor-pointer" onClick={onClickableTableRow(() => navigate(`/orders/${o.id}`))}>
                           <td className="py-2 pr-4 text-gray-500 whitespace-nowrap">{new Date(o.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</td>
                           <td className="py-2 pr-4 font-medium text-blue-600">{o.order_number}</td>
                           <td className="py-2 pr-4 text-gray-600">{o.customer_name || '—'}</td>
@@ -2068,20 +2068,20 @@ export default function ReportsPage() {
                   filterOptions={[{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }]} onFilter={setFilterVal} />
                 <div className="overflow-auto max-h-96">
                   <ResizableTable tableId="rpt-coupons" defaultWidths={[120, 90, 100, 80, 80]}>
-                    <thead className="sticky top-0 bg-white"><tr className="border-b text-left text-xs font-medium text-gray-500 uppercase">
+                    <thead className="sticky top-0 bg-card"><tr className="border-b text-left text-xs font-medium text-gray-500 uppercase">
                       <SortHeader label="Code" sortKey="code" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <th className="py-2 pr-4"><TableColumnLabel>Type</TableColumnLabel></th>
                       <SortHeader label="Discount" sortKey="discount_value" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <th className="py-2 pr-4"><TableColumnLabel>Uses</TableColumnLabel></th>
                       <th className="py-2"><TableColumnLabel>Status</TableColumnLabel></th>
                     </tr></thead>
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody className="divide-y divide-border">
                       {sorted.filter((c: any) => {
                         if (filterVal === 'active') return c.is_active
                         if (filterVal === 'inactive') return !c.is_active
                         return true
                       }).map((c: any) => (
-                        <tr key={c.id} className="hover:bg-gray-50">
+                        <tr key={c.id} className="hover:bg-accent/50">
                           <td className="py-2 pr-4 font-mono font-medium text-blue-600">{c.code}</td>
                           <td className="py-2 pr-4 text-gray-600 capitalize">{c.discount_type || 'fixed'}</td>
                           <td className="py-2 pr-4 text-right font-medium">{c.discount_type === 'percentage' ? `${c.discount_value || c.discount || 0}%` : formatCurrency(c.discount_value || c.discount || 0)}</td>
@@ -2119,7 +2119,7 @@ export default function ReportsPage() {
                 <StatCard label={selectedStoreId !== 'all' ? `${reportStores.find(s=>s.id===selectedStoreId)?.name} Stock` : 'Total Stock'} value={inventoryStats.totalStock} icon={Layers} bg="bg-teal-50" color="text-teal-600" />
                 <StatCard label="Low Stock Items" value={inventoryStats.lowCount} icon={AlertCircle} bg="bg-amber-50" color="text-amber-600" />
                 <StatCard label="Out of Stock" value={inventoryStats.outCount} icon={X} bg="bg-red-50" color="text-red-600" />
-                <StatCard label="Total Valuation" value={formatCurrency(inventoryStats.valuation)} icon={IndianRupee} bg="bg-emerald-50" color="text-emerald-600" />
+                <StatCard label="Total Valuation" value={formatCurrency(inventoryStats.valuation)} icon={IndianRupee} bg="bg-emerald-500/10" color="text-emerald-600" />
               </div>
               <Section title="Inventory Details" viewReport="top_products" onViewReport={setActiveReport}>
                 <ReportToolbar search={search} onSearch={setSearch} placeholder="Search products…"
@@ -2127,7 +2127,7 @@ export default function ReportsPage() {
                   filterOptions={[{ value: 'out', label: 'Out of Stock' }, { value: 'low', label: 'Low (<10)' }, { value: 'ok', label: 'In Stock (10+)' }]} onFilter={setFilterVal} />
                 <div className="overflow-auto max-h-96">
                   <ResizableTable tableId="rpt-inventory-value" defaultWidths={[240, 90, 100, 110, ...reportStores.map(() => 90)]}>
-                    <thead className="sticky top-0 bg-white"><tr className="border-b text-left text-xs font-medium text-gray-500 uppercase">
+                    <thead className="sticky top-0 bg-card"><tr className="border-b text-left text-xs font-medium text-gray-500 uppercase">
                       <SortHeader label="Product" sortKey="name" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <SortHeader label={selectedStoreId !== 'all' ? 'Store Stock' : 'Total Stock'} sortKey="stock" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <SortHeader label="Price" sortKey="price" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
@@ -2136,10 +2136,10 @@ export default function ReportsPage() {
                         <th key={s.id} className="py-2 text-right px-2 text-indigo-500">{s.code || s.name}</th>
                       ))}
                     </tr></thead>
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody className="divide-y divide-border">
                       {sorted.map((p: any) => {
                         const stock = p.stock || p.current_quantity || 0; const isLow = stock < 10
-                        return <tr key={p.id || p.product_id} className={`hover:bg-gray-50 cursor-pointer ${stock === 0 ? 'bg-red-50/50' : ''}`} onClick={onClickableTableRow(() => navigate(`/products/${p.id || p.product_id}`))}>
+                        return <tr key={p.id || p.product_id} className={`hover:bg-accent/50 cursor-pointer ${stock === 0 ? 'bg-red-50/50' : ''}`} onClick={onClickableTableRow(() => navigate(`/products/${p.id || p.product_id}`))}>
                           <td className="py-2 pr-4 font-medium text-blue-600 hover:underline">{p.name || p.product_name}</td>
                           <td className="py-2 pr-4 text-right"><span className={`font-semibold ${stock === 0 ? 'text-red-600' : isLow ? 'text-amber-600' : 'text-gray-700'}`}>{stock}</span></td>
                           <td className="py-2 pr-4 text-right">{formatCurrency(p.price || 0)}</td>
@@ -2191,7 +2191,7 @@ export default function ReportsPage() {
                   filterOptions={[5, 4, 3, 2, 1].map(n => ({ value: String(n), label: `${n} Star${n > 1 ? 's' : ''}` }))} onFilter={setFilterVal} />
                 <div className="space-y-3 max-h-96 overflow-y-auto">
                   {sorted.map((r: any) => (
-                    <div key={r.id} className="border border-gray-100 rounded-xl p-4 hover:bg-gray-50/50 transition-colors">
+                    <div key={r.id} className="border border-gray-100 rounded-xl p-4 hover:bg-accent/40 transition-colors">
                       <div className="flex items-center gap-0.5 mb-1.5">
                         {[1, 2, 3, 4, 5].map(s => <Star key={s} className={`w-3.5 h-3.5 ${s <= r.rating ? 'fill-amber-400 text-amber-400' : 'text-gray-200'}`} />)}
                         <span className="text-xs text-gray-400 ml-1.5 font-medium">{r.rating}/5</span>
@@ -2212,7 +2212,7 @@ export default function ReportsPage() {
 
               {/* ── Summary stat cards ─────────────────────────────────── */}
               <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-                <StatCard label="Open Orders" value={mrpSummary.openOrders} icon={ShoppingCart} bg="bg-blue-50" color="text-blue-600" />
+                <StatCard label="Open Orders" value={mrpSummary.openOrders} icon={ShoppingCart} bg="bg-blue-500/10" color="text-blue-600" />
                 <StatCard label="Materials Tracked" value={mrpSummary.total} icon={ClipboardList} bg="bg-accent" color="text-primary" />
                 <StatCard label="Shortage Items" value={mrpSummary.shortages} icon={BadgeAlert} bg="bg-red-50" color="text-red-600" />
                 <StatCard label="Sufficient Items" value={mrpSummary.sufficient} icon={BadgeCheck} bg="bg-green-50" color="text-green-600" />
@@ -2294,14 +2294,14 @@ export default function ReportsPage() {
                 {/* Column config */}
                 <div className="relative">
                   <button onClick={() => setMrpColsOpen(v => !v)}
-                    className={`flex items-center gap-1.5 text-xs font-medium border rounded-lg px-3 py-1.5 bg-white transition-colors ${mrpColsOpen ? 'border-primary/60 text-primary' : 'border-gray-200 hover:bg-gray-50'}`}>
+                    className={`flex items-center gap-1.5 text-xs font-medium border rounded-lg px-3 py-1.5 bg-white transition-colors ${mrpColsOpen ? 'border-primary/60 text-primary' : 'border-gray-200 hover:bg-accent/50'}`}>
                     <Settings2 className="w-3.5 h-3.5" /> Columns
                   </button>
                   {mrpColsOpen && (
                     <div className="absolute right-0 top-full mt-2 bg-popover text-popover-foreground border border-border rounded-2xl shadow-xl z-50 p-3 min-w-[200px] max-h-[90vh] overflow-y-auto">
                       <p className="text-xs font-bold text-gray-500 uppercase mb-2">Optional Columns</p>
                       {MRP_OPTIONAL_COLS.map(col => (
-                        <label key={col.id} className="flex items-center gap-2 py-1.5 cursor-pointer hover:bg-gray-50 rounded-lg px-1">
+                        <label key={col.id} className="flex items-center gap-2 py-1.5 cursor-pointer hover:bg-accent/50 rounded-lg px-1">
                           <input type="checkbox" checked={mrpOptCols.has(col.id)}
                             onChange={() => setMrpOptCols(prev => {
                               const next = new Set(prev)
@@ -2320,13 +2320,13 @@ export default function ReportsPage() {
                 {/* Share / Export panel */}
                 <div className="relative">
                   <button onClick={() => setMrpShareOpen(v => !v)}
-                    className={`flex items-center gap-1.5 text-xs font-medium border rounded-lg px-3 py-1.5 bg-white transition-colors ${mrpShareOpen ? 'border-blue-400 text-blue-700' : 'border-gray-200 hover:bg-gray-50'}`}>
+                    className={`flex items-center gap-1.5 text-xs font-medium border rounded-lg px-3 py-1.5 bg-white transition-colors ${mrpShareOpen ? 'border-blue-400 text-blue-700' : 'border-gray-200 hover:bg-accent/50'}`}>
                     <Download className="w-3.5 h-3.5" /> Export &amp; Share
                   </button>
                   {mrpShareOpen && (
                     <div className="absolute right-0 top-full mt-2 bg-popover text-popover-foreground border border-border rounded-2xl shadow-xl z-50 p-2 min-w-[210px] space-y-0.5 max-h-[90vh] overflow-y-auto">
                       <button onClick={() => { exportMrpCSV(); setMrpShareOpen(false) }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-gray-50 text-xs text-gray-700 font-medium">
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-accent/50 text-xs text-gray-700 font-medium">
                         <Download className="w-3.5 h-3.5 text-gray-500" /> Download CSV
                       </button>
                       <button onClick={() => { exportMrpXLS(); setMrpShareOpen(false) }}
@@ -2343,11 +2343,11 @@ export default function ReportsPage() {
                         <MessageCircle className="w-3.5 h-3.5 text-green-500" /> Share via WhatsApp
                       </button>
                       <button onClick={() => { shareMrpEmail(); setMrpShareOpen(false) }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-blue-50 text-xs text-blue-700 font-medium">
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-blue-500/10 text-xs text-blue-700 font-medium">
                         <Send className="w-3.5 h-3.5 text-blue-500" /> Share via Email
                       </button>
                       <button onClick={() => { printMrpReport(); setMrpShareOpen(false) }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-gray-50 text-xs text-gray-700 font-medium">
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-accent/50 text-xs text-gray-700 font-medium">
                         <Layers className="w-3.5 h-3.5 text-gray-500" /> Print Report
                       </button>
                       <button onClick={() => { shareMrpNative(); setMrpShareOpen(false) }}
@@ -2411,7 +2411,7 @@ export default function ReportsPage() {
               <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm max-h-[90vh] overflow-y-auto">
                 <div className="overflow-auto">
                   <ResizableTable tableId="rpt-mrp" defaultWidths={[40, 200, 130, 90, 90, 80, 90, 90, 130, 80]}>
-                    <thead className="sticky top-0 bg-white z-10 border-b">
+                    <thead className="sticky top-0 bg-card z-10 border-b">
                       <tr className="text-left text-xs font-medium text-gray-500 uppercase">
                         <th className="py-3 px-4 w-8">
                           <input type="checkbox"
@@ -2438,7 +2438,7 @@ export default function ReportsPage() {
                         <th className="py-3 px-4"><TableColumnLabel>Action</TableColumnLabel></th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody className="divide-y divide-border">
                       {mrpFiltered.map(row => {
                         const isSelected = mrpSelected.has(row.product_id)
                         const isShortage = row.gap > 0
@@ -2447,7 +2447,7 @@ export default function ReportsPage() {
                         return (
                           <>
                             <tr key={row.product_id}
-                              className={`transition-colors ${isSelected ? 'bg-accent' : 'hover:bg-gray-50/60'}`}>
+                              className={`transition-colors ${isSelected ? 'bg-accent' : 'hover:bg-accent/40'}`}>
                               <td className="py-3 px-4">
                                 <input type="checkbox" checked={isSelected} onChange={() => toggleMrpRow(row.product_id)}
                                   className="rounded border-gray-300 text-primary focus:ring-ring cursor-pointer" />
@@ -2502,7 +2502,7 @@ export default function ReportsPage() {
                                   <div className="flex flex-wrap gap-1">
                                     {row.order_refs.slice(0, 2).map(ref => (
                                       <button key={ref} onClick={() => setMrpOrderFilter(ref)}
-                                        className="text-xs bg-blue-50 text-blue-700 hover:bg-blue-100 px-1.5 py-0.5 rounded font-mono font-semibold transition-colors">
+                                        className="text-xs bg-blue-500/10 text-blue-700 hover:bg-blue-100 px-1.5 py-0.5 rounded font-mono font-semibold transition-colors">
                                         {ref}
                                       </button>
                                     ))}
@@ -2570,7 +2570,7 @@ export default function ReportsPage() {
                                     <div className="bg-white rounded-xl p-3 border border-gray-100 flex gap-2 col-span-2 sm:col-span-3 lg:col-span-5">
                                       <p className="text-gray-500 text-xs">Quick Actions:</p>
                                       <button onClick={() => { setMrpSelected(new Set([row.product_id])); setPoModal(true) }}
-                                        className="text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors">
+                                        className="text-xs font-bold text-blue-700 bg-blue-500/10 hover:bg-blue-100 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors">
                                         <Truck className="w-3 h-3" /> Create Purchase Order
                                       </button>
                                       <button onClick={() => { setMrpSelected(new Set([row.product_id])); setProdTab('new'); setProdModal(true) }}
@@ -2668,7 +2668,7 @@ export default function ReportsPage() {
                       <p className="text-xs font-bold text-gray-400 uppercase px-3 pt-2 pb-1">Recent Suppliers</p>
                       {savedSuppliers.filter(s => !poSupplier || s.toLowerCase().includes(poSupplier.toLowerCase())).slice(0, 6).map(s => (
                         <button key={s} onClick={() => { setPoSupplier(s); setPoSupplierOpen(false) }}
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 text-gray-700 font-medium">
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-blue-500/10 text-gray-700 font-medium">
                           {s}
                         </button>
                       ))}
@@ -2713,7 +2713,7 @@ export default function ReportsPage() {
                     </tr></thead>
                     <tbody className="divide-y">
                       {poLines.map(l => (
-                        <tr key={l.product_id} className="hover:bg-gray-50">
+                        <tr key={l.product_id} className="hover:bg-accent/50">
                           <td className="py-2.5 px-3 font-medium">{l.name}</td>
                           <td className="py-2.5 px-3 text-right">
                             <input type="number" min={1} defaultValue={l.qty}
@@ -2726,7 +2726,7 @@ export default function ReportsPage() {
                       {poLines.length === 0 && <tr><td colSpan={4} className="text-center py-6 text-gray-400 text-xs">No shortage items selected. Go back and select shortage rows.</td></tr>}
                     </tbody>
                     {poLines.length > 0 && (
-                      <tfoot className="bg-blue-50 border-t">
+                      <tfoot className="bg-blue-500/10 border-t">
                         <tr>
                           <td colSpan={3} className="py-2.5 px-3 text-right text-xs font-bold text-gray-600 uppercase">Grand Total</td>
                           <td className="py-2.5 px-3 text-right font-bold text-blue-800 text-base">{formatCurrency(poLines.reduce((s, l) => s + l.qty * l.unit_price, 0))}</td>
@@ -2864,7 +2864,7 @@ export default function ReportsPage() {
                       </tr></thead>
                       <tbody className="divide-y">
                         {prodLines.map((l, i) => (
-                          <tr key={l.product_id} className="hover:bg-gray-50">
+                          <tr key={l.product_id} className="hover:bg-accent/50">
                             <td className="py-2.5 px-3 font-medium">{l.name}</td>
                             <td className="py-2.5 px-3 text-right">
                               <input type="number" min={1} defaultValue={l.qty}
@@ -2910,7 +2910,7 @@ export default function ReportsPage() {
                         </tr></thead>
                         <tbody className="divide-y">
                           {stockDispatches.map(d => (
-                            <tr key={d.id} className="hover:bg-gray-50">
+                            <tr key={d.id} className="hover:bg-accent/50">
                               <td className="py-2 px-3 text-gray-600">{d.date}</td>
                               <td className="py-2 px-3 text-right font-semibold text-green-700">{d.qty}</td>
                               <td className="py-2 px-3 text-gray-600">{d.dispatchedBy || '—'}</td>

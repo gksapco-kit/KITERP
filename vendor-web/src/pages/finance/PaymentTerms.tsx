@@ -191,8 +191,8 @@ function StagesEditor({
       )}
 
       {stages.map((s, i) => (
-        <div key={i} className="grid grid-cols-[1fr_80px_70px_70px_28px] gap-2 items-end">
-          <div className="space-y-1">
+        <div key={i} className="grid grid-cols-2 gap-2 items-end sm:grid-cols-[1fr_80px_70px_70px_28px]">
+          <div className="col-span-2 space-y-1 sm:col-span-1">
             {i === 0 && <Label className="text-xs text-muted-foreground">Label (optional)</Label>}
             <Input
               placeholder="e.g. Advance, On delivery"
@@ -227,7 +227,7 @@ function StagesEditor({
           </div>
           <Button
             size="icon" variant="ghost"
-            className="h-8 w-8 text-destructive self-end"
+            className="h-8 w-8 justify-self-end text-destructive self-end"
             disabled={stages.length <= 1}
             onClick={() => onChange(stages.filter((_, idx) => idx !== i))}
           >

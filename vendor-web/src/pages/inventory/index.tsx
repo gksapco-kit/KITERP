@@ -359,7 +359,7 @@ export default function Inventory() {
 
 function StatCard({ label, value, loading, warn }: { label: string; value: string | number; loading: boolean; warn?: boolean }) {
   return (
-    <div className="bg-white rounded-xl border p-5" onClick={e => e.stopPropagation()}>
+    <div className="bg-card rounded-xl border p-5" onClick={e => e.stopPropagation()}>
       <p className="text-sm font-medium text-gray-500">{label}</p>
       <p className={`text-2xl font-bold mt-1 ${warn ? 'text-amber-600' : 'text-gray-900'}`}>
         {loading ? <Loader2 className="w-5 h-5 animate-spin text-gray-400" /> : value}
@@ -1254,7 +1254,7 @@ function MovementDetailDrawer({ movementId, onClose }: { movementId: string; onC
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/40" />
       <div
-        className="relative z-10 w-full sm:max-w-xl bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-y-auto max-h-[90vh]"
+        className="relative z-10 w-full sm:max-w-xl bg-card rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-y-auto max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -1583,7 +1583,7 @@ function HistoryTab({ data, loading, page, setPage, pageSize, setPageSize, produ
           onPageSizeChange={setPageSize}
           itemLabel="records"
           pageSizeOptions={[10, 15, 25, 50, 100]}
-          className="rounded-lg border bg-white"
+          className="rounded-lg border bg-card"
         />
       )}
     </>
@@ -1639,7 +1639,7 @@ function ReorderTab({ data, loading, onAction, onCreatePR, onCreatePO }: {
         <ShoppingCart className="inline h-4 w-4 mr-1 text-amber-500" />
         <strong>{items.length}</strong> item{items.length !== 1 ? 's' : ''} at or below reorder point — consider raising a purchase order or requisition.
       </div>
-      <div className="overflow-x-auto rounded-lg border bg-white">
+      <div className="overflow-x-auto rounded-lg border bg-card">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/40">
