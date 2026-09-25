@@ -128,7 +128,7 @@ export default function AssignmentsPage() {
   }, [showFilters])
 
   const apiParams = useMemo(() => {
-    const p: Record<string, unknown> = { page, size: 20 }
+    const p: Record<string, unknown> = { page, size: 10 }
     const s = filters.search.trim()
     if (s) p.search = s
     if (filters.payee_id) p.payee_id = filters.payee_id

@@ -156,7 +156,7 @@ export default function ReviewsPage() {
   const [search, setSearch] = useState('')
   const [sortKey, setSortKey] = useState('created_at')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
-  const { data, isLoading } = useReviews({ page, size: 15, review_type: filter })
+  const { data, isLoading } = useReviews({ page, size: 10, review_type: filter })
 
   const displayReviews = useMemo(() => {
     return processRows(

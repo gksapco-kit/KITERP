@@ -137,7 +137,7 @@ export default function PayeesPage() {
   const masterBank = masterBankQuery.data
 
   const apiParams = useMemo(() => {
-    const p: Record<string, unknown> = { page, size: 20 }
+    const p: Record<string, unknown> = { page, size: 10 }
     const q = search.trim()
     if (q) p.search = q
     return p

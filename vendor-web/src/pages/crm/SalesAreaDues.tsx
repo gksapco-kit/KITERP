@@ -234,7 +234,7 @@ function AreaCustomerRows({
   search: string
 }) {
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
+  const [pageSize, setPageSize] = useState(10)
   const saveFollowup = useSavePaymentFollowup()
 
   const params: Record<string, unknown> = {

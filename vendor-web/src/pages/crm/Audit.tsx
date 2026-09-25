@@ -11,7 +11,7 @@ import { onClickableTableRow } from '@/lib/clickableTableRow'
 
 export default function AuditPage() {
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(25)
+  const [pageSize, setPageSize] = useState(10)
   const [entity, setEntity] = useState('')
   const [action, setAction] = useState('')
   const [open, setOpen] = useState<string | null>(null)

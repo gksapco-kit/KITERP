@@ -80,7 +80,7 @@ export default function Inventory() {
   const [tab, setTab] = useState<Tab>('summary')
   const [modal, setModal] = useState<ModalState>({ type: null })
   const [historyPage, setHistoryPage] = useState(1)
-  const [historyPageSize, setHistoryPageSize] = useState(15)
+  const [historyPageSize, setHistoryPageSize] = useState(10)
   const [historyProductFilter, setHistoryProductFilter] = useState('')
   const [showBulkUpload, setShowBulkUpload] = useState(false)
   const [selectedStoreId, setSelectedStoreId] = useState<string>(selectedStore?.id ?? 'all')

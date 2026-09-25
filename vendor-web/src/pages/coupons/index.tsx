@@ -76,7 +76,7 @@ export default function CouponsPage() {
     queryKey: ['coupons', page, storeFilter, branchFilter, salesAreaFilter],
     queryFn: () => vendorApi.listCoupons({
       page,
-      size: 20,
+      size: 10,
       store_id: branchFilter || storeFilter || undefined,
       sales_area_id: salesAreaFilter || undefined,
     }),

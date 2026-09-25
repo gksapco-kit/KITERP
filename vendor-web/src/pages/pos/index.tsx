@@ -354,7 +354,7 @@ export default function POS() {
 
   // History
   const [histPage, setHistPage] = useState(1)
-  const [histPageSize, setHistPageSize] = useState(20)
+  const [histPageSize, setHistPageSize] = useState(10)
   const [histSearch, setHistSearch] = useState('')
   const [histSortKey, setHistSortKey] = useState('created_at')
   const [histSortDir, setHistSortDir] = useState<SortDir>('desc')

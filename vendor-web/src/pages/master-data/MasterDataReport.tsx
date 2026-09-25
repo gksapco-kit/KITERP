@@ -1265,7 +1265,7 @@ export default function MasterDataReport() {
   const [sortDir,        setSortDir]       = useState<SortDir>('desc')
   const [selected,       setSelected]      = useState<Set<string>>(new Set())
   const [page,           setPage]          = useState(1)
-  const PAGE_SIZE = 20
+  const PAGE_SIZE = 10
 
   // Column chooser
   const [visibleCols,    setVisibleCols]   = useState<Set<string>>(DEFAULT_VISIBLE_COLS)

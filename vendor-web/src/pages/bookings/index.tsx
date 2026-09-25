@@ -345,7 +345,7 @@ export default function BookingsPage() {
   const qc = useQueryClient()
   const navigate = useNavigate()
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
+  const [pageSize, setPageSize] = useState(10)
   const [statusFilter, setStatusFilter] = useState('')
   const [listStoreFilter, setListStoreFilter] = useState('')
   const [listBranchFilter, setListBranchFilter] = useState('')

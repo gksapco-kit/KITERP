@@ -29,7 +29,7 @@ interface ColumnDef {
 }
 
 const COLUMN_ORDER: ColKey[] = ['sku', 'price', 'compare_at_price', 'cost_price', 'quantity', 'tax_rate', 'is_active']
-const DEFAULT_PAGE_SIZE = 25
+const DEFAULT_PAGE_SIZE = 10
 const COLUMN_DEFS: Record<ColKey, ColumnDef> = {
   sku: { key: 'sku', label: 'SKU', type: 'text', width: '130px' },
   price: { key: 'price', label: 'Price', type: 'number', width: '120px' },

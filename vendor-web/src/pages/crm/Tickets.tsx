@@ -258,7 +258,7 @@ function TicketForm({ onClose }: { onClose: () => void }) {
 export default function TicketsPage() {
   const navigate = useNavigate()
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
+  const [pageSize, setPageSize] = useState(10)
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [status, setStatus] = useState('open')

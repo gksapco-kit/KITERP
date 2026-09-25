@@ -69,7 +69,7 @@ export default function BrowseTablePage() {
       vendorApi.browseTableData(browseTable, {
         q: browseQ.trim() || undefined,
         page: browsePage,
-        page_size: 50,
+        page_size: 10,
       }),
     enabled: isAuthenticated && isVendorAdmin && Boolean(browseTable),
     retry: false,

@@ -106,7 +106,7 @@ function KbForm({ article, onClose }: { article?: KbArticle; onClose: () => void
 
 export default function KnowledgeBasePage() {
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
+  const [pageSize, setPageSize] = useState(10)
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [edit, setEdit] = useState<KbArticle | null>(null)

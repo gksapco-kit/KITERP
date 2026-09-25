@@ -33,7 +33,7 @@ function formatDetail(detail: Record<string, unknown> | null | undefined): strin
 
 export default function SupportActivityPage() {
   const [page, setPage] = useState(0)
-  const [pageSize, setPageSize] = useState(25)
+  const [pageSize, setPageSize] = useState(10)
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['vendor-platform-audit', page, pageSize],

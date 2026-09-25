@@ -470,7 +470,7 @@ function CampaignForm({
 export default function CampaignsPage() {
   const qc = useQueryClient()
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
+  const [pageSize, setPageSize] = useState(10)
   const [showCreate, setShowCreate] = useState(false)
   const [edit, setEdit] = useState<Campaign | null>(null)
   const [fromTemplate, setFromTemplate] = useState<EmailTemplate | null>(null)

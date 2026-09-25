@@ -202,7 +202,7 @@ export default function CreditDebitMemos() {
 
   // History
   const [histPage, setHistPage] = useState(1)
-  const histPageSize = 20
+  const histPageSize = 10
   const [histSearch, setHistSearch] = useState('')
   const [histSortKey, setHistSortKey] = useState('created_at')
   const [histSortDir, setHistSortDir] = useState<SortDir>('desc')

@@ -39,7 +39,7 @@ export default function AccrualsPage() {
     null | { kind: 'bulk-approve' } | { kind: 'reverse'; id: string }
   >(null)
 
-  const params = { page, size: 20, ...Object.fromEntries(Object.entries(filters).filter(([, v]) => v)) }
+  const params = { page, size: 10, ...Object.fromEntries(Object.entries(filters).filter(([, v]) => v)) }
   const { data, isLoading } = useAccruals(params)
   const approve = useApproveAccrual()
   const reverse = useReverseAccrual()

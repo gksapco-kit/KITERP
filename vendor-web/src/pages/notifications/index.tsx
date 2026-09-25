@@ -1,7 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link, useNavigate } from 'react-router-dom'
-import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { apiClient } from '@/api/client'
@@ -38,13 +37,13 @@ type SortKey = 'newest' | 'oldest' | 'unread_first' | 'type'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const TYPE_META: Record<string, { label: string; icon: React.ElementType; color: string; activeRing: string }> = {
-  order:     { label: 'Orders',    icon: ShoppingCart, color: 'bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-300',   activeRing: 'border-blue-500 bg-blue-50 ring-blue-400 dark:bg-blue-500/15 dark:border-blue-400' },
-  inventory: { label: 'Inventory', icon: Package,      color: 'bg-orange-100 text-orange-600 dark:bg-orange-500/20 dark:text-orange-300', activeRing: 'border-orange-400 bg-orange-50 ring-orange-300 dark:bg-orange-500/15 dark:border-orange-400' },
-  payment:   { label: 'Payments',  icon: CreditCard,   color: 'bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-green-300',  activeRing: 'border-green-500 bg-green-50 ring-green-400 dark:bg-green-500/15 dark:border-green-400' },
-  review:    { label: 'Reviews',   icon: Star,         color: 'bg-yellow-100 text-yellow-600 dark:bg-yellow-500/20 dark:text-yellow-300', activeRing: 'border-yellow-500 bg-yellow-50 ring-yellow-400 dark:bg-yellow-500/15 dark:border-yellow-400' },
-  system:    { label: 'System',    icon: AlertTriangle,color: 'bg-primary/12 text-primary dark:bg-primary/20 dark:text-primary', activeRing: 'border-primary bg-accent ring-ring dark:bg-primary/15' },
-  info:      { label: 'Info',      icon: Info,         color: 'bg-muted text-muted-foreground dark:bg-secondary dark:text-secondary-foreground',    activeRing: 'border-muted-foreground/40 bg-muted ring-ring dark:bg-secondary' },
+const TYPE_META: Record<string, { label: string; icon: React.ElementType; chip: string; active: string; bar: string }> = {
+  order:     { label: 'Orders',    icon: ShoppingCart,  chip: 'bg-info/15 text-info', active: 'border-info/35 bg-info/[0.06] shadow-sm', bar: 'bg-info' },
+  inventory: { label: 'Inventory', icon: Package,       chip: 'bg-orange-500/12 text-orange-600 dark:bg-orange-500/20 dark:text-orange-300', active: 'border-orange-400/40 bg-orange-500/[0.06] shadow-sm', bar: 'bg-orange-500' },
+  payment:   { label: 'Payments',  icon: CreditCard,    chip: 'bg-success/12 text-success', active: 'border-success/35 bg-success/[0.06] shadow-sm', bar: 'bg-success' },
+  review:    { label: 'Reviews',   icon: Star,          chip: 'bg-amber-500/15 text-amber-600 dark:bg-amber-500/20 dark:text-amber-300', active: 'border-amber-400/45 bg-amber-500/[0.07] shadow-sm', bar: 'bg-amber-400' },
+  system:    { label: 'System',    icon: AlertTriangle, chip: 'bg-primary/12 text-primary', active: 'border-primary/35 bg-primary/[0.06] shadow-sm', bar: 'bg-primary' },
+  info:      { label: 'Info',      icon: Info,          chip: 'bg-muted text-muted-foreground', active: 'border-foreground/15 bg-muted/60 shadow-sm', bar: 'bg-muted-foreground/50' },
 }
 
 const ALL_TYPES = Object.keys(TYPE_META)
@@ -57,7 +56,7 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
 ]
 
 function getTypeMeta(type: string) {
-  return TYPE_META[type] ?? { label: type, icon: Info, color: 'bg-muted text-muted-foreground', activeRing: 'border-border bg-muted ring-ring' }
+  return TYPE_META[type] ?? { label: type, icon: Info, chip: 'bg-muted text-muted-foreground', active: 'border-border bg-muted shadow-sm', bar: 'bg-muted-foreground/40' }
 }
 
 function timeAgo(iso?: string) {
@@ -111,7 +110,7 @@ function SortDropdown({ value, onChange }: { value: SortKey; onChange: (v: SortK
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
-        className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-foreground transition-colors hover:border-input hover:bg-accent/60 dark:hover:bg-secondary/50"
+        className="flex items-center gap-1.5 rounded-full border border-border bg-background px-3.5 py-2 text-sm text-foreground shadow-sm transition-colors hover:border-input hover:bg-accent/60 dark:hover:bg-secondary/50"
       >
         <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
         <span className="text-xs font-medium">{label}</span>
@@ -229,71 +228,91 @@ export default function NotificationsPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
 
       {/* ── Header ──────────────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Notifications</h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">Notifications</h1>
+            {unreadCount > 0 && (
+              <span className="inline-flex items-center rounded-full bg-rose-500/10 px-2 py-0.5 text-xs font-semibold tabular-nums text-rose-600 dark:text-rose-300">
+                {unreadCount} unread
+              </span>
+            )}
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
             {unreadCount > 0
-              ? `${unreadCount} unread notification${unreadCount !== 1 ? 's' : ''}`
-              : 'All caught up!'}
+              ? 'Review what needs your attention, or clear the queue.'
+              : 'All caught up.'}
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
           {unreadCount > 0 && (
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => markAllRead.mutate()} disabled={markAllRead.isPending}>
-              {markAllRead.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCheck className="w-4 h-4" />}
+            <Button variant="outline" size="sm" className="rounded-full" onClick={() => markAllRead.mutate()} disabled={markAllRead.isPending}>
+              {markAllRead.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCheck className="h-4 w-4" />}
               Mark all read
             </Button>
           )}
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/notifications/settings" className="gap-1.5 flex items-center">
-              <Settings2 className="w-4 h-4" /> Settings
+          <Button variant="outline" size="sm" className="rounded-full" asChild>
+            <Link to="/notifications/settings" className="flex items-center gap-1.5">
+              <Settings2 className="h-4 w-4" /> Settings
             </Link>
           </Button>
         </div>
       </div>
 
-      {/* ── Type stat cards — always show ALL types ───────────────────── */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      {/* ── Type filters ───────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
         {ALL_TYPES.map(t => {
           const meta = getTypeMeta(t)
           const Icon = meta.icon
           const byType = stats?.by_type[t] ?? { total: 0, unread: 0 }
           const isActive = activeType === t
+          const hasItems = byType.total > 0
           return (
             <button
               key={t}
               type="button"
+              aria-pressed={isActive}
               onClick={() => setActiveType(isActive ? null : t)}
               className={cn(
-                'relative flex min-h-[5.5rem] flex-col rounded-xl border p-3 text-left transition-all',
+                'group relative flex min-h-[6.25rem] flex-col overflow-hidden rounded-2xl border bg-card px-3.5 py-3 text-left transition-all duration-200',
+                'hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 isActive
-                  ? cn('ring-1', meta.activeRing)
-                  : 'border-border bg-card hover:border-primary/30 hover:bg-accent/40 dark:hover:bg-secondary/40',
+                  ? meta.active
+                  : 'border-border shadow-sm hover:border-foreground/15',
               )}
             >
-              <div className={cn('mb-2 inline-flex rounded-lg p-1.5', meta.color)}>
-                <Icon className="h-3.5 w-3.5" />
-              </div>
-              <div className="mt-auto">
-                <p className="text-xs font-medium leading-tight text-muted-foreground">{meta.label}</p>
-                <p
-                  className={cn(
-                    'text-xl font-bold leading-tight',
-                    byType.total > 0 ? 'text-foreground' : 'text-muted-foreground/50',
+              <span
+                className={cn(
+                  'absolute inset-x-3 top-0 h-0.5 rounded-full transition-opacity',
+                  meta.bar,
+                  isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-70',
+                )}
+                aria-hidden
+              />
+              <span className={cn('inline-flex h-8 w-8 items-center justify-center rounded-xl', meta.chip)}>
+                <Icon className="h-4 w-4" strokeWidth={2} />
+              </span>
+              <span className="mt-auto pt-3">
+                <span className="block text-[11px] font-medium tracking-wide text-muted-foreground">{meta.label}</span>
+                <span className="mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                  <span
+                    className={cn(
+                      'text-2xl font-semibold leading-none tracking-tight tabular-nums',
+                      hasItems ? 'text-foreground' : 'text-muted-foreground/45',
+                    )}
+                  >
+                    {byType.total}
+                  </span>
+                  {byType.unread > 0 && (
+                    <span className="text-[11px] font-semibold tabular-nums text-rose-600 dark:text-rose-300">
+                      {formatBadgeCount(byType.unread)} new
+                    </span>
                   )}
-                >
-                  {byType.total}
-                </p>
-              </div>
-              {byType.unread > 0 && (
-                <span className={cn('absolute bottom-2 right-2', countBadgeCircleClass(byType.unread))}>
-                  {formatBadgeCount(byType.unread)}
                 </span>
-              )}
+              </span>
             </button>
           )
         })}
@@ -310,7 +329,7 @@ export default function NotificationsPage() {
               placeholder="Search notifications…"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full rounded-xl border border-input bg-background py-2 pl-9 pr-8 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full rounded-full border border-input bg-background py-2 pl-9 pr-8 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             />
             {search && (
               <button
@@ -327,7 +346,7 @@ export default function NotificationsPage() {
             type="button"
             onClick={() => setShowFilters(v => !v)}
             className={cn(
-              'relative flex select-none items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-150',
+              'relative flex select-none items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-medium transition-all duration-150',
               showFilters || activeFiltersCount > 0
                 ? 'border-primary bg-primary/10 text-primary shadow-sm'
                 : 'border-border bg-card text-muted-foreground hover:border-primary/40 hover:bg-accent/50 hover:text-foreground',
@@ -418,23 +437,28 @@ export default function NotificationsPage() {
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       ) : notifications.length === 0 ? (
-        <div className="text-center py-16">
-          <Bell className="mx-auto mb-3 h-12 w-12 text-muted-foreground/30" />
-          <p className="font-medium text-muted-foreground">
-            {search ? `No notifications matching "${search}"` : unreadOnly ? 'No unread notifications.' : 'No notifications yet.'}
+        <div className="rounded-2xl border border-dashed border-border bg-card px-6 py-16 text-center">
+          <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">
+            <Bell className="h-5 w-5 text-muted-foreground" />
+          </span>
+          <p className="font-medium text-foreground">
+            {search ? `No notifications matching "${search}"` : unreadOnly ? 'No unread notifications' : 'No notifications yet'}
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {search || unreadOnly || activeType ? 'Try a different filter.' : 'New activity will show up here.'}
           </p>
           {(search || activeType || unreadOnly) && (
-            <button type="button" onClick={clearAll} className="mt-2 text-sm text-primary hover:underline">Clear filters</button>
+            <button type="button" onClick={clearAll} className="mt-3 text-sm font-medium text-primary hover:underline">Clear filters</button>
           )}
         </div>
       ) : (
-        <div className="space-y-2">
-          {notifications.map(n => {
+        <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+          {notifications.map((n, index) => {
             const meta = getTypeMeta(n.type)
             const Icon = meta.icon
             const href = getNotificationHref(n)
             return (
-              <Card
+              <div
                 key={n.id}
                 role={href ? 'link' : undefined}
                 tabIndex={href ? 0 : undefined}
@@ -454,45 +478,45 @@ export default function NotificationsPage() {
                     }
                   : undefined}
                 className={cn(
-                  'transition-all duration-150',
-                  !n.is_read
-                    ? 'border-primary/30 bg-primary/5 shadow-sm dark:bg-primary/10'
-                    : 'border-border bg-card',
-                  href && 'cursor-pointer hover:border-primary/40 hover:shadow-sm',
+                  'relative flex items-start gap-3 px-4 py-3.5 transition-colors sm:gap-4 sm:px-5',
+                  index > 0 && 'border-t border-border/70',
+                  !n.is_read && 'bg-primary/[0.045] dark:bg-primary/10',
+                  href && 'cursor-pointer hover:bg-accent/50',
                 )}
               >
-                <CardContent className="p-4 flex items-start gap-4">
-                  <div className={cn('mt-0.5 shrink-0 rounded-full p-2', !n.is_read ? meta.color : 'bg-muted text-muted-foreground')}>
-                    <Icon className="h-4 w-4" />
+                {!n.is_read && (
+                  <span className="absolute inset-y-3 left-0 w-0.5 rounded-full bg-primary" aria-hidden />
+                )}
+                <div className={cn('mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl', !n.is_read ? meta.chip : 'bg-muted text-muted-foreground')}>
+                  <Icon className="h-4 w-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className={cn('truncate text-sm', !n.is_read ? 'font-semibold text-foreground' : 'font-medium text-muted-foreground')}>{n.title}</p>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className={cn('text-sm font-medium', !n.is_read ? 'text-foreground' : 'text-muted-foreground')}>{n.title}</p>
-                      {!n.is_read && <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />}
-                    </div>
-                    <p className="mt-0.5 text-sm text-muted-foreground">{n.message}</p>
-                    <div className="mt-1 flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">{timeAgo(n.created_at)}</span>
-                      <Badge variant="outline" className="border-border px-1.5 py-0 text-xs text-muted-foreground">{meta.label}</Badge>
-                    </div>
+                  <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{n.message}</p>
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">{timeAgo(n.created_at)}</span>
+                    <span className="text-muted-foreground/40" aria-hidden>·</span>
+                    <span className="text-xs text-muted-foreground">{meta.label}</span>
                   </div>
-                  {!n.is_read && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="shrink-0 text-xs text-primary"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        markRead.mutate(n.id)
-                      }}
-                      disabled={markRead.isPending}
-                    >
-                      <Check className="mr-1 h-3.5 w-3.5" /> Mark read
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
+                </div>
+                {!n.is_read && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="shrink-0 rounded-full text-xs text-primary"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      markRead.mutate(n.id)
+                    }}
+                    disabled={markRead.isPending}
+                  >
+                    <Check className="h-3.5 w-3.5" /> Mark read
+                  </Button>
+                )}
+              </div>
             )
           })}
         </div>

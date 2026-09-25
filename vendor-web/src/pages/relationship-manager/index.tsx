@@ -1,15 +1,15 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Loader2, Mail, Phone, UsersRound, MessageSquarePlus } from 'lucide-react'
+import { Loader2, Mail, Phone, UsersRound, MessageSquarePlus, Send, UserRound } from 'lucide-react'
 import {
   relationshipManagerApi,
   type VendorRmQueryRow,
 } from '@/api/relationshipManager'
 import { useAuthStore } from '@/stores/authStore'
+import { cn, formFieldBorderClassName, formFieldFocusClassName } from '@/lib/utils'
 
 const rmKeys = {
   summary: ['relationship-manager'] as const,
@@ -17,10 +17,18 @@ const rmKeys = {
 }
 
 function statusBadge(status: string) {
-  const base = 'text-xs font-medium px-2 py-0.5 rounded-full capitalize'
-  if (status === 'closed') return `${base} bg-gray-100 text-gray-700`
-  if (status === 'in_progress') return `${base} bg-amber-100 text-amber-800`
-  return `${base} bg-blue-100 text-blue-800`
+  return cn(
+    'inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize',
+    status === 'closed' && 'bg-muted text-muted-foreground',
+    status === 'in_progress' && 'bg-amber-500/15 text-amber-700 dark:text-amber-300',
+    status !== 'closed' && status !== 'in_progress' && 'bg-info/15 text-info',
+  )
+}
+
+function initials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  const letters = parts.slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '')
+  return letters.join('') || '?'
 }
 
 export default function RelationshipManagerPage() {
@@ -55,132 +63,191 @@ export default function RelationshipManagerPage() {
     },
   })
 
-  const canSubmit =
-    summary?.assigned &&
-    subject.trim().length >= 3 &&
-    body.trim().length >= 10 &&
-    !createMut.isPending
+  const assigned = Boolean(summary?.assigned && summary?.manager)
+  const manager = assigned ? summary?.manager : null
+  const subjectReady = subject.trim().length >= 3
+  const bodyReady = body.trim().length >= 10
+  const canSubmit = assigned && subjectReady && bodyReady && !createMut.isPending
 
   return (
-    <div className="space-y-6 max-w-3xl">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-          <UsersRound className="w-7 h-7 text-primary" />
-          Relationship Manager
-        </h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Your platform relationship manager is your main contact for account questions. Send them a message below.
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 lg:h-[calc(100dvh-7.75rem)] lg:overflow-hidden">
+      <div className="flex shrink-0 flex-wrap items-center gap-2.5">
+        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <UsersRound className="h-4 w-4" />
+        </span>
+        <h1 className="text-xl font-semibold tracking-tight text-foreground">Relationship Manager</h1>
+        {!loadingSummary && (
+          <span
+            className={cn(
+              'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold',
+              assigned ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground',
+            )}
+          >
+            {assigned ? 'Assigned' : 'Unassigned'}
+          </span>
+        )}
+        <p className="w-full text-xs text-muted-foreground sm:w-auto sm:text-sm">
+          Your main contact for account questions.
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Your manager</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[18rem_minmax(0,1fr)] lg:grid-rows-[auto_minmax(0,1fr)]">
+        <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm lg:col-start-1 lg:row-start-1">
+          <div className="border-b border-border/70 px-4 py-2.5">
+            <h2 className="text-sm font-semibold text-foreground">Your manager</h2>
+          </div>
           {loadingSummary ? (
-            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-          ) : !summary?.assigned || !summary.manager ? (
-            <p className="text-sm text-muted-foreground">
-              A relationship manager has not been assigned to your account yet. Please reach out to platform support.
-            </p>
+            <div className="flex items-center gap-3 p-4">
+              <div className="h-10 w-10 animate-pulse rounded-xl bg-muted" />
+              <div className="space-y-2">
+                <div className="h-3 w-28 animate-pulse rounded-full bg-muted" />
+                <div className="h-3 w-36 animate-pulse rounded-full bg-muted" />
+              </div>
+            </div>
+          ) : !manager ? (
+            <div className="flex items-start gap-3 p-4">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+                <UserRound className="h-4 w-4" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-foreground">No manager assigned</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  A relationship manager has not been assigned yet. Please reach out to platform support.
+                </p>
+              </div>
+            </div>
           ) : (
-            <div className="space-y-2">
-              <p className="font-medium text-lg">{summary.manager.full_name}</p>
-              {summary.manager.email && (
-                <p className="text-sm flex items-center gap-2 text-muted-foreground">
-                  <Mail className="w-4 h-4 shrink-0" />
-                  <a href={`mailto:${summary.manager.email}`} className="text-primary hover:underline">
-                    {summary.manager.email}
+            <div className="space-y-3 p-4">
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-sm font-semibold text-primary">
+                  {initials(manager.full_name)}
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-foreground">{manager.full_name}</p>
+                  <p className="text-xs text-muted-foreground">Account contact</p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {manager.email && (
+                  <a
+                    href={`mailto:${manager.email}`}
+                    className="flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm text-foreground transition-colors hover:bg-accent"
+                  >
+                    <Mail className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <span className="truncate">{manager.email}</span>
                   </a>
-                </p>
-              )}
-              {summary.manager.phone && (
-                <p className="text-sm flex items-center gap-2 text-muted-foreground">
-                  <Phone className="w-4 h-4 shrink-0" />
-                  {summary.manager.phone}
-                </p>
-              )}
+                )}
+                {manager.phone && (
+                  <a
+                    href={`tel:${manager.phone}`}
+                    className="flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm text-foreground transition-colors hover:bg-accent"
+                  >
+                    <Phone className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <span className="truncate">{manager.phone}</span>
+                  </a>
+                )}
+              </div>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <MessageSquarePlus className="w-4 h-4" />
-            New message
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {!summary?.assigned ? (
-            <p className="text-sm text-muted-foreground">Assign a manager before you can send queries.</p>
-          ) : (
-            <>
-              <div className="space-y-2">
-                <Label htmlFor="rm-subject">Subject</Label>
-                <Input
-                  id="rm-subject"
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
-                  placeholder="Short summary"
-                  maxLength={255}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="rm-body">Message</Label>
-                <textarea
-                  id="rm-body"
-                  value={body}
-                  onChange={(e) => setBody(e.target.value)}
-                  rows={5}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  placeholder="Describe your question (at least 10 characters)."
-                />
-              </div>
-              {createMut.isError && (
-                <p className="text-sm text-destructive">
-                  {(createMut.error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-                    'Could not send message.'}
-                </p>
+        <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm lg:col-start-2 lg:row-span-2 lg:row-start-1">
+          <div className="flex shrink-0 items-center gap-2 border-b border-border/70 px-4 py-2.5">
+            <MessageSquarePlus className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold text-foreground">New message</h2>
+            {!loadingSummary && !assigned && (
+              <span className="ml-auto truncate text-xs text-muted-foreground">Assign a manager before you can send queries.</span>
+            )}
+          </div>
+          <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
+            <div className="shrink-0 space-y-1.5">
+              <Label htmlFor="rm-subject">Subject</Label>
+              <Input
+                id="rm-subject"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                placeholder="Short summary"
+                maxLength={255}
+                disabled={!assigned}
+                className="rounded-xl"
+              />
+              {assigned && subject.trim().length > 0 && !subjectReady && (
+                <p className="text-xs text-muted-foreground">Use at least 3 characters.</p>
               )}
-              <Button type="button" disabled={!canSubmit} onClick={() => createMut.mutate()}>
-                {createMut.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+            </div>
+            <div className="flex min-h-0 flex-1 flex-col gap-1.5">
+              <Label htmlFor="rm-body" className="shrink-0">Message</Label>
+              <textarea
+                id="rm-body"
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                disabled={!assigned}
+                className={cn(
+                  'min-h-[7rem] w-full resize-none rounded-xl bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 lg:min-h-0 lg:flex-1',
+                  formFieldBorderClassName,
+                  formFieldFocusClassName,
+                )}
+                placeholder="Describe your question."
+              />
+              {assigned && body.trim().length > 0 && !bodyReady && (
+                <p className="shrink-0 text-xs text-muted-foreground">Use at least 10 characters.</p>
+              )}
+            </div>
+            {createMut.isError && (
+              <p className="shrink-0 text-sm text-destructive">
+                {(createMut.error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+                  'Could not send message.'}
+              </p>
+            )}
+            <div className="flex shrink-0 justify-end">
+              <Button type="button" className="rounded-full" disabled={!canSubmit} onClick={() => createMut.mutate()}>
+                {createMut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 Send to manager
               </Button>
-            </>
-          )}
-        </CardContent>
-      </Card>
+            </div>
+          </div>
+        </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Previous messages</CardTitle>
-        </CardHeader>
-        <CardContent>
+        <section className="flex min-h-48 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm lg:col-start-1 lg:row-start-2 lg:min-h-0">
+          <div className="flex shrink-0 items-center justify-between border-b border-border/70 px-4 py-2.5">
+            <h2 className="text-sm font-semibold text-foreground">Previous messages</h2>
+            {!!queries?.length && (
+              <span className="text-xs tabular-nums text-muted-foreground">{queries.length}</span>
+            )}
+          </div>
           {loadingQueries ? (
-            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            <div className="flex flex-1 items-center justify-center py-6">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
           ) : !queries?.length ? (
-            <p className="text-sm text-muted-foreground">No messages yet.</p>
+            <div className="flex flex-1 flex-col items-center justify-center px-4 py-4 text-center">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+                <Mail className="h-4 w-4" />
+              </span>
+              <p className="mt-2 text-sm font-medium text-foreground">No messages yet</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">Questions you send will show up here.</p>
+            </div>
           ) : (
-            <ul className="space-y-4">
-              {queries.map((q: VendorRmQueryRow) => (
-                <li key={q.id} className="border rounded-lg p-4 space-y-2">
-                  <div className="flex justify-between gap-2 items-start">
-                    <p className="font-medium text-sm">{q.subject}</p>
-                    <span className={statusBadge(q.status)}>{q.status.replace('_', ' ')}</span>
+            <ul className="min-h-0 flex-1 overflow-y-auto">
+              {queries.map((q: VendorRmQueryRow, index) => (
+                <li
+                  key={q.id}
+                  className={cn('px-4 py-3', index > 0 && 'border-t border-border/70')}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-sm font-semibold text-foreground">{q.subject}</p>
+                    <span className={statusBadge(q.status)}>{q.status.replace(/_/g, ' ')}</span>
                   </div>
-                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{q.body}</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="mt-1 line-clamp-3 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{q.body}</p>
+                  <p className="mt-1.5 text-xs text-muted-foreground">
                     {q.created_at ? new Date(q.created_at).toLocaleString() : ''}
                   </p>
                 </li>
               ))}
             </ul>
           )}
-        </CardContent>
-      </Card>
+        </section>
+      </div>
     </div>
   )
 }

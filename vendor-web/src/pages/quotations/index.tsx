@@ -173,7 +173,7 @@ export default function QuotationsPage() {
   const [branchFilter, setBranchFilter] = useState('')
   const [salesAreaFilter, setSalesAreaFilter] = useState('')
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
+  const [pageSize, setPageSize] = useState(10)
   const [sortKey, setSortKey] = useState('created_at')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [showCreate, setShowCreate] = useState(false)

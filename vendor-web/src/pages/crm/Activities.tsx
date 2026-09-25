@@ -282,7 +282,7 @@ function ActivityForm({ onClose }: { onClose: () => void }) {
 
 export default function ActivitiesPage() {
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
+  const [pageSize, setPageSize] = useState(10)
   const [type, setType] = useState('')
   const [status, setStatus] = useState('open')
   const [showCreate, setShowCreate] = useState(false)

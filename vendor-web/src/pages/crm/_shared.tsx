@@ -107,7 +107,7 @@ export function SearchBar({
 
 export function Pager({
   page, pages, total, onPage,
-  pageSize = 20,
+  pageSize = 10,
   onPageSizeChange,
   itemLabel = 'items',
 }: {

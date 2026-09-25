@@ -492,7 +492,7 @@ export default function ContactsPage() {
   const initialType = (searchParams.get('type') === 'company' ? 'company' : searchParams.get('type') === 'person' ? 'person' : '') as RecordFilter
 
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
+  const [pageSize, setPageSize] = useState(10)
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [typeFilter, setTypeFilter] = useState<RecordFilter>(initialType)
