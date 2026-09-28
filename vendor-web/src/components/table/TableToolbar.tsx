@@ -48,7 +48,7 @@ export function TableToolbar({
   className = '',
   extra,
   leading,
-  searchWrapperClassName = 'min-w-[10rem] flex-1 basis-full sm:basis-auto sm:flex-none sm:w-48 lg:w-56 max-w-full',
+  searchWrapperClassName = 'min-w-[12rem] w-full flex-1 basis-full sm:w-auto sm:min-w-[22rem] sm:basis-0 sm:max-w-xl lg:max-w-2xl',
   moreOptions,
   moreOptionsActiveCount = 0,
   hideSort = false,
@@ -88,23 +88,22 @@ export function TableToolbar({
       {hint ? (
         <button
           type="button"
-          className="hidden h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground sm:inline-flex"
+          className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground sm:inline-flex"
           title={hint}
           aria-label={hint}
         >
-          <Info className="h-3.5 w-3.5" />
+          <Info className="h-4 w-4" />
         </button>
       ) : null}
-      <span className="shrink-0 text-[11px] font-medium text-muted-foreground">Sort</span>
-      {/* Stay in a 2-col grid until lg — dashboard cards are half-width from lg and overflow with fixed select widths */}
-      <div className="grid min-w-0 w-full flex-1 grid-cols-2 gap-1.5 lg:flex lg:w-auto lg:flex-none lg:items-center">
+      <span className="shrink-0 text-xs font-medium text-muted-foreground">Sort</span>
+      <div className="flex min-w-0 items-center gap-1.5">
         <ThemeSelect
           value={sortKey}
           onChange={onSortKeyChange}
           options={sortOptions.map((o) => ({ value: o.value, label: o.label }))}
           aria-label="Sort by column"
-          className="h-8 text-xs"
-          wrapperClassName="min-w-0 w-full lg:w-[7.5rem]"
+          className="h-9 text-sm"
+          wrapperClassName="w-[9.5rem]"
         />
         <ThemeSelect
           value={sortDir}
@@ -114,20 +113,18 @@ export function TableToolbar({
             { value: 'desc', label: 'Desc' },
           ]}
           aria-label="Sort direction"
-          className="h-8 text-xs"
-          wrapperClassName="min-w-0 w-full lg:w-[5.5rem]"
-          menuMinWidth={100}
+          className="h-9 text-sm"
+          wrapperClassName="w-[7rem]"
+          menuMinWidth={112}
         />
       </div>
-      {extra ? <div className="w-full min-w-0 lg:w-auto">{extra}</div> : null}
+      {extra ? <div className="min-w-0 sm:w-auto">{extra}</div> : null}
     </>
   )
 
-  const pushSortRight = hideSearch && !leading && !hasMoreOptions
-
   return (
     <div className="min-w-0 max-w-full overflow-hidden border-b border-border/60 bg-muted/25">
-      <div className={cn('flex min-w-0 max-w-full flex-wrap items-center gap-1.5 px-2 py-2 sm:gap-2 sm:px-3', className)}>
+      <div className={cn('flex min-w-0 max-w-full flex-wrap items-center gap-2 px-3 py-2.5 sm:gap-3', className)}>
         {(leading || moreOptionsButton) && (
           <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-2">
             {leading}
@@ -142,18 +139,13 @@ export function TableToolbar({
               value={search}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder={searchPlaceholder}
-              className="h-8 w-full pl-10"
+              className="h-9 w-full pl-10"
               aria-label="Filter table"
             />
           </div>
         )}
         {!hideSort && (
-          <div
-            className={cn(
-              'flex min-w-0 w-full max-w-full items-center gap-1.5 lg:w-auto lg:shrink-0',
-              pushSortRight && 'lg:ml-auto',
-            )}
-          >
+          <div className="ml-auto flex w-full min-w-0 items-center justify-end gap-2 sm:w-auto sm:shrink-0">
             {sortControls}
           </div>
         )}

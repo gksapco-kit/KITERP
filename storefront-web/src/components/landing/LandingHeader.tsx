@@ -2,7 +2,6 @@ import { Store } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { vendorAppUrl } from '@/lib/appUrls'
 import { VENDOR_SIGNUP_PATH } from '@/lib/vendorSignupPaths'
-import { LandingThemeToggle } from '@/components/landing/LandingThemeToggle'
 
 type Props = { variant?: 'home' | 'campaign' }
 
@@ -47,7 +46,6 @@ export function LandingHeader({ variant = 'home' }: Props) {
           </nav>
 
           <div className="flex shrink-0 items-center gap-1 sm:gap-2.5">
-            <LandingThemeToggle />
             <a
               href={`${vendorAppUrl}/login`}
               className="kiterp-landing-signin inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-1.5 sm:px-4 sm:py-2 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#64C3A0]/40"
