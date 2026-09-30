@@ -714,7 +714,7 @@ export default function GoodsManagementPage() {
                 <p className="text-sm">Batches are created automatically on goods receipt</p>
               </div>
             ) : (
-              <ResizableTable tableId="goods-batches" defaultWidths={[120, 160, 80, 80, 80, 100, 80, 80]}>
+              <ResizableTable tableId="goods-batches-v2" defaultWidths={[120, 160, 80, 80, 80, 130, 80, 80]}>
                 <thead>
                   <tr>
                     {['Batch No.', 'Product', 'Qty Avail.', 'Reserved', 'UoM', 'Expiry', 'Quality', ''].map(h => (

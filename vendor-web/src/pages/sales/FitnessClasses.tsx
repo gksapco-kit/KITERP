@@ -28,12 +28,12 @@ import { askConfirm } from '@/components/common/ConfirmProvider'
 const CLASS_TYPES = ['Yoga', 'HIIT', 'Cycle', 'Pilates', 'Strength', 'Boxing']
 const INTENSITY_LEVELS = [1, 2, 3, 4, 5]
 
-/** "2026-07-24" → "Fri, Jul 24" for display; falls back to the raw value for older free-text entries. */
+/** "2026-07-24" → "Fri, Jul 24, 2026" for display; falls back to the raw value for older free-text entries. */
 function formatClassDate(iso?: string | null): string {
   if (!iso) return ''
   const d = new Date(`${iso}T00:00:00`)
   if (Number.isNaN(d.getTime())) return iso
-  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 /** "18:30" → "6:30 PM" for display; falls back to the raw value for older free-text entries. */
@@ -293,7 +293,7 @@ export default function SalesFitnessClassesPage() {
             hint={INLINE_EDIT_HINT}
           />
           <div className="overflow-x-auto">
-            <ResizableTable tableId="sales-fitness-classes-v1" defaultWidths={[64, 200, 130, 100, 130, 100, 90, 120]}>
+            <ResizableTable tableId="sales-fitness-classes-v2" defaultWidths={[64, 200, 130, 100, 170, 100, 90, 120]}>
               <thead>
                 <tr className="border-b bg-muted/40">
                   <th className="text-left px-4 py-3 text-xs font-medium uppercase"><TableColumnLabel>Order</TableColumnLabel></th>
@@ -384,6 +384,7 @@ export default function SalesFitnessClassesPage() {
                           saving={isSaving(cls.id, 'date')}
                           onSave={(v) => patchField(cls.id, 'date', String(v).trim() || null)}
                           title="Edit date (YYYY-MM-DD)"
+                          truncateContent={false}
                         >
                           <div className="text-xs">{cls.date ? formatClassDate(cls.date) : '—'}</div>
                         </InlineEditCell>

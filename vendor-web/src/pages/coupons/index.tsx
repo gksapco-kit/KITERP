@@ -169,7 +169,7 @@ export default function CouponsPage() {
             className="px-4 py-2 border-b"
           />
           <div className="overflow-x-auto">
-          <ResizableTable tableId="coupons-v2" defaultWidths={[150, 140, 120, 110, 80, 80, 100, 220]}>
+          <ResizableTable tableId="coupons-v3" defaultWidths={[150, 140, 120, 110, 80, 80, 130, 220]}>
             <thead>
               <tr className="border-b bg-gray-50">
                 <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Code</TableColumnLabel></th>
@@ -321,6 +321,7 @@ export default function CouponsPage() {
                       onSave={(v) => patchField(c.id as string, 'expires_at', String(v).trim() ? `${String(v).trim()}T23:59:59` : null)}
                       title="Edit expiry date (YYYY-MM-DD)"
                       inputClassName="text-xs"
+                      truncateContent={false}
                     >
                       <span className="text-sm text-gray-500">{c.expires_at ? formatDate(c.expires_at as string) : 'Never'}</span>
                     </InlineEditCell>

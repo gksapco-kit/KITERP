@@ -743,8 +743,8 @@ export default function VendorInvoicesAPPage() {
     { key: 'invoice_number', label: 'Invoice No.', width: 140 },
     { key: 'supplier_name', label: 'Supplier', width: 180 },
     { key: 'po_number', label: 'PO Ref', width: 110 },
-    { key: 'invoice_date', label: 'Date', width: 100 },
-    { key: 'due_date', label: 'Due', width: 100 },
+    { key: 'invoice_date', label: 'Date', width: 130 },
+    { key: 'due_date', label: 'Due', width: 130 },
     { key: 'total', label: 'Total', width: 110 },
     { key: 'status', label: 'Status', width: 110 },
     { key: 'match_status', label: 'Match', width: 110 },
@@ -864,7 +864,7 @@ export default function VendorInvoicesAPPage() {
             <p className="font-medium">No vendor invoices found</p>
           </div>
         ) : (
-          <ResizableTable tableId="vendor-invoices-ap" defaultWidths={cols.map(c => c.width)}>
+          <ResizableTable tableId="vendor-invoices-ap-v2" defaultWidths={cols.map(c => c.width)}>
             <thead>
               <tr>
                 {cols.map(c => (

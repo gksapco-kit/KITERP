@@ -1214,13 +1214,13 @@ export default function ReportsPage() {
         exportCSV('top-customers.csv', ['Rank', 'Name', 'Email', 'Orders', 'Spent'], customerRows.map((c: any, i: number) => [i + 1, c.name, c.email, c.orders, c.spent])); break
       case 'pos_report':
         exportCSV('pos-sales.csv', ['Date', 'Order #', 'Customer', 'Total', 'Payment', 'Status'],
-          posOrders.slice(0, 200).map((o: any) => [new Date(o.created_at).toLocaleDateString(), o.order_number, o.customer_name || 'Walk-in', o.total, o.payment_method || '', o.status])); break
+          posOrders.slice(0, 200).map((o: any) => [formatDate(o.created_at), o.order_number, o.customer_name || 'Walk-in', o.total, o.payment_method || '', o.status])); break
       case 'bookings_report':
         exportCSV('bookings.csv', ['Booking #', 'Service', 'Customer', 'Date', 'Status'],
-          bookings.map((b: any) => [b.booking_number || '', b.service_name || '', b.customer_name || '', b.booking_date || '', b.status || ''])); break
+          bookings.map((b: any) => [b.booking_number || '', b.service_name || '', b.customer_name || '', b.booking_date ? formatDate(b.booking_date) : '', b.status || ''])); break
       case 'invoices_report':
         exportCSV('invoices.csv', ['Order #', 'Customer', 'Total', 'Status', 'Date'],
-          allOrders.map((o: any) => [o.order_number, o.customer_name || '', o.total, o.status, new Date(o.created_at).toLocaleDateString()])); break
+          allOrders.map((o: any) => [o.order_number, o.customer_name || '', o.total, o.status, formatDate(o.created_at)])); break
       case 'coupons_report':
         exportCSV('coupons.csv', ['Code', 'Type', 'Discount', 'Active', 'Uses'],
           coupons.map((c: any) => [c.code || '', c.discount_type || '', c.discount_value || c.discount || 0, c.is_active ? 'Yes' : 'No', c.usage_count || 0])); break
@@ -1229,7 +1229,7 @@ export default function ReportsPage() {
           allProducts.map((p: any) => [p.name, p.stock || 0, p.price || 0, (p.stock || 0) * (p.price || 0)])); break
       case 'reviews_report':
         exportCSV('reviews.csv', ['Customer', 'Rating', 'Comment', 'Date'],
-          reviews.map((r: any) => [r.customer_name || '', r.rating, r.comment || '', r.created_at ? new Date(r.created_at).toLocaleDateString() : ''])); break
+          reviews.map((r: any) => [r.customer_name || '', r.rating, r.comment || '', r.created_at ? formatDate(r.created_at) : ''])); break
       case 'mrp_report':
         exportMrpCSV(); return
       default: toast.info('No export available.')
@@ -1915,7 +1915,7 @@ export default function ReportsPage() {
                   filterLabel="Payment" filterValue={filterVal}
                   filterOptions={Object.keys(posStats.byMethod).map(m => ({ value: m, label: m }))} onFilter={setFilterVal} />
                 <div className="overflow-auto max-h-96">
-                  <ResizableTable tableId="rpt-pos-orders" defaultWidths={[100, 100, 140, 90, 100, 90]}>
+                  <ResizableTable tableId="rpt-pos-orders-v2" defaultWidths={[130, 100, 140, 90, 100, 90]}>
                     <thead className="sticky top-0 bg-card"><tr className="border-b text-left text-xs font-medium text-gray-500 uppercase">
                       <SortHeader label="Date" sortKey="created_at" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <SortHeader label="Order #" sortKey="order_number" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
@@ -1928,7 +1928,7 @@ export default function ReportsPage() {
                       {sorted.slice(0, 30).map((o: any) => {
                         const sc = STATUS_COLORS[o.status] || { badge: 'bg-gray-100 text-gray-700' }
                         return <tr key={o.id} className="hover:bg-accent/50 cursor-pointer" onClick={onClickableTableRow(() => navigate(`/orders/${o.id}`))}>
-                          <td className="py-2 pr-4 text-gray-500 whitespace-nowrap">{new Date(o.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</td>
+                          <td className="py-2 pr-4 text-gray-500 whitespace-nowrap">{formatDate(o.created_at)}</td>
                           <td className="py-2 pr-4 font-medium text-blue-600">{o.order_number}</td>
                           <td className="py-2 pr-4 text-gray-600">{o.customer_name || <span className="italic text-gray-400">Walk-in</span>}</td>
                           <td className="py-2 pr-4 text-right font-medium">{formatCurrency(o.total)}</td>
@@ -1974,7 +1974,7 @@ export default function ReportsPage() {
                   filterLabel="Status" filterValue={filterVal}
                   filterOptions={Object.keys(bookingStats.byStatus).map(s => ({ value: s, label: s }))} onFilter={setFilterVal} />
                 <div className="overflow-auto max-h-96">
-                  <ResizableTable tableId="rpt-bookings" defaultWidths={[100, 120, 160, 150, 90]}>
+                  <ResizableTable tableId="rpt-bookings-v2" defaultWidths={[130, 120, 160, 150, 90]}>
                     <thead className="sticky top-0 bg-card"><tr className="border-b text-left text-xs font-medium text-gray-500 uppercase">
                       <SortHeader label="Date" sortKey="booking_date" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <SortHeader label="Booking #" sortKey="booking_number" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
@@ -1986,7 +1986,7 @@ export default function ReportsPage() {
                       {sorted.slice(0, 30).map((b: any) => {
                         const sc = STATUS_COLORS[b.status] || { badge: 'bg-gray-100 text-gray-700' }
                         return <tr key={b.id} className="hover:bg-accent/50 cursor-pointer" onClick={onClickableTableRow(() => navigate(`/bookings/${b.id}`))}>
-                          <td className="py-2 pr-4 text-gray-500">{b.booking_date ? new Date(b.booking_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—'}</td>
+                          <td className="py-2 pr-4 text-gray-500 whitespace-nowrap">{b.booking_date ? formatDate(b.booking_date) : '—'}</td>
                           <td className="py-2 pr-4 font-medium text-blue-600">{b.booking_number || '—'}</td>
                           <td className="py-2 pr-4 text-gray-600">{b.service_name || '—'}</td>
                           <td className="py-2 pr-4 text-gray-600">{b.customer_name || '—'}</td>
@@ -2026,7 +2026,7 @@ export default function ReportsPage() {
                 <ReportToolbar search={search} onSearch={setSearch} placeholder="Search invoices…"
                   filterLabel="Status" filterValue={filterVal} filterOptions={[{ value: 'paid', label: 'Paid' }, { value: 'unpaid', label: 'Unpaid' }]} onFilter={setFilterVal} />
                 <div className="overflow-auto max-h-96">
-                  <ResizableTable tableId="rpt-invoices" defaultWidths={[100, 110, 150, 90, 90]}>
+                  <ResizableTable tableId="rpt-invoices-v2" defaultWidths={[130, 110, 150, 90, 90]}>
                     <thead className="sticky top-0 bg-card"><tr className="border-b text-left text-xs font-medium text-gray-500 uppercase">
                       <SortHeader label="Date" sortKey="created_at" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       <SortHeader label="Order #" sortKey="order_number" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
@@ -2038,7 +2038,7 @@ export default function ReportsPage() {
                       {sorted.slice(0, 30).map((o: any) => {
                         const sc = STATUS_COLORS[o.status] || { badge: 'bg-gray-100 text-gray-700' }
                         return <tr key={o.id} className="hover:bg-accent/50 cursor-pointer" onClick={onClickableTableRow(() => navigate(`/orders/${o.id}`))}>
-                          <td className="py-2 pr-4 text-gray-500 whitespace-nowrap">{new Date(o.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</td>
+                          <td className="py-2 pr-4 text-gray-500 whitespace-nowrap">{formatDate(o.created_at)}</td>
                           <td className="py-2 pr-4 font-medium text-blue-600">{o.order_number}</td>
                           <td className="py-2 pr-4 text-gray-600">{o.customer_name || '—'}</td>
                           <td className="py-2 pr-4 text-right font-medium">{formatCurrency(o.total)}</td>

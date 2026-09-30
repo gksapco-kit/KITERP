@@ -271,7 +271,7 @@ export default function PurchaseOrdersPage() {
                 onSortKeyChange={setSortKey}
                 onSortDirChange={setSortDir}
               />
-              <ResizableTable tableId="purchase-orders" defaultWidths={[110, 160, 130, 100, 100, 200, 110, 110]}>
+              <ResizableTable tableId="purchase-orders-v2" defaultWidths={[110, 160, 130, 100, 100, 200, 130, 130]}>
                 <thead>
                   <tr className="border-b bg-gray-50">
                     <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>PO #</TableColumnLabel></th>
@@ -355,13 +355,14 @@ export default function PurchaseOrdersPage() {
                             </div>
                           )}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-500">{formatDate(po.order_date)}</td>
+                        <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">{formatDate(po.order_date)}</td>
                         <td className="px-6 py-4 text-sm text-gray-500">
                           <InlineEditCell
                             type="text"
                             value={po.expected_delivery_date || ''}
                             saving={isSaving(po.id, 'expected_delivery_date')}
                             onSave={(v) => patchPOField(po.id, 'expected_delivery_date', String(v).trim() || null)}
+                            truncateContent={false}
                           >
                             {formatDate(po.expected_delivery_date)}
                           </InlineEditCell>

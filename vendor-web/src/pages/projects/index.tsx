@@ -513,6 +513,7 @@ export default function ProjectsPage() {
                           value={p.due_date || ''}
                           saving={isSaving(p.id, 'due_date')}
                           onSave={(v) => patchProjectField(p.id, 'due_date', String(v).trim() || null)}
+                          truncateContent={false}
                         >
                           {p.due_date ? formatDate(p.due_date) : '—'}
                         </InlineEditCell>

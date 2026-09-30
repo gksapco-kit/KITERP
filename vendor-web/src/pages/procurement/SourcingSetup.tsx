@@ -371,7 +371,7 @@ export default function SourcingSetupPage() {
                 <p className="text-sm">Add supplier-material price agreements to enable automatic price lookup in POs</p>
               </div>
             ) : (
-              <ResizableTable tableId="proc-info-records" defaultWidths={[170, 170, 80, 70, 80, 80, 80, 100, 80]}>
+              <ResizableTable tableId="proc-info-records-v2" defaultWidths={[170, 170, 80, 70, 80, 80, 130, 130, 80, 80]}>
                 <thead>
                   <tr>
                     {['Product', 'Supplier', 'Price', 'Currency', 'Min Qty', 'Lead (days)', 'Valid From', 'Valid To', 'Status', ''].map(h => (
@@ -441,7 +441,7 @@ export default function SourcingSetupPage() {
                 <p className="text-sm">Define which suppliers are approved / fixed for each material</p>
               </div>
             ) : (
-              <ResizableTable tableId="proc-source-list" defaultWidths={[180, 180, 80, 100, 100, 80, 80]}>
+              <ResizableTable tableId="proc-source-list-v2" defaultWidths={[180, 180, 80, 130, 130, 80, 80, 80]}>
                 <thead>
                   <tr>
                     {['Product', 'Supplier', 'Priority', 'Valid From', 'Valid To', 'Fixed', 'Status', ''].map(h => (

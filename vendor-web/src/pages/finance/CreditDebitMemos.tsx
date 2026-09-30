@@ -904,7 +904,7 @@ export default function CreditDebitMemos() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <ResizableTable tableId="credit-debit-memos" defaultWidths={[110, 100, 80, 72, 150, 60, 90, 100, 88]}>
+              <ResizableTable tableId="credit-debit-memos-v2" defaultWidths={[130, 100, 80, 72, 150, 60, 90, 100, 88]}>
                 <thead><tr className="border-b bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">
                   <th className="px-4 py-2.5"><TableColumnLabel>Date</TableColumnLabel></th>
                   <th className="px-4 py-2.5"><TableColumnLabel>Memo #</TableColumnLabel></th>

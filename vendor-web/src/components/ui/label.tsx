@@ -32,6 +32,8 @@ export type LabelProps = React.ComponentPropsWithoutRef<typeof LabelPrimitive.Ro
     fullHelp?: string
     /** Show hover + F1 help (default true for plain-text labels). */
     autoHelp?: boolean
+    /** Show a required asterisk (also inferred from a trailing * in children). */
+    required?: boolean
     /** Database table override for wrench icon in help popup. */
     dbTable?: string
     dbField?: string

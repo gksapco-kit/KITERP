@@ -1210,7 +1210,7 @@ export default function SpecialProcurementPage() {
                 <p className="text-sm">Create SES documents to confirm service delivery before releasing AP invoices</p>
               </div>
             ) : (
-              <ResizableTable tableId="service-entry-sheets" defaultWidths={[120, 160, 110, 100, 110, 110]}>
+              <ResizableTable tableId="service-entry-sheets-v2" defaultWidths={[120, 160, 110, 100, 220, 110]}>
                 <thead>
                   <tr>
                     {['SES No.', 'Supplier', 'PO Ref', 'Total', 'Period', 'Status'].map(h => (
@@ -1258,7 +1258,7 @@ export default function SpecialProcurementPage() {
                 <p className="text-sm">Issue components to an external supplier who returns the finished goods</p>
               </div>
             ) : (
-              <ResizableTable tableId="subcontracting-orders" defaultWidths={[120, 160, 110, 90, 90, 110, 110]}>
+              <ResizableTable tableId="subcontracting-orders-v2" defaultWidths={[120, 160, 110, 90, 90, 130, 110]}>
                 <thead>
                   <tr>
                     {['Reference', 'Supplier', 'PO Ref', 'Qty Expected', 'Qty Received', 'Created', 'Status'].map(h => (
@@ -1307,7 +1307,7 @@ export default function SpecialProcurementPage() {
                 </Button>
               </div>
             ) : (
-              <ResizableTable tableId="consignment-stock" defaultWidths={[160, 140, 110, 100, 100, 100, 80, 100, 100]}>
+              <ResizableTable tableId="consignment-stock-v2" defaultWidths={[160, 140, 110, 100, 100, 100, 80, 130, 100]}>
                 <thead>
                   <tr>
                     {['Product', 'Supplier', 'PO Ref', 'Qty Available', 'Qty Withdrawn', 'Unit Price', 'Currency', 'Last Updated', ''].map(h => (

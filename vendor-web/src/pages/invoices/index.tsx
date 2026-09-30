@@ -369,7 +369,7 @@ export default function InvoicesPage() {
             onSortKeyChange={setSortKey}
             onSortDirChange={setSortDir}
           />
-          <ResizableTable tableId="invoices" defaultWidths={[120, 120, 90, 160, 90, 90, 90, 100, 100]}>
+          <ResizableTable tableId="invoices-v2" defaultWidths={[120, 120, 90, 160, 90, 90, 90, 130, 100]}>
             <thead>
               <tr className="border-b border-border bg-muted/40">
                 <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase"><TableColumnLabel>Invoice #</TableColumnLabel></th>
@@ -448,7 +448,7 @@ export default function InvoicesPage() {
                         <span className={`${invoiceBadgeClass(sb)} capitalize`}>{inv.status as string}</span>
                       </InlineEditCell>
                     </td>
-                    <td className="px-5 py-3 text-sm text-muted-foreground">{formatDate(inv.created_at as string)}</td>
+                    <td className="px-5 py-3 text-sm text-muted-foreground whitespace-nowrap">{formatDate(inv.created_at as string)}</td>
                     <td className="px-2 py-3">
                       <div className="flex items-center justify-center gap-1">
                         <button

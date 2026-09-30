@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label'
 import { useProducts, useServices, useInvoiceSettings, vendorKeys, useMyMembership, useStores } from '@/hooks/useVendor'
 import { vendorApi } from '@/api/vendor'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, formatDate } from '@/lib/utils'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { TablePagination } from '@/components/table/TablePagination'
@@ -1597,7 +1597,7 @@ export default function POS() {
                     <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-accent/70 px-3 py-1.5">
                       <CalendarDays className="w-3.5 h-3.5 text-primary/80 shrink-0" />
                       <span className="text-xs text-primary font-medium flex-1">
-                        {new Date(item.booking_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                        {formatDate(item.booking_date)}
                         {' · '}
                         {item.booking_time}
                         {item.booking_notes?.startsWith('to:') && (
@@ -2890,7 +2890,7 @@ function POSTransactionHistory({
             <div className="text-center py-12"><Receipt className="w-10 h-10 text-gray-200 mx-auto mb-3" /><p className="text-sm text-gray-500">No transactions found</p></div>
           ) : (
             <div className="overflow-x-auto">
-              <ResizableTable tableId="pos-orders" defaultWidths={[120, 100, 80, 140, 60, 90, 100, 80, 50]}>
+              <ResizableTable tableId="pos-orders-v2" defaultWidths={[180, 100, 80, 140, 60, 90, 100, 80, 50]}>
                 <thead><tr className="border-b bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">
                   <th className="px-4 py-2.5"><TableColumnLabel>Date</TableColumnLabel></th>
                   <th className="px-4 py-2.5"><TableColumnLabel>Order #</TableColumnLabel></th>
@@ -2906,7 +2906,7 @@ function POSTransactionHistory({
                   {orders.map((o: any) => (
                     <tr key={o.id} className="hover:bg-gray-50 cursor-pointer" onClick={onClickableTableRow(() => onSelectTxn(o))}>
                       <td className="px-4 py-2.5 text-gray-600 whitespace-nowrap text-xs">
-                        {new Date(o.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                        {formatDate(o.created_at)}
                         <span className="text-gray-400 ml-1">{new Date(o.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
                       </td>
                       <td className="px-4 py-2.5 font-semibold text-blue-600">{o.order_number}</td>

@@ -395,7 +395,7 @@ export default function Orders() {
             onSortKeyChange={setSortKey}
             onSortDirChange={setSortDir}
           />
-          <ResizableTable tableId="orders-v3" defaultWidths={[44, 118, 168, 82, 108, 88, 98, 128, 98, 76]}>
+          <ResizableTable tableId="orders-v4" defaultWidths={[44, 118, 168, 82, 108, 88, 98, 128, 130, 76]}>
             <thead>
               <tr className="border-b border-border bg-muted/30">
                 <th className="w-11 px-2 py-2 text-center align-middle">
@@ -494,7 +494,7 @@ export default function Orders() {
                       <OrderReservationBadge orderId={order.id} />
                     </div>
                   </td>
-                  <td className="px-3 py-2.5 text-sm text-muted-foreground">{formatDate(order.created_at)}</td>
+                  <td className="px-3 py-2.5 text-sm text-muted-foreground whitespace-nowrap">{formatDate(order.created_at)}</td>
                   <td className="px-3 py-2.5 text-right">
                     <div className="flex items-center justify-end gap-1">
                       <Button

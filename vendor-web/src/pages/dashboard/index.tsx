@@ -5,7 +5,7 @@ import { useVendorStore } from '@/stores/vendorStore'
 import { vendorApi } from '@/api/vendor'
 import { useQuery } from '@tanstack/react-query'
 import { useProducts, useServices, useHREmployees, useHRLeaveRequests, useHRMyToday } from '@/hooks/useVendor'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, formatDate } from '@/lib/utils'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { processRows, type SortDir } from '@/lib/tableList'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
@@ -803,9 +803,7 @@ export default function Dashboard() {
                             </span>
                           </div>
                           <p className="truncate text-xs text-muted-foreground">
-                            {row.booking_date
-                              ? new Date(row.booking_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
-                              : '—'}
+                            {row.booking_date ? formatDate(row.booking_date) : '—'}
                             <span className="mx-1.5 text-border">·</span>
                             {row.service_name || '—'}
                             <span className="mx-1.5 text-border">·</span>
@@ -829,7 +827,7 @@ export default function Dashboard() {
                         </div>
                         <div className="flex min-w-0 items-center justify-between gap-2 text-xs text-muted-foreground">
                           <span className="min-w-0 truncate">
-                            {new Date(row.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                            {formatDate(row.created_at)}
                             <span className="mx-1.5 text-border">·</span>
                             {row.customer_name || 'Walk-in'}
                           </span>
@@ -860,9 +858,7 @@ export default function Dashboard() {
                           return (
                             <tr key={row.id} className="cursor-pointer hover:bg-muted/50" onClick={onClickableTableRow(() => navigate(`/bookings/${row.id}`))}>
                               <td className="whitespace-nowrap px-5 py-2.5 text-muted-foreground">
-                                {row.booking_date
-                                  ? new Date(row.booking_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
-                                  : '—'}
+                                {row.booking_date ? formatDate(row.booking_date) : '—'}
                               </td>
                               <td className="px-5 py-2.5 font-medium text-primary hover:underline">{row.booking_number || '—'}</td>
                               <td className="px-5 py-2.5 text-foreground/80">{row.service_name || '—'}</td>
@@ -878,7 +874,7 @@ export default function Dashboard() {
                         return (
                           <tr key={row.id} className="cursor-pointer hover:bg-muted/50" onClick={onClickableTableRow(() => navigate(`/orders/${row.id}`))}>
                             <td className="whitespace-nowrap px-5 py-2.5 text-muted-foreground">
-                              {new Date(row.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                              {formatDate(row.created_at)}
                               <span className="ml-1 text-xs text-muted-foreground/80">
                                 {new Date(row.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                               </span>

@@ -747,8 +747,8 @@ export default function PurchaseRequisitionsPage() {
     { key: 'priority',      label: 'Priority',     width: 90 },
     { key: 'status',        label: 'Status',       width: 110 },
     { key: 'item_count',    label: 'Items',        width: 70 },
-    { key: 'required_date', label: 'Required By',  width: 110 },
-    { key: 'created_at',    label: 'Created',      width: 110 },
+    { key: 'required_date', label: 'Required By',  width: 130 },
+    { key: 'created_at',    label: 'Created',      width: 130 },
     { key: 'actions',       label: 'Actions',      width: 250 },
   ]
 
@@ -883,7 +883,7 @@ export default function PurchaseRequisitionsPage() {
             </p>
           </div>
         ) : (
-          <ResizableTable tableId="procurement-requisitions-v3" defaultWidths={cols.map(c => c.width)}>
+          <ResizableTable tableId="procurement-requisitions-v4" defaultWidths={cols.map(c => c.width)}>
             <thead>
               <tr>
                 {cols.map(c => (

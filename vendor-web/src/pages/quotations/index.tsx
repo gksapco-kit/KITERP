@@ -550,8 +550,8 @@ export default function QuotationsPage() {
           />
           <div className="overflow-x-auto">
           <ResizableTable
-            tableId="quotations"
-            defaultWidths={[110, 90, 160, 180, 90, 110, 100, 200]}
+            tableId="quotations-v2"
+            defaultWidths={[110, 90, 160, 180, 90, 110, 130, 200]}
           >
             <thead>
               <tr className="border-b border-border bg-muted/40">

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { TableColumnLabel } from '@/components/common/FieldLabel'
+import { FieldLabel, TableColumnLabel } from '@/components/common/FieldLabel'
 import { SalesScopeFilters } from '@/components/common/SalesScopeFilters'
 import { SalesAreaSelect } from '@/components/common/SalesAreaSelect'
 import { BranchSelect } from '@/components/common/BranchSelect'
@@ -837,7 +837,7 @@ export default function BookingsPage() {
                   {/* Customer */}
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
-                      <Label className={bm.fieldLabel} required>Customer</Label>
+                      <FieldLabel className={bm.fieldLabel} required>Customer</FieldLabel>
                       {!selectedCustomer && (
                         <button
                           type="button"
@@ -904,7 +904,7 @@ export default function BookingsPage() {
 
                   {/* Service */}
                   <div>
-                    <Label className={`${bm.fieldLabel} block mb-1.5`} required>Service</Label>
+                    <FieldLabel className={`${bm.fieldLabel} block mb-1.5`} required>Service</FieldLabel>
                     <Select
                       value={selectedService}
                       onChange={(svcId) => {
@@ -1507,7 +1507,7 @@ export default function BookingsPage() {
                 onSortKeyChange={setSortKey}
                 onSortDirChange={setSortDir}
               />
-              <ResizableTable tableId="bookings-v2" defaultWidths={[120, 160, 150, 100, 100, 90, 110, 220]}>
+              <ResizableTable tableId="bookings-v3" defaultWidths={[120, 160, 150, 130, 100, 90, 130, 220]}>
                 <thead>
                   <tr className="border-b bg-gray-50">
                     <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Booking #</TableColumnLabel></th>
@@ -1535,6 +1535,7 @@ export default function BookingsPage() {
                             readOnlyMessage="Use Reschedule in Actions to change the booking date"
                             value={b.booking_date as string || ''}
                             onSave={() => {}}
+                            truncateContent={false}
                           >
                             {b.booking_date ? formatDate(b.booking_date as string) : '-'}
                           </InlineEditCell>
@@ -1563,7 +1564,7 @@ export default function BookingsPage() {
                             {formatCurrency((b.total as number) || (b.service_price as number) || 0)}
                           </InlineEditCell>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-500">{b.created_at ? formatDate(b.created_at as string) : '-'}</td>
+                        <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">{b.created_at ? formatDate(b.created_at as string) : '-'}</td>
                         <td className="px-2 py-3 text-right">
                           {(() => {
                             const bId = b.id as string
