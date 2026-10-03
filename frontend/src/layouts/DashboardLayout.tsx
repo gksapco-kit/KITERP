@@ -388,14 +388,6 @@ export default function DashboardLayout() {
   const displayName = isAdmin ? 'KIT ERP' : vendor?.display_name || 'KIT ERP'
   const roleLabel = getDashboardUserRoleLabel(user)
 
-  const isHrIframeShell =
-    location.pathname === HR_ADMIN_BASE || location.pathname.startsWith(`${HR_ADMIN_BASE}/`)
-  const isCrmIframeShell =
-    location.pathname === CRM_ADMIN_BASE || location.pathname.startsWith(`${CRM_ADMIN_BASE}/`)
-  const isFinanceIframeShell =
-    location.pathname === FINANCE_ADMIN_BASE || location.pathname.startsWith(`${FINANCE_ADMIN_BASE}/`)
-  const isModuleIframeShell = isHrIframeShell || isCrmIframeShell || isFinanceIframeShell
-
   const hrSlug = location.pathname.startsWith(`${HR_ADMIN_BASE}/`)
     ? location.pathname.slice(HR_ADMIN_BASE.length + 1).split('/')[0]
     : undefined
@@ -405,6 +397,15 @@ export default function DashboardLayout() {
     ? location.pathname.slice(CRM_ADMIN_BASE.length + 1).split('/')[0]
     : undefined
   const crmItem = getCrmAdminNavItem(crmSlug)
+
+  const isHrIframeShell =
+    location.pathname === HR_ADMIN_BASE || location.pathname.startsWith(`${HR_ADMIN_BASE}/`)
+  const isCrmIframeShell =
+    (location.pathname === CRM_ADMIN_BASE || location.pathname.startsWith(`${CRM_ADMIN_BASE}/`))
+    && !crmItem?.native
+  const isFinanceIframeShell =
+    location.pathname === FINANCE_ADMIN_BASE || location.pathname.startsWith(`${FINANCE_ADMIN_BASE}/`)
+  const isModuleIframeShell = isHrIframeShell || isCrmIframeShell || isFinanceIframeShell
 
   const financeSlug = location.pathname.startsWith(`${FINANCE_ADMIN_BASE}/`)
     ? location.pathname.slice(FINANCE_ADMIN_BASE.length + 1).split('/')[0]

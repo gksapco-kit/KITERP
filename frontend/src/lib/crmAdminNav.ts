@@ -12,6 +12,7 @@ import {
   History,
   LayoutDashboard,
   LifeBuoy,
+  Linkedin,
   Mail,
   Megaphone,
   Target,
@@ -25,14 +26,17 @@ export type CrmAdminNavItem = {
   slug: string
   label: string
   icon: LucideIcon
-  /** Vendor-web path opened via handoff. */
+  /** Vendor-web path opened via handoff. Empty when `native` is set. */
   vendorPath: string
+  /** Rendered in the admin app instead of the vendor CRM iframe. */
+  native?: boolean
 }
 
 export const CRM_ADMIN_NAV_ITEMS: CrmAdminNavItem[] = [
   { slug: 'dashboard', label: 'CRM Dashboard', icon: LayoutDashboard, vendorPath: '/crm' },
   { slug: 'contacts', label: 'Contacts', icon: Contact2, vendorPath: '/crm/contacts' },
   { slug: 'leads', label: 'Leads', icon: Target, vendorPath: '/crm/leads' },
+  { slug: 'linkedin', label: 'LinkedIn', icon: Linkedin, vendorPath: '', native: true },
   { slug: 'pipeline', label: 'Pipeline', icon: GitBranch, vendorPath: '/crm/pipeline' },
   { slug: 'activities', label: 'Tasks', icon: Activity, vendorPath: '/crm/activities' },
   { slug: 'tickets', label: 'Tickets', icon: LifeBuoy, vendorPath: '/crm/tickets' },

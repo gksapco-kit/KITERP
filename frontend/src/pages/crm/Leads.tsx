@@ -37,6 +37,7 @@ const SOURCE_LABELS: Record<string, string> = {
   referral: 'Referral',
   other: 'Other',
   manual: 'Manual',
+  linkedin: 'LinkedIn',
 }
 
 function sourceLabel(source?: string | null) {

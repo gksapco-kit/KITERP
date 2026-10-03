@@ -12,6 +12,7 @@ import {
 } from '@/lib/crmAdminNav'
 import { useAuthStore } from '@/stores/authStore'
 import { isPlatformStaff } from '@/lib/platformAccess'
+import PlatformCrmLinkedIn from '@/pages/dashboard/PlatformCrmLinkedIn'
 
 const PLATFORM_CRM_SESSION_KEY = 'kiterp-platform-crm'
 
@@ -51,7 +52,7 @@ export default function CrmManagement() {
   const requestSeq = useRef(0)
 
   useEffect(() => {
-    if (!getCrmAdminNavItem(section) || !crmItem.vendorPath) return
+    if (crmItem.native || !getCrmAdminNavItem(section) || !crmItem.vendorPath) return
 
     const seq = ++requestSeq.current
     let cancelled = false
@@ -86,7 +87,7 @@ export default function CrmManagement() {
     return () => {
       cancelled = true
     }
-  }, [crmItem.vendorPath, section, frameEpoch])
+  }, [crmItem.native, crmItem.vendorPath, section, frameEpoch])
 
   if (!allowed) {
     return <Navigate to="/dashboard" replace />
@@ -98,6 +99,10 @@ export default function CrmManagement() {
 
   if (!getCrmAdminNavItem(section)) {
     return <Navigate to={crmAdminPath('dashboard')} replace />
+  }
+
+  if (crmItem.native && section === 'linkedin') {
+    return <PlatformCrmLinkedIn />
   }
 
   const reloadFrame = () => {

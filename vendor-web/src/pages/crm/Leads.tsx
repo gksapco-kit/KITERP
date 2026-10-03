@@ -71,6 +71,7 @@ function sourceLabel(source?: string | null) {
     referral: 'Referral',
     other: 'Other',
     manual: 'Manual',
+    linkedin: 'LinkedIn',
   }
   return labels[key] || source || '—'
 }

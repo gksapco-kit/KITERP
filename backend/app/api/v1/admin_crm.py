@@ -11,6 +11,7 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_platform_staff
@@ -610,3 +611,115 @@ async def convert_contact_query_to_lead(
     return await LeadService(db).create(
         await _vid(db), data, actor_id=current_user.id, request=request,
     )
+
+
+# ── LinkedIn Lead Gen ────────────────────────────────────────────────────────
+
+class LinkedInSaveRequest(BaseModel):
+    client_id: str = ""
+    client_secret: str = ""
+    organization_id: str = ""
+    sponsored_account_id: str = ""
+    lead_type: str = "SPONSORED"
+
+
+@router.get("/linkedin")
+async def linkedin_status(
+    current_user: User = Depends(get_current_platform_staff),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services.crm.linkedin_leads import LinkedInLeadService
+
+    service = LinkedInLeadService(db)
+    return service.public_status(await service._row(await _vid(db)))
+
+
+@router.put("/linkedin")
+async def linkedin_save(
+    payload: LinkedInSaveRequest,
+    current_user: User = Depends(get_current_platform_staff),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services.crm.linkedin_leads import LinkedInLeadService
+
+    return await LinkedInLeadService(db).save(await _vid(db), payload.model_dump())
+
+
+@router.delete("/linkedin", status_code=status.HTTP_200_OK)
+async def linkedin_disconnect(
+    current_user: User = Depends(get_current_platform_staff),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services.crm.linkedin_leads import LinkedInLeadService
+
+    return await LinkedInLeadService(db).disconnect(await _vid(db))
+
+
+@router.post("/linkedin/connect")
+async def linkedin_connect(
+    current_user: User = Depends(get_current_platform_staff),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services.crm.linkedin_leads import LinkedInLeadService
+
+    url = await LinkedInLeadService(db).authorize_url(await _vid(db))
+    return {"authorize_url": url}
+
+
+@router.get("/linkedin/callback")
+async def linkedin_oauth_callback(
+    code: Optional[str] = None,
+    state: Optional[str] = None,
+    error: Optional[str] = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """LinkedIn redirects the browser here after the admin approves access."""
+    from app.services.crm.linkedin_leads import LinkedInLeadService
+
+    if error:
+        code = None
+    return await LinkedInLeadService(db).finish_oauth(code or "", state or "")
+
+
+@router.post("/linkedin/subscribe")
+async def linkedin_subscribe(
+    current_user: User = Depends(get_current_platform_staff),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services.crm.linkedin_leads import LinkedInLeadService
+
+    return await LinkedInLeadService(db).subscribe(await _vid(db))
+
+
+@router.post("/linkedin/sync")
+async def linkedin_sync(
+    current_user: User = Depends(get_current_platform_staff),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services.crm.linkedin_leads import LinkedInLeadService
+
+    return await LinkedInLeadService(db).sync_recent(await _vid(db))
+
+
+@router.post("/linkedin/test-lead", response_model=LeadResponse, status_code=status.HTTP_201_CREATED)
+async def linkedin_test_lead(
+    current_user: User = Depends(get_current_platform_staff),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services.crm.linkedin_leads import LinkedInLeadService
+
+    return await LinkedInLeadService(db).create_test_lead(await _vid(db))
+
+
+@router.get("/linkedin/webhook")
+async def linkedin_webhook_challenge(request: Request, db: AsyncSession = Depends(get_db)):
+    from app.services.crm.linkedin_leads import LinkedInLeadService
+
+    return await LinkedInLeadService(db).handle_challenge(request)
+
+
+@router.post("/linkedin/webhook")
+async def linkedin_webhook_event(request: Request, db: AsyncSession = Depends(get_db)):
+    from app.services.crm.linkedin_leads import LinkedInLeadService
+
+    return await LinkedInLeadService(db).handle_webhook(request)

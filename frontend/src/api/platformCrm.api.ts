@@ -174,4 +174,45 @@ export const platformCrmApi = {
 
   convertContactQueryToLead: (queryId: string) =>
     apiClient.post<Lead>(`${BASE}/contact-queries/${queryId}/convert-to-lead`).then((r) => r.data),
+
+  linkedinStatus: () =>
+    apiClient.get<LinkedInStatus>(`${BASE}/linkedin`).then((r) => r.data),
+  saveLinkedIn: (data: LinkedInSave) =>
+    apiClient.put<LinkedInStatus>(`${BASE}/linkedin`, data).then((r) => r.data),
+  disconnectLinkedIn: () =>
+    apiClient.delete<LinkedInStatus>(`${BASE}/linkedin`).then((r) => r.data),
+  connectLinkedIn: () =>
+    apiClient.post<{ authorize_url: string }>(`${BASE}/linkedin/connect`).then((r) => r.data),
+  subscribeLinkedIn: () =>
+    apiClient.post<LinkedInStatus>(`${BASE}/linkedin/subscribe`).then((r) => r.data),
+  syncLinkedIn: () =>
+    apiClient.post<{ ok: boolean; created: number; duplicates: number }>(`${BASE}/linkedin/sync`).then((r) => r.data),
+  createLinkedInTestLead: () =>
+    apiClient.post<Lead>(`${BASE}/linkedin/test-lead`).then((r) => r.data),
+}
+
+export type LinkedInStatus = {
+  status: string
+  connected: boolean
+  client_id: string
+  client_secret_set: boolean
+  organization_id: string
+  sponsored_account_id: string
+  lead_type: string
+  subscription_id?: string | number | null
+  webhook_url: string
+  redirect_uri: string
+  webhook_https: boolean
+  last_error?: string | null
+  last_synced_at?: string | null
+  scope: string
+  lead_types: string[]
+}
+
+export type LinkedInSave = {
+  client_id: string
+  client_secret: string
+  organization_id: string
+  sponsored_account_id: string
+  lead_type: string
 }
