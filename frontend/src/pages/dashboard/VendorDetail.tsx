@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
@@ -249,6 +249,12 @@ export default function VendorDetail() {
   const updateVendor = useUpdateAdminVendor()
   const { data: ownerData } = useVendorOwner(id!)
   const { data: plans } = usePlans()
+  const assignablePlans = useMemo(() => {
+    const order = ['starter', 'growth', 'professional']
+    return (plans ?? [])
+      .filter((plan) => plan.is_active && order.includes(plan.slug))
+      .sort((a, b) => order.indexOf(a.slug) - order.indexOf(b.slug))
+  }, [plans])
   const { data: vendorPlanData } = useVendorPlan(id!)
   const assignPlan = useAssignPlan()
   const [showPlanPicker, setShowPlanPicker] = useState(false)
@@ -869,8 +875,14 @@ export default function VendorDetail() {
             <Card>
               <CardContent className="px-4 py-3 space-y-2">
                 <p className="text-xs text-gray-500 font-medium">Select a plan:</p>
-                {plans?.map((plan) => {
+                {assignablePlans.map((plan) => {
                   const isCurrent = vendorPlanData?.plan?.id === plan.id
+                  const appsLabel =
+                    plan.slug === 'professional'
+                      ? 'My Kit + all apps'
+                      : plan.slug === 'growth'
+                        ? 'My Kit + 6 apps'
+                        : 'My Kit + 1 app'
                   return (
                     <button
                       key={plan.id}
@@ -893,14 +905,12 @@ export default function VendorDetail() {
                           {plan.currency === 'INR' ? '₹' : '$'}{plan.price_monthly}/mo
                         </span>
                       </div>
-                      {plan.features?.branded_app && (
-                        <span className="text-xs text-green-600">Includes Branded App</span>
-                      )}
+                      <span className="text-xs text-gray-500">{appsLabel}</span>
                       {isCurrent && <span className="text-xs text-blue-500 ml-1">(current)</span>}
                     </button>
                   )
                 })}
-                {(!plans || plans.length === 0) && (
+                {assignablePlans.length === 0 && (
                   <p className="text-xs text-gray-400">
                     No plans created yet.
                     {canMutate && (

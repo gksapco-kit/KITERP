@@ -19,6 +19,7 @@ from app.database import (
     ensure_vendor_order_acceptance_columns,
     ensure_vendor_external_domain_columns,
     ensure_vendor_show_in_community_column,
+    ensure_vendor_saas_billing_schema,
     ensure_product_uom_column,
     ensure_service_booking_label_column,
     ensure_service_storefront_label_columns,
@@ -86,6 +87,7 @@ async def lifespan(app: FastAPI):
         await ensure_vendor_order_acceptance_columns()
         await ensure_vendor_external_domain_columns()
         await ensure_vendor_show_in_community_column()
+        await ensure_vendor_saas_billing_schema()
         await ensure_product_uom_column()
         await ensure_service_booking_label_column()
         await ensure_service_storefront_label_columns()

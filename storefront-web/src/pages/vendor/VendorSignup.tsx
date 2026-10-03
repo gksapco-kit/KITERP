@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useForm, Controller, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -190,6 +190,11 @@ type OtpChannel = 'phone' | 'email'
 
 export default function VendorSignup() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const selectedPlanSlug = useMemo(() => {
+    const raw = (searchParams.get('plan') || '').trim().toLowerCase()
+    return raw === 'starter' || raw === 'growth' || raw === 'professional' ? raw : null
+  }, [searchParams])
   useDocumentSeo({
     title: 'Create Your Business — KIT ERP',
     description:
@@ -334,7 +339,10 @@ export default function VendorSignup() {
     setLoading(true)
     setError('')
     try {
-      const res = await axios.post(`${API_URL}/auth/vendor-signup`, payload)
+      const res = await axios.post(`${API_URL}/auth/vendor-signup`, {
+        ...payload,
+        ...(selectedPlanSlug ? { plan_slug: selectedPlanSlug } : {}),
+      })
 
       const emailTrim = (payload.email || '').trim()
       const emailOk = emailTrim.length > 0 && z.string().email().safeParse(emailTrim).success
@@ -345,10 +353,13 @@ export default function VendorSignup() {
         vendor_slug: string
         vendor_id: string
         verification_code_hint?: string | null
+        pending_plan_slug?: string | null
       }
 
       localStorage.removeItem(STOREFRONT_VENDOR_SIGNUP_DRAFT_KEY)
       closeOtpModal()
+
+      const planSlug = result.pending_plan_slug || selectedPlanSlug || undefined
 
       if (emailOk && result.verification_code_hint) {
         navigate(VENDOR_VERIFY_EMAIL_PATH, {
@@ -359,6 +370,7 @@ export default function VendorSignup() {
             vendor_slug: result.vendor_slug,
             vendor_id: result.vendor_id,
             verification_code_hint: result.verification_code_hint,
+            plan_slug: planSlug,
           },
         })
       } else {
@@ -369,6 +381,7 @@ export default function VendorSignup() {
           business_name: payload.business_name,
           full_name: payload.full_name,
           business_category: payload.business_category,
+          plan_slug: planSlug,
         })
       }
     } catch (err: unknown) {
@@ -494,6 +507,13 @@ export default function VendorSignup() {
               <div className="w-full rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-sm md:p-4">
                 <div className="mb-2">
                   <h2 className="text-lg font-bold tracking-tight text-slate-900 md:text-xl">Create your business</h2>
+                  {selectedPlanSlug ? (
+                    <p className="mt-1 text-sm text-emerald-700">
+                      Selected plan:{' '}
+                      <span className="font-semibold capitalize">{selectedPlanSlug}</span>
+                      {' '}— you&apos;ll complete Razorpay payment after signup.
+                    </p>
+                  ) : null}
                   <p className="mt-0.5 text-xs text-slate-500">Fill in the details below to get started.</p>
                 </div>
 

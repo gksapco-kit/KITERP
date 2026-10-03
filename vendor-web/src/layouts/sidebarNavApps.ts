@@ -82,6 +82,24 @@ export function normalizeEnabledSectionIds(ids: string[], allSectionIds: string[
   return withPinned(ids.filter((id) => allSectionIds.includes(id)), allSectionIds)
 }
 
+/**
+ * Enforce plan app limit: My Kit always stays; only the first `maxApps` optional modules remain.
+ * maxApps < 0 means unlimited.
+ */
+export function trimEnabledSectionsToPlanLimit(
+  ids: string[],
+  allSectionIds: string[],
+  maxApps: number,
+): string[] {
+  if (maxApps < 0) {
+    return normalizeEnabledSectionIds(ids, allSectionIds)
+  }
+  const normalized = normalizeEnabledSectionIds(ids, allSectionIds)
+  const optional = normalized.filter((id) => !isPinnedSidebarSection(id))
+  const keptOptional = optional.slice(0, maxApps)
+  return withPinned(keptOptional, allSectionIds)
+}
+
 export function isPinnedSidebarSection(sectionId: string): boolean {
   return (PINNED_SIDEBAR_SECTION_IDS as readonly string[]).includes(sectionId)
 }

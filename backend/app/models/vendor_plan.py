@@ -25,6 +25,8 @@ class VendorPlan(Base):
     max_services = Column(Integer, default=-1)
     max_team_members = Column(Integer, default=1)
     max_storage_mb = Column(Integer, default=1000)
+    # Sidebar installable apps (My Kit is free / pinned and does not count). -1 = unlimited.
+    max_apps = Column(Integer, default=-1)
     
     # Features
     features = Column(JSONB, default={

@@ -104,6 +104,7 @@ class PlanResponse(BaseModel):
     max_services: int = -1
     max_team_members: int = 1
     max_storage_mb: int = 1000
+    max_apps: int = -1
     features: dict = {}
     is_active: bool = True
     is_featured: bool = False
@@ -124,6 +125,7 @@ class PlanCreate(BaseModel):
     max_services: int = -1
     max_team_members: int = 1
     max_storage_mb: int = 1000
+    max_apps: int = -1
     features: dict = {}
     is_active: bool = True
     is_featured: bool = False
@@ -142,6 +144,7 @@ class PlanUpdate(BaseModel):
     max_services: Optional[int] = Field(None, ge=-1)
     max_team_members: Optional[int] = Field(None, ge=1)
     max_storage_mb: Optional[int] = Field(None, ge=1)
+    max_apps: Optional[int] = Field(None, ge=-1)
     features: Optional[dict] = None
     is_active: Optional[bool] = None
     is_featured: Optional[bool] = None
@@ -1365,6 +1368,17 @@ async def delete_vendor(
     await service.delete_vendor(vendor_id, current_user.id)
 
 
+@router.get("/billing/overview")
+async def admin_billing_overview(
+    current_user: User = Depends(get_current_superuser),
+    db: AsyncSession = Depends(get_db),
+):
+    """Vendor SaaS subscriptions, payment history, and collected totals."""
+    from app.services.vendor_billing_service import VendorBillingService
+
+    return await VendorBillingService(db).admin_overview()
+
+
 # ── Plan Management ──────────────────────────────────────────────────────────
 
 @router.get("/plans")
@@ -1384,6 +1398,7 @@ async def list_plans(
             currency=p.currency or "INR",
             max_products=p.max_products, max_services=p.max_services,
             max_team_members=p.max_team_members, max_storage_mb=p.max_storage_mb,
+            max_apps=getattr(p, "max_apps", None) if getattr(p, "max_apps", None) is not None else -1,
             features=p.features or {},
             is_active=p.is_active, is_featured=p.is_featured,
             sort_order=p.sort_order,
@@ -1405,6 +1420,7 @@ async def create_plan(
         currency=body.currency,
         max_products=body.max_products, max_services=body.max_services,
         max_team_members=body.max_team_members, max_storage_mb=body.max_storage_mb,
+        max_apps=body.max_apps,
         features=body.features,
         is_active=body.is_active, is_featured=body.is_featured,
     )
@@ -1419,6 +1435,7 @@ async def create_plan(
         currency=plan.currency or "INR",
         max_products=plan.max_products, max_services=plan.max_services,
         max_team_members=plan.max_team_members, max_storage_mb=plan.max_storage_mb,
+        max_apps=plan.max_apps if plan.max_apps is not None else -1,
         features=plan.features or {},
         is_active=plan.is_active, is_featured=plan.is_featured,
         sort_order=plan.sort_order,
@@ -1468,6 +1485,7 @@ async def update_plan(
         max_services=plan.max_services,
         max_team_members=plan.max_team_members,
         max_storage_mb=plan.max_storage_mb,
+        max_apps=plan.max_apps if plan.max_apps is not None else -1,
         features=plan.features or {},
         is_active=plan.is_active,
         is_featured=plan.is_featured,
@@ -1582,6 +1600,7 @@ async def get_vendor_plan(
             currency=plan.currency or "INR",
             max_products=plan.max_products, max_services=plan.max_services,
             max_team_members=plan.max_team_members, max_storage_mb=plan.max_storage_mb,
+            max_apps=plan.max_apps if plan.max_apps is not None else -1,
             features=plan.features or {},
             is_active=plan.is_active, is_featured=plan.is_featured,
             sort_order=plan.sort_order,

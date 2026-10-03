@@ -8,6 +8,13 @@ export const planKeys = {
   vendorPlan: (vendorId: string) => [...planKeys.all, 'vendor', vendorId] as const,
 }
 
+export function useBillingOverview() {
+  return useQuery({
+    queryKey: [...planKeys.all, 'billing-overview'] as const,
+    queryFn: plansApi.billingOverview,
+  })
+}
+
 export function usePlans() {
   return useQuery({
     queryKey: planKeys.list(),

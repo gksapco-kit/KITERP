@@ -110,6 +110,11 @@ class Vendor(Base):
     # Plan
     plan_id = Column(UUID(as_uuid=True), ForeignKey("vendor_plan.id"))
     plan_expires_at = Column(DateTime(timezone=True))
+    # Platform SaaS billing: active | past_due | expired | none
+    billing_status = Column(String(20), default="none")
+    # Last Razorpay order used for plan checkout (idempotency / support)
+    billing_razorpay_order_id = Column(String(100))
+    billing_last_payment_id = Column(String(100))
 
     # Platform relationship manager (support user with job_role relationship_manager)
     relationship_manager_user_id = Column(

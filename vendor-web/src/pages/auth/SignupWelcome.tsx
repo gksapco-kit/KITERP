@@ -14,6 +14,8 @@ export type SignupWelcomeState = {
   verificationHint?: string
   launchStepsComplete?: number
   planName?: string
+  /** Landing plan slug: starter | growth | professional */
+  planSlug?: string
   offeringType?: 'products' | 'services' | 'both'
 }
 
@@ -252,11 +254,23 @@ function StepPill({
   )
 }
 
+function planLabelFromSlug(slug?: string | null): string {
+  const s = (slug || '').trim().toLowerCase()
+  if (s === 'starter') return 'Starter'
+  if (s === 'growth') return 'Growth'
+  if (s === 'professional') return 'Professional'
+  return ''
+}
+
 export default function SignupWelcome() {
   const navigate = useNavigate()
   const location = useLocation()
   const routeState = (location.state || {}) as SignupWelcomeState
   const search = new URLSearchParams(location.search)
+  const planSlug =
+    routeState.planSlug ||
+    search.get('plan') ||
+    undefined
   const state: SignupWelcomeState = {
     fullName: routeState.fullName || search.get('fullName') || undefined,
     businessName: routeState.businessName || search.get('businessName') || undefined,
@@ -264,7 +278,8 @@ export default function SignupWelcome() {
     vendorSlug: routeState.vendorSlug || search.get('vendorSlug') || undefined,
     verificationHint: routeState.verificationHint,
     launchStepsComplete: routeState.launchStepsComplete,
-    planName: routeState.planName,
+    planName: routeState.planName || planLabelFromSlug(planSlug) || undefined,
+    planSlug: planSlug || undefined,
     offeringType: routeState.offeringType,
   }
   const [showBlast, setShowBlast] = useState(true)
@@ -306,7 +321,10 @@ export default function SignupWelcome() {
   const categoryLabel = displayBusinessCategory(state.businessCategory)
   const displayGreet = greetName === 'there' ? 'there' : greetName
   const complete = clampComplete(state.launchStepsComplete)
-  const planLabel = (state.planName || 'Starter').trim() || 'Starter'
+  const planLabel = (state.planName || planLabelFromSlug(state.planSlug) || 'Starter').trim() || 'Starter'
+  const checkoutHref = state.planSlug
+    ? `/plans?checkout=${encodeURIComponent(state.planSlug)}&auto=1`
+    : '/plans'
   const badge = topStatusBadge(complete)
   const nextHref = nextHrefForActiveStep(complete, steps)
   const progressPct = Math.round((complete / TOTAL_STEPS) * 100)
@@ -424,17 +442,26 @@ export default function SignupWelcome() {
                 style={{ backgroundColor: SIGNUP_BRAND }}
                 onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#52b893' }}
                 onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = SIGNUP_BRAND }}
+                onClick={() => navigate(checkoutHref, { replace: true })}
+              >
+                {state.planSlug ? `Activate ${planLabel} — pay now` : 'Continue to billing'}
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-9 w-full rounded-xl text-xs font-medium text-white/70 hover:bg-white/10 hover:text-white"
                 onClick={() => navigate('/', { replace: true })}
               >
-                Continue to dashboard
-                <ArrowRight className="ml-2 h-4 w-4" />
+                Skip for now — go to dashboard
               </Button>
 
               {complete < TOTAL_STEPS ? (
                 <Button
                   type="button"
                   variant="ghost"
-                  className="h-9 w-full rounded-xl text-xs font-medium text-white/70 hover:bg-white/10 hover:text-white"
+                  className="h-9 w-full rounded-xl text-xs font-medium text-white/50 hover:bg-white/10 hover:text-white"
                   onClick={() => navigate(nextHref, { replace: true })}
                 >
                   Continue setup — {activeStep?.label}

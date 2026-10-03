@@ -14,6 +14,8 @@ export function buildVendorWelcomeUrl(params: {
   business_name?: string
   full_name?: string
   business_category?: string
+  /** Landing plan CTA: starter | growth | professional */
+  plan_slug?: string
 }): string {
   const base = vendorAppUrl.replace(/\/$/, '')
   const url = new URL(`${base}/welcome`)
@@ -23,5 +25,6 @@ export function buildVendorWelcomeUrl(params: {
   if (params.business_name) url.searchParams.set('businessName', params.business_name)
   if (params.full_name) url.searchParams.set('fullName', params.full_name)
   if (params.business_category) url.searchParams.set('businessCategory', params.business_category)
+  if (params.plan_slug) url.searchParams.set('plan', params.plan_slug)
   return url.toString()
 }

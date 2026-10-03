@@ -1243,6 +1243,59 @@ export function useChangePlan() {
   })
 }
 
+export function usePlanPayments() {
+  return useQuery({
+    queryKey: ['vendor', 'plan-payments'],
+    queryFn: () => vendorApi.listPlanPayments(),
+  })
+}
+
+export function usePayForPlan() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (planId: string) => {
+      const checkout = await vendorApi.createPlanBillingOrder({ plan_id: planId })
+      if (checkout.free) {
+        return checkout
+      }
+      if (!checkout.key_id || !checkout.razorpay_order_id || checkout.dev_mode) {
+        throw new Error('Razorpay checkout is not configured. Add your Razorpay key id and secret, then try again.')
+      }
+      const { openRazorpayCheckout } = await import('@/lib/razorpay')
+      const payment = await openRazorpayCheckout({
+            key: checkout.key_id,
+            amount: checkout.amount!,
+            currency: checkout.currency || 'INR',
+            name: 'KIT ERP',
+            description: checkout.plan?.name
+              ? `${checkout.plan.name} plan — monthly`
+              : 'KIT ERP subscription',
+            order_id: checkout.razorpay_order_id,
+            prefill: checkout.prefill,
+            theme: { color: '#64C3A0' },
+          })
+      return vendorApi.verifyPlanBillingPayment({
+        plan_id: checkout.plan_id || planId,
+        razorpay_order_id: payment.razorpay_order_id,
+        razorpay_payment_id: payment.razorpay_payment_id,
+        razorpay_signature: payment.razorpay_signature,
+      })
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: vendorKeys.myPlan() })
+      qc.invalidateQueries({ queryKey: ['vendor', 'plan-payments'] })
+      toast.success((data as { message?: string })?.message || 'Payment successful. Plan is now active.')
+    },
+    onError: (err: unknown) => {
+      if (err instanceof Error && err.message === 'Payment cancelled') {
+        toast.message('Payment cancelled')
+        return
+      }
+      apiError('Could not complete plan payment')(err)
+    },
+  })
+}
+
 // ── Business Partners ────────────────────────────────────────────
 export function useBusinessPartners(params?: Record<string, unknown>) {
   return useQuery({

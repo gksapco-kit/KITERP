@@ -11,8 +11,24 @@ export interface VendorPlanInfo {
   max_services: number
   max_team_members: number
   max_storage_mb: number
+  /** Optional sidebar apps (My Kit excluded). -1 = unlimited. */
+  max_apps?: number
   features: Record<string, boolean>
   is_featured: boolean
+}
+
+export interface VendorPlanBillingState {
+  plan: VendorPlanInfo | null
+  message?: string
+  max_apps: number
+  billing_status: string
+  plan_expires_at?: string | null
+  is_expired: boolean
+  in_grace: boolean
+  can_install_apps: boolean
+  access_mode: string
+  grace_until?: string
+  pending_plan_slug?: string | null
 }
 
 // ── User & Auth ─────────────────────────────────────────────────

@@ -5,11 +5,13 @@ import type { LandingModule } from './landingData'
 import type { ModuleCampaignContent } from './moduleCampaignContent'
 import { ModuleCampaignAnimatedDemo } from './ModuleCampaignAnimatedDemo'
 import { CampaignDemoSlot } from './CampaignDemoPlayer'
+import { usePublicSaasPlans } from '@/components/landing/usePublicSaasPlans'
 
 type HeroProps = { module: LandingModule; campaign: ModuleCampaignContent; moduleId: string }
 
 export function ModuleCampaignHero({ module, campaign, moduleId }: HeroProps) {
   const Icon = module.icon
+  const { fromPriceLabel, toPriceLabel } = usePublicSaasPlans()
   const signupUrl = `${VENDOR_SIGNUP_PATH}?module=${encodeURIComponent(moduleId)}`
 
   return (
@@ -57,7 +59,7 @@ export function ModuleCampaignHero({ module, campaign, moduleId }: HeroProps) {
 
                 <div className="kiterp-campaign-hero-cta">
                   <a href={signupUrl} className="kiterp-btn-primary px-6 py-3 text-base">
-                    Start now — ₹999/month
+                    Start now — from {fromPriceLabel}/month
                   </a>
                   <Link to="/contact" className="kiterp-btn-secondary px-6 py-3 text-base">
                     Talk to us
@@ -66,8 +68,8 @@ export function ModuleCampaignHero({ module, campaign, moduleId }: HeroProps) {
 
                 <p className="kiterp-campaign-hero-proof">{campaign.proofLine}</p>
                 <p className="kiterp-campaign-hero-pricing">
-                  <span className="kiterp-campaign-hero-pricing-amount">₹999</span>
-                  <span>/ month · all modules included</span>
+                  <span className="kiterp-campaign-hero-pricing-amount">{fromPriceLabel}–{toPriceLabel.replace('₹', '')}</span>
+                  <span>/ month · pick apps by plan</span>
                 </p>
 
                 {campaign.proofBadge ? (
@@ -180,6 +182,7 @@ export function ModuleCampaignFeatureBand({ module, moduleId, feature, index }: 
 }
 
 export function ModuleCampaignAppsSection({ module, moduleId }: { module: LandingModule; moduleId: string }) {
+  const { fromPriceLabel } = usePublicSaasPlans()
   const signupUrl = `${VENDOR_SIGNUP_PATH}?module=${encodeURIComponent(moduleId)}`
   const ModuleIcon = module.icon
   const gridDensity = module.apps.length >= 8 ? 'compact' : module.apps.length >= 5 ? 'cozy' : 'standard'
@@ -198,7 +201,7 @@ export function ModuleCampaignAppsSection({ module, moduleId }: { module: Landin
           </div>
           <h2 className="kiterp-campaign-apps-title">Everything in {module.label}</h2>
           <p className="kiterp-campaign-apps-lead">{module.description}</p>
-          <span className="kiterp-campaign-apps-price-pill">₹999/month · all modules included</span>
+          <span className="kiterp-campaign-apps-price-pill">From {fromPriceLabel}/month · plans up to all modules</span>
         </div>
 
         <div

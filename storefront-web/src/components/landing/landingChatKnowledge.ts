@@ -1,4 +1,5 @@
 import { LANDING_MODULES } from '@/components/landing/landingData'
+import { SAAS_PLANS, type SaasPlan } from '@/components/landing/saasPlans'
 
 export type ChatContact = {
   email?: string | null
@@ -50,7 +51,11 @@ function formatContact(contact: ChatContact | null): string {
 }
 
 /** Rule-based replies for landing visitors (contact, pricing, products, getting started). */
-export function replyToLandingQuestion(raw: string, contact: ChatContact | null): string {
+export function replyToLandingQuestion(
+  raw: string,
+  contact: ChatContact | null,
+  plans: Pick<SaasPlan, 'name' | 'priceLabel' | 'appsLabel'>[] = SAAS_PLANS,
+): string {
   const q = normalize(raw)
   if (!q) {
     return 'Ask me about pricing, apps/modules, how to sign up, or how to contact us.'
@@ -101,11 +106,14 @@ export function replyToLandingQuestion(raw: string, contact: ChatContact | null)
       'charge',
     ])
   ) {
+    const lines = plans
+      .map((plan) => `• ${plan.name} ${plan.priceLabel} — ${plan.appsLabel}`)
+      .join('\n')
     return (
-      'Pricing is simple right now:\n' +
-      '• ₹999 / month for ALL apps\n' +
-      'One login covers business, team, and website tools on KIT ERP.\n\n' +
-      'Use Get started to create your business account — ₹999 / month covers every module.'
+      'Pricing plans (monthly):\n' +
+      `${lines}\n\n` +
+      'Need more apps than your plan allows? Upgrade from Billing & Plans after signup. ' +
+      'Use Get started on the landing page to create your business account.'
     )
   }
 

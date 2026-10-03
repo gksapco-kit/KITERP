@@ -9,6 +9,7 @@ from app.models.vendor_product import Product, ProductVariant, ProductImage, Pro
 from app.models.product_config import ProductConfigAttribute, ProductConfigOption, ProductConfigRule
 from app.models.vendor_service import Service, ServiceAvailability, ServicePlan, ServiceBOMItem, ServiceResource
 from app.models.vendor_plan import VendorPlan
+from app.models.vendor_saas_payment import VendorSaasPayment
 from app.models.customer import Customer
 from app.models.cart import Cart
 from app.models.wishlist import Wishlist

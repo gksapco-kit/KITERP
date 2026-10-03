@@ -8,13 +8,17 @@ import { LANDING_MODULES } from '@/components/landing/landingData'
 import { moduleCampaignPath } from '@/components/landing/moduleCampaignContent'
 import { useDocumentSeo } from '@/lib/documentSeo'
 import { compactJsonLd, organizationJsonLd } from '@/lib/catalogSeo'
+import { usePublicSaasPlans } from '@/components/landing/usePublicSaasPlans'
 import '@/styles/kiterp-landing.css'
 
 export default function AppsDirectoryPage() {
+  const { plans } = usePublicSaasPlans()
+  const professional = plans.find((plan) => plan.slug === 'professional')
+  const professionalPrice = professional?.priceLabel ?? '₹999'
   useDocumentSeo({
     title: 'KIT ERP Apps — All Business Modules',
     description:
-      'Explore every KIT ERP module: Finance, Sales, HR, CRM, Inventory, Website, Restaurant, Production, and more. One platform, ₹999/month.',
+      `Explore every KIT ERP module: Finance, Sales, HR, CRM, Inventory, Website, Restaurant, Production, and more. One platform, ${professionalPrice}/month.`,
     keywords:
       'KIT ERP apps, ERP modules, finance, sales, HR, CRM, inventory, business software India',
     canonicalPath: '/apps',
@@ -48,7 +52,7 @@ export default function AppsDirectoryPage() {
             </h1>
             <p className="mt-4 text-sm sm:text-base text-[#1e3d34]/60 max-w-2xl mx-auto">
               Click any module to see what it includes, how it works, and why teams choose KIT ERP.
-              All apps are included in one ₹999/month plan.
+              All apps are included in one {professionalPrice}/month plan.
             </p>
           </div>
         </section>

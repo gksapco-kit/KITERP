@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuthStore } from '@/stores/authStore'
-import { isPlatformStaff } from '@/lib/platformAccess'
+import { isPlatformStaff, isSuperuserAdmin } from '@/lib/platformAccess'
+import VendorBillingPanel from '@/pages/dashboard/VendorBillingPanel'
 import { useVendorStore } from '@/stores/vendorStore'
 import { useAdminVendors, useAdminVendorStats } from '@/hooks/useAdmin'
 import { Package, ShoppingCart, Users, IndianRupee, Store, Clock } from 'lucide-react'
@@ -9,6 +10,7 @@ import { TableToolbar } from '@/components/table/TableToolbar'
 import { processRows, type SortDir } from '@/lib/tableList'
 
 function AdminDashboard() {
+  const { user } = useAuthStore()
   const {
     data: stats,
     isLoading: statsLoading,
@@ -94,6 +96,17 @@ function AdminDashboard() {
           </Card>
         ))}
       </div>
+
+      {isSuperuserAdmin(user) ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Vendor plan payments</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <VendorBillingPanel paymentsOnly />
+          </CardContent>
+        </Card>
+      ) : null}
 
       {/* Recent business accounts */}
       <Card>

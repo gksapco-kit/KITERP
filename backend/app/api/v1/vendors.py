@@ -1,5 +1,5 @@
 # app/api/v1/vendors.py
-from fastapi import APIRouter, Depends, HTTPException, Request, Query, status, UploadFile, File, Form, Body
+from fastapi import APIRouter, Depends, HTTPException, Request, Query, Response, status, UploadFile, File, Form, Body
 import random, string
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import select
@@ -778,36 +778,41 @@ async def list_vendor_platform_audit(
 
 # ============== Plan Management ==============
 
+@router.get("/plans/public")
+async def list_public_saas_plans(response: Response, db: AsyncSession = Depends(get_db)):
+    """Public pricing for the marketing site. No login required."""
+    from app.services.vendor_billing_service import PUBLIC_SAAS_PLAN_SLUGS, plan_to_dict
+
+    response.headers["Cache-Control"] = "no-store"
+    result = await db.execute(
+        select(VendorPlan)
+        .where(
+            VendorPlan.is_active == True,  # noqa: E712
+            VendorPlan.slug.in_(PUBLIC_SAAS_PLAN_SLUGS),
+        )
+        .order_by(VendorPlan.sort_order, VendorPlan.price_monthly)
+    )
+    return [plan_to_dict(plan) for plan in result.scalars().all()]
+
+
 @router.get("/plans")
 async def list_available_plans(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """List all active plans available for vendors to choose from."""
+    """List public SaaS tiers (Starter / Growth / Professional) for vendor self-service."""
+    from app.services.vendor_billing_service import PUBLIC_SAAS_PLAN_SLUGS, plan_to_dict
+
     result = await db.execute(
         select(VendorPlan)
-        .where(VendorPlan.is_active == True)
+        .where(
+            VendorPlan.is_active == True,  # noqa: E712
+            VendorPlan.slug.in_(PUBLIC_SAAS_PLAN_SLUGS),
+        )
         .order_by(VendorPlan.sort_order, VendorPlan.price_monthly)
     )
     plans = result.scalars().all()
-    return [
-        {
-            "id": str(p.id),
-            "name": p.name,
-            "slug": p.slug,
-            "description": p.description,
-            "price_monthly": float(p.price_monthly),
-            "price_yearly": float(p.price_yearly) if p.price_yearly else None,
-            "currency": p.currency or "INR",
-            "max_products": p.max_products,
-            "max_services": p.max_services,
-            "max_team_members": p.max_team_members,
-            "max_storage_mb": p.max_storage_mb,
-            "features": p.features or {},
-            "is_featured": p.is_featured,
-        }
-        for p in plans
-    ]
+    return [plan_to_dict(p) for p in plans]
 
 
 @router.get("/me/plan")
@@ -816,35 +821,57 @@ async def get_my_plan(
     service: VendorService = Depends(get_vendor_service),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get the current vendor's active plan and its features."""
+    """Get the current vendor's active plan, billing state, and app install limit."""
+    from app.services.vendor_billing_service import (
+        effective_max_apps,
+        plan_to_dict,
+        resolve_billing_state,
+    )
+
     vendor = await service.get_by_user_id(current_user.id)
     if not vendor:
         raise HTTPException(status_code=404, detail="No vendor found for this user")
 
+    billing = resolve_billing_state(vendor)
+    pending_plan_slug = (vendor.settings or {}).get("pending_plan_slug")
+    if isinstance(pending_plan_slug, str):
+        pending_plan_slug = pending_plan_slug.strip().lower() or None
+    else:
+        pending_plan_slug = None
+
     if not vendor.plan_id:
-        return {"plan": None, "message": "No plan assigned"}
+        # Landing CTA selected a plan but payment not completed yet — block installs.
+        unpaid_pending = bool(pending_plan_slug)
+        return {
+            "plan": None,
+            "message": "No plan assigned" if not unpaid_pending else "Complete payment to activate your plan",
+            "max_apps": 0 if unpaid_pending else -1,
+            "pending_plan_slug": pending_plan_slug,
+            **(
+                {
+                    **billing,
+                    "can_install_apps": False if unpaid_pending else billing.get("can_install_apps", True),
+                    "access_mode": "pending_payment" if unpaid_pending else billing.get("access_mode"),
+                }
+            ),
+        }
 
     result = await db.execute(select(VendorPlan).where(VendorPlan.id == vendor.plan_id))
     plan = result.scalar_one_or_none()
     if not plan:
-        return {"plan": None, "message": "Plan not found"}
+        return {
+            "plan": None,
+            "message": "Plan not found",
+            "max_apps": -1,
+            "pending_plan_slug": pending_plan_slug,
+            **billing,
+        }
 
     return {
-        "plan": {
-            "id": str(plan.id),
-            "name": plan.name,
-            "slug": plan.slug,
-            "description": plan.description,
-            "price_monthly": float(plan.price_monthly),
-            "price_yearly": float(plan.price_yearly) if plan.price_yearly else None,
-            "currency": plan.currency or "INR",
-            "max_products": plan.max_products,
-            "max_services": plan.max_services,
-            "max_team_members": plan.max_team_members,
-            "max_storage_mb": plan.max_storage_mb,
-            "features": plan.features or {},
-            "is_featured": plan.is_featured,
-        }
+        "plan": plan_to_dict(plan),
+        "max_apps": effective_max_apps(plan, billing),
+        "pending_plan_slug": pending_plan_slug,
+        **billing,
     }
 
 
@@ -856,9 +883,12 @@ async def change_my_plan(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Self-service plan upgrade or downgrade.
+    Self-service plan change without payment — only for free (₹0) plans.
+    Paid plans must use POST /vendors/me/billing/razorpay/create + verify.
     Body: { "plan_id": "<uuid>" }
     """
+    from app.services.vendor_billing_service import VendorBillingService, plan_to_dict
+
     plan_id = body.get("plan_id")
     if not plan_id:
         raise HTTPException(status_code=422, detail="plan_id is required")
@@ -873,34 +903,248 @@ async def change_my_plan(
         raise HTTPException(status_code=422, detail="Invalid plan_id format")
 
     result = await db.execute(
-        select(VendorPlan).where(VendorPlan.id == plan_uuid, VendorPlan.is_active == True)
+        select(VendorPlan).where(VendorPlan.id == plan_uuid, VendorPlan.is_active == True)  # noqa: E712
     )
     plan = result.scalar_one_or_none()
     if not plan:
         raise HTTPException(status_code=404, detail="Plan not found or inactive")
 
-    old_plan_id = vendor.plan_id
-    vendor.plan_id = plan.id
-    await db.commit()
-    await db.refresh(vendor)
+    if float(plan.price_monthly or 0) > 0:
+        raise HTTPException(
+            status_code=402,
+            detail="Paid plans require Razorpay checkout. Use /vendors/me/billing/razorpay/create.",
+        )
 
-    action = "upgraded" if (not old_plan_id or float(plan.price_monthly) >= 0) else "downgraded"
+    billing = VendorBillingService(db)
+    await billing.activate_plan(vendor, plan, payment_id=None, order_id=None)
 
     return {
-        "message": f"Plan {action} to '{plan.name}' successfully",
-        "plan": {
-            "id": str(plan.id),
-            "name": plan.name,
-            "slug": plan.slug,
-            "price_monthly": float(plan.price_monthly),
-            "currency": plan.currency or "INR",
-            "features": plan.features or {},
-        },
+        "message": f"Plan switched to '{plan.name}' successfully",
+        "plan": plan_to_dict(plan),
+    }
+
+
+@router.post("/me/billing/razorpay/create")
+async def create_plan_razorpay_order(
+    body: dict,
+    current_user: User = Depends(get_current_active_user),
+    service: VendorService = Depends(get_vendor_service),
+    db: AsyncSession = Depends(get_db),
+):
+    """Start Razorpay checkout for a SaaS plan. Body: { "plan_id": "<uuid>" } or { "renew": true }."""
+    from app.services.vendor_billing_service import VendorBillingService
+
+    vendor = await service.get_by_user_id(current_user.id)
+    if not vendor:
+        raise HTTPException(status_code=404, detail="No vendor found for this user")
+
+    billing = VendorBillingService(db)
+    user_email = getattr(current_user, "email", None)
+    user_name = getattr(current_user, "full_name", None)
+
+    if body.get("renew"):
+        return await billing.renew_same_plan(vendor, user_email, user_name)
+
+    plan_id = body.get("plan_id")
+    plan_slug = (body.get("plan_slug") or "").strip().lower() or None
+    if not plan_id and not plan_slug:
+        raise HTTPException(status_code=422, detail="plan_id or plan_slug is required (or renew: true)")
+
+    if plan_id:
+        try:
+            plan_uuid = UUID(plan_id)
+        except ValueError:
+            raise HTTPException(status_code=422, detail="Invalid plan_id format")
+        plan = await billing.get_plan(plan_uuid)
+    else:
+        plan = await billing.get_plan_by_slug(plan_slug)
+    return await billing.create_checkout(vendor, plan, user_email, user_name)
+
+
+@router.get("/me/billing/payments")
+async def list_plan_payments(
+    current_user: User = Depends(get_current_active_user),
+    service: VendorService = Depends(get_vendor_service),
+    db: AsyncSession = Depends(get_db),
+):
+    """SaaS subscription payment history for this vendor."""
+    from app.services.vendor_billing_service import VendorBillingService
+
+    vendor = await service.get_by_user_id(current_user.id)
+    if not vendor:
+        raise HTTPException(status_code=404, detail="No vendor found for this user")
+    payments = await VendorBillingService(db).list_payments(vendor)
+    return {"payments": payments}
+
+
+@router.post("/me/billing/razorpay/verify")
+async def verify_plan_razorpay_payment(
+    body: dict,
+    current_user: User = Depends(get_current_active_user),
+    service: VendorService = Depends(get_vendor_service),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Confirm Razorpay payment and activate the plan for 30 days.
+    Body: {
+      plan_id, razorpay_order_id, razorpay_payment_id, razorpay_signature
+    }
+    """
+    from app.services.vendor_billing_service import VendorBillingService
+
+    vendor = await service.get_by_user_id(current_user.id)
+    if not vendor:
+        raise HTTPException(status_code=404, detail="No vendor found for this user")
+
+    plan_id = body.get("plan_id")
+    order_id = body.get("razorpay_order_id")
+    payment_id = body.get("razorpay_payment_id")
+    signature = body.get("razorpay_signature")
+    if not all([plan_id, order_id, payment_id, signature]):
+        raise HTTPException(
+            status_code=422,
+            detail="plan_id, razorpay_order_id, razorpay_payment_id, and razorpay_signature are required",
+        )
+
+    try:
+        plan_uuid = UUID(plan_id)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Invalid plan_id format")
+
+    billing = VendorBillingService(db)
+    plan = await billing.get_plan(plan_uuid)
+    return await billing.confirm_payment(
+        vendor,
+        plan,
+        razorpay_order_id=str(order_id),
+        razorpay_payment_id=str(payment_id),
+        razorpay_signature=str(signature),
+    )
+
+
+@router.get("/me/sidebar-apps")
+async def get_sidebar_apps(
+    current_user: User = Depends(get_current_active_user),
+    service: VendorService = Depends(get_vendor_service),
+    db: AsyncSession = Depends(get_db),
+):
+    """Installed sidebar module ids (shared for the vendor account)."""
+    from app.services.vendor_billing_service import (
+        effective_max_apps,
+        resolve_billing_state,
+        trim_sidebar_section_ids,
+    )
+
+    vendor = await service.get_by_user_id(current_user.id)
+    if not vendor:
+        raise HTTPException(status_code=404, detail="No vendor found for this user")
+
+    settings_map = dict(vendor.settings or {})
+    enabled = settings_map.get("sidebar_enabled_sections")
+    if not isinstance(enabled, list):
+        enabled = None
+
+    billing = resolve_billing_state(vendor)
+    plan = None
+    if vendor.plan_id:
+        plan = (
+            await db.execute(select(VendorPlan).where(VendorPlan.id == vendor.plan_id))
+        ).scalar_one_or_none()
+
+    max_apps = effective_max_apps(plan, billing)
+    if isinstance(enabled, list) and max_apps >= 0:
+        trimmed = trim_sidebar_section_ids([str(x) for x in enabled], max_apps)
+        if trimmed != [str(x) for x in enabled]:
+            settings_map["sidebar_enabled_sections"] = trimmed
+            vendor.settings = settings_map
+            from sqlalchemy.orm.attributes import flag_modified
+            flag_modified(vendor, "settings")
+            await db.commit()
+            enabled = trimmed
+
+    return {
+        "enabled_section_ids": enabled,
+        "max_apps": max_apps,
+        "can_install_apps": billing.get("can_install_apps", True),
+        "billing_status": billing.get("billing_status"),
+        "is_expired": billing.get("is_expired", False),
+        "pending_plan_slug": settings_map.get("pending_plan_slug"),
+    }
+
+
+@router.put("/me/sidebar-apps")
+async def put_sidebar_apps(
+    body: dict,
+    current_user: User = Depends(get_current_active_user),
+    service: VendorService = Depends(get_vendor_service),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Persist installed sidebar apps for the vendor.
+    Enforces plan max_apps (My Kit / pinned ids do not count).
+    Body: { "enabled_section_ids": ["my-kit", "sales", ...] }
+    """
+    from app.services.vendor_billing_service import (
+        effective_max_apps,
+        resolve_billing_state,
+        trim_sidebar_section_ids,
+    )
+
+    vendor = await service.get_by_user_id(current_user.id)
+    if not vendor:
+        raise HTTPException(status_code=404, detail="No vendor found for this user")
+
+    raw_ids = body.get("enabled_section_ids")
+    if not isinstance(raw_ids, list):
+        raise HTTPException(status_code=422, detail="enabled_section_ids must be a list")
+
+    billing = resolve_billing_state(vendor)
+    plan = None
+    if vendor.plan_id:
+        plan = (
+            await db.execute(select(VendorPlan).where(VendorPlan.id == vendor.plan_id))
+        ).scalar_one_or_none()
+    max_apps = effective_max_apps(plan, billing)
+
+    ids = trim_sidebar_section_ids([str(x) for x in raw_ids], max_apps)
+    pinned = {"my-kit"}
+    optional = [i for i in ids if i not in pinned]
+
+    if max_apps >= 0 and len(optional) > max_apps:
+        raise HTTPException(
+            status_code=402,
+            detail=(
+                f"Your plan allows {max_apps} installable app(s). "
+                "Upgrade or uninstall apps to continue."
+            ),
+        )
+    if billing.get("access_mode") == "expired" and len(optional) > 0:
+        # Allow keeping existing set if shrinking or unchanged; block only net growth.
+        prev = (vendor.settings or {}).get("sidebar_enabled_sections")
+        prev_optional = []
+        if isinstance(prev, list):
+            prev_optional = [str(x) for x in prev if str(x) not in pinned]
+        if len(optional) > len(prev_optional):
+            raise HTTPException(
+                status_code=402,
+                detail="Subscription expired — renew to install more apps.",
+            )
+
+    settings_map = dict(vendor.settings or {})
+    settings_map["sidebar_enabled_sections"] = ids
+    vendor.settings = settings_map
+    from sqlalchemy.orm.attributes import flag_modified
+    flag_modified(vendor, "settings")
+    await db.commit()
+
+    return {
+        "enabled_section_ids": ids,
+        "max_apps": max_apps,
+        "message": "Sidebar apps updated",
     }
 
 
 # ============== Document Management ==============
-
 @router.post("/me/documents", response_model=DocumentResponse)
 async def upload_document(
     document_type: DocumentType = Form(...),

@@ -10,6 +10,7 @@ import {
   type ChatContact,
   type ChatMessage,
 } from '@/components/landing/landingChatKnowledge'
+import { usePublicSaasPlans } from '@/components/landing/usePublicSaasPlans'
 
 function uid() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
@@ -22,6 +23,7 @@ const WELCOME: ChatMessage = {
 }
 
 export function LandingChatbot() {
+  const { plans } = usePublicSaasPlans()
   const [open, setOpen] = useState(false)
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
@@ -71,7 +73,7 @@ export function LandingChatbot() {
     setInput('')
     setBusy(true)
     window.setTimeout(() => {
-      const answer = replyToLandingQuestion(trimmed, contact)
+      const answer = replyToLandingQuestion(trimmed, contact, plans)
       setMessages((prev) => [...prev, { id: uid(), role: 'bot', text: answer }])
       setBusy(false)
     }, 280)

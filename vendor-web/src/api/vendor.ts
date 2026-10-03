@@ -2711,12 +2711,73 @@ export const vendorApi = {
 
   getMyPlan: async () => {
     const response = await apiClient.get('/vendors/me/plan')
-    return response.data as { plan: VendorPlanInfo | null; message?: string }
+    return response.data as import('@/types').VendorPlanBillingState
   },
 
   changePlan: async (planId: string) => {
     const response = await apiClient.put('/vendors/me/plan', { plan_id: planId })
     return response.data
+  },
+
+  createPlanBillingOrder: async (body: { plan_id?: string; plan_slug?: string; renew?: boolean }) => {
+    const response = await apiClient.post('/vendors/me/billing/razorpay/create', body)
+    return response.data as {
+      free?: boolean
+      message?: string
+      plan?: VendorPlanInfo
+      dev_mode?: boolean
+      key_id?: string
+      razorpay_order_id?: string
+      amount?: number
+      currency?: string
+      plan_id?: string
+      prefill?: { name?: string; email?: string; contact?: string }
+    }
+  },
+
+  listPlanPayments: async () => {
+    const response = await apiClient.get('/vendors/me/billing/payments')
+    return response.data as {
+      payments: Array<{
+        id: string
+        plan_name: string
+        amount: number
+        currency: string
+        razorpay_payment_id?: string | null
+        status: string
+        created_at?: string | null
+        period_end?: string | null
+      }>
+    }
+  },
+
+  verifyPlanBillingPayment: async (body: {
+    plan_id: string
+    razorpay_order_id: string
+    razorpay_payment_id: string
+    razorpay_signature: string
+  }) => {
+    const response = await apiClient.post('/vendors/me/billing/razorpay/verify', body)
+    return response.data
+  },
+
+  getSidebarApps: async () => {
+    const response = await apiClient.get('/vendors/me/sidebar-apps')
+    return response.data as {
+      enabled_section_ids: string[] | null
+      max_apps: number
+      can_install_apps: boolean
+      billing_status?: string
+      is_expired?: boolean
+      pending_plan_slug?: string | null
+    }
+  },
+
+  saveSidebarApps: async (enabledSectionIds: string[]) => {
+    const response = await apiClient.put('/vendors/me/sidebar-apps', {
+      enabled_section_ids: enabledSectionIds,
+    })
+    return response.data as { enabled_section_ids: string[]; max_apps: number; message?: string }
   },
 
   // ── Template ──────────────────────────────────────────────────

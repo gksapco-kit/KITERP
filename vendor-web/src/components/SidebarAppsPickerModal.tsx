@@ -32,6 +32,11 @@ type SidebarAppsPickerModalProps = {
   sections: SidebarAppPickerSection[]
   enabledIds: string[]
   onEnabledChange: (ids: string[]) => void
+  /** Optional apps allowed by plan (-1 = unlimited). My Kit is excluded from the count. */
+  maxApps?: number
+  planName?: string | null
+  planExpired?: boolean
+  onUpgrade?: () => void
 }
 
 function HeroHighlight({ children, onGreen }: { children: ReactNode; onGreen?: boolean }) {
@@ -236,6 +241,10 @@ export function SidebarAppsPickerModal({
   sections,
   enabledIds,
   onEnabledChange,
+  maxApps = -1,
+  planName,
+  planExpired = false,
+  onUpgrade,
 }: SidebarAppsPickerModalProps) {
   const isVendorAdmin = useIsVendorAdmin()
   const [query, setQuery] = useState('')
@@ -256,7 +265,11 @@ export function SidebarAppsPickerModal({
 
   const enabledSet = useMemo(() => new Set(enabledIds), [enabledIds])
   const installedCount = sections.filter((s) => enabledSet.has(s.id)).length
+  const optionalInstalledCount = sections.filter(
+    (s) => enabledSet.has(s.id) && !isPinnedSidebarSection(s.id),
+  ).length
   const totalSubmenus = sections.reduce((sum, s) => sum + s.itemCount, 0)
+  const atAppLimit = maxApps >= 0 && optionalInstalledCount >= maxApps
 
   useEffect(() => {
     if (expandedSectionId && !filtered.some((s) => s.id === expandedSectionId)) {
@@ -276,6 +289,24 @@ export function SidebarAppsPickerModal({
       return
     }
     if (enabledSet.has(section.id)) return
+    if (isPinnedSidebarSection(section.id)) {
+      onEnabledChange([...enabledIds, section.id])
+      return
+    }
+    if (planExpired) {
+      toast.error('Subscription expired — renew your plan to install apps')
+      onUpgrade?.()
+      return
+    }
+    if (atAppLimit) {
+      toast.error(
+        maxApps === 0
+          ? 'Renew or upgrade your plan to install apps'
+          : `Your ${planName || 'current'} plan allows ${maxApps} app${maxApps === 1 ? '' : 's'}. Upgrade to install more.`,
+      )
+      onUpgrade?.()
+      return
+    }
     onEnabledChange([...enabledIds, section.id])
     setExpandedSectionId(section.id)
     toast.success(`${section.title} installed in sidebar`)
@@ -344,7 +375,25 @@ export function SidebarAppsPickerModal({
             <span className="font-semibold text-white">{totalSubmenus}</span> menu items
             <span className="mx-1.5 opacity-50">·</span>
             <span className="font-semibold text-white">{installedCount}</span> installed
+            {maxApps >= 0 ? (
+              <>
+                <span className="mx-1.5 opacity-50">·</span>
+                <span className="font-semibold text-white">
+                  {optionalInstalledCount}/{maxApps}
+                </span>{' '}
+                plan apps
+              </>
+            ) : null}
           </p>
+          {(planExpired || atAppLimit) && isVendorAdmin ? (
+            <button
+              type="button"
+              onClick={() => onUpgrade?.()}
+              className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-[11px] font-semibold text-white hover:bg-white/30"
+            >
+              {planExpired ? 'Renew subscription' : 'Upgrade plan for more apps'}
+            </button>
+          ) : null}
         </div>
 
         <div className="shrink-0 border-b border-[color:var(--border-color)] bg-muted/15 px-5 py-3.5 sm:px-8">

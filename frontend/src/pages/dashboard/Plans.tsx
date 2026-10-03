@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import VendorBillingPanel from '@/pages/dashboard/VendorBillingPanel'
 import { Navigate } from 'react-router-dom'
 import { usePlans, useCreatePlan, useUpdatePlan, useDeletePlan, useUpdatePlanFeatures } from '@/hooks/usePlans'
 import type { VendorPlan } from '@/api/plans.api'
@@ -45,6 +46,7 @@ type EditPlanFormState = {
   max_services: string
   max_team_members: string
   max_storage_mb: string
+  max_apps: string
   sort_order: string
   is_active: boolean
   is_featured: boolean
@@ -60,7 +62,14 @@ export default function Plans() {
   const updatePlan = useUpdatePlan()
   const deletePlan = useDeletePlan()
   const updateFeatures = useUpdatePlanFeatures()
+  const [tab, setTab] = useState<'billing' | 'catalog'>('billing')
   const [showCreate, setShowCreate] = useState(false)
+  const catalogPlans = useMemo(() => {
+    const order = ['starter', 'growth', 'professional']
+    return (plans ?? [])
+      .filter((plan) => plan.is_active && order.includes(plan.slug))
+      .sort((a, b) => order.indexOf(a.slug) - order.indexOf(b.slug))
+  }, [plans])
   const [editingPlan, setEditingPlan] = useState<VendorPlan | null>(null)
   const [editForm, setEditForm] = useState<EditPlanFormState | null>(null)
   const [form, setForm] = useState({
@@ -113,6 +122,7 @@ export default function Plans() {
       max_services: String(plan.max_services),
       max_team_members: String(plan.max_team_members),
       max_storage_mb: String(plan.max_storage_mb),
+      max_apps: String(plan.max_apps ?? -1),
       sort_order: String(plan.sort_order ?? 0),
       is_active: plan.is_active,
       is_featured: plan.is_featured,
@@ -133,8 +143,9 @@ export default function Plans() {
     const maxServices = parseInt(editForm.max_services, 10)
     const maxTeam = parseInt(editForm.max_team_members, 10)
     const maxStorage = parseInt(editForm.max_storage_mb, 10)
+    const maxApps = parseInt(editForm.max_apps, 10)
     const sortOrder = parseInt(editForm.sort_order, 10)
-    if ([maxProducts, maxServices, maxTeam, maxStorage].some((n) => Number.isNaN(n))) return
+    if ([maxProducts, maxServices, maxTeam, maxStorage, maxApps].some((n) => Number.isNaN(n))) return
 
     let priceYearly: number | null | undefined = undefined
     if (editForm.price_yearly.trim() === '') priceYearly = null
@@ -157,6 +168,7 @@ export default function Plans() {
           max_services: maxServices,
           max_team_members: maxTeam,
           max_storage_mb: maxStorage,
+          max_apps: maxApps,
           sort_order: Number.isNaN(sortOrder) ? 0 : sortOrder,
           is_active: editForm.is_active,
           is_featured: editForm.is_featured,
@@ -205,9 +217,10 @@ export default function Plans() {
             Vendor Plans
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            Manage plans and feature flags. Toggle <strong>Branded App</strong> to allow vendors to get a custom mobile app.
+            Change a monthly price or description here. The public website and Razorpay checkout use the saved values.
           </p>
         </div>
+        {tab === 'catalog' ? (
         <Button
           onClick={() => {
             closeEdit()
@@ -217,7 +230,20 @@ export default function Plans() {
         >
           <Plus className="w-4 h-4" /> Create Plan
         </Button>
+        ) : null}
       </div>
+
+      <div className="flex gap-2">
+        <Button variant={tab === 'billing' ? 'default' : 'outline'} size="sm" onClick={() => setTab('billing')}>
+          Subscriptions & payments
+        </Button>
+        <Button variant={tab === 'catalog' ? 'default' : 'outline'} size="sm" onClick={() => setTab('catalog')}>
+          Plan catalog
+        </Button>
+      </div>
+
+      {tab === 'billing' ? <VendorBillingPanel /> : null}
+      {tab === 'catalog' ? (<>
 
       {/* Create Plan Modal */}
       {showCreate && (
@@ -292,7 +318,7 @@ export default function Plans() {
       )}
 
       {/* Plans List */}
-      {!plans || plans.length === 0 ? (
+      {catalogPlans.length === 0 ? (
         <Card>
           <CardContent className="text-center py-12 text-gray-500">
             <CreditCard className="w-12 h-12 mx-auto mb-4 text-gray-300" />
@@ -302,7 +328,7 @@ export default function Plans() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {plans.map((plan) => (
+          {catalogPlans.map((plan) => (
             <Card key={plan.id} className="relative">
               {plan.is_featured && (
                 <div className="absolute -top-2 -right-2 bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-0.5 rounded-full z-10">
@@ -392,6 +418,9 @@ export default function Plans() {
                         onChange={(e) => setEditForm({ ...editForm, price_monthly: e.target.value })}
                         className="mt-1"
                       />
+                      <p className="mt-1 text-[11px] text-gray-500">
+                        Shown on the public pricing cards and charged when a vendor upgrades.
+                      </p>
                     </div>
                     <div>
                       <Label>Yearly price (optional)</Label>
@@ -438,6 +467,15 @@ export default function Plans() {
                         min={1}
                         value={editForm.max_storage_mb}
                         onChange={(e) => setEditForm({ ...editForm, max_storage_mb: e.target.value })}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label>Apps included (-1 = all apps)</Label>
+                      <Input
+                        type="number"
+                        value={editForm.max_apps}
+                        onChange={(e) => setEditForm({ ...editForm, max_apps: e.target.value })}
                         className="mt-1"
                       />
                     </div>
@@ -553,6 +591,7 @@ export default function Plans() {
           ))}
         </div>
       )}
+      </>) : null}
     </div>
   )
 }

@@ -216,6 +216,8 @@ import {
   saveEnabledSectionIds,
   isPinnedSidebarSection,
   normalizeEnabledSectionIds,
+  trimEnabledSectionsToPlanLimit,
+  PINNED_SIDEBAR_SECTION_IDS,
   SIDEBAR_APP_DESCRIPTIONS,
   SIDEBAR_APPS_ADMIN_ONLY_MESSAGE,
 } from '@/layouts/sidebarNavApps'
@@ -1950,6 +1952,9 @@ export default function DashboardLayout() {
 
   const { data: myPlanData } = useMyPlan()
   const planFeatures = myPlanData?.plan?.features as Record<string, unknown> | undefined
+  const planMaxApps = myPlanData?.max_apps ?? myPlanData?.plan?.max_apps ?? -1
+  const planExpired = Boolean(myPlanData?.is_expired)
+  const planName = myPlanData?.plan?.name ?? null
 
   // Fetch unread count every 30 s
   const { data: stats } = useQuery<{ unread: number; total: number }>({
@@ -2264,6 +2269,7 @@ export default function DashboardLayout() {
 
   const [enabledSectionIds, setEnabledSectionIds] = useState<string[]>(allVisibleSectionIds)
   const skipEnabledSectionsSaveRef = useRef(true)
+  const sidebarServerHydratedRef = useRef(false)
 
   const blockedRouteSectionId = useMemo(() => {
     const routeSectionId = resolveRouteSectionId(
@@ -2278,8 +2284,90 @@ export default function DashboardLayout() {
   useEffect(() => {
     if (!navOrderScope) return
     skipEnabledSectionsSaveRef.current = true
+    sidebarServerHydratedRef.current = false
     setEnabledSectionIds(loadEnabledSectionIds(allVisibleSectionIds, navOrderScope))
-  }, [navOrderScope, allVisibleSectionIds.join('|')])
+
+    let cancelled = false
+    ;(async () => {
+      try {
+        const remote = await vendorApi.getSidebarApps()
+        if (cancelled) return
+        const maxApps = remote.max_apps ?? planMaxApps
+        if (Array.isArray(remote.enabled_section_ids) && remote.enabled_section_ids.length > 0) {
+          const trimmed = trimEnabledSectionsToPlanLimit(
+            remote.enabled_section_ids,
+            allVisibleSectionIds,
+            maxApps,
+          )
+          skipEnabledSectionsSaveRef.current = true
+          setEnabledSectionIds(trimmed)
+          saveEnabledSectionIds(trimmed, allVisibleSectionIds, navOrderScope)
+          if (trimmed.length !== remote.enabled_section_ids.length) {
+            try {
+              await vendorApi.saveSidebarApps(trimmed)
+            } catch {
+              /* best-effort sync */
+            }
+          }
+        } else {
+          // First sync: push local installs to server (respect plan limit).
+          const local = loadEnabledSectionIds(allVisibleSectionIds, navOrderScope)
+          let toSave = trimEnabledSectionsToPlanLimit(local, allVisibleSectionIds, maxApps)
+          try {
+            const saved = await vendorApi.saveSidebarApps(toSave)
+            if (!cancelled && Array.isArray(saved.enabled_section_ids)) {
+              const normalized = normalizeEnabledSectionIds(
+                saved.enabled_section_ids,
+                allVisibleSectionIds,
+              )
+              skipEnabledSectionsSaveRef.current = true
+              setEnabledSectionIds(normalized)
+              saveEnabledSectionIds(normalized, allVisibleSectionIds, navOrderScope)
+            }
+          } catch {
+            /* plan limit or network — keep local */
+          }
+        }
+      } catch {
+        /* offline / unauthenticated — localStorage only */
+      } finally {
+        if (!cancelled) sidebarServerHydratedRef.current = true
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [navOrderScope, allVisibleSectionIds.join('|'), planMaxApps])
+
+  // When plan limit loads/changes, trim sidebar to My Kit + allowed apps.
+  useEffect(() => {
+    if (!navOrderScope || planMaxApps < 0) return
+    setEnabledSectionIds((prev) => {
+      const trimmed = trimEnabledSectionsToPlanLimit(prev, allVisibleSectionIds, planMaxApps)
+      if (
+        trimmed.length === prev.length &&
+        trimmed.every((id, index) => id === prev[index])
+      ) {
+        return prev
+      }
+      skipEnabledSectionsSaveRef.current = true
+      saveEnabledSectionIds(trimmed, allVisibleSectionIds, navOrderScope)
+      if (sidebarServerHydratedRef.current) {
+        void vendorApi.saveSidebarApps(trimmed).catch(() => {})
+        const hiddenCount =
+          prev.filter((id) => !isPinnedSidebarSection(id)).length -
+          trimmed.filter((id) => !isPinnedSidebarSection(id)).length
+        if (hiddenCount > 0) {
+          toast.message(
+            `Your ${planName || 'plan'} allows ${planMaxApps} app${planMaxApps === 1 ? '' : 's'}. ` +
+              `${hiddenCount} extra module${hiddenCount === 1 ? '' : 's'} hidden — open Apps to choose which to keep.`,
+          )
+        }
+      }
+      return trimmed
+    })
+  }, [planMaxApps, planName, navOrderScope, allVisibleSectionIds.join('|')])
 
   useEffect(() => {
     if (!navOrderScope) return
@@ -2288,6 +2376,16 @@ export default function DashboardLayout() {
       return
     }
     saveEnabledSectionIds(enabledSectionIds, allVisibleSectionIds, navOrderScope)
+    if (!sidebarServerHydratedRef.current) return
+    void vendorApi.saveSidebarApps(enabledSectionIds).catch((err: unknown) => {
+      const detail =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
+          : undefined
+      if (typeof detail === 'string' && detail.trim()) {
+        toast.error(detail)
+      }
+    })
   }, [enabledSectionIds, allVisibleSectionIds, navOrderScope])
 
   const sidebarSections = useMemo(
@@ -3449,12 +3547,14 @@ export default function DashboardLayout() {
         >
           <LayoutGrid className="h-3.5 w-3.5 shrink-0" aria-hidden />
           <span className={cn(showIconOnlyNav && 'lg:hidden')}>Apps</span>
-          {showAppsPickerHint ? (
+          {showAppsPickerHint || planMaxApps >= 0 ? (
             <span
               className="rounded-full bg-primary/15 px-1.5 text-[10px] font-semibold leading-none text-primary"
               aria-hidden
             >
-              {enabledOptionalAppsCount}
+              {planMaxApps >= 0
+                ? `${enabledOptionalAppsCount}/${planMaxApps}`
+                : enabledOptionalAppsCount}
             </span>
           ) : null}
         </button>
@@ -4644,12 +4744,38 @@ export default function DashboardLayout() {
           onClose={() => setAppsPickerOpen(false)}
           sections={appsPickerSections}
           enabledIds={enabledSectionIds}
+          maxApps={planMaxApps}
+          planName={planName}
+          planExpired={planExpired}
+          onUpgrade={() => {
+            setAppsPickerOpen(false)
+            navigate('/plans')
+          }}
           onEnabledChange={(ids) => {
             if (!isOwnerOrAdmin) {
               toast.error(SIDEBAR_APPS_ADMIN_ONLY_MESSAGE)
               return
             }
             const normalized = normalizeEnabledSectionIds(ids, allVisibleSectionIds)
+            const optionalNext = normalized.filter((id) => !isPinnedSidebarSection(id))
+            const optionalPrev = enabledSectionIds.filter((id) => !isPinnedSidebarSection(id))
+            const isAdding = optionalNext.length > optionalPrev.length
+            if (isAdding) {
+              if (planExpired) {
+                toast.error('Subscription expired — renew your plan to install apps')
+                navigate('/plans')
+                return
+              }
+              if (planMaxApps >= 0 && optionalNext.length > planMaxApps) {
+                toast.error(
+                  planMaxApps === 0
+                    ? 'Renew or upgrade your plan to install apps'
+                    : `Your plan allows ${planMaxApps} app${planMaxApps === 1 ? '' : 's'}. Upgrade to install more.`,
+                )
+                navigate('/plans')
+                return
+              }
+            }
             const removedIds = enabledSectionIds.filter((id) => !normalized.includes(id))
             let redirectAfterUninstall = false
             if (removedIds.length > 0) {

@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom'
 import { KiterpHighlight } from '@/components/landing/KiterpHighlight'
+import { usePublicSaasPlans } from '@/components/landing/usePublicSaasPlans'
 import { VENDOR_SIGNUP_PATH } from '@/lib/vendorSignupPaths'
 
 export function LandingHero() {
+  const { fromPriceLabel } = usePublicSaasPlans()
   return (
     <section id="stores" className="relative kiterp-hero overflow-x-hidden pt-8 pb-6 sm:pt-14 sm:pb-8">
       <div className="kiterp-hero-atmosphere" aria-hidden>
@@ -64,11 +66,11 @@ export function LandingHero() {
 
             <div
               className="kiterp-hero-price-annotation"
-              aria-label="Nine hundred ninety-nine rupees per month for all apps"
+              aria-label={`Plans from ${fromPriceLabel} per month`}
             >
               <p className="kiterp-hero-price-note-copy">
-                <span className="kiterp-hero-price-note-line">999.00 Rs / month</span>
-                <span className="kiterp-hero-price-note-scope">for ALL apps</span>
+                <span className="kiterp-hero-price-note-line">From {fromPriceLabel} / month</span>
+                <span className="kiterp-hero-price-note-scope">Starter · Growth · Pro</span>
               </p>
             </div>
           </div>

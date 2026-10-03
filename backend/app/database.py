@@ -146,6 +146,121 @@ async def ensure_vendor_show_in_community_column() -> None:
     logger.info("ensure_vendor_show_in_community_column: vendor.show_in_community ready")
 
 
+async def ensure_vendor_saas_billing_schema() -> None:
+    """
+    Platform SaaS billing: max_apps on vendor_plan, billing columns on vendor,
+    and seed Starter / Growth / Professional plans (₹199 / ₹599 / ₹999).
+    """
+    if "postgresql" not in settings.DATABASE_URL.lower():
+        return
+    async with engine.begin() as conn:
+        await conn.execute(
+            text(
+                "ALTER TABLE vendor_plan ADD COLUMN IF NOT EXISTS max_apps INTEGER DEFAULT -1"
+            )
+        )
+        await conn.execute(
+            text(
+                "ALTER TABLE vendor ADD COLUMN IF NOT EXISTS billing_status VARCHAR(20) DEFAULT 'none'"
+            )
+        )
+        await conn.execute(
+            text(
+                "ALTER TABLE vendor ADD COLUMN IF NOT EXISTS billing_razorpay_order_id VARCHAR(100)"
+            )
+        )
+        await conn.execute(
+            text(
+                "ALTER TABLE vendor ADD COLUMN IF NOT EXISTS billing_last_payment_id VARCHAR(100)"
+            )
+        )
+        # Seed / upsert the three public plans by slug.
+        await conn.execute(
+            text(
+                """
+                INSERT INTO vendor_plan (
+                    id, name, slug, description,
+                    price_monthly, price_yearly, currency,
+                    max_products, max_services, max_team_members, max_storage_mb, max_apps,
+                    features, is_active, is_featured, sort_order
+                ) VALUES
+                (
+                    gen_random_uuid(), 'Starter', 'starter',
+                    'My Kit plus any 1 app. Upgrade anytime for more modules.',
+                    199, 1990, 'INR',
+                    100, 20, 3, 2000, 1,
+                    '{"custom_domain": false, "analytics": true, "api_access": false, "priority_support": false, "white_label": false, "branded_app": false, "restaurant": true, "pos": true}'::jsonb,
+                    TRUE, FALSE, 10
+                ),
+                (
+                    gen_random_uuid(), 'Growth', 'growth',
+                    'My Kit plus up to 6 apps. Best for growing teams.',
+                    599, 5990, 'INR',
+                    1000, 100, 10, 10000, 6,
+                    '{"custom_domain": true, "analytics": true, "api_access": false, "priority_support": true, "white_label": false, "branded_app": false, "restaurant": true, "pos": true}'::jsonb,
+                    TRUE, TRUE, 20
+                ),
+                (
+                    gen_random_uuid(), 'Professional', 'professional',
+                    'My Kit plus all apps — full KIT ERP platform.',
+                    999, 9990, 'INR',
+                    -1, -1, 50, 50000, -1,
+                    '{"custom_domain": true, "analytics": true, "api_access": true, "priority_support": true, "white_label": false, "branded_app": true, "restaurant": true, "pos": true}'::jsonb,
+                    TRUE, FALSE, 30
+                )
+                ON CONFLICT (slug) DO NOTHING
+                """
+            )
+        )
+        await conn.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS vendor_saas_payment (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    vendor_id UUID NOT NULL REFERENCES vendor(id) ON DELETE CASCADE,
+                    plan_id UUID REFERENCES vendor_plan(id) ON DELETE SET NULL,
+                    plan_name VARCHAR(100) NOT NULL,
+                    amount NUMERIC(12, 2) NOT NULL,
+                    currency VARCHAR(3) NOT NULL DEFAULT 'INR',
+                    razorpay_order_id VARCHAR(100),
+                    razorpay_payment_id VARCHAR(100),
+                    status VARCHAR(20) NOT NULL DEFAULT 'paid',
+                    period_start TIMESTAMPTZ,
+                    period_end TIMESTAMPTZ,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                )
+                """
+            )
+        )
+        await conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_vendor_saas_payment_vendor "
+                "ON vendor_saas_payment (vendor_id, created_at DESC)"
+            )
+        )
+        await conn.execute(
+            text(
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS uq_vendor_saas_payment_rzp
+                ON vendor_saas_payment (razorpay_payment_id)
+                WHERE razorpay_payment_id IS NOT NULL
+                """
+            )
+        )
+        # Hide legacy / test plans (e.g. admin-created "Slug" at ₹999) from self-service billing.
+        await conn.execute(
+            text(
+                """
+                UPDATE vendor_plan
+                SET is_active = FALSE, updated_at = now()
+                WHERE slug NOT IN ('starter', 'growth', 'professional')
+                  AND is_active = TRUE
+                """
+            )
+        )
+    logger.info("ensure_vendor_saas_billing_schema: plans + billing columns ready")
+
+
 async def ensure_user_contact_not_globally_unique() -> None:
     """
     Drop global UNIQUE on user.email / user.phone so the same email or phone can

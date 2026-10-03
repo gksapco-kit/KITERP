@@ -151,6 +151,8 @@ class VendorSignupRequest(BaseModel):
     business_category: Optional[str] = Field(None, max_length=50)
     phone_otp: Optional[str] = Field(None, min_length=6, max_length=6)
     email_otp: Optional[str] = Field(None, min_length=6, max_length=6)
+    # Landing pricing CTA: starter | growth | professional
+    plan_slug: Optional[str] = Field(None, max_length=50)
 
 
 class EmailVerifyRequest(BaseModel):
@@ -1639,6 +1641,12 @@ async def vendor_signup(data: VendorSignupRequest, db: AsyncSession = Depends(ge
         postal_code="000000",
         country="India",
     )
+    pending_slug = (data.plan_slug or "").strip().lower()
+    if pending_slug in ("starter", "growth", "professional"):
+        vendor.settings = {
+            "pending_plan_slug": pending_slug,
+        }
+        vendor.billing_status = "none"
     db.add(vendor)
     await db.flush()
 
@@ -1729,6 +1737,7 @@ async def vendor_signup(data: VendorSignupRequest, db: AsyncSession = Depends(ge
         "vendor_id": str(vendor.id),
         "vendor_slug": slug,
         "verification_code_hint": verification_hint,
+        "pending_plan_slug": pending_slug if pending_slug in ("starter", "growth", "professional") else None,
         "message": msg,
     }
 

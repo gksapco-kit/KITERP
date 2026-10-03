@@ -25,6 +25,7 @@ export default function VerifyEmail() {
     vendor_slug?: string
     vendor_id?: string
     verification_code_hint?: string
+    plan_slug?: string
   } | null
 
   const [code, setCode] = useState<string[]>(Array(6).fill(''))
@@ -96,6 +97,7 @@ export default function VerifyEmail() {
         access_token: state.access_token,
         refresh_token: state.refresh_token,
         vendor_slug: state.vendor_slug,
+        plan_slug: state.plan_slug,
       })
     } else {
       window.location.href = vendorAppUrl
