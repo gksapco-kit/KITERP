@@ -35,6 +35,35 @@ import { vendorDashboardUrl } from '@/lib/vendorDashboardUrl'
 
 type FilterType = 'products' | 'services' | 'both'
 
+const CATALOG_PAGE_SIZE = 12
+
+type CatalogPageToken = number | 'gap'
+
+/** Unique page numbers. Lists of 7 or fewer show every page; longer lists keep the ends and the pages around the current one. */
+function catalogPageTokens(current: number, total: number): CatalogPageToken[] {
+  const safeTotal = Math.max(0, Math.floor(total))
+  if (safeTotal <= 1) return []
+  const safeCurrent = Math.min(Math.max(1, current), safeTotal)
+  if (safeTotal <= 7) {
+    return Array.from({ length: safeTotal }, (_, i) => i + 1)
+  }
+
+  const wanted = new Set<number>([1, safeTotal])
+  const nearStart = safeCurrent <= 4
+  const nearEnd = safeCurrent >= safeTotal - 3
+  const windowStart = nearStart ? 2 : nearEnd ? safeTotal - 4 : safeCurrent - 1
+  const windowEnd = nearStart ? 5 : nearEnd ? safeTotal - 1 : safeCurrent + 1
+  for (let n = windowStart; n <= windowEnd; n += 1) wanted.add(n)
+
+  const sorted = [...wanted].filter((n) => n >= 1 && n <= safeTotal).sort((a, b) => a - b)
+  const tokens: CatalogPageToken[] = []
+  sorted.forEach((n, i) => {
+    if (i > 0 && n - sorted[i - 1] > 1) tokens.push('gap')
+    tokens.push(n)
+  })
+  return tokens
+}
+
 function catalogEffectivePrice(
   item: {
     price?: number
@@ -309,8 +338,8 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
 
   const combinedItems = useMemo(() => {
     if (filterType === 'both') {
-      const start = (page - 1) * 12
-      return sortedItems.slice(start, start + 12)
+      const start = (page - 1) * CATALOG_PAGE_SIZE
+      return sortedItems.slice(start, start + CATALOG_PAGE_SIZE)
     }
     return sortedItems
   }, [sortedItems, page, filterType])
@@ -320,6 +349,13 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
     if (filterType === 'services') return servicesData?.total || 0
     return sortedItems.length
   }, [filterType, productsData, servicesData, sortedItems.length])
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / CATALOG_PAGE_SIZE))
+  const pageTokens = catalogPageTokens(page, totalPages)
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages)
+  }, [page, totalPages])
 
   const clearFilters = () => {
     setSearch(''); setSearchInput(''); setSelectedCategory(''); setMinPrice(''); setMaxPrice(''); setInStockOnly(false); setPage(1)
@@ -1056,30 +1092,35 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
           )}
 
           {/* Pagination */}
-          {totalCount > 12 && (
-            <div className="flex items-center justify-center gap-2 mt-8">
-              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}
+          {totalPages > 1 && (
+            <nav className="flex flex-wrap items-center justify-center gap-2 mt-8" aria-label="Pagination">
+              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}
                 className={cn('gap-1', themeUi.paginationBtn)}>
                 <ChevronLeft className="w-4 h-4" /> Previous
               </Button>
-              {Array.from({ length: Math.min(Math.ceil(totalCount / 12), 5) }, (_, i) => {
-                const totalPages = Math.ceil(totalCount / 12)
-                const pageNum = page <= 3 ? i + 1 : Math.min(page + i - 2, totalPages)
-                if (pageNum < 1 || pageNum > totalPages) return null
-                const isActive = pageNum === page
+              {pageTokens.map((token, index) => {
+                if (token === 'gap') {
+                  return (
+                    <span key={`gap-${index}`} className="px-1 text-sm text-gray-400 select-none" aria-hidden>
+                      …
+                    </span>
+                  )
+                }
+                const isActive = token === page
                 return (
-                  <Button key={pageNum} variant={isActive ? 'default' : 'outline'} size="sm"
-                    onClick={() => setPage(pageNum)}
-                    className={cn('w-9 h-9', isActive ? themeUi.paginationBtnActive : themeUi.paginationBtn)}>
-                    {pageNum}
+                  <Button key={token} variant={isActive ? 'default' : 'outline'} size="sm"
+                    onClick={() => setPage(token)}
+                    aria-current={isActive ? 'page' : undefined}
+                    className={cn('min-w-9 h-9 px-2', isActive ? themeUi.paginationBtnActive : themeUi.paginationBtn)}>
+                    {token}
                   </Button>
                 )
               })}
-              <Button variant="outline" size="sm" disabled={page >= Math.ceil(totalCount / 12)} onClick={() => setPage((p) => p + 1)}
+              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 className={cn('gap-1', themeUi.paginationBtn)}>
                 Next <ChevronRight className="w-4 h-4" />
               </Button>
-            </div>
+            </nav>
           )}
         </div>
       </div>
