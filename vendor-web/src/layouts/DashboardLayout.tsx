@@ -364,6 +364,18 @@ function sectionActiveNavTo(
   return items.some((it) => it.to === activeNavTo) ? activeNavTo : null
 }
 
+/** One module open at a time. `openTitle` null collapses every section (including My Kit). */
+function accordionCollapsedSections(
+  sections: Array<{ title: string }>,
+  openTitle: string | null,
+): Record<string, boolean> {
+  const next: Record<string, boolean> = {}
+  for (const section of sections) {
+    next[section.title] = section.title !== openTitle
+  }
+  return next
+}
+
 const SETTINGS_SECTION_TITLES: Record<string, string> = {
   profile: 'Business Profile',
   contact: 'Contact Information',
@@ -1602,9 +1614,16 @@ export default function DashboardLayout() {
   const [navActiveDndId, setNavActiveDndId] = useState<string | null>(null)
   const [navDndOverId, setNavDndOverId] = useState<string | null>(null)
   const [navDragOverlay, setNavDragOverlay] = useState<NavDragOverlayPayload | null>(null)
-  /** Default: all sections collapsed; only My Kit starts expanded. */
-  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({ 'My Kit': false })
+  /** Section title → collapsed. Missing means collapsed. The current page's module is opened below. */
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({})
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({})
+  /**
+   * Page whose module we last opened automatically.
+   * While this still matches the current page, refreshes must not reopen a menu the user closed.
+   */
+  const routeAccordionNavToRef = useRef<string | null>(null)
+  /** User opened or closed a module before the current page was known. */
+  const userPinnedAccordionRef = useRef(false)
   const [storePickerOpen, setStorePickerOpen] = useState(false)
   const storePickerRef = useRef<HTMLDivElement>(null)
   const storePickerMenuRef = useRef<HTMLDivElement>(null)
@@ -2675,9 +2694,24 @@ export default function DashboardLayout() {
     else sectionScrollAnchors.current.delete(sectionId)
   }, [])
 
-  /** Auto-expand the sidebar section (and group) that contains the active page. */
+  const noteManualAccordion = useCallback(() => {
+    userPinnedAccordionRef.current = true
+    if (activeNavTo) routeAccordionNavToRef.current = activeNavTo
+  }, [activeNavTo])
+
+  /**
+   * Open the module that contains the current page, and close every other module.
+   * Runs only when the page changes — not when sidebar data refreshes — so a manual
+   * close (including My Kit) stays closed until the user navigates.
+   */
   useEffect(() => {
     if (!activeNavTo || navReorderMode) return
+    if (routeAccordionNavToRef.current === activeNavTo) return
+
+    if (userPinnedAccordionRef.current && routeAccordionNavToRef.current == null) {
+      routeAccordionNavToRef.current = activeNavTo
+      return
+    }
 
     const section = displaySections.find((s) => {
       const items = orderedNavItemsBySectionId.get(s.id) ?? s.items
@@ -2685,11 +2719,10 @@ export default function DashboardLayout() {
     })
     if (!section) return
 
-    setCollapsedSections((prev) => {
-      if (prev[section.title] === false) return prev
-      pendingScrollSectionId.current = section.id
-      return { ...prev, [section.title]: false }
-    })
+    userPinnedAccordionRef.current = false
+    routeAccordionNavToRef.current = activeNavTo
+    pendingScrollSectionId.current = section.id
+    setCollapsedSections(accordionCollapsedSections(sidebarSections, section.title))
 
     const items = orderedNavItemsBySectionId.get(section.id) ?? section.items
     const itemGroups = effectiveNavGroupLabels(items)
@@ -2704,40 +2737,38 @@ export default function DashboardLayout() {
       })
       break
     }
-  }, [activeNavTo, displaySections, orderedNavItemsBySectionId, navReorderMode])
+  }, [activeNavTo, displaySections, orderedNavItemsBySectionId, navReorderMode, sidebarSections])
 
   const toggleSection = useCallback((title: string, sectionId: string) => {
+    noteManualAccordion()
+    const isOpen = (collapsedSections[title] ?? true) === false
+    if (isOpen) {
+      setCollapsedSections(accordionCollapsedSections(sidebarSections, null))
+      return
+    }
+
     const activeInSection = sectionActiveNavTo(
       sectionId,
       activeNavTo,
       orderedNavItemsBySectionId,
       displaySections,
     )
-    setCollapsedSections((prev) => {
-      const wasCollapsed = prev[title] ?? true
-      if (!wasCollapsed) {
-        return { ...prev, [title]: true }
-      }
-      pendingScrollSectionId.current = sectionId
-      if (activeInSection && !isNavRouteActive(location.pathname, location.search, activeInSection)) {
-        navigate(activeInSection)
-      }
-      if (activeInSection) {
-        setNavFocusKey(itemFocusKey(sectionId, activeInSection))
-      }
-      // Accordion: keep only the clicked section expanded.
-      const next: Record<string, boolean> = {}
-      for (const s of sidebarSections) {
-        next[s.title] = s.title !== title
-      }
-      return next
-    })
+    pendingScrollSectionId.current = sectionId
+    if (activeInSection && !isNavRouteActive(location.pathname, location.search, activeInSection)) {
+      navigate(activeInSection)
+    }
+    if (activeInSection) {
+      setNavFocusKey(itemFocusKey(sectionId, activeInSection))
+    }
+    setCollapsedSections(accordionCollapsedSections(sidebarSections, title))
   }, [
     activeNavTo,
+    collapsedSections,
     displaySections,
     location.pathname,
     location.search,
     navigate,
+    noteManualAccordion,
     orderedNavItemsBySectionId,
     sidebarSections,
   ])
@@ -3226,15 +3257,9 @@ export default function DashboardLayout() {
           navigateToNavItem(action.to, action.focusKey)
           break
         case 'expandSection':
-          setCollapsedSections((prev) => {
-            if (prev[action.title] === false) return prev
-            pendingScrollSectionId.current = action.sectionId
-            const next: Record<string, boolean> = {}
-            for (const s of sidebarSections) {
-              next[s.title] = s.title !== action.title
-            }
-            return next
-          })
+          noteManualAccordion()
+          pendingScrollSectionId.current = action.sectionId
+          setCollapsedSections(accordionCollapsedSections(sidebarSections, action.title))
           if (action.navigateTo) {
             navigateToNavItem(action.navigateTo, action.focusKey)
           } else {
@@ -3242,8 +3267,9 @@ export default function DashboardLayout() {
           }
           break
         case 'collapseSection':
+          noteManualAccordion()
           skipNavFocusScrollRef.current = true
-          setCollapsedSections((prev) => ({ ...prev, [action.title]: true }))
+          setCollapsedSections(accordionCollapsedSections(sidebarSections, null))
           setNavFocusKey(secFocusKey(action.sectionId))
           break
         case 'expandGroup':
@@ -3270,7 +3296,7 @@ export default function DashboardLayout() {
           break
       }
     },
-    [openRailFlyout, navigateToNavItem, sidebarSections],
+    [openRailFlyout, navigateToNavItem, noteManualAccordion, sidebarSections],
   )
 
   const handleSidebarNavKeyDown = useCallback(
@@ -3838,11 +3864,8 @@ export default function DashboardLayout() {
                       </div>
 
                       <div
-                        className={cn(
-                          'grid overflow-hidden',
-                          navExpandTransition,
-                          isSectionCollapsed ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]',
-                        )}
+                        className={cn('grid overflow-hidden', navExpandTransition)}
+                        style={{ gridTemplateRows: isSectionCollapsed ? '0fr' : '1fr' }}
                       >
                         <div
                           id={sectionPanelId}
