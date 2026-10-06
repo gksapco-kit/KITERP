@@ -280,6 +280,14 @@ class VendorAdminResponse(VendorResponse):
 
     relationship_manager_user_id: Optional[str] = None
     relationship_manager: Optional[RelationshipManagerBrief] = None
+    last_login_at: Optional[str] = None  # Most recent team login for this business
+
+    @field_validator("last_login_at", mode="before")
+    @classmethod
+    def coerce_last_login(cls, v):
+        if isinstance(v, datetime):
+            return v.isoformat()
+        return v
 
 
 class VendorAdminListResponse(BaseModel):
@@ -290,7 +298,11 @@ class VendorAdminListResponse(BaseModel):
     pages: int
 
 
-def serialize_vendor_admin(vendor: Any) -> VendorAdminResponse:
+def serialize_vendor_admin(
+    vendor: Any,
+    *,
+    last_login_at: Any = None,
+) -> VendorAdminResponse:
     """Map ORM Vendor (+ loaded relationship_manager) to admin API shape."""
     base = VendorResponse.model_validate(vendor).model_dump()
     rm_uid = getattr(vendor, "relationship_manager_user_id", None)
@@ -303,10 +315,14 @@ def serialize_vendor_admin(vendor: Any) -> VendorAdminResponse:
             email=rm.email,
             phone=getattr(rm, "phone", None),
         )
+    login_at = last_login_at
+    if login_at is None:
+        login_at = getattr(vendor, "last_login_at", None)
     return VendorAdminResponse(
         **base,
         relationship_manager_user_id=str(rm_uid) if rm_uid else None,
         relationship_manager=brief,
+        last_login_at=login_at,
     )
 
 

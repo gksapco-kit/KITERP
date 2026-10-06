@@ -1,6 +1,7 @@
 # app/services/auth_service.py
 from typing import Optional, Tuple
 from uuid import UUID
+from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
 
@@ -27,6 +28,10 @@ class AuthService:
         self.db = db
         self.repo = UserRepository(db)
         self.vendor_repo = VendorRepository(db)
+
+    async def _touch_last_login(self, user: User) -> None:
+        user.last_login_at = datetime.now(timezone.utc)
+        await self.db.commit()
 
     async def register(self, data: UserCreate, *, commit: bool = True) -> User:
         from app.services.user_cleanup import (
@@ -161,6 +166,8 @@ class AuthService:
                     detail="Invalid authenticator code",
                 )
 
+        await self._touch_last_login(user)
+
         token_data = {"sub": str(user.id)}
         if user.email:
             token_data["email"] = user.email
@@ -232,6 +239,9 @@ class AuthService:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="User account is disabled",
             )
+
+        # Do not stamp last_login_at here — platform admins are often linked to
+        # many vendors via platform_staff handoff; that would fake vendor "Last login".
 
         token_data = {"sub": str(user.id)}
         if user.email:

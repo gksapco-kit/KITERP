@@ -730,6 +730,12 @@ export default function VendorDetail() {
                       </span>
                     )}
                   </div>
+                  <p className="text-gray-500">
+                    Last login:{' '}
+                    {ownerData.last_login_at
+                      ? new Date(ownerData.last_login_at).toLocaleString()
+                      : 'Never'}
+                  </p>
                   {canMutate ? (
                     <Button
                       type="button"
@@ -820,6 +826,14 @@ export default function VendorDetail() {
                 <div className="flex justify-between gap-1">
                   <span className="text-gray-500">Created</span>
                   <span>{new Date(vendor.created_at).toLocaleDateString()}</span>
+                </div>
+                <div className="flex justify-between gap-1">
+                  <span className="text-gray-500">Last login</span>
+                  <span>
+                    {vendor.last_login_at
+                      ? new Date(vendor.last_login_at).toLocaleDateString()
+                      : '—'}
+                  </span>
                 </div>
                 <div className="flex justify-between gap-1">
                   <span className="text-gray-500">Updated</span>

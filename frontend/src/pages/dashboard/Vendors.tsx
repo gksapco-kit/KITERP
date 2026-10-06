@@ -167,6 +167,7 @@ export default function Vendors() {
         status: (v: VendorRow) => v.status,
         show_in_community: (v: VendorRow) => (v.show_in_community ? 1 : 0),
         created_at: (v: VendorRow) => v.created_at,
+        last_login_at: (v: VendorRow) => v.last_login_at || '',
       },
     )
   }, [data?.items, sortKey, sortDir])
@@ -374,6 +375,7 @@ export default function Vendors() {
             hint="Sorting applies to the current page."
             sortOptions={[
               { value: 'created_at', label: 'Created' },
+              { value: 'last_login_at', label: 'Last login' },
               { value: 'business_name', label: 'Business' },
               { value: 'primary_email', label: 'Email' },
               { value: 'business_type', label: 'Type' },
@@ -414,6 +416,12 @@ export default function Vendors() {
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Created
                   </th>
+                  <th
+                    className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    title="Last time this business owner signed in to the vendor app"
+                  >
+                    Last login
+                  </th>
                   <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
@@ -422,14 +430,14 @@ export default function Vendors() {
               <tbody className="divide-y divide-gray-100">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-12 text-center">
+                    <td colSpan={9} className="px-4 py-12 text-center">
                       <Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" />
                       <p className="text-sm text-gray-500 mt-2">Loading business accounts...</p>
                     </td>
                   </tr>
                 ) : !data?.items?.length ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-12 text-center">
+                    <td colSpan={9} className="px-4 py-12 text-center">
                       <Store className="w-10 h-10 mx-auto text-gray-300" />
                       {relationshipManagerUserIdForApi ? (
                         <>
@@ -584,6 +592,9 @@ export default function Vendors() {
                       </td>
                       <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap">
                         {formatDate(vendor.created_at)}
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap">
+                        {formatDate(vendor.last_login_at || undefined)}
                       </td>
                       <td className="px-4 py-4">
                         <div

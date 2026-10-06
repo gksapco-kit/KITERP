@@ -12,6 +12,8 @@ export interface RelationshipManagerBrief {
 export interface AdminVendor extends Vendor {
   relationship_manager_user_id?: string | null
   relationship_manager?: RelationshipManagerBrief | null
+  /** Most recent team login for this business account */
+  last_login_at?: string | null
 }
 
 /** Read-only restaurant ops snapshot for platform support. */
@@ -331,6 +333,7 @@ export const adminApi = {
     is_active: boolean
     is_email_verified: boolean
     created_at?: string
+    last_login_at?: string | null
   }> => {
     const response = await apiClient.get(`/admin/vendors/${vendorId}/owner`)
     return response.data

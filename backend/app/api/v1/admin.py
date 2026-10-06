@@ -359,8 +359,13 @@ async def list_vendors(
         relationship_manager_user_id=effective_rm_filter,
     )
 
+    last_logins = await repo.map_vendor_last_login_at([v.id for v in items])
+
     return VendorAdminListResponse(
-        items=[serialize_vendor_admin(v) for v in items],
+        items=[
+            serialize_vendor_admin(v, last_login_at=last_logins.get(v.id))
+            for v in items
+        ],
         total=total,
         page=page,
         size=size,
@@ -498,7 +503,8 @@ async def get_vendor(
 
     await ensure_vendor_visible_to_platform_staff(current_user, vendor, db)
 
-    return serialize_vendor_admin(vendor)
+    last_logins = await repo.map_vendor_last_login_at([vendor.id])
+    return serialize_vendor_admin(vendor, last_login_at=last_logins.get(vendor.id))
 
 
 class VendorDashboardHandoffResponse(BaseModel):
@@ -775,7 +781,10 @@ async def update_vendor(
     await db.commit()
     await db.refresh(vendor)
     vendor = await repo.get_by_id(vendor_id)
-    return serialize_vendor_admin(vendor)
+    last_logins = await repo.map_vendor_last_login_at([vendor_id])
+    return serialize_vendor_admin(
+        vendor, last_login_at=last_logins.get(vendor_id) if vendor else None
+    )
 
 
 @router.get("/vendor-rm-queries", response_model=VendorRmQueryAdminListResponse)
@@ -1193,6 +1202,7 @@ async def get_vendor_owner(
         "is_active": user.is_active,
         "is_email_verified": user.is_email_verified,
         "created_at": user.created_at.isoformat() if user.created_at else None,
+        "last_login_at": user.last_login_at.isoformat() if user.last_login_at else None,
     }
 
 

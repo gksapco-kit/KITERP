@@ -47,5 +47,6 @@ class User(Base):
     account_delete_expires_at = Column(DateTime(timezone=True), nullable=True)
     totp_secret = Column(String(64), nullable=True)
     is_2fa_enabled = Column(Boolean, default=False)
+    last_login_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

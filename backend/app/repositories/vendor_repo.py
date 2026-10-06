@@ -363,6 +363,29 @@ class VendorRepository(BaseRepository[Vendor]):
         
         return items, total
 
+    async def map_vendor_last_login_at(
+        self, vendor_ids: List[UUID]
+    ) -> Dict[UUID, Any]:
+        """Primary owner's User.last_login_at only (ignore platform_staff handoff users)."""
+        if not vendor_ids:
+            return {}
+
+        from app.models.user import User
+
+        owner_result = await self.db.execute(
+            select(VendorOwner.vendor_id, User.last_login_at)
+            .join(User, User.id == VendorOwner.user_id)
+            .where(
+                VendorOwner.vendor_id.in_(vendor_ids),
+                VendorOwner.is_primary.is_(True),
+            )
+        )
+        out: Dict[UUID, Any] = {}
+        for vendor_id, login_at in owner_result.all():
+            if login_at is not None and vendor_id not in out:
+                out[vendor_id] = login_at
+        return out
+
     async def get_admin_dashboard_stats(self) -> dict:
         """Counts only (no full Vendor row load). Works even when ORM row shape is wide."""
         from app.services.platform_crm_tenant import PLATFORM_CRM_VENDOR_ID, PLATFORM_CRM_SLUG

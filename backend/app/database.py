@@ -374,8 +374,10 @@ async def ensure_user_platform_staff_role_column() -> None:
         'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS platform_staff_job_role VARCHAR(64)',
         'ALTER TABLE "user" ALTER COLUMN platform_staff_job_role TYPE VARCHAR(64)',
         'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS platform_staff_manager_id UUID',
+        'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ',
         'CREATE INDEX IF NOT EXISTS ix_user_platform_staff_job_role ON "user" (platform_staff_job_role)',
         'CREATE INDEX IF NOT EXISTS ix_user_platform_staff_manager_id ON "user" (platform_staff_manager_id)',
+        'CREATE INDEX IF NOT EXISTS ix_user_last_login_at ON "user" (last_login_at)',
     ]
     async with engine.begin() as conn:
         for s in stmts:
