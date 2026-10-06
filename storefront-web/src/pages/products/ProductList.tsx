@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -350,12 +350,28 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
     return sortedItems.length
   }, [filterType, productsData, servicesData, sortedItems.length])
 
-  const totalPages = Math.max(1, Math.ceil(totalCount / CATALOG_PAGE_SIZE))
+  // A new page has no data yet, so totalCount briefly becomes 0. Keep the last
+  // real total so the clicked page stays selected and its products can load.
+  const catalogTotalRef = useRef(0)
+  if (!isLoading) catalogTotalRef.current = totalCount
+  const pagingTotal = isLoading && totalCount === 0 ? catalogTotalRef.current : totalCount
+  const totalPages = Math.max(1, Math.ceil(pagingTotal / CATALOG_PAGE_SIZE))
   const pageTokens = catalogPageTokens(page, totalPages)
 
   useEffect(() => {
-    if (page > totalPages) setPage(totalPages)
-  }, [page, totalPages])
+    if (isLoading || totalCount <= 0) return
+    const pages = Math.max(1, Math.ceil(totalCount / CATALOG_PAGE_SIZE))
+    if (page > pages) setPage(pages)
+  }, [isLoading, page, totalCount])
+
+  const skipPageScroll = useRef(true)
+  useEffect(() => {
+    if (skipPageScroll.current) {
+      skipPageScroll.current = false
+      return
+    }
+    document.getElementById('catalog-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [page])
 
   const clearFilters = () => {
     setSearch(''); setSearchInput(''); setSelectedCategory(''); setMinPrice(''); setMaxPrice(''); setInStockOnly(false); setPage(1)
@@ -698,6 +714,7 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
 
           {/* Mobile Filters */}
           {/* Products/Services grid/list */}
+          <div id="catalog-results">
           {isLoading ? (
             <ProductGridSkeleton count={8} />
           ) : !combinedItems.length ? (
@@ -1090,11 +1107,12 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
               })}
             </div>
           )}
+          </div>
 
           {/* Pagination */}
           {totalPages > 1 && (
             <nav className="flex flex-wrap items-center justify-center gap-2 mt-8" aria-label="Pagination">
-              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}
+              <Button type="button" variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}
                 className={cn('gap-1', themeUi.paginationBtn)}>
                 <ChevronLeft className="w-4 h-4" /> Previous
               </Button>
@@ -1108,7 +1126,7 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
                 }
                 const isActive = token === page
                 return (
-                  <Button key={token} variant={isActive ? 'default' : 'outline'} size="sm"
+                  <Button key={token} type="button" variant={isActive ? 'default' : 'outline'} size="sm"
                     onClick={() => setPage(token)}
                     aria-current={isActive ? 'page' : undefined}
                     className={cn('min-w-9 h-9 px-2', isActive ? themeUi.paginationBtnActive : themeUi.paginationBtn)}>
@@ -1116,7 +1134,7 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
                   </Button>
                 )
               })}
-              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              <Button type="button" variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 className={cn('gap-1', themeUi.paginationBtn)}>
                 Next <ChevronRight className="w-4 h-4" />
               </Button>
