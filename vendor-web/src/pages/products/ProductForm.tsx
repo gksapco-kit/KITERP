@@ -16,7 +16,7 @@ import { useProduct, useProducts, useCreateProduct, useUpdateProduct, useDeleteP
 import { vendorApi } from '@/api/vendor'
 import { mediaUrl, cn } from '@/lib/utils'
 import { CatalogMediaDisplayGallery } from '@/components/common/CatalogMediaLightbox'
-import type { Product, ProductPriceRule, PriceRuleType } from '@/types'
+import type { Product, ProductImage, ProductPriceRule, PriceRuleType } from '@/types'
 import {
   ProductImageUpload,
   StagedMediaUpload,
@@ -2512,6 +2512,44 @@ function isAutoSeededPlaceholderVariant(
   return isPristineDefaultVariant(v, isSubscription, { allowPersisted: false })
 }
 
+/** Keep order numbers contiguous and move the star if the primary image was removed. */
+function normalizeGallery(images: ProductImage[]): ProductImage[] {
+  const sorted = [...images].sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+  const primaryIdx = sorted.findIndex(
+    (img) => img.is_primary && (img.media_type || 'image') === 'image',
+  )
+  const fallbackIdx = primaryIdx >= 0
+    ? primaryIdx
+    : sorted.findIndex((img) => (img.media_type || 'image') === 'image')
+  return sorted.map((img, index) => ({
+    ...img,
+    position: index,
+    is_primary: index === fallbackIdx,
+  }))
+}
+
+function merchSaveKey(rows: Array<{
+  target_type: string
+  target_product_id?: string
+  target_category?: string
+  relation_type: string
+  bundle_id?: string
+  trigger_stage: string
+  priority: number
+}>): string {
+  return JSON.stringify(rows
+    .filter((m) => (m.target_type === 'category' ? !!m.target_category : !!m.target_product_id))
+    .map((m) => ({
+      target_type: m.target_type,
+      target_product_id: m.target_type === 'product' ? m.target_product_id : undefined,
+      target_category: m.target_type === 'category' ? m.target_category : undefined,
+      relation_type: m.relation_type,
+      bundle_id: m.bundle_id || undefined,
+      trigger_stage: m.trigger_stage,
+      priority: m.priority,
+    })))
+}
+
 export default function ProductForm() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -2555,6 +2593,11 @@ export default function ProductForm() {
   const [pendingFiles, setPendingFiles] = useState<File[]>([])
   const [pendingPrimaryIndex, setPendingPrimaryIndex] = useState(0)
   const [pendingPreviews, setPendingPreviews] = useState<string[]>([])
+  /** Local gallery so add/delete shows immediately, without waiting for a product refetch. */
+  const [galleryOverride, setGalleryOverride] = useState<{ productId: string; images: ProductImage[] } | null>(null)
+  const galleryRef = useRef<ProductImage[]>([])
+  const galleryReadyRef = useRef(false)
+  const savedMerchKeyRef = useRef<string | null>(null)
   // Staged variant media for new products (variant index → files + previews + primary)
   type StagedVariantBucket = { files: File[]; previews: string[]; primaryIndex: number }
   const [pendingVariantMedia, setPendingVariantMedia] = useState<Map<number, StagedVariantBucket>>(new Map())
@@ -2666,10 +2709,12 @@ export default function ProductForm() {
         trigger_stage: (m.trigger_stage || 'PDP') as 'PDP' | 'CART' | 'CHECKOUT',
         priority: m.priority || 0,
       })
-      setMerchMappings([
+      const rows = [
         ...(merchData.cross_sell || []).map(m => mapRow(m, 'cross_sell')),
         ...(merchData.upsell || []).map(m => mapRow(m, 'upsell')),
-      ])
+      ]
+      setMerchMappings(rows)
+      savedMerchKeyRef.current = merchSaveKey(rows)
     }
   }, [merchData])
 
@@ -3448,8 +3493,11 @@ export default function ProductForm() {
             trigger_stage: m.trigger_stage,
             priority: m.priority,
           }))
+        const key = JSON.stringify(mappings)
+        if (key === savedMerchKeyRef.current) return
         if (mappings.length > 0 || isEdit) {
           await vendorApi.syncProductMerchandising(productId, { mappings })
+          savedMerchKeyRef.current = key
         }
       } catch { /* best-effort */ }
     }
@@ -3467,6 +3515,13 @@ export default function ProductForm() {
 
     if (isEdit) {
       const updatedProduct = await updateProduct.mutateAsync({ id: id!, data })
+      const serverImages = (updatedProduct.images || []) as ProductImage[]
+      const serverIds = new Set(serverImages.map((img) => img.id))
+      const extras = galleryRef.current.filter((img) => !serverIds.has(img.id))
+      const savedImages = normalizeGallery([...serverImages, ...extras])
+      galleryRef.current = savedImages
+      galleryReadyRef.current = true
+      setGalleryOverride({ productId: updatedProduct.id, images: savedImages })
       await syncMerch(id!)
       await flushStagedVariantMedia(updatedProduct, substantiveVariants, pendingVariantMedia)
       setPendingVariantMedia(new Map())
@@ -3578,6 +3633,37 @@ export default function ProductForm() {
   }, onFormInvalid)
 
   const catalogProductId = product?.id || id
+  const galleryImages: ProductImage[] =
+    galleryOverride && galleryOverride.productId === catalogProductId
+      ? galleryOverride.images
+      : ((product?.images || []) as ProductImage[])
+
+  useEffect(() => {
+    if (galleryOverride?.productId === catalogProductId) {
+      galleryRef.current = galleryOverride.images
+      galleryReadyRef.current = true
+      return
+    }
+    galleryRef.current = (product?.images || []) as ProductImage[]
+    galleryReadyRef.current = true
+  }, [galleryOverride, catalogProductId, product?.images])
+
+  const writeGallery = useCallback((updater: (current: ProductImage[]) => ProductImage[]) => {
+    const base = galleryReadyRef.current
+      ? galleryRef.current
+      : ((product?.images || []) as ProductImage[])
+    const next = normalizeGallery(updater(base))
+    galleryRef.current = next
+    galleryReadyRef.current = true
+    if (catalogProductId) {
+      setGalleryOverride({ productId: catalogProductId, images: next })
+      void qc.cancelQueries({ queryKey: vendorKeys.product(catalogProductId) })
+      qc.setQueryData(vendorKeys.product(catalogProductId), (prev: Product | undefined) => (
+        prev ? { ...prev, images: next } : prev
+      ))
+    }
+    return next
+  }, [catalogProductId, product?.images, qc])
 
   const handleUpload = useCallback(async (file: File) => {
     if (!catalogProductId) return
@@ -3585,52 +3671,148 @@ export default function ProductForm() {
     const isVideo = file.type.startsWith('video/')
     const is3D = ext === 'glb' || ext === 'gltf'
     const label = isVideo ? 'Video' : is3D ? '3D model' : 'Image'
+    const mediaType: ProductImage['media_type'] = isVideo ? 'video' : is3D ? 'model3d' : 'image'
+    const tempId = `pending-${crypto.randomUUID()}`
+    const previewUrl = URL.createObjectURL(file)
+    writeGallery((current) => [
+      ...current,
+      {
+        id: tempId,
+        url: previewUrl,
+        alt_text: file.name,
+        position: current.length,
+        is_primary: current.length === 0 && mediaType === 'image',
+        media_type: mediaType,
+      },
+    ])
     try {
-      await vendorApi.uploadProductImage(catalogProductId, file)
-      qc.invalidateQueries({ queryKey: ['vendor', 'product', catalogProductId] })
-      qc.invalidateQueries({ queryKey: ['vendor', 'products'] })
+      const uploaded = await vendorApi.uploadProductImage(catalogProductId, file)
+      if (!galleryRef.current.some((img) => img.id === tempId)) {
+        URL.revokeObjectURL(previewUrl)
+        await vendorApi.deleteProductImage(catalogProductId, uploaded.id)
+        return
+      }
+      writeGallery((current) => current.map((img) => (
+        img.id === tempId
+          ? {
+              id: uploaded.id,
+              url: uploaded.url,
+              alt_text: uploaded.alt_text,
+              position: img.position,
+              is_primary: uploaded.is_primary,
+              media_type: (uploaded.media_type as ProductImage['media_type']) || mediaType,
+            }
+          : img
+      )))
+      URL.revokeObjectURL(previewUrl)
       toast.success(`${label} uploaded`)
     } catch (err: unknown) {
+      URL.revokeObjectURL(previewUrl)
+      writeGallery((current) => current.filter((img) => img.id !== tempId))
       toast.error(extractApiError(err, `${label} upload failed`))
     }
-  }, [catalogProductId, qc])
+  }, [catalogProductId, writeGallery])
 
   const handleDelete = useCallback(async (imageId: string) => {
     if (!catalogProductId) return
+    if (imageId.startsWith('pending-')) {
+      const pending = galleryRef.current.find((img) => img.id === imageId)
+      if (pending?.url.startsWith('blob:')) URL.revokeObjectURL(pending.url)
+      writeGallery((current) => current.filter((img) => img.id !== imageId))
+      return
+    }
+    const previous = galleryRef.current
+    writeGallery((current) => current.filter((img) => img.id !== imageId))
     try {
       await vendorApi.deleteProductImage(catalogProductId, imageId)
-      qc.invalidateQueries({ queryKey: ['vendor', 'product', catalogProductId] })
       toast.success('Image deleted')
     } catch (err: any) {
+      galleryRef.current = previous
+      setGalleryOverride({ productId: catalogProductId, images: previous })
+      qc.setQueryData(vendorKeys.product(catalogProductId), (prev: Product | undefined) => (
+        prev ? { ...prev, images: previous } : prev
+      ))
       const msg = err?.response?.data?.detail || err?.message || 'Delete failed'
       toast.error(`Failed to delete image: ${msg}`)
     }
-  }, [catalogProductId, qc])
+  }, [catalogProductId, qc, writeGallery])
 
   const handleSetPrimary = useCallback(async (imageId: string) => {
     if (!catalogProductId) return
+    const previous = galleryRef.current
+    writeGallery((current) => current.map((img) => ({
+      ...img,
+      is_primary: img.id === imageId && (img.media_type || 'image') === 'image',
+    })))
     try {
       await vendorApi.setPrimaryProductImage(catalogProductId, imageId)
-      qc.invalidateQueries({ queryKey: ['vendor', 'product', catalogProductId] })
       toast.success('Primary image updated')
-    } catch { toast.error('Failed to set primary image') }
-  }, [catalogProductId, qc])
+    } catch {
+      galleryRef.current = previous
+      setGalleryOverride({ productId: catalogProductId, images: previous })
+      qc.setQueryData(vendorKeys.product(catalogProductId), (prev: Product | undefined) => (
+        prev ? { ...prev, images: previous } : prev
+      ))
+      toast.error('Failed to set primary image')
+    }
+  }, [catalogProductId, qc, writeGallery])
 
   const handleReorderImages = useCallback(async (imageIds: string[]) => {
     if (!catalogProductId) return
+    const previous = galleryRef.current
+    writeGallery((current) => {
+      const byId = new Map(current.map((img) => [img.id, img]))
+      return imageIds.flatMap((imageId, position) => {
+        const img = byId.get(imageId)
+        return img ? [{ ...img, position }] : []
+      })
+    })
     try {
       await vendorApi.reorderProductImages(catalogProductId, imageIds)
-      qc.invalidateQueries({ queryKey: ['vendor', 'product', catalogProductId] })
-    } catch { toast.error('Failed to reorder media') }
-  }, [catalogProductId, qc])
+    } catch {
+      galleryRef.current = previous
+      setGalleryOverride({ productId: catalogProductId, images: previous })
+      qc.setQueryData(vendorKeys.product(catalogProductId), (prev: Product | undefined) => (
+        prev ? { ...prev, images: previous } : prev
+      ))
+      toast.error('Failed to reorder media')
+    }
+  }, [catalogProductId, qc, writeGallery])
 
   const handleEditImage = useCallback(async (imageId: string, file: File, wasPrimary: boolean) => {
     if (!catalogProductId) return
-    const uploaded = await vendorApi.uploadProductImage(catalogProductId, file)
-    await vendorApi.deleteProductImage(catalogProductId, imageId)
-    if (wasPrimary) await vendorApi.setPrimaryProductImage(catalogProductId, uploaded.id)
-    qc.invalidateQueries({ queryKey: ['vendor', 'product', catalogProductId] })
-  }, [catalogProductId, qc])
+    const previous = galleryRef.current
+    const previewUrl = URL.createObjectURL(file)
+    writeGallery((current) => current.map((img) => (
+      img.id === imageId ? { ...img, url: previewUrl } : img
+    )))
+    try {
+      const uploaded = await vendorApi.uploadProductImage(catalogProductId, file)
+      await vendorApi.deleteProductImage(catalogProductId, imageId)
+      if (wasPrimary) await vendorApi.setPrimaryProductImage(catalogProductId, uploaded.id)
+      writeGallery((current) => current.map((img) => (
+        img.id === imageId || img.url === previewUrl
+          ? {
+              id: uploaded.id,
+              url: uploaded.url,
+              alt_text: uploaded.alt_text,
+              position: img.position,
+              is_primary: wasPrimary || uploaded.is_primary,
+              media_type: 'image',
+            }
+          : img
+      )))
+      URL.revokeObjectURL(previewUrl)
+    } catch (err) {
+      URL.revokeObjectURL(previewUrl)
+      galleryRef.current = previous
+      setGalleryOverride({ productId: catalogProductId, images: previous })
+      qc.setQueryData(vendorKeys.product(catalogProductId), (prev: Product | undefined) => (
+        prev ? { ...prev, images: previous } : prev
+      ))
+      throw err
+    }
+  }, [catalogProductId, qc, writeGallery])
 
   const updateOptionRow = (index: number, field: keyof OptionRow, value: string) => {
     const oldRow = optionRows[index]
@@ -4226,7 +4408,7 @@ export default function ProductForm() {
           <Card id="form-section-media" className={cn(formDisplayCompact.scrollMarginEdit, formSectionSurfaceClass(activeTab === 'basic'))}>
             <div className={formEditLayout.mediaCard}>
               <CatalogMediaSectionHeader helperText={EDIT_MEDIA_HELPER} />
-              <ProductImageUpload images={product.images || []} onUpload={handleUpload} onDelete={handleDelete} onSetPrimary={handleSetPrimary} onReorder={handleReorderImages} onEditImage={handleEditImage} />
+              <ProductImageUpload images={galleryImages} onUpload={handleUpload} onDelete={handleDelete} onSetPrimary={handleSetPrimary} onReorder={handleReorderImages} onEditImage={handleEditImage} />
             </div>
           </Card>
         )}

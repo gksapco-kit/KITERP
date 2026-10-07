@@ -1197,7 +1197,7 @@ export const vendorApi = {
   },
 
   updateProduct: async (id: string, data: Record<string, unknown>): Promise<Product> => {
-    const response = await apiClient.put(`/vendors/me/products/${id}`, data)
+    const response = await apiClient.put(`/vendors/me/products/${id}`, data, SKIP_AUTO_REFRESH)
     return response.data
   },
 
@@ -1436,20 +1436,21 @@ export const vendorApi = {
     form.append('file', file)
     const response = await apiClient.post(`/uploads/products/${productId}/images`, form, {
       timeout: 120_000,
+      headers: { 'X-Skip-Auto-Refresh': 'true' },
     })
     return response.data
   },
 
   deleteProductImage: async (productId: string, imageId: string): Promise<void> => {
-    await apiClient.delete(`/uploads/products/${productId}/images/${imageId}`)
+    await apiClient.delete(`/uploads/products/${productId}/images/${imageId}`, SKIP_AUTO_REFRESH)
   },
 
   setPrimaryProductImage: async (productId: string, imageId: string): Promise<void> => {
-    await apiClient.put(`/uploads/products/${productId}/images/${imageId}/primary`)
+    await apiClient.put(`/uploads/products/${productId}/images/${imageId}/primary`, undefined, SKIP_AUTO_REFRESH)
   },
 
   reorderProductImages: async (productId: string, imageIds: string[]): Promise<void> => {
-    await apiClient.put(`/uploads/products/${productId}/images/reorder`, { image_ids: imageIds })
+    await apiClient.put(`/uploads/products/${productId}/images/reorder`, { image_ids: imageIds }, SKIP_AUTO_REFRESH)
   },
 
   // ── Variant Media ───────────────────────────────────────────
@@ -3775,7 +3776,7 @@ export const vendorApi = {
   },
 
   syncProductMerchandising: async (productId: string, data: { mappings: Array<Record<string, unknown>> }): Promise<ProductMerchandising> => {
-    const response = await apiClient.put(`/vendors/me/merchandising/products/${productId}/merchandising`, data)
+    const response = await apiClient.put(`/vendors/me/merchandising/products/${productId}/merchandising`, data, SKIP_AUTO_REFRESH)
     return response.data
   },
 

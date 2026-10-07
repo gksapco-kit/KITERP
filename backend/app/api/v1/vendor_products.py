@@ -725,12 +725,39 @@ async def update_product(
             changes[field] = {"old": old_norm, "new": new_norm}
 
     if variants_replaced:
-        old_count = len(product.variants or [])
-        new_count = len(variants_payload or [])
-        if old_count != new_count:
-            changes["variants"] = {"old": f"{old_count} variant(s)", "new": f"{new_count} variant(s)"}
-        else:
-            changes["variants"] = {"old": f"{old_count} variant(s)", "new": f"{new_count} variant(s) (updated)"}
+        def _vget(item, key):
+            if isinstance(item, dict):
+                return item.get(key)
+            return getattr(item, key, None)
+
+        # Same keys the form always sends. Skip the history write when this save
+        # only resubmits the current variants — that rewrite was making Update slow.
+        _sig_keys = (
+            "name", "sku", "barcode", "uom", "uom_quantity", "price_type", "price",
+            "compare_at_price", "cost_price", "currency", "discount_percentage",
+            "discount_amount", "offer_label", "is_on_sale", "is_taxable", "tax_rate",
+            "hsn_code", "gst_rate", "quantity", "low_stock_threshold", "stock_status",
+            "reorder_point", "reorder_quantity", "allow_backorders", "track_inventory",
+            "is_active",
+        )
+
+        def _vsig(item) -> tuple:
+            vid = _vget(item, "id")
+            parts = []
+            for key in _sig_keys:
+                normalized = _norm(_vget(item, key))
+                parts.append(None if normalized == "" else normalized)
+            return (str(vid) if vid else "",) + tuple(parts)
+
+        old_sigs = sorted((_vsig(v) for v in (product.variants or [])), key=lambda s: s[0])
+        new_sigs = sorted((_vsig(v) for v in (variants_payload or [])), key=lambda s: s[0])
+        if old_sigs != new_sigs:
+            old_count = len(old_sigs)
+            new_count = len(new_sigs)
+            changes["variants"] = {
+                "old": f"{old_count} variant(s)",
+                "new": f"{new_count} variant(s)" if old_count != new_count else f"{new_count} variant(s) (updated)",
+            }
 
     if changes:
         history_entry = {

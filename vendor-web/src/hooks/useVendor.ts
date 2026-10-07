@@ -686,14 +686,36 @@ export function useCreateProduct() {
 export function useUpdateProduct() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { skipAutoRefresh: true },
     mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => vendorApi.updateProduct(id, data),
     onSuccess: (updatedProduct, { id }) => {
-      // Immediately populate the detail cache with the server response (preserves images)
-      qc.setQueryData(vendorKeys.product(id), updatedProduct)
-      qc.invalidateQueries({ queryKey: vendorKeys.products() })
-      qc.invalidateQueries({ queryKey: vendorKeys.product(id) })
-      // Keep VariantManagementPanel in sync — it uses its own query key
-      qc.invalidateQueries({ queryKey: ['product-variants', id] })
+      // The save response is the product. Do not refetch it — that second GET
+      // reloads variants and history and makes Update feel stuck.
+      qc.setQueryData(vendorKeys.product(id), (current: Product | undefined) => {
+        if (!current) return updatedProduct
+        return {
+          ...current,
+          ...updatedProduct,
+          images: updatedProduct.images ?? current.images,
+        }
+      })
+      qc.setQueriesData<PaginatedResponse<Product> | undefined>(
+        { queryKey: ['vendor', 'products'] },
+        (old) => {
+          if (!old?.items) return old
+          return {
+            ...old,
+            items: old.items.map((item) => {
+              if (item.id !== id) return item
+              const next: Product & { change_history?: unknown } = { ...item, ...updatedProduct }
+              delete next.change_history
+              return next
+            }),
+          }
+        },
+      )
+      qc.invalidateQueries({ queryKey: vendorKeys.products(), refetchType: 'none' })
+      qc.invalidateQueries({ queryKey: ['product-variants', id], refetchType: 'none' })
       toast.success('Product updated!')
     },
     onError: apiError('Could not update product — check your changes and try again'),
