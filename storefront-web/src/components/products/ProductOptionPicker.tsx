@@ -187,15 +187,17 @@ export default function ProductOptionPicker({
           key={row.type === 'size' ? `size-${row.label}` : 'color'}
           className={cn(compact ? 'flex flex-col gap-0.5' : 'flex items-center gap-2')}
         >
-          <span
-            className={cn(
-              'font-semibold uppercase tracking-wide text-gray-500',
-              compact ? 'text-[10px] leading-none' : 'w-12 shrink-0 truncate text-[10px]',
-            )}
-            title={row.label}
-          >
-            {row.label}
-          </span>
+          {!(compact && row.type === 'color') && (
+            <span
+              className={cn(
+                'font-semibold uppercase tracking-wide text-gray-500',
+                compact ? 'text-[10px] leading-none' : 'w-12 shrink-0 truncate text-[10px]',
+              )}
+              title={row.label}
+            >
+              {row.label}
+            </span>
+          )}
           <div className={cn('flex min-w-0 flex-1 flex-wrap items-center', compact ? 'gap-1' : 'gap-1.5')}>
             {row.type === 'size'
               ? row.values.map((value) => {

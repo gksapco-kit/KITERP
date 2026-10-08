@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useMemo, useCallback, type ReactNode } from 'react'
+import { useState, useRef, useMemo, useCallback, type ReactNode } from 'react'
+import { useServerFormHydration } from '@/hooks/useServerFormHydration'
 import { useUpdateVendor, useStores, useMyPlan } from '@/hooks/useVendor'
 import { planAllowsRestaurant } from '@/lib/planFeatures'
 import { useVendorStore } from '@/stores/vendorStore'
@@ -321,14 +322,16 @@ export default function ModulesPage() {
     applyFormState(moduleFormStateFromVendor(vendor), formSetters)
   }, [vendor, formSetters])
 
-  useEffect(() => {
-    if (!vendor || savingRef.current) return
-    syncFormFromVendor()
-  }, [vendor, syncFormFromVendor])
+  const { markDirty: markModulesDirty, clearDirty: clearModulesDirty } = useServerFormHydration(
+    syncFormFromVendor,
+    [vendor, syncFormFromVendor],
+    { scopeKey: vendor?.id ?? null, isSaving: () => savingRef.current },
+  )
 
   const activeTile = VENDOR_MODULE_TILES.find((t) => t.id === activeId)!
 
   const toggleBusinessUnit = (storeId: string) => {
+    markModulesDirty()
     setHrBusinessUnitIds((prev) =>
       prev.includes(storeId) ? prev.filter((id) => id !== storeId) : [...prev, storeId],
     )
@@ -362,6 +365,7 @@ export default function ModulesPage() {
       onSuccess: () => toast.success(`${activeTile.label} module settings saved`),
       onSettled: () => {
         savingRef.current = false
+        clearModulesDirty()
       },
     })
   }
@@ -401,6 +405,7 @@ export default function ModulesPage() {
       onSuccess: () => toast.success('All modules enabled'),
       onSettled: () => {
         savingRef.current = false
+        clearModulesDirty()
       },
     })
   }
@@ -439,6 +444,7 @@ export default function ModulesPage() {
       },
       onSettled: () => {
         savingRef.current = false
+        clearModulesDirty()
       },
     })
   }
@@ -457,7 +463,10 @@ export default function ModulesPage() {
             <RadioOptions
               name="offering_type"
               value={offeringType}
-              onChange={setOfferingType}
+              onChange={v => {
+                markModulesDirty()
+                setOfferingType(v)
+              }}
               options={[...OFFERING_OPTIONS]}
             />
           </div>
@@ -470,12 +479,23 @@ export default function ModulesPage() {
               label="Enable HR"
               hint="Turn off to hide HR Management from the sidebar."
               enabled={hrEnabled}
-              onToggle={() => setHrEnabled((v) => !v)}
+              onToggle={() => {
+                markModulesDirty()
+                setHrEnabled(v => !v)
+              }}
             />
             {hrEnabled && (
               <>
                 <p className="text-[0.65rem] font-medium text-muted-foreground uppercase tracking-wide">HR scope</p>
-                <RadioOptions name="hr_scope" value={hrScope} onChange={setHrScope} options={HR_SCOPE_OPTIONS} />
+                <RadioOptions
+                  name="hr_scope"
+                  value={hrScope}
+                  onChange={v => {
+                    markModulesDirty()
+                    setHrScope(v)
+                  }}
+                  options={HR_SCOPE_OPTIONS}
+                />
                 <p className="text-[0.65rem] text-muted-foreground leading-snug px-0.5">
                   ESS login links: Central → one shared URL for all units. Per-unit → one URL per selected unit. See Settings → All business units.
                 </p>
@@ -524,7 +544,10 @@ export default function ModulesPage() {
               label="Enable Finance"
               hint="Turn off to hide Finance Management from the sidebar."
               enabled={financeEnabled}
-              onToggle={() => setFinanceEnabled((v) => !v)}
+              onToggle={() => {
+                markModulesDirty()
+                setFinanceEnabled(v => !v)
+              }}
             />
             {financeEnabled && (
               <>
@@ -532,7 +555,10 @@ export default function ModulesPage() {
                 <RadioOptions
                   name="finance_mode"
                   value={financeMode}
-                  onChange={setFinanceMode}
+                  onChange={v => {
+                    markModulesDirty()
+                    setFinanceMode(v)
+                  }}
                   options={FINANCE_MODE_OPTIONS}
                 />
               </>
@@ -546,7 +572,10 @@ export default function ModulesPage() {
             label="Enable CRM"
             hint="Turn off to hide CRM Management from the sidebar."
             enabled={crmEnabled}
-            onToggle={() => setCrmEnabled((v) => !v)}
+            onToggle={() => {
+              markModulesDirty()
+              setCrmEnabled(v => !v)
+            }}
           />
         )
         break
@@ -556,7 +585,10 @@ export default function ModulesPage() {
             label="Enable Commission"
             hint="Turn off to hide Commission Management from the sidebar."
             enabled={commissionEnabled}
-            onToggle={() => setCommissionEnabled((v) => !v)}
+            onToggle={() => {
+              markModulesDirty()
+              setCommissionEnabled(v => !v)
+            }}
           />
         )
         break
@@ -566,7 +598,10 @@ export default function ModulesPage() {
             label="Enable Controlling"
             hint="Turn off to hide Controlling Management from the sidebar."
             enabled={controllingEnabled}
-            onToggle={() => setControllingEnabled((v) => !v)}
+            onToggle={() => {
+              markModulesDirty()
+              setControllingEnabled(v => !v)
+            }}
           />
         )
         break
@@ -576,7 +611,10 @@ export default function ModulesPage() {
             label="Enable Production"
             hint="Turn off to hide Production Management (orders, schedule, work centers, MRP) from the sidebar."
             enabled={productionEnabled}
-            onToggle={() => setProductionEnabled((v) => !v)}
+            onToggle={() => {
+              markModulesDirty()
+              setProductionEnabled(v => !v)
+            }}
           />
         )
         break
@@ -586,7 +624,10 @@ export default function ModulesPage() {
             label="Enable Pharmaceutical Manufacturing"
             hint="Turn off to hide the Pharma module (batches, QC, eBMR, QMS, genealogy) from the sidebar."
             enabled={pharmaEnabled}
-            onToggle={() => setPharmaEnabled((v) => !v)}
+            onToggle={() => {
+              markModulesDirty()
+              setPharmaEnabled(v => !v)
+            }}
           />
         )
         break
@@ -596,7 +637,10 @@ export default function ModulesPage() {
             label="Enable POS"
             hint="Checkout and register flows under Sales Management."
             enabled={posEnabled}
-            onToggle={() => setPosEnabled((v) => !v)}
+            onToggle={() => {
+              markModulesDirty()
+              setPosEnabled(v => !v)
+            }}
           />
         )
         break
@@ -614,7 +658,8 @@ export default function ModulesPage() {
               enabled={restaurantEnabled && planAllowsRest}
               onToggle={() => {
                 if (!planAllowsRest) return
-                setRestaurantEnabled((v) => !v)
+                markModulesDirty()
+                setRestaurantEnabled(v => !v)
               }}
             />
           </div>
@@ -626,7 +671,10 @@ export default function ModulesPage() {
             label="Enable Bookings"
             hint="Service appointments and calendar under Sales Management."
             enabled={bookingsEnabled}
-            onToggle={() => setBookingsEnabled((v) => !v)}
+            onToggle={() => {
+              markModulesDirty()
+              setBookingsEnabled(v => !v)
+            }}
           />
         )
         break
@@ -636,7 +684,10 @@ export default function ModulesPage() {
             label="Enable Subscriptions"
             hint="Recurring product and service plans in the Subscriptions catalog."
             enabled={subscriptionsEnabled}
-            onToggle={() => setSubscriptionsEnabled((v) => !v)}
+            onToggle={() => {
+              markModulesDirty()
+              setSubscriptionsEnabled(v => !v)
+            }}
           />
         )
         break
@@ -646,7 +697,10 @@ export default function ModulesPage() {
             label="Enable Projects"
             hint="Project management with tasks, milestones, and kanban under Sales Management."
             enabled={projectsEnabled}
-            onToggle={() => setProjectsEnabled((v) => !v)}
+            onToggle={() => {
+              markModulesDirty()
+              setProjectsEnabled(v => !v)
+            }}
           />
         )
         break
@@ -656,7 +710,10 @@ export default function ModulesPage() {
             label="Enable Rentals"
             hint="Rental asset catalog, bookings, availability calendar, returns, and revenue reports in the Rental Management sidebar section."
             enabled={rentalsEnabled}
-            onToggle={() => setRentalsEnabled((v) => !v)}
+            onToggle={() => {
+              markModulesDirty()
+              setRentalsEnabled(v => !v)
+            }}
           />
         )
         break

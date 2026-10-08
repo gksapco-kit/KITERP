@@ -1,4 +1,5 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
+import { useServerFormHydration } from '@/hooks/useServerFormHydration'
 import {
   PackageSearch,
   Save,
@@ -151,12 +152,20 @@ export default function DeliveryConditionsPage() {
     calculate_gst: true,
   })
   const [express, setExpress] = useState<ExpressDeliveryForm>(readExpressDelivery(null))
+  const savingRef = useRef(false)
 
-  useEffect(() => {
-    if (!vendor) return
-    setForm(readDeliveryConditions(vendor.settings as Record<string, unknown>))
-    setExpress(readExpressDelivery(vendor))
-  }, [vendor])
+  const { markDirty, clearDirty } = useServerFormHydration(
+    () => {
+      if (!vendor) return
+      setForm(readDeliveryConditions(vendor.settings as Record<string, unknown>))
+      setExpress(readExpressDelivery(vendor))
+    },
+    [vendor],
+    {
+      scopeKey: vendor ? `vendor:${vendor.id}` : null,
+      isSaving: () => savingRef.current,
+    },
+  )
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -179,9 +188,16 @@ export default function DeliveryConditionsPage() {
 
     const existingSettings = (vendor.settings || {}) as Record<string, unknown>
     const payload = writeDeliveryConditions(existingSettings, form)
+    savingRef.current = true
     updateVendor.mutate(
       { settings: payload, theme_config: theme } as Partial<Vendor>,
-      { onSuccess: () => toast.success('Delivery conditions saved') },
+      {
+        onSuccess: () => toast.success('Delivery conditions saved'),
+        onSettled: () => {
+          savingRef.current = false
+          clearDirty()
+        },
+      },
     )
   }
 
@@ -225,7 +241,10 @@ export default function DeliveryConditionsPage() {
               label="Enable delivery rules"
               description="When off, only default shipping method charges apply."
               checked={form.enabled}
-              onCheckedChange={enabled => setForm(prev => ({ ...prev, enabled }))}
+              onCheckedChange={enabled => {
+                markDirty()
+                setForm(prev => ({ ...prev, enabled }))
+              }}
             />
 
             <div
@@ -244,9 +263,10 @@ export default function DeliveryConditionsPage() {
                   value={form.minimum_delivery_charge}
                   disabled={!form.enabled}
                   placeholder="e.g. 49"
-                  onChange={minimum_delivery_charge =>
+                  onChange={minimum_delivery_charge => {
+                    markDirty()
                     setForm(prev => ({ ...prev, minimum_delivery_charge }))
-                  }
+                  }}
                 />
               </Field>
               <Field
@@ -260,9 +280,10 @@ export default function DeliveryConditionsPage() {
                   disabled={!form.enabled}
                   min={1}
                   placeholder="e.g. 499"
-                  onChange={free_delivery_threshold =>
+                  onChange={free_delivery_threshold => {
+                    markDirty()
                     setForm(prev => ({ ...prev, free_delivery_threshold }))
-                  }
+                  }}
                 />
               </Field>
             </div>
@@ -303,7 +324,10 @@ export default function DeliveryConditionsPage() {
                   label="Calculate GST"
                   description="Off excludes GST even with tax rates."
                   checked={form.calculate_gst}
-                  onCheckedChange={calculate_gst => setForm(prev => ({ ...prev, calculate_gst }))}
+                  onCheckedChange={calculate_gst => {
+                    markDirty()
+                    setForm(prev => ({ ...prev, calculate_gst }))
+                  }}
                 />
               </div>
             </section>
@@ -314,7 +338,13 @@ export default function DeliveryConditionsPage() {
                 title="Express delivery at checkout"
                 hint="Optional paid express option alongside free delivery"
               />
-              <ExpressDeliverySettings form={express} onChange={setExpress} />
+              <ExpressDeliverySettings
+                form={express}
+                onChange={next => {
+                  markDirty()
+                  setExpress(next)
+                }}
+              />
             </section>
           </div>
         </div>

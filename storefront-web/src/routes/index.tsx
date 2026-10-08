@@ -51,7 +51,7 @@ import MyNotifications from '@/pages/account/MyNotifications'
 import BlogList from '@/pages/blog/BlogList'
 import BlogPost from '@/pages/blog/BlogPost'
 import Policies from '@/pages/Policies'
-import ContactPage from '@/pages/Contact'
+import ContactOrBuilder from '@/pages/ContactOrBuilder'
 import LandingContact from '@/pages/LandingContact'
 import LandingLead from '@/pages/LandingLead'
 import AppsDirectoryPage from '@/pages/AppsDirectoryPage'
@@ -215,7 +215,7 @@ const draftCatalogShellChildren = [
   { path: 'rental/*', element: <RedirectToRentalsCatalog /> },
   { path: 'blog', element: <BlogList /> },
   { path: 'blog/:slug', element: <BlogPost /> },
-  { path: 'contact', element: <ContactPage /> },
+  { path: 'contact', element: <ContactOrBuilder /> },
   { path: '*', element: <DraftCatalogEmbedBlocked /> },
 ]
 
@@ -253,7 +253,7 @@ const vendorStoreChildren = [
   { path: 'blog', element: <BlogList /> },
   { path: 'blog/:slug', element: <BlogPost /> },
   { path: 'policies', element: <Policies /> },
-  { path: 'contact', element: <ContactPage /> },
+  { path: 'contact', element: <ContactOrBuilder /> },
   { path: 'table/:qrToken', element: <TableOrderPage /> },
   { path: 'menu/:linkToken', element: <ZoneMenuPage /> },
   { path: 'reserve', element: <ReservationPage /> },

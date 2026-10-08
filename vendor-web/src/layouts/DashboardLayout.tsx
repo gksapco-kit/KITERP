@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, type CSSProperties, type ReactNode, type ElementType } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, Suspense, type CSSProperties, type ReactNode, type ElementType } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useKiterpModalOpen } from '@/hooks/useKiterpModalOpen'
 import { useViewportAnchoredPanel } from '@/hooks/useViewportAnchoredPanel'
@@ -143,6 +143,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '@/api/client'
 import { vendorApi } from '@/api/vendor'
 import { toast } from 'sonner'
+import { Loading } from '@/components/common/Loading'
+import { prefetchVendorRoute } from '@/lib/vendorRoutePrefetch'
 import { playTone, type ToneName } from '@/hooks/useNotificationSound'
 import { useBrowserNotifications } from '@/hooks/useBrowserNotifications'
 import { useInboxUnreadCount, useNewLeadCount } from '@/hooks/useCrm'
@@ -1573,6 +1575,21 @@ function RestaurantScopeBanner() {
         </button>
       ) : null}
     </div>
+  )
+}
+
+/** Lazy route chunks suspend here so the sidebar/header stay visible while the page loads. */
+function DashboardMainOutlet() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[min(50vh,24rem)] items-center justify-center p-8">
+          <Loading size="lg" text="Loading page…" />
+        </div>
+      }
+    >
+      <Outlet />
+    </Suspense>
   )
 }
 
@@ -3211,6 +3228,7 @@ export default function DashboardLayout() {
 
   const navigateToNavItem = useCallback(
     (to: string, focusKey?: string) => {
+      prefetchVendorRoute(to)
       if (!isNavRouteActive(location.pathname, location.search, to)) {
         navigate(to)
       }
@@ -3443,7 +3461,11 @@ export default function DashboardLayout() {
                             role="menuitem"
                             title={item.label}
                             ref={(el) => registerNavFocusRef(flyItemKey, el)}
-                            onFocus={() => setNavFocusKey(flyItemKey)}
+                            onMouseEnter={() => prefetchVendorRoute(item.to)}
+                            onFocus={() => {
+                              prefetchVendorRoute(item.to)
+                              setNavFocusKey(flyItemKey)
+                            }}
                             onClick={() => {
                               setRailFlyoutSectionId(null)
                               closeMobileSidebar()
@@ -3972,7 +3994,11 @@ export default function DashboardLayout() {
                                                 title={item.label}
                                                 ref={(el) => registerNavFocusRef(itemKey, el)}
                                                 tabIndex={isSectionCollapsed || tabIndexOff ? -1 : undefined}
-                                                onFocus={() => setNavFocusKey(itemKey)}
+                                                onMouseEnter={() => prefetchVendorRoute(item.to)}
+                                                onFocus={() => {
+                                                  prefetchVendorRoute(item.to)
+                                                  setNavFocusKey(itemKey)
+                                                }}
                                                 onClick={() => setSidebarOpen(false)}
                                                 className={({ isPending }) =>
                                                   navItemLinkClass(item, {
@@ -4214,7 +4240,7 @@ export default function DashboardLayout() {
         <main className="vendor-main-pad min-w-0 overflow-x-clip [overscroll-behavior-y:none] bg-background font-sans text-sm">
           <RestaurantScopeBanner />
           <FieldMappingProvider>
-            <Outlet />
+            <DashboardMainOutlet />
           </FieldMappingProvider>
         </main>
       </div>
@@ -4825,7 +4851,7 @@ export default function DashboardLayout() {
             <Navigate to="/" replace />
           ) : (
             <FieldMappingProvider>
-              <Outlet />
+              <DashboardMainOutlet />
             </FieldMappingProvider>
           )}
         </main>

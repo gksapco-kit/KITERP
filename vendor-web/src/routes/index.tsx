@@ -1,5 +1,6 @@
-import { lazy } from 'react'
 import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { lazyRoute as lazy } from '@/lib/lazyRoute'
+import RouteRouterError from '@/routes/RouteRouterError'
 import AuthLayout from '@/layouts/AuthLayout'
 import DashboardLayout from '@/layouts/DashboardLayout'
 import ProtectedRoute from './ProtectedRoute'
@@ -359,6 +360,7 @@ export const router = createBrowserRouter([
         <DashboardLayout />
       </ProtectedRoute>
     ),
+    errorElement: <RouteRouterError />,
     children: [
       { index: true, element: <Dashboard /> },
       { path: 'orders', element: <Orders /> },

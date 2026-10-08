@@ -17,6 +17,7 @@ import { resolveApiBaseUrl } from './lib/apiBase'
 import { matchesDraftPreviewBrowserPath, initPreviewTabOpenerBridge } from './lib/storefrontPreviewUrl'
 import { ensureAppFavicon } from './lib/appFavicon'
 import { refreshAuthSessionDeduped } from './lib/authSession'
+import { CHUNK_RELOAD_SESSION_KEY } from './lib/lazyRoute'
 import { installAuthFocusQuerySync } from './lib/authFocusQuerySync'
 import { getAccessToken } from './lib/authTokenStorage'
 import { coerceToastMessage, isAxiosNetworkError } from './lib/errorMessages'
@@ -35,6 +36,24 @@ sonnerToast.error = (message, data) => {
 initGlobalEscapeHandler()
 initPreviewTabOpenerBridge()
 ensureAppFavicon()
+
+try {
+  sessionStorage.removeItem(CHUNK_RELOAD_SESSION_KEY)
+} catch {
+  /* private mode */
+}
+
+window.addEventListener('vite:preloadError', (event) => {
+  event.preventDefault()
+  try {
+    if (!sessionStorage.getItem(CHUNK_RELOAD_SESSION_KEY)) {
+      sessionStorage.setItem(CHUNK_RELOAD_SESSION_KEY, '1')
+      window.location.reload()
+    }
+  } catch {
+    window.location.reload()
+  }
+})
 
 const queryClient = createAppQueryClient()
 attachAutoRefreshInterceptor(apiClient)

@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
+import { useServerFormHydration } from '@/hooks/useServerFormHydration'
 import { Loader2, Save, Truck } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -138,9 +139,21 @@ export function ExpressDeliverySettingsCard({ vendor }: { vendor: Vendor | null 
   const savingRef = useRef(false)
   const [form, setForm] = useState<ExpressDeliveryForm>(readExpressDelivery(vendor))
 
-  useEffect(() => {
-    if (vendor && !savingRef.current) setForm(readExpressDelivery(vendor))
-  }, [vendor])
+  const { markDirty, clearDirty } = useServerFormHydration(
+    () => {
+      if (vendor) setForm(readExpressDelivery(vendor))
+    },
+    [vendor],
+    {
+      scopeKey: vendor ? `vendor:${vendor.id}` : null,
+      isSaving: () => savingRef.current,
+    },
+  )
+
+  const patchForm = (next: ExpressDeliveryForm) => {
+    markDirty()
+    setForm(next)
+  }
 
   const handleSave = () => {
     const theme = buildExpressDeliveryTheme(vendor, form)
@@ -151,7 +164,10 @@ export function ExpressDeliverySettingsCard({ vendor }: { vendor: Vendor | null 
     savingRef.current = true
     onSave.mutate({ theme_config: theme } as Partial<Vendor>, {
       onSuccess: () => toast.success('Express delivery settings saved'),
-      onSettled: () => { savingRef.current = false },
+      onSettled: () => {
+        savingRef.current = false
+        clearDirty()
+      },
     })
   }
 
@@ -164,7 +180,7 @@ export function ExpressDeliverySettingsCard({ vendor }: { vendor: Vendor | null 
           <p className="text-xs text-muted-foreground">Customers can choose express delivery at checkout.</p>
         </div>
       </div>
-      <ExpressDeliverySettings form={form} onChange={setForm} />
+      <ExpressDeliverySettings form={form} onChange={patchForm} />
       <div className="mt-3 flex justify-end">
         <button
           type="button"

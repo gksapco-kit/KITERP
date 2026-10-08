@@ -18,6 +18,7 @@ import {
   PRODUCT_DISPLAY_FIELD_DEFS,
   SERVICE_DISPLAY_FIELD_DEFS,
   createDefaultTemplateDisplayFields,
+  mergeDisplayFieldMap,
   readDisplayFieldsByTemplate,
   resolveTemplateDisplayFieldsFromSettings,
   type TemplateDisplayFields,
@@ -59,7 +60,7 @@ function FieldGrid({
         >
           <input
             type="checkbox"
-            checked={values[f.key] ?? true}
+            checked={values[f.key] !== false}
             onChange={e => onChange({ ...values, [f.key]: e.target.checked })}
             className="h-3.5 w-3.5 shrink-0 rounded border-input text-primary"
           />
@@ -104,6 +105,8 @@ export default function StorefrontDisplayPage() {
   const [requireDomainOtp, setRequireDomainOtp] = useState(false)
   const savingRef = useRef(false)
   const didAutoSelectTemplateRef = useRef(false)
+  const fieldsDirtyRef = useRef(false)
+  const loadedTemplateIdRef = useRef<string | null>(null)
 
   const templateMode = resolveStorefrontTemplateMode(vendor?.settings)
   const singleTemplateId = resolveSingleFrontTemplateId(vendor?.settings)
@@ -148,6 +151,9 @@ export default function StorefrontDisplayPage() {
 
   useEffect(() => {
     if (!vendor || savingRef.current) return
+    const templateKey = selectedTemplateId
+    const templateChanged = loadedTemplateIdRef.current !== templateKey
+    if (fieldsDirtyRef.current && !templateChanged) return
     const resolved = resolveTemplateDisplayFieldsFromSettings(
       vendor.settings as Record<string, unknown>,
       selectedTemplateId || null,
@@ -155,6 +161,8 @@ export default function StorefrontDisplayPage() {
     setProductFields(resolved.product)
     setServiceFields(resolved.service)
     setRequireDomainOtp(requireDomainDeactivationOtp(vendor.settings as Record<string, unknown>))
+    loadedTemplateIdRef.current = templateKey
+    fieldsDirtyRef.current = false
   }, [vendor, selectedTemplateId])
 
   useEffect(() => {
@@ -177,7 +185,11 @@ export default function StorefrontDisplayPage() {
     savingRef.current = true
 
     const payload: Record<string, unknown> = { ...existingSettings }
-    const entry: TemplateDisplayFields = { product: productFields, service: serviceFields }
+    const defaults = createDefaultTemplateDisplayFields()
+    const entry: TemplateDisplayFields = {
+      product: mergeDisplayFieldMap(PRODUCT_DISPLAY_FIELD_DEFS, productFields, defaults.product),
+      service: mergeDisplayFieldMap(SERVICE_DISPLAY_FIELD_DEFS, serviceFields, defaults.service),
+    }
 
     if (selectedTemplateId === GLOBAL_TEMPLATE_ID) {
       payload.display_fields = entry
@@ -195,14 +207,28 @@ export default function StorefrontDisplayPage() {
       payload.delivery_conditions = dc
     }
     updateVendor.mutate({ settings: payload } as Partial<Vendor>, {
-      onSuccess: () => toast.success('Business Front display updated'),
+      onSuccess: (updated) => {
+        fieldsDirtyRef.current = false
+        const resolved = resolveTemplateDisplayFieldsFromSettings(
+          (updated.settings ?? payload) as Record<string, unknown>,
+          selectedTemplateId || null,
+        )
+        setProductFields(resolved.product)
+        setServiceFields(resolved.service)
+        toast.success('Business Front display updated')
+      },
       onSettled: () => {
         savingRef.current = false
       },
     })
   }
 
+  const markFieldsDirty = () => {
+    fieldsDirtyRef.current = true
+  }
+
   const toggleAll = (type: 'product' | 'service', value: boolean) => {
+    markFieldsDirty()
     if (type === 'product') {
       setProductFields(Object.fromEntries(PRODUCT_DISPLAY_FIELD_DEFS.map(f => [f.key, value])))
     } else {
@@ -211,6 +237,7 @@ export default function StorefrontDisplayPage() {
   }
 
   const resetTemplateDefaults = () => {
+    markFieldsDirty()
     const defaults = createDefaultTemplateDisplayFields()
     setProductFields(defaults.product)
     setServiceFields(defaults.service)
@@ -328,7 +355,14 @@ export default function StorefrontDisplayPage() {
             </div>
           </CardHeader>
           <CardContent className="p-3 pt-0">
-            <FieldGrid defs={PRODUCT_DISPLAY_FIELD_DEFS} values={productFields} onChange={setProductFields} />
+            <FieldGrid
+              defs={PRODUCT_DISPLAY_FIELD_DEFS}
+              values={productFields}
+              onChange={next => {
+                markFieldsDirty()
+                setProductFields(next)
+              }}
+            />
           </CardContent>
         </Card>
 
@@ -348,7 +382,14 @@ export default function StorefrontDisplayPage() {
             </div>
           </CardHeader>
           <CardContent className="p-3 pt-0">
-            <FieldGrid defs={SERVICE_DISPLAY_FIELD_DEFS} values={serviceFields} onChange={setServiceFields} />
+            <FieldGrid
+              defs={SERVICE_DISPLAY_FIELD_DEFS}
+              values={serviceFields}
+              onChange={next => {
+                markFieldsDirty()
+                setServiceFields(next)
+              }}
+            />
           </CardContent>
         </Card>
       </div>

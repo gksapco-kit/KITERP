@@ -94,6 +94,7 @@ import { APP_VERSION, APP_BUILD, LAST_UPDATED, CHANGELOG } from '@/constants/ven
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { APP_SAVE_REQUEST_EVENT } from '@/lib/appSave'
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard'
+import { useServerFormHydration } from '@/hooks/useServerFormHydration'
 import {
   SettingsDirtyProvider,
   useSettingsDirtyContext,
@@ -918,15 +919,35 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
   const [bannerLightboxIndex, setBannerLightboxIndex] = useState<number | null>(null)
   const [profileSaving, setProfileSaving] = useState(false)
   const profileSavingRef = useRef(false)
-  /** Keep local form (e.g. AI-filled description) from being wiped by vendor/store re-hydrate. */
-  const preserveLocalProfileRef = useRef(false)
+  /** Keep local edits from being wiped when vendor/store objects refresh in the background. */
+  const profileDirtyRef = useRef(false)
+  const loadedProfileScopeRef = useRef<string | null>(null)
   const [profileHydrated, setProfileHydrated] = useState(false)
 
+  const markProfileDirty = () => {
+    profileDirtyRef.current = true
+  }
+
   useLayoutEffect(() => {
-    if (profileSavingRef.current || preserveLocalProfileRef.current) return
+    if (profileSavingRef.current) return
+    const scopeKey =
+      unitProfileEditable && activeStore
+        ? `unit:${activeStore.id}`
+        : vendor
+          ? `vendor:${vendor.id}`
+          : null
+    if (!scopeKey) {
+      setProfileHydrated(false)
+      loadedProfileScopeRef.current = null
+      return
+    }
+    const scopeChanged = loadedProfileScopeRef.current !== scopeKey
+    if (profileDirtyRef.current && !scopeChanged) return
     if (unitProfileEditable && activeStore) {
       setForm(profileFormFromStore(activeStore, vendor))
       setProfileHydrated(true)
+      loadedProfileScopeRef.current = scopeKey
+      if (scopeChanged) profileDirtyRef.current = false
       return
     }
     if (vendor) {
@@ -939,6 +960,8 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
         company_type: profileCompanyTypeFromVendor(vendor),
       })
       setProfileHydrated(true)
+      loadedProfileScopeRef.current = scopeKey
+      if (scopeChanged) profileDirtyRef.current = false
       return
     }
     setProfileHydrated(false)
@@ -987,7 +1010,7 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
           code: store.code,
           description: store.description,
         })
-        preserveLocalProfileRef.current = false
+        profileDirtyRef.current = false
         toast.success('Business profile updated for this unit')
       } catch {
         toast.error('Could not save business profile for this unit')
@@ -1007,7 +1030,7 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
       },
       {
         onSuccess: () => {
-          preserveLocalProfileRef.current = false
+          profileDirtyRef.current = false
         },
       },
     )
@@ -1560,8 +1583,9 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
               className="h-8 py-0 text-sm"
               value={form.business_name}
               onChange={(e) => {
+                markProfileDirty()
                 const name = e.target.value
-                setForm({ ...form, business_name: name, display_name: name })
+                setForm(prev => ({ ...prev, business_name: name, display_name: name }))
               }}
               placeholder="Your business or brand name"
               minLength={2}
@@ -1571,7 +1595,10 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
           <CompanyTypeDropdown
             label="Business category"
             value={form.company_type}
-            onChange={(company_type) => setForm({ ...form, company_type })}
+            onChange={(company_type) => {
+              markProfileDirty()
+              setForm(prev => ({ ...prev, company_type }))
+            }}
             placeholder="Select business category…"
           />
           <div className="flex min-w-0 flex-col gap-1">
@@ -1579,7 +1606,10 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
             <Select
               className="box-border h-8 w-full rounded-md border border-input bg-background text-sm leading-none"
               value={form.offering_type}
-              onChange={(offering_type) => setForm({ ...form, offering_type })}
+              onChange={(offering_type) => {
+                markProfileDirty()
+                setForm(prev => ({ ...prev, offering_type }))
+              }}
               options={OFFERING_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
             />
           </div>
@@ -1594,8 +1624,8 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
             rows={3}
             value={form.description}
             onChange={(description) => {
-              preserveLocalProfileRef.current = true
-              setForm((prev) => ({ ...prev, description }))
+              markProfileDirty()
+              setForm(prev => ({ ...prev, description }))
             }}
             placeholder="Tell customers about your business..."
             maxLength={2000}
@@ -1631,52 +1661,67 @@ function ContactSection({
   const [supportPhones, setSupportPhones] = useState<string[]>([''])
   const [contactHydrated, setContactHydrated] = useState(false)
   const contactSavingRef = useRef(false)
+  const contactScopeKey =
+    unitContactEditable && activeStore
+      ? `unit:${activeStore.id}`
+      : vendor
+        ? `vendor:${vendor.id}`
+        : null
 
-  useLayoutEffect(() => {
-    if (contactSavingRef.current) return
-    if (unitContactEditable && activeStore) {
-      setSupportEmails(supportEmailsFromStore(activeStore))
-      setSupportPhones(supportPhonesFromStore(activeStore))
-      setContactHydrated(true)
-      return
-    }
-    if (vendor) {
-      setSupportEmails(supportEmailsFromVendor(vendor))
-      setSupportPhones(supportPhonesFromVendor(vendor))
-      setContactHydrated(true)
-    } else {
-      setContactHydrated(false)
-    }
-  }, [
-    vendor,
-    activeStore?.id,
-    activeStore?.email,
-    activeStore?.phone,
-    activeStore?.settings,
-    unitContactEditable,
-  ])
+  const { markDirty: markContactDirty, clearDirty: clearContactDirty } = useServerFormHydration(
+    () => {
+      if (unitContactEditable && activeStore) {
+        setSupportEmails(supportEmailsFromStore(activeStore))
+        setSupportPhones(supportPhonesFromStore(activeStore))
+        setContactHydrated(true)
+        return
+      }
+      if (vendor) {
+        setSupportEmails(supportEmailsFromVendor(vendor))
+        setSupportPhones(supportPhonesFromVendor(vendor))
+        setContactHydrated(true)
+      } else {
+        setContactHydrated(false)
+      }
+    },
+    [
+      vendor,
+      activeStore?.id,
+      activeStore?.email,
+      activeStore?.phone,
+      activeStore?.settings,
+      unitContactEditable,
+    ],
+    { scopeKey: contactScopeKey, isSaving: () => contactSavingRef.current },
+  )
 
   const updateSupportEmail = (index: number, value: string) => {
+    markContactDirty()
     setSupportEmails((prev) => prev.map((e, i) => (i === index ? value : e)))
   }
 
   const addSupportEmail = () => {
+    markContactDirty()
     setSupportEmails((prev) => [...prev, ''])
   }
 
   const removeSupportEmail = (index: number) => {
+    markContactDirty()
     setSupportEmails((prev) => (prev.length <= 1 ? [''] : prev.filter((_, i) => i !== index)))
   }
 
   const updateSupportPhone = (index: number, value: string) => {
+    markContactDirty()
     setSupportPhones((prev) => prev.map((p, i) => (i === index ? value : p)))
   }
 
   const addSupportPhone = () => {
+    markContactDirty()
     setSupportPhones((prev) => [...prev, ''])
   }
 
   const removeSupportPhone = (index: number) => {
+    markContactDirty()
     setSupportPhones((prev) => (prev.length <= 1 ? [''] : prev.filter((_, i) => i !== index)))
   }
 
@@ -1707,12 +1752,16 @@ function ContactSection({
             setSupportEmails(supportEmailsFromStore(result.store))
             setSupportPhones(supportPhonesFromStore(result.store))
           },
-          onSettled: () => { contactSavingRef.current = false },
+          onSettled: () => {
+            contactSavingRef.current = false
+            clearContactDirty()
+          },
         },
       )
       return
     }
 
+    contactSavingRef.current = true
     onSave.mutate({
       support_email: trimmedEmails[0] ? trimmedEmails[0] : null,
       support_phone: trimmedPhones[0] ? trimmedPhones[0] : null,
@@ -1721,7 +1770,12 @@ function ContactSection({
         support_emails: trimmedEmails.slice(1),
         support_phones: trimmedPhones.slice(1),
       },
-    } as Partial<Vendor>)
+    } as Partial<Vendor>, {
+      onSettled: () => {
+        contactSavingRef.current = false
+        clearContactDirty()
+      },
+    })
   }
 
   const isDirty = useMemo(
@@ -1952,6 +2006,9 @@ function AddressSection({
   const [showExtraAddress, setShowExtraAddress] = useState(false)
   const hqSavingRef = useRef(false)
   const unitSavingRef = useRef(false)
+  const hqDirtyRef = useRef(false)
+  const unitDirtyRef = useRef(false)
+  const loadedUnitStoreIdRef = useRef<string | null>(null)
   const [hqHydrated, setHqHydrated] = useState(false)
   const [unitHydrated, setUnitHydrated] = useState(false)
 
@@ -1962,7 +2019,7 @@ function AddressSection({
   const secondaryIsUnit = !showUnitFirst && hasUnitAddress && hasHqAddress
 
   useLayoutEffect(() => {
-    if (vendor && !hqSavingRef.current) {
+    if (vendor && !hqSavingRef.current && !hqDirtyRef.current) {
       setHqForm({
         label: hqAddressLabelFromVendor(vendor),
         street_address: vendor.street_address || '',
@@ -1982,10 +2039,15 @@ function AddressSection({
     if (!activeStore) {
       setUnitForm({ label: '', street: '', city: '', state: '', country: '', pincode: '' })
       setUnitHydrated(false)
+      loadedUnitStoreIdRef.current = null
       return
     }
+    const storeChanged = loadedUnitStoreIdRef.current !== activeStore.id
+    if (unitDirtyRef.current && !storeChanged) return
     setUnitForm(unitAddressFromStore(activeStore, vendor))
     setUnitHydrated(true)
+    loadedUnitStoreIdRef.current = activeStore.id
+    if (storeChanged) unitDirtyRef.current = false
   }, [
     vendor,
     activeStore?.id,
@@ -2014,7 +2076,12 @@ function AddressSection({
           [HQ_ADDRESS_LABEL_KEY]: trimmedLabel || undefined,
         },
       } as Partial<Vendor>,
-      { onSettled: () => { hqSavingRef.current = false } },
+      {
+        onSettled: () => {
+          hqSavingRef.current = false
+          hqDirtyRef.current = false
+        },
+      },
     )
   }
 
@@ -2037,7 +2104,12 @@ function AddressSection({
           },
         },
       },
-      { onSettled: () => { unitSavingRef.current = false } },
+      {
+        onSettled: () => {
+          unitSavingRef.current = false
+          unitDirtyRef.current = false
+        },
+      },
     )
   }
 
@@ -2081,6 +2153,7 @@ function AddressSection({
 
   const handleDeleteHq = () => {
     if (!hqEditable || !vendor) return
+    hqDirtyRef.current = true
     setShowExtraAddress(false)
     setHqForm(emptyHqForm())
     if (!hasSavedHqAddress) return
@@ -2095,12 +2168,18 @@ function AddressSection({
         postal_code: null,
         settings: restSettings,
       } as Partial<Vendor>,
-      { onSettled: () => { hqSavingRef.current = false } },
+      {
+        onSettled: () => {
+          hqSavingRef.current = false
+          hqDirtyRef.current = false
+        },
+      },
     )
   }
 
   const handleDeleteUnit = () => {
     if (!unitEditable || !activeStore) return
+    unitDirtyRef.current = true
     setShowExtraAddress(false)
     setUnitForm(emptyUnitForm())
     if (!hasSavedUnitAddress) return
@@ -2110,7 +2189,12 @@ function AddressSection({
         id: activeStore.id,
         data: { address: {} },
       },
-      { onSettled: () => { unitSavingRef.current = false } },
+      {
+        onSettled: () => {
+          unitSavingRef.current = false
+          unitDirtyRef.current = false
+        },
+      },
     )
   }
 
@@ -2139,16 +2223,17 @@ function AddressSection({
             country: unitForm.country,
             postal: unitForm.pincode,
           }}
-          onChange={(patch) =>
-            setUnitForm({
-              ...unitForm,
-              street: patch.street ?? unitForm.street,
-              city: patch.city ?? unitForm.city,
-              state: patch.state ?? unitForm.state,
-              country: patch.country ?? unitForm.country,
-              pincode: patch.postal ?? unitForm.pincode,
-            })
-          }
+          onChange={(patch) => {
+            unitDirtyRef.current = true
+            setUnitForm(prev => ({
+              ...prev,
+              street: patch.street !== undefined ? patch.street : prev.street,
+              city: patch.city !== undefined ? patch.city : prev.city,
+              state: patch.state !== undefined ? patch.state : prev.state,
+              country: patch.country !== undefined ? patch.country : prev.country,
+              pincode: patch.postal !== undefined ? patch.postal : prev.pincode,
+            }))
+          }}
         />
       </AddressPanelShell>
     ) : null
@@ -2171,16 +2256,17 @@ function AddressSection({
             country: hqForm.country,
             postal: hqForm.postal_code,
           }}
-          onChange={(patch) =>
-            setHqForm({
-              ...hqForm,
-              street_address: patch.street ?? hqForm.street_address,
-              city: patch.city ?? hqForm.city,
-              state: patch.state ?? hqForm.state,
-              country: patch.country ?? hqForm.country,
-              postal_code: patch.postal ?? hqForm.postal_code,
-            })
-          }
+          onChange={(patch) => {
+            hqDirtyRef.current = true
+            setHqForm(prev => ({
+              ...prev,
+              street_address: patch.street !== undefined ? patch.street : prev.street_address,
+              city: patch.city !== undefined ? patch.city : prev.city,
+              state: patch.state !== undefined ? patch.state : prev.state,
+              country: patch.country !== undefined ? patch.country : prev.country,
+              postal_code: patch.postal !== undefined ? patch.postal : prev.postal_code,
+            }))
+          }}
         />
       </AddressPanelShell>
     ) : null
@@ -2263,21 +2349,33 @@ function TaxSection({
     )
   }
 
-  useLayoutEffect(() => {
-    if (savingRef.current) return
-    if (unused) {
-      setTaxHydrated(true)
-      return
-    }
-    if (activeStore || vendor) {
-      setForm(taxFormFromStoreOrVendor(activeStore, vendor))
-      setTaxHydrated(true)
-    } else {
-      setTaxHydrated(false)
-    }
-  }, [vendor, activeStore?.id, activeStore?.settings, unused])
+  const taxScopeKey = unused
+    ? null
+    : activeStore
+      ? `store:${activeStore.id}`
+      : vendor
+        ? `vendor:${vendor.id}`
+        : null
+
+  const { markDirty: markTaxDirty, clearDirty: clearTaxDirty } = useServerFormHydration(
+    () => {
+      if (unused) {
+        setTaxHydrated(true)
+        return
+      }
+      if (activeStore || vendor) {
+        setForm(taxFormFromStoreOrVendor(activeStore, vendor))
+        setTaxHydrated(true)
+      } else {
+        setTaxHydrated(false)
+      }
+    },
+    [vendor, activeStore?.id, activeStore?.settings, unused],
+    { scopeKey: taxScopeKey, isSaving: () => savingRef.current },
+  )
 
   const handleCountryChange = (code: string) => {
+    markTaxDirty()
     const cfg = getTaxCountry(code)
     setForm((prev) => ({
       ...prev,
@@ -2300,6 +2398,7 @@ function TaxSection({
       openAddRateDialog()
       return
     }
+    markTaxDirty()
     setForm((prev) => ({ ...prev, default_tax_rate: value }))
   }
 
@@ -2315,6 +2414,7 @@ function TaxSection({
       return
     }
     const label = draftLabel.trim()
+    markTaxDirty()
     setForm((prev) => {
       const withoutDup = prev.custom_tax_rates.filter(
         (r) => Math.abs(Number(r.rate) - n) >= 0.0001,
@@ -2331,6 +2431,7 @@ function TaxSection({
   }
 
   const removeCustomTaxRateRow = (index: number) => {
+    markTaxDirty()
     setForm((prev) => {
       const removed = prev.custom_tax_rates[index]
       const nextRows = prev.custom_tax_rates.filter((_, i) => i !== index)
@@ -2446,11 +2547,17 @@ function TaxSection({
             },
           },
         },
-        { onSettled: () => { savingRef.current = false } },
+        {
+          onSettled: () => {
+            savingRef.current = false
+            clearTaxDirty()
+          },
+        },
       )
       return
     }
 
+    savingRef.current = true
     onSave.mutate({
       is_gst_registered: form.tax_enabled,
       gstin: gstin || null,
@@ -2462,7 +2569,12 @@ function TaxSection({
         tax_country_code: form.tax_country_code,
         custom_tax_rates: customRates,
       },
-    } as Partial<Vendor>)
+    } as Partial<Vendor>, {
+      onSettled: () => {
+        savingRef.current = false
+        clearTaxDirty()
+      },
+    })
   }
 
   const isDirty = useMemo(
@@ -2532,9 +2644,10 @@ function TaxSection({
             <label className="flex min-w-0 cursor-pointer items-center gap-2.5">
               <Checkbox
                 checked={form.tax_enabled}
-                onCheckedChange={(checked) =>
+                onCheckedChange={(checked) => {
+                  markTaxDirty()
                   setForm((prev) => ({ ...prev, tax_enabled: checked === true }))
-                }
+                }}
                 aria-label="Enable tax"
               />
               <span className="min-w-0">
@@ -2577,7 +2690,8 @@ function TaxSection({
                         const next = regField.uppercase
                           ? e.target.value.toUpperCase()
                           : e.target.value
-                        setForm({ ...form, gstin: next.slice(0, regField.max_length) })
+                        markTaxDirty()
+                        setForm(prev => ({ ...prev, gstin: next.slice(0, regField.max_length) }))
                       }}
                       placeholder={regField.placeholder}
                       maxLength={regField.max_length}
@@ -2634,7 +2748,8 @@ function TaxSection({
                       setFieldErrors((prev) => ({ ...prev, pan_number: undefined }))
                       const next = field.uppercase ? e.target.value.toUpperCase() : e.target.value
                       if (field.key === 'pan_number') {
-                        setForm({ ...form, pan_number: next.slice(0, field.max_length) })
+                        markTaxDirty()
+                        setForm(prev => ({ ...prev, pan_number: next.slice(0, field.max_length) }))
                       }
                     }}
                     placeholder={field.placeholder}
@@ -2750,31 +2865,36 @@ function BusinessHoursSection({ vendor, open, toggle, onSave }: SectionProps) {
   const [holidays, setHolidays] = useState<StoreHoliday[]>([])
   const savingRef = useRef(false)
   const [hoursHydrated, setHoursHydrated] = useState(false)
+  const hoursScopeKey = vendor ? `vendor:${vendor.id}` : null
 
-  useLayoutEffect(() => {
-    if (vendor && !savingRef.current) {
-      const h: Record<string, { open: string; close: string; closed: boolean }> = {}
-      for (const day of DAYS) {
-        const existing = vendor.business_hours?.[day]
-        h[day] = {
-          open: existing?.open || '09:00',
-          close: existing?.close || '18:00',
-          closed: existing?.closed ?? (day === 'sunday'),
+  const { markDirty: markHoursDirty, clearDirty: clearHoursDirty } = useServerFormHydration(
+    () => {
+      if (vendor) {
+        const h: Record<string, { open: string; close: string; closed: boolean }> = {}
+        for (const day of DAYS) {
+          const existing = vendor.business_hours?.[day]
+          h[day] = {
+            open: existing?.open || '09:00',
+            close: existing?.close || '18:00',
+            closed: existing?.closed ?? (day === 'sunday'),
+          }
         }
+        setHours(h)
+        setHolidays(
+          (vendor.store_holidays || []).map((entry) => ({
+            date: entry.date || '',
+            label: entry.label || '',
+            closed: entry.closed !== false,
+          })),
+        )
+        setHoursHydrated(true)
+      } else {
+        setHoursHydrated(false)
       }
-      setHours(h)
-      setHolidays(
-        (vendor.store_holidays || []).map((entry) => ({
-          date: entry.date || '',
-          label: entry.label || '',
-          closed: entry.closed !== false,
-        })),
-      )
-      setHoursHydrated(true)
-    } else if (!vendor) {
-      setHoursHydrated(false)
-    }
-  }, [vendor])
+    },
+    [vendor],
+    { scopeKey: hoursScopeKey, isSaving: () => savingRef.current },
+  )
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -2783,11 +2903,15 @@ function BusinessHoursSection({ vendor, open, toggle, onSave }: SectionProps) {
       business_hours: hours,
       store_holidays: holidays.filter((h) => h.date),
     } as Partial<Vendor>, {
-      onSettled: () => { savingRef.current = false },
+      onSettled: () => {
+        savingRef.current = false
+        clearHoursDirty()
+      },
     })
   }
 
   const updateDay = (day: string, field: string, value: string | boolean) => {
+    markHoursDirty()
     setHours((prev) => ({ ...prev, [day]: { ...prev[day], [field]: value } }))
   }
 
@@ -2862,7 +2986,10 @@ function BusinessHoursSection({ vendor, open, toggle, onSave }: SectionProps) {
               type="button"
               size="sm"
               variant="outline"
-              onClick={() => setHolidays((prev) => [...prev, { date: '', label: '', closed: true }])}
+              onClick={() => {
+                markHoursDirty()
+                setHolidays((prev) => [...prev, { date: '', label: '', closed: true }])
+              }}
             >
               <Plus className="w-3.5 h-3.5 mr-1" /> Add
             </Button>
@@ -2876,12 +3003,18 @@ function BusinessHoursSection({ vendor, open, toggle, onSave }: SectionProps) {
                   <Input
                     type="date"
                     value={holiday.date}
-                    onChange={(e) => setHolidays((prev) => prev.map((h, i) => i === index ? { ...h, date: e.target.value } : h))}
+                    onChange={(e) => {
+                      markHoursDirty()
+                      setHolidays((prev) => prev.map((h, i) => i === index ? { ...h, date: e.target.value } : h))
+                    }}
                     className="w-40 text-sm"
                   />
                   <Input
                     value={holiday.label}
-                    onChange={(e) => setHolidays((prev) => prev.map((h, i) => i === index ? { ...h, label: e.target.value } : h))}
+                    onChange={(e) => {
+                      markHoursDirty()
+                      setHolidays((prev) => prev.map((h, i) => i === index ? { ...h, label: e.target.value } : h))
+                    }}
                     placeholder="Label (e.g. Diwali)"
                     className="flex-1 min-w-[140px] text-sm"
                   />
@@ -2890,7 +3023,10 @@ function BusinessHoursSection({ vendor, open, toggle, onSave }: SectionProps) {
                     size="sm"
                     variant="ghost"
                     className="text-red-600"
-                    onClick={() => setHolidays((prev) => prev.filter((_, i) => i !== index))}
+                    onClick={() => {
+                      markHoursDirty()
+                      setHolidays((prev) => prev.filter((_, i) => i !== index))
+                    }}
                   >
                     <X className="w-4 h-4" />
                   </Button>
@@ -2912,29 +3048,34 @@ function OrderAcceptanceSection({ vendor, open, toggle, onSave }: SectionProps) 
   const [sameAsOfflineHours, setSameAsOfflineHours] = useState(true)
   const savingRef = useRef(false)
   const [ordersHydrated, setOrdersHydrated] = useState(false)
+  const ordersScopeKey = vendor ? `vendor:${vendor.id}` : null
 
-  useLayoutEffect(() => {
-    if (vendor && !savingRef.current) {
-      setEnabled(vendor.order_acceptance_enabled !== false)
-      const h: Record<string, { open: string; close: string; closed: boolean }> = {}
-      const hasCustom =
-        vendor.order_acceptance_hours != null &&
-        Object.keys(vendor.order_acceptance_hours).length > 0
-      setSameAsOfflineHours(!hasCustom)
-      for (const day of DAYS) {
-        const existing = vendor.order_acceptance_hours?.[day]
-        h[day] = {
-          open: existing?.open || '00:00',
-          close: existing?.close || '23:59',
-          closed: existing?.closed ?? false,
+  const { markDirty: markOrdersDirty, clearDirty: clearOrdersDirty } = useServerFormHydration(
+    () => {
+      if (vendor) {
+        setEnabled(vendor.order_acceptance_enabled !== false)
+        const h: Record<string, { open: string; close: string; closed: boolean }> = {}
+        const hasCustom =
+          vendor.order_acceptance_hours != null &&
+          Object.keys(vendor.order_acceptance_hours).length > 0
+        setSameAsOfflineHours(!hasCustom)
+        for (const day of DAYS) {
+          const existing = vendor.order_acceptance_hours?.[day]
+          h[day] = {
+            open: existing?.open || '00:00',
+            close: existing?.close || '23:59',
+            closed: existing?.closed ?? false,
+          }
         }
+        setHours(h)
+        setOrdersHydrated(true)
+      } else {
+        setOrdersHydrated(false)
       }
-      setHours(h)
-      setOrdersHydrated(true)
-    } else if (!vendor) {
-      setOrdersHydrated(false)
-    }
-  }, [vendor])
+    },
+    [vendor],
+    { scopeKey: ordersScopeKey, isSaving: () => savingRef.current },
+  )
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -2943,11 +3084,15 @@ function OrderAcceptanceSection({ vendor, open, toggle, onSave }: SectionProps) 
       order_acceptance_enabled: enabled,
       order_acceptance_hours: sameAsOfflineHours ? {} : hours,
     } as Partial<Vendor>, {
-      onSettled: () => { savingRef.current = false },
+      onSettled: () => {
+        savingRef.current = false
+        clearOrdersDirty()
+      },
     })
   }
 
   const updateDay = (day: string, field: string, value: string | boolean) => {
+    markOrdersDirty()
     setHours((prev) => ({ ...prev, [day]: { ...prev[day], [field]: value } }))
   }
 
@@ -2965,6 +3110,7 @@ function OrderAcceptanceSection({ vendor, open, toggle, onSave }: SectionProps) 
         closed: existing?.closed ?? day === 'sunday',
       }
     }
+    markOrdersDirty()
     setHours(h)
     toast.success('Copied from Offline Business Hours')
   }
@@ -2989,7 +3135,10 @@ function OrderAcceptanceSection({ vendor, open, toggle, onSave }: SectionProps) 
           <input
             type="checkbox"
             checked={enabled}
-            onChange={(e) => setEnabled(e.target.checked)}
+            onChange={(e) => {
+              markOrdersDirty()
+              setEnabled(e.target.checked)
+            }}
             className="h-4 w-4 rounded border-gray-300 text-blue-600"
           />
           <span className="text-sm font-medium text-foreground">Accept orders online</span>
@@ -3006,7 +3155,10 @@ function OrderAcceptanceSection({ vendor, open, toggle, onSave }: SectionProps) 
                   type="radio"
                   name="orderHoursMode"
                   checked={sameAsOfflineHours}
-                  onChange={() => setSameAsOfflineHours(true)}
+                  onChange={() => {
+                    markOrdersDirty()
+                    setSameAsOfflineHours(true)
+                  }}
                   className="h-4 w-4 border-gray-300 text-blue-600"
                 />
                 <span className="min-w-0 flex-1">
@@ -3021,7 +3173,10 @@ function OrderAcceptanceSection({ vendor, open, toggle, onSave }: SectionProps) 
                   type="radio"
                   name="orderHoursMode"
                   checked={!sameAsOfflineHours}
-                  onChange={() => setSameAsOfflineHours(false)}
+                  onChange={() => {
+                    markOrdersDirty()
+                    setSameAsOfflineHours(false)
+                  }}
                   className="h-4 w-4 border-gray-300 text-blue-600"
                 />
                 <span className="min-w-0 flex-1">
@@ -3238,14 +3393,20 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
     setEditMode(false)
   }, [])
 
-  useLayoutEffect(() => {
-    if (vendor && !savingRef.current) {
-      applyVendorToDomainForm(vendor)
-      setDomainHydrated(true)
-    } else {
-      setDomainHydrated(false)
-    }
-  }, [vendor, applyVendorToDomainForm])
+  const domainScopeKey = vendor ? `vendor:${vendor.id}` : null
+
+  const { markDirty: markDomainDirty, clearDirty: clearDomainDirty } = useServerFormHydration(
+    () => {
+      if (vendor) {
+        applyVendorToDomainForm(vendor)
+        setDomainHydrated(true)
+      } else {
+        setDomainHydrated(false)
+      }
+    },
+    [vendor, applyVendorToDomainForm],
+    { scopeKey: domainScopeKey, isSaving: () => savingRef.current },
+  )
 
   useEffect(() => {
     if (domainScope !== forcedDomainScope) {
@@ -3278,7 +3439,12 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
       external_domain_access_status: newStatus,
       external_domain_recovery_contact: recoveryContact.trim() || undefined,
       external_domain_notes: notes.trim() || undefined,
-    } as any, { onSettled: () => { savingRef.current = false } })
+    } as any, {
+      onSettled: () => {
+        savingRef.current = false
+        clearDomainDirty()
+      },
+    })
   }
 
   const handleGrantedAccess = () => {
@@ -3302,7 +3468,10 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
       external_domain_recovery_contact: recoveryContact.trim() || undefined,
       external_domain_notes: notes.trim() || undefined,
     } as any, {
-      onSettled: () => { savingRef.current = false },
+      onSettled: () => {
+        savingRef.current = false
+        clearDomainDirty()
+      },
       onSuccess: () => {
         setAccessStatus('pending')
         toast.success(
@@ -3317,7 +3486,10 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
   const handleRevokeAccess = () => {
     savingRef.current = true
     onSave.mutate({ external_domain_access_status: 'revoked' } as any, {
-      onSettled: () => { savingRef.current = false },
+      onSettled: () => {
+        savingRef.current = false
+        clearDomainDirty()
+      },
       onSuccess: () => { setAccessStatus('revoked'); toast.info('Access revoked') },
     })
   }
@@ -3374,7 +3546,8 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
   useEffect(() => {
     if (open || !domainHydrated || !vendor || !isToggleOnlyDirty) return
     applyVendorToDomainForm(vendor)
-  }, [open, domainHydrated, vendor, isToggleOnlyDirty, applyVendorToDomainForm])
+    clearDomainDirty()
+  }, [open, domainHydrated, vendor, isToggleOnlyDirty, applyVendorToDomainForm, clearDomainDirty])
 
   const domainYesNoControl = (
     <div className="flex items-center gap-2 pr-1 sm:pr-2">
@@ -3595,7 +3768,10 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
                     <button
                       key={opt.key}
                       type="button"
-                      onClick={() => setDnsMode(opt.key)}
+                      onClick={() => {
+                        markDomainDirty()
+                        setDnsMode(opt.key)
+                      }}
                       className={`flex flex-col items-start gap-0.5 rounded-lg border p-2.5 text-left transition-colors ${
                         active ? 'border-primary bg-primary/5 ring-1 ring-primary/30' : 'border-border bg-background hover:bg-muted/40'
                       }`}
@@ -3619,7 +3795,10 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
                 </Label>
                 <Input
                   value={domainName}
-                  onChange={e => setDomainName(e.target.value)}
+                  onChange={e => {
+                    markDomainDirty()
+                    setDomainName(e.target.value)
+                  }}
                   placeholder="yourbusiness.com"
                 />
               </div>
@@ -3629,7 +3808,10 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
                 </Label>
                 <Select
                   value={registrar}
-                  onChange={setRegistrar}
+                  onChange={value => {
+                    markDomainDirty()
+                    setRegistrar(value)
+                  }}
                   placeholder="Select registrar…"
                   options={selectOptionsWithBlank(
                     'Select registrar…',
@@ -3650,7 +3832,10 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
                     <Input
                       type="email"
                       value={regEmail}
-                      onChange={e => setRegEmail(e.target.value)}
+                      onChange={e => {
+                        markDomainDirty()
+                        setRegEmail(e.target.value)
+                      }}
                       placeholder="your-email@example.com"
                     />
                   </div>
@@ -3658,7 +3843,10 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
                     <Label className="text-xs font-medium">Account holder name</Label>
                     <Input
                       value={holder}
-                      onChange={e => setHolder(e.target.value)}
+                      onChange={e => {
+                        markDomainDirty()
+                        setHolder(e.target.value)
+                      }}
                       placeholder="Name on the domain registration"
                     />
                   </div>
@@ -3667,13 +3855,23 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="space-y-1">
                     <Label className="text-xs font-medium">Domain expiry date</Label>
-                    <Input type="date" value={expiry} onChange={e => setExpiry(e.target.value)} />
+                    <Input
+                      type="date"
+                      value={expiry}
+                      onChange={e => {
+                        markDomainDirty()
+                        setExpiry(e.target.value)
+                      }}
+                    />
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs font-medium">2FA recovery contact</Label>
                     <Input
                       value={recoveryContact}
-                      onChange={e => setRecoveryContact(e.target.value)}
+                      onChange={e => {
+                        markDomainDirty()
+                        setRecoveryContact(e.target.value)
+                      }}
                       placeholder="Phone or backup email"
                     />
                   </div>
@@ -3823,7 +4021,10 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
             <div className="flex items-center justify-between pt-1">
               <textarea
                 value={notes}
-                onChange={e => setNotes(e.target.value)}
+                onChange={e => {
+                  markDomainDirty()
+                  setNotes(e.target.value)
+                }}
                 rows={2}
                 maxLength={500}
                 placeholder="Notes for KIT ERP team (optional)…"

@@ -12857,6 +12857,9 @@ export default function WebsiteBuilder() {
   const [styleDirty, setStyleDirty] = useState(false)     // unsaved style changes
   const [blocksDirty, setBlocksDirty] = useState(false)   // unsaved block props / reorder
   const blocksDirtyRef = useRef(false)   // mirror for use inside useEffect([site]) without dependency
+  /** Pages touched since last successful persist — limits auto-save to changed pages. */
+  const dirtyPageIdsRef = useRef<Set<string>>(new Set())
+  const activePageIdRef = useRef<string | null>(null)
   /** After an immediate layout save, skip server?local block hydration briefly so refetches cannot revert the canvas. */
   const skipServerHydrateRef = useRef(0)
   /** Block ids removed on the server — prevents autosave from recreating them after undo/refetch races. */
@@ -12982,6 +12985,7 @@ export default function WebsiteBuilder() {
     }
     historyIndex.current = index
     setLocalBlocks(JSON.parse(JSON.stringify(snapshot)))
+    dirtyPageIdsRef.current = new Set(Object.keys(snapshot))
     setBlocksDirty(true)
     setCanUndo(historyIndex.current > 0)
     setCanRedo(historyIndex.current < historyStack.current.length - 1)
@@ -13120,6 +13124,11 @@ export default function WebsiteBuilder() {
     localBlocksRef.current = localBlocks
   }, [localBlocks])
   useEffect(() => { blocksDirtyRef.current = blocksDirty }, [blocksDirty])
+  useEffect(() => { activePageIdRef.current = activePageId }, [activePageId])
+  useEffect(() => {
+    if (!blocksDirty) return
+    if (activePageId) dirtyPageIdsRef.current.add(activePageId)
+  }, [blocksDirty, activePageId, localBlocks])
   useEffect(() => { styleDirtyRef.current = styleDirty }, [styleDirty])
 
   /** Apply block map to canvas + ref immediately; optionally mirror into React Query site cache. */
@@ -16966,14 +16975,30 @@ export default function WebsiteBuilder() {
     const pages = [...localPagesRef.current]
       .filter(p => isPersistedPageId(p.id))
       .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-    const blocksToPersist = syncNavLinksInBlockMap(localBlocksRef.current, pages)
+    const blocksBeforeNavSync = localBlocksRef.current
+    const blocksToPersist = syncNavLinksInBlockMap(blocksBeforeNavSync, pages)
+    if (blocksToPersist !== blocksBeforeNavSync) {
+      for (const [pageId, blocks] of Object.entries(blocksToPersist)) {
+        if (blocks.some(b => b.block_type === 'nav')) dirtyPageIdsRef.current.add(pageId)
+      }
+    }
 
-    for (const page of pages) {
+    const dirtyPages = dirtyPageIdsRef.current
+    const pagesWithTempBlocks = pages.filter(p =>
+      (blocksToPersist[p.id] || []).some(b => b.id.startsWith('temp-')),
+    )
+    const pagesToPersist =
+      dirtyPages.size > 0
+        ? pages.filter(p => dirtyPages.has(p.id) || pagesWithTempBlocks.some(t => t.id === p.id))
+        : pages
+
+    const persistOnePage = async (page: WebsitePage) => {
       const blocks = (blocksToPersist[page.id] || []).map((b, i) => ({ ...b, sort_order: i }))
-      if (!blocks.length) continue
+      if (!blocks.length) return
 
       const pageReplacements: { tempId: string; saved: WebsiteBlock }[] = []
       const persistedBlocks: WebsiteBlock[] = []
+      const pendingUpdates: Promise<void>[] = []
 
       for (const b of blocks) {
         const apiPayload = blockPayloadForApi(b)
@@ -16994,22 +17019,26 @@ export default function WebsiteBuilder() {
           pageReplacements.push({ tempId: b.id, saved })
           persistedBlocks.push(saved)
         } else {
-          try {
-            await websiteApi.updateBlock(siteId, page.id, b.id, apiPayload as any)
-          } catch (err) {
-            if (!isAxiosError(err) || err.response?.status !== 404) throw err
-            if (deletedBlockIdsRef.current.has(b.id)) continue
-            const saved = await websiteApi.createBlock(siteId, page.id, {
-              block_type: b.block_type,
-              ...apiPayload,
-            } as any)
-            pageReplacements.push({ tempId: b.id, saved })
-            persistedBlocks.push(saved)
-            continue
-          }
-          persistedBlocks.push(b)
+          pendingUpdates.push(
+            websiteApi.updateBlock(siteId, page.id, b.id, apiPayload as any)
+              .then(() => {
+                persistedBlocks.push(b)
+              })
+              .catch(async (err: unknown) => {
+                if (!isAxiosError(err) || err.response?.status !== 404) throw err
+                if (deletedBlockIdsRef.current.has(b.id)) return
+                const saved = await websiteApi.createBlock(siteId, page.id, {
+                  block_type: b.block_type,
+                  ...apiPayload,
+                } as any)
+                pageReplacements.push({ tempId: b.id, saved })
+                persistedBlocks.push(saved)
+              }),
+          )
         }
       }
+
+      await Promise.all(pendingUpdates)
 
       if (persistedBlocks.length) {
         const ordered = [...persistedBlocks].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
@@ -17024,6 +17053,9 @@ export default function WebsiteBuilder() {
         replacements.push({ pageId: page.id, ...r })
       }
     }
+
+    await Promise.all(pagesToPersist.map(page => persistOnePage(page)))
+    dirtyPageIdsRef.current.clear()
 
     if (replacements.length) {
       setLocalBlocks(prev => {
