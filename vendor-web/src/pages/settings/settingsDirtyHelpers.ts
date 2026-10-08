@@ -58,7 +58,7 @@ export function unitAddressFormFromStore(store: StoreRecord | undefined): UnitAd
     street: addr?.street ?? '',
     city: addr?.city ?? '',
     state: addr?.state ?? '',
-    country: addr?.country || 'India',
+    country: addr?.country ?? '',
     pincode: addr?.pincode ?? '',
   }
 }
@@ -281,7 +281,7 @@ export function isAddressSectionDirty(
       normStr(hqForm.street_address) !== normStr(vendor.street_address) ||
       normStr(hqForm.city) !== normStr(vendor.city) ||
       normStr(hqForm.state) !== normStr(vendor.state) ||
-      normStr(hqForm.country) !== normStr(vendor.country || 'India') ||
+      normStr(hqForm.country) !== normStr(vendor.country) ||
       normStr(hqForm.postal_code) !== normStr(vendor.postal_code)
   }
   if (unitEditable && activeStore) {

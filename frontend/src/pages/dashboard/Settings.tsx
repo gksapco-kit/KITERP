@@ -200,10 +200,10 @@ export default function Settings() {
         support_email: email,
         support_phone: phone,
       }
-      if (street) payload.street_address = street
-      if (city) payload.city = city
-      if (state) payload.state = state
-      if (postal) payload.postal_code = postal
+      payload.street_address = street || null
+      payload.city = city || null
+      payload.state = state || null
+      payload.postal_code = postal || null
 
       const updated = await updateVendor.mutateAsync(payload)
       setVendor(updated)
@@ -408,6 +408,8 @@ export default function Settings() {
                         <Label htmlFor="contact-street">Street address</Label>
                         <Input
                           id="contact-street"
+                          name="contact-line1"
+                          autoComplete="off"
                           value={contactStreet}
                           onChange={(e) => setContactStreet(e.target.value)}
                           placeholder="Street address"
@@ -417,6 +419,8 @@ export default function Settings() {
                         <Label htmlFor="contact-city">City</Label>
                         <Input
                           id="contact-city"
+                          name="contact-locality"
+                          autoComplete="off"
                           value={contactCity}
                           onChange={(e) => setContactCity(e.target.value)}
                           placeholder="City"
@@ -426,6 +430,8 @@ export default function Settings() {
                         <Label htmlFor="contact-state">State</Label>
                         <Input
                           id="contact-state"
+                          name="contact-region"
+                          autoComplete="off"
                           value={contactState}
                           onChange={(e) => setContactState(e.target.value)}
                           placeholder="State"
@@ -435,6 +441,8 @@ export default function Settings() {
                         <Label htmlFor="contact-postal">Postal code</Label>
                         <Input
                           id="contact-postal"
+                          name="contact-code"
+                          autoComplete="off"
                           value={contactPostal}
                           onChange={(e) => setContactPostal(e.target.value)}
                           placeholder="Postal code"

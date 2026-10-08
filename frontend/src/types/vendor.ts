@@ -74,10 +74,11 @@ export interface VendorUpdate {
   settings?: Record<string, unknown>
   latitude?: number
   longitude?: number
-  street_address?: string
-  city?: string
-  state?: string
-  postal_code?: string
+  street_address?: string | null
+  city?: string | null
+  state?: string | null
+  postal_code?: string | null
+  country?: string | null
   service_radius_km?: number
 }
 

@@ -37,6 +37,8 @@ export function AddressFields({
       </Label>
       <Input
         id={`${idPrefix}-street`}
+        name={`${idPrefix}-line1`}
+        autoComplete="off"
         value={values.street}
         onChange={(e) => onChange({ street: e.target.value })}
         disabled={disabled}
@@ -52,6 +54,8 @@ export function AddressFields({
       </Label>
       <Input
         id={`${idPrefix}-city`}
+        name={`${idPrefix}-locality`}
+        autoComplete="off"
         value={values.city}
         onChange={(e) => onChange({ city: e.target.value })}
         disabled={disabled}
@@ -67,6 +71,8 @@ export function AddressFields({
       </Label>
       <Input
         id={`${idPrefix}-state`}
+        name={`${idPrefix}-region`}
+        autoComplete="off"
         value={values.state}
         onChange={(e) => onChange({ state: e.target.value })}
         disabled={disabled}
@@ -82,6 +88,8 @@ export function AddressFields({
       </Label>
       <Input
         id={`${idPrefix}-postal`}
+        name={`${idPrefix}-code`}
+        autoComplete="off"
         value={values.postal}
         onChange={(e) => onChange({ postal: e.target.value })}
         disabled={disabled}
@@ -97,6 +105,8 @@ export function AddressFields({
       </Label>
       <Input
         id={`${idPrefix}-country`}
+        name={`${idPrefix}-nation`}
+        autoComplete="off"
         value={values.country}
         onChange={(e) => onChange({ country: e.target.value })}
         disabled={disabled}

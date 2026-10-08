@@ -1,8 +1,9 @@
 """Map vendor HQ address columns onto store.address JSON.
 
 Admin edits vendor.street_address / city / state / postal_code / country.
-The vendor app Addresses card reads store.address {street, city, state, pincode, country}.
-These helpers keep the default business-unit address in sync with HQ.
+These helpers copy HQ onto a store only when a store is first created, or when
+an admin explicitly updates the vendor address. Store list/get must return the
+saved store.address unchanged so a cleared or edited address is not refilled.
 """
 from __future__ import annotations
 

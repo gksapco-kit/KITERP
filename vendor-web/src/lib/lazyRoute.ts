@@ -39,6 +39,33 @@ export function reloadForStaleAssets(): void {
   window.location.replace(url.toString())
 }
 
+/** This document already started a chunk-mismatch reload. */
+let chunkReloadStarted = false
+
+/**
+ * Hard-navigate once so a tab opened before the latest deploy picks up new chunk hashes.
+ * Returns true when a reload was started (caller should wait, not render the error).
+ * Returns false when this tab already reloaded once and the chunk is still missing.
+ */
+export function recoverFromChunkLoadError(): boolean {
+  if (chunkReloadStarted) return true
+  let alreadyReloaded = false
+  try {
+    alreadyReloaded = sessionStorage.getItem(CHUNK_RELOAD_SESSION_KEY) === '1'
+  } catch {
+    alreadyReloaded = false
+  }
+  if (alreadyReloaded) return false
+  chunkReloadStarted = true
+  try {
+    sessionStorage.setItem(CHUNK_RELOAD_SESSION_KEY, '1')
+  } catch {
+    /* private mode */
+  }
+  reloadForStaleAssets()
+  return true
+}
+
 export function clearChunkReloadFlag(): void {
   try {
     sessionStorage.removeItem(CHUNK_RELOAD_SESSION_KEY)
@@ -52,28 +79,16 @@ async function importWithChunkRecovery<T>(factory: () => Promise<T>): Promise<T>
     return await factory()
   } catch (err) {
     if (!isChunkLoadError(err)) throw err
-    let alreadyReloaded = false
-    try {
-      alreadyReloaded = sessionStorage.getItem(CHUNK_RELOAD_SESSION_KEY) === '1'
-    } catch {
-      /* private mode — still try one hard refresh */
-    }
-    if (!alreadyReloaded) {
-      try {
-        sessionStorage.setItem(CHUNK_RELOAD_SESSION_KEY, '1')
-      } catch {
-        /* ignore */
-      }
-      reloadForStaleAssets()
+    if (recoverFromChunkLoadError()) {
       await new Promise<void>(() => { /* wait for navigation */ })
     }
-    clearChunkReloadFlag()
     throw err
   }
 }
 
 /** Drop-in replacement for React `lazy()` with stale-chunk recovery. */
-export function lazyRoute<T extends ComponentType<unknown>>(
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function lazyRoute<T extends ComponentType<any>>(
   factory: () => Promise<{ default: T }>,
 ): LazyExoticComponent<T> {
   return lazy(() => importWithChunkRecovery(factory))

@@ -136,10 +136,13 @@ class VendorUpdate(BaseModel):
     theme_config: Optional[dict] = None
     latitude: Optional[float] = Field(None, ge=-90, le=90)
     longitude: Optional[float] = Field(None, ge=-180, le=180)
-    street_address: Optional[str] = Field(None, min_length=5, max_length=500)
-    city: Optional[str] = Field(None, min_length=2, max_length=100)
-    state: Optional[str] = Field(None, min_length=2, max_length=100)
-    postal_code: Optional[str] = Field(None, min_length=4, max_length=20)
+    # No min_length: an existing address must be editable or cleared.
+    # Blank strings are stored as null so a cleared field stays cleared.
+    street_address: Optional[str] = Field(None, max_length=500)
+    city: Optional[str] = Field(None, max_length=100)
+    state: Optional[str] = Field(None, max_length=100)
+    postal_code: Optional[str] = Field(None, max_length=20)
+    country: Optional[str] = Field(None, max_length=100)
     service_radius_km: Optional[int] = Field(None, ge=1, le=500, description="Service delivery radius in km")
 
     # External domain access
@@ -154,6 +157,16 @@ class VendorUpdate(BaseModel):
     external_domain_access_status: Optional[str] = Field(None, pattern=r'^(not_requested|pending|active|revoked)$')
     external_domain_recovery_contact: Optional[str] = Field(None, max_length=255)
     external_domain_notes: Optional[str] = None
+
+    @field_validator("street_address", "city", "state", "postal_code", "country", mode="before")
+    @classmethod
+    def blank_address_to_none(cls, v: object) -> object:
+        if v is None:
+            return None
+        if isinstance(v, str):
+            text = v.strip()
+            return text or None
+        return v
 
     @field_validator("primary_phone")
     @classmethod

@@ -272,14 +272,16 @@ function CreateCustomerModal({ onClose }: { onClose: () => void }) {
             <Label className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> Billing Address</Label>
             <Input
               placeholder="Street address"
+              autoComplete="off"
+              name="customer-line1"
               value={form.billing_street}
               onChange={(e) => setForm(p => ({ ...p, billing_street: e.target.value }))}
               className="mt-1"
             />
             <div className="grid grid-cols-3 gap-2 mt-2">
-              <Input placeholder="City" value={form.billing_city} onChange={(e) => setForm(p => ({ ...p, billing_city: e.target.value }))} />
-              <Input placeholder="State" value={form.billing_state} onChange={(e) => setForm(p => ({ ...p, billing_state: e.target.value }))} />
-              <Input placeholder="PIN code" value={form.billing_pincode} onChange={(e) => setForm(p => ({ ...p, billing_pincode: e.target.value }))} />
+              <Input placeholder="City" autoComplete="off" name="customer-locality" value={form.billing_city} onChange={(e) => setForm(p => ({ ...p, billing_city: e.target.value }))} />
+              <Input placeholder="State" autoComplete="off" name="customer-region" value={form.billing_state} onChange={(e) => setForm(p => ({ ...p, billing_state: e.target.value }))} />
+              <Input placeholder="PIN code" autoComplete="off" name="customer-code" value={form.billing_pincode} onChange={(e) => setForm(p => ({ ...p, billing_pincode: e.target.value }))} />
             </div>
           </div>
 

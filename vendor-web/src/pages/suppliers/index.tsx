@@ -500,11 +500,11 @@ function SupplierModal({
           {/* Address */}
           <div className="space-y-1.5">
             <Label className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> Address</Label>
-            <Input value={street} onChange={(e) => setStreet(e.target.value)} placeholder="Street address" />
+            <Input value={street} onChange={(e) => setStreet(e.target.value)} placeholder="Street address" autoComplete="off" name="supplier-line1" />
             <div className="grid grid-cols-3 gap-2 mt-2">
-              <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="City" />
-              <Input value={state} onChange={(e) => setState(e.target.value)} placeholder="State" />
-              <Input value={postalCode} onChange={(e) => setPostalCode(e.target.value)} placeholder="PIN code" />
+              <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="City" autoComplete="off" name="supplier-locality" />
+              <Input value={state} onChange={(e) => setState(e.target.value)} placeholder="State" autoComplete="off" name="supplier-region" />
+              <Input value={postalCode} onChange={(e) => setPostalCode(e.target.value)} placeholder="PIN code" autoComplete="off" name="supplier-code" />
             </div>
           </div>
 

@@ -473,9 +473,14 @@ class VendorService:
         
         update_data = data.model_dump(exclude_unset=True)
         if "settings" in update_data and update_data["settings"] is not None:
+            import copy
+
             from app.utils.dict_merge import deep_merge_dicts
 
-            merged_settings = dict(vendor.settings or {})
+            # Deep copy so nested false flags (unchecked display fields) are a new
+            # JSONB value. A shallow copy shares nested dicts with the ORM object
+            # and PostgreSQL can skip the update.
+            merged_settings = copy.deepcopy(dict(vendor.settings or {}))
             deep_merge_dicts(merged_settings, update_data["settings"])
             update_data["settings"] = merged_settings
         if "social_links" in update_data and update_data["social_links"] is not None:

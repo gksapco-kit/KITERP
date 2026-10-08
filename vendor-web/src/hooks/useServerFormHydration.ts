@@ -53,17 +53,22 @@ export function useServerFormHydration(
       return
     }
     if (isSaving?.()) return
-    const scopeChanged = loadedScopeRef.current !== scopeKey
+    const previousScope = loadedScopeRef.current
+    // First payload after mount is not a scope switch. Edits made while the
+    // request was still in flight must survive that response.
+    const firstAssignment = previousScope == null
+    const scopeChanged = previousScope != null && previousScope !== scopeKey
     const snapshot = snapshotKey ?? null
     if (
       !scopeChanged
+      && !firstAssignment
       && !dirtyRef.current
       && snapshot != null
       && snapshot === loadedSnapshotRef.current
     ) {
       return
     }
-    if (dirtyRef.current && !scopeChanged) return
+    if (dirtyRef.current && !scopeChanged && !firstAssignment) return
     hydrate()
     loadedScopeRef.current = scopeKey
     loadedSnapshotRef.current = snapshot

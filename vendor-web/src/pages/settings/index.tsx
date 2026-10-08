@@ -1976,7 +1976,7 @@ function AddressPanelShell({
   saving: boolean
 }) {
   return (
-    <form onSubmit={onSubmit} className={cn(!editable && 'opacity-[0.98]')}>
+    <form onSubmit={onSubmit} autoComplete="off" className={cn(!editable && 'opacity-[0.98]')}>
       <AddressCard
         title={title}
         headerRight={
@@ -2070,7 +2070,7 @@ function AddressSection({
         street_address: vendor.street_address || '',
         city: vendor.city || '',
         state: vendor.state || '',
-        country: vendor.country || 'India',
+        country: vendor.country ?? '',
         postal_code: vendor.postal_code || '',
       })
       setHqHydrated(true)
@@ -2149,7 +2149,7 @@ function AddressSection({
             city: unitForm.city.trim(),
             state: unitForm.state.trim(),
             pincode: unitForm.pincode.trim(),
-            country: unitForm.country.trim() || 'India',
+            country: unitForm.country.trim(),
             label: trimmedLabel,
           },
         },

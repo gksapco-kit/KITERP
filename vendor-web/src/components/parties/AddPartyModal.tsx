@@ -2022,14 +2022,16 @@ export function AddPartyModal({
                         onChange={e => updateAddr(addr.id, { street: e.target.value })}
                         placeholder="Street address / flat / landmark"
                         className="text-sm"
+                        autoComplete="off"
+                        name={`party-line1-${addr.id}`}
                       />
 
                       {/* Row 3: city + state */}
                       <div className="grid grid-cols-2 gap-2">
                         <Input value={addr.city} onChange={e => updateAddr(addr.id, { city: e.target.value })}
-                          placeholder="City" className="text-sm" />
+                          placeholder="City" className="text-sm" autoComplete="off" name={`party-locality-${addr.id}`} />
                         <Input value={addr.state} onChange={e => updateAddr(addr.id, { state: e.target.value })}
-                          placeholder="State / Province" className="text-sm" />
+                          placeholder="State / Province" className="text-sm" autoComplete="off" name={`party-region-${addr.id}`} />
                       </div>
 
                       {/* Row 4: pincode + country */}
@@ -2038,6 +2040,8 @@ export function AddPartyModal({
                           value={addr.pincode}
                           onChange={e => updateAddr(addr.id, { pincode: e.target.value.replace(/\D/g, '').slice(0, 10) })}
                           placeholder="PIN / ZIP" className="text-sm w-28 shrink-0" maxLength={10}
+                          autoComplete="off"
+                          name={`party-code-${addr.id}`}
                         />
                         <div className="flex-1">
                           <CountryPicker

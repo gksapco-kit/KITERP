@@ -56,14 +56,16 @@ export function AddressFields({
       <input
         className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
         placeholder="Street / House No. / Area"
+        autoComplete="off"
+        name="employee-line1"
         value={addr.street ?? ''}
         onChange={e => onChange({ ...addr, street: e.target.value })}
       />
       <div className="grid grid-cols-2 gap-2">
-        <input className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="City" value={addr.city ?? ''} onChange={e => onChange({ ...addr, city: e.target.value })} />
-        <input className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="State" value={addr.state ?? ''} onChange={e => onChange({ ...addr, state: e.target.value })} />
-        <input className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="PIN Code" maxLength={10} value={addr.pincode ?? ''} onChange={e => onChange({ ...addr, pincode: e.target.value })} />
-        <input className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Country" value={addr.country ?? ''} onChange={e => onChange({ ...addr, country: e.target.value })} />
+        <input className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="City" autoComplete="off" name="employee-locality" value={addr.city ?? ''} onChange={e => onChange({ ...addr, city: e.target.value })} />
+        <input className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="State" autoComplete="off" name="employee-region" value={addr.state ?? ''} onChange={e => onChange({ ...addr, state: e.target.value })} />
+        <input className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="PIN Code" autoComplete="off" name="employee-code" maxLength={10} value={addr.pincode ?? ''} onChange={e => onChange({ ...addr, pincode: e.target.value })} />
+        <input className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Country" autoComplete="off" name="employee-nation" value={addr.country ?? ''} onChange={e => onChange({ ...addr, country: e.target.value })} />
       </div>
     </div>
   )

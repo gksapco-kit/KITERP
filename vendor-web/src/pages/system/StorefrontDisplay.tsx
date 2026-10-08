@@ -19,6 +19,7 @@ import {
   PRODUCT_DISPLAY_FIELD_DEFS,
   SERVICE_DISPLAY_FIELD_DEFS,
   createDefaultTemplateDisplayFields,
+  isDisplayFlagOff,
   mergeDisplayFieldMap,
   readDisplayFieldsByTemplate,
   resolveTemplateDisplayFieldsFromSettings,
@@ -51,7 +52,7 @@ function FieldGrid({
 }: {
   defs: ReadonlyArray<{ key: string; label: string }>
   values: Record<string, boolean>
-  onChange: (next: Record<string, boolean>) => void
+  onChange: (key: string, checked: boolean) => void
 }) {
   return (
     <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-3">
@@ -62,8 +63,8 @@ function FieldGrid({
         >
           <input
             type="checkbox"
-            checked={values[f.key] !== false}
-            onChange={e => onChange({ ...values, [f.key]: e.target.checked })}
+            checked={!isDisplayFlagOff(values[f.key])}
+            onChange={e => onChange(f.key, e.target.checked)}
             className="h-3.5 w-3.5 shrink-0 rounded border-input text-primary"
           />
           <span className="text-xs leading-snug text-foreground">{f.label}</span>
@@ -107,7 +108,12 @@ export default function StorefrontDisplayPage() {
   const [requireDomainOtp, setRequireDomainOtp] = useState(false)
   const savingRef = useRef(false)
   const didAutoSelectTemplateRef = useRef(false)
-  const displayScopeKey = vendor ? `${vendor.id}:${selectedTemplateId}` : null
+  const touchedProductRef = useRef<Set<string>>(new Set())
+  const touchedServiceRef = useRef<Set<string>>(new Set())
+  const domainTouchedRef = useRef(false)
+  // Vendor id only. Template changes must not look like a new record — that
+  // was clearing in-progress unchecks when the assigned template loaded late.
+  const displayScopeKey = vendor?.id ?? null
   const displaySnapshotKey = displayFieldsSnapshotKey(
     vendor?.settings as Record<string, unknown> | undefined,
     selectedTemplateId || null,
@@ -124,9 +130,26 @@ export default function StorefrontDisplayPage() {
           vendor.settings as Record<string, unknown>,
           selectedTemplateId || null,
         )
-        setProductFields(resolved.product)
-        setServiceFields(resolved.service)
-        setRequireDomainOtp(requireDomainDeactivationOtp(vendor.settings as Record<string, unknown>))
+        const keepEdits = displayDirtyRef.current
+        setProductFields(prev => {
+          if (!keepEdits || touchedProductRef.current.size === 0) return resolved.product
+          const next = { ...resolved.product }
+          for (const key of touchedProductRef.current) {
+            if (Object.prototype.hasOwnProperty.call(prev, key)) next[key] = prev[key]
+          }
+          return next
+        })
+        setServiceFields(prev => {
+          if (!keepEdits || touchedServiceRef.current.size === 0) return resolved.service
+          const next = { ...resolved.service }
+          for (const key of touchedServiceRef.current) {
+            if (Object.prototype.hasOwnProperty.call(prev, key)) next[key] = prev[key]
+          }
+          return next
+        })
+        if (!keepEdits || !domainTouchedRef.current) {
+          setRequireDomainOtp(requireDomainDeactivationOtp(vendor.settings as Record<string, unknown>))
+        }
       },
       [displaySnapshotKey, domainOtpSnapshotKey, selectedTemplateId],
       {
@@ -179,16 +202,17 @@ export default function StorefrontDisplayPage() {
 
   useEffect(() => {
     if (!vendor || didAutoSelectTemplateRef.current) return
-    if (displayDirtyRef.current) return
     const preferred =
       templateMode === 'single' && singleTemplateId
         ? singleTemplateId
         : templateOptions.find(o => o.id && o.assignedTo && o.assignedTo.length > 0)?.id
-    if (preferred) {
-      setSelectedTemplateId(preferred)
+    if (!preferred) return
+    setSelectedTemplateId(current => {
       didAutoSelectTemplateRef.current = true
-    }
-  }, [vendor, templateMode, singleTemplateId, templateOptions])
+      if (displayDirtyRef.current) return current
+      return preferred
+    })
+  }, [vendor, templateMode, singleTemplateId, templateOptions, displayDirtyRef])
 
   const selectedOption = templateOptions.find(o => o.id === selectedTemplateId)
 
@@ -221,16 +245,32 @@ export default function StorefrontDisplayPage() {
     }
     updateVendor.mutate({ settings: payload } as Partial<Vendor>, {
       onSuccess: (updated) => {
-        clearDisplayDirty()
+        const base = ((updated.settings ?? payload) || {}) as Record<string, unknown>
+        const settings: Record<string, unknown> = { ...base }
+        if (selectedTemplateId === GLOBAL_TEMPLATE_ID) {
+          settings.display_fields = entry
+        } else {
+          settings[DISPLAY_FIELDS_BY_TEMPLATE_KEY] = {
+            ...readDisplayFieldsByTemplate(base),
+            [selectedTemplateId]: entry,
+          }
+        }
+        settings[REQUIRE_DOMAIN_DEACTIVATION_OTP_KEY] = requireDomainOtp
+        touchedProductRef.current.clear()
+        touchedServiceRef.current.clear()
+        domainTouchedRef.current = false
         const resolved = resolveTemplateDisplayFieldsFromSettings(
-          (updated.settings ?? payload) as Record<string, unknown>,
+          settings,
           selectedTemplateId || null,
         )
         setProductFields(resolved.product)
         setServiceFields(resolved.service)
-        setRequireDomainOtp(
-          requireDomainDeactivationOtp((updated.settings ?? payload) as Record<string, unknown>),
-        )
+        setRequireDomainOtp(requireDomainOtp)
+        const current = useVendorStore.getState().vendor
+        if (current) {
+          useVendorStore.getState().setVendor({ ...current, ...updated, settings })
+        }
+        clearDisplayDirty()
         toast.success('Business Front display updated')
       },
       onSettled: () => {
@@ -239,20 +279,39 @@ export default function StorefrontDisplayPage() {
     })
   }
 
-  const toggleAll = (type: 'product' | 'service', value: boolean) => {
+  const rememberProduct = (key: string) => {
+    touchedProductRef.current.add(key)
     markDisplayDirty()
+  }
+  const rememberService = (key: string) => {
+    touchedServiceRef.current.add(key)
+    markDisplayDirty()
+  }
+
+  const toggleAll = (type: 'product' | 'service', value: boolean) => {
     if (type === 'product') {
+      for (const field of PRODUCT_DISPLAY_FIELD_DEFS) rememberProduct(field.key)
       setProductFields(Object.fromEntries(PRODUCT_DISPLAY_FIELD_DEFS.map(f => [f.key, value])))
     } else {
+      for (const field of SERVICE_DISPLAY_FIELD_DEFS) rememberService(field.key)
       setServiceFields(Object.fromEntries(SERVICE_DISPLAY_FIELD_DEFS.map(f => [f.key, value])))
     }
   }
 
   const resetTemplateDefaults = () => {
-    markDisplayDirty()
+    for (const field of PRODUCT_DISPLAY_FIELD_DEFS) rememberProduct(field.key)
+    for (const field of SERVICE_DISPLAY_FIELD_DEFS) rememberService(field.key)
     const defaults = createDefaultTemplateDisplayFields()
     setProductFields(defaults.product)
     setServiceFields(defaults.service)
+  }
+
+  const selectTemplate = (id: string) => {
+    if (id === selectedTemplateId) return
+    touchedProductRef.current.clear()
+    touchedServiceRef.current.clear()
+    clearDisplayDirty()
+    setSelectedTemplateId(id)
   }
 
   return (
@@ -292,6 +351,7 @@ export default function StorefrontDisplayPage() {
               type="checkbox"
               checked={requireDomainOtp}
               onChange={e => {
+                domainTouchedRef.current = true
                 markDisplayDirty()
                 setRequireDomainOtp(e.target.checked)
               }}
@@ -331,7 +391,7 @@ export default function StorefrontDisplayPage() {
         <CardContent className="space-y-1.5 p-3 pt-0">
           <ThemeSelect
             value={selectedTemplateId}
-            onChange={setSelectedTemplateId}
+            onChange={selectTemplate}
             className="h-9 rounded-lg border border-input bg-background"
             options={templateOptions.map(opt => ({
               value: opt.id,
@@ -373,9 +433,9 @@ export default function StorefrontDisplayPage() {
             <FieldGrid
               defs={PRODUCT_DISPLAY_FIELD_DEFS}
               values={productFields}
-              onChange={next => {
-                markDisplayDirty()
-                setProductFields(next)
+              onChange={(key, checked) => {
+                rememberProduct(key)
+                setProductFields(prev => ({ ...prev, [key]: checked }))
               }}
             />
           </CardContent>
@@ -400,9 +460,9 @@ export default function StorefrontDisplayPage() {
             <FieldGrid
               defs={SERVICE_DISPLAY_FIELD_DEFS}
               values={serviceFields}
-              onChange={next => {
-                markDisplayDirty()
-                setServiceFields(next)
+              onChange={(key, checked) => {
+                rememberService(key)
+                setServiceFields(prev => ({ ...prev, [key]: checked }))
               }}
             />
           </CardContent>

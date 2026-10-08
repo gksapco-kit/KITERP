@@ -90,6 +90,17 @@ export function createDefaultTemplateDisplayFields(): TemplateDisplayFields {
   }
 }
 
+/** True when a stored flag means "hidden", including string/number forms from JSON. */
+export function isDisplayFlagOff(value: unknown): boolean {
+  return value === false || value === 0 || value === 'false' || value === '0' || value === 'off'
+}
+
+function coerceDisplayFlag(value: unknown, fallback: boolean): boolean {
+  if (isDisplayFlagOff(value)) return false
+  if (value === true || value === 1 || value === 'true' || value === '1' || value === 'on') return true
+  return fallback
+}
+
 export function mergeDisplayFieldMap(
   defs: ReadonlyArray<{ key: string }>,
   overrides?: DisplayFieldMap | null,
@@ -97,12 +108,13 @@ export function mergeDisplayFieldMap(
 ): DisplayFieldMap {
   const out: DisplayFieldMap = {}
   for (const def of defs) {
+    const fallbackOn = def.key === SIGN_IN_MANDATORY_FIELD ? false : true
     if (overrides && def.key in overrides) {
-      out[def.key] = Boolean(overrides[def.key])
+      out[def.key] = coerceDisplayFlag(overrides[def.key], fallbackOn)
     } else if (fallback && def.key in fallback) {
-      out[def.key] = Boolean(fallback[def.key])
+      out[def.key] = coerceDisplayFlag(fallback[def.key], fallbackOn)
     } else {
-      out[def.key] = def.key === SIGN_IN_MANDATORY_FIELD ? false : true
+      out[def.key] = fallbackOn
     }
   }
   return out
@@ -217,5 +229,5 @@ export function isSignInMandatoryForCart(
 
 /** Returns true when a display-field toggle is enabled (missing keys default to on). */
 export function isDisplayFieldEnabled(map: DisplayFieldMap, key: string): boolean {
-  return map[key] !== false
+  return !isDisplayFlagOff(map[key])
 }

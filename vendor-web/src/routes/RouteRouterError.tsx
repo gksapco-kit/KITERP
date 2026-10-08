@@ -1,8 +1,8 @@
 import { useEffect } from 'react'
 import { isRouteErrorResponse, useRouteError } from 'react-router-dom'
 import {
-  CHUNK_RELOAD_SESSION_KEY,
   isChunkLoadError,
+  recoverFromChunkLoadError,
   reloadForStaleAssets,
 } from '@/lib/lazyRoute'
 
@@ -21,14 +21,7 @@ export default function RouteRouterError() {
 
   useEffect(() => {
     if (!chunk) return
-    try {
-      if (sessionStorage.getItem(CHUNK_RELOAD_SESSION_KEY) !== '1') {
-        sessionStorage.setItem(CHUNK_RELOAD_SESSION_KEY, '1')
-        reloadForStaleAssets()
-      }
-    } catch {
-      reloadForStaleAssets()
-    }
+    recoverFromChunkLoadError()
   }, [chunk])
 
   return (

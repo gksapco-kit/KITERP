@@ -102,16 +102,14 @@ async def list_accessible_vendors(
 @router.put("/me", response_model=VendorResponse)
 async def update_my_vendor(
     data: VendorUpdate,
+    request: Request,
     current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
     service: VendorService = Depends(get_vendor_service),
 ):
-    """Update current user's vendor profile."""
-    vendor = await service.get_by_user_id(current_user.id)
-    if not vendor:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No vendor found for this user"
-        )
+    """Update the vendor the dashboard is currently showing (honors X-Vendor-Id)."""
+    pref = preferred_vendor_id_from_request(request)
+    vendor = await resolve_dashboard_vendor(db, current_user, preferred_vendor_id=pref)
     return await service.update(vendor.id, data)
 
 

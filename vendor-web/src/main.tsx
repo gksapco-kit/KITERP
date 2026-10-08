@@ -18,9 +18,9 @@ import { matchesDraftPreviewBrowserPath, initPreviewTabOpenerBridge } from './li
 import { ensureAppFavicon } from './lib/appFavicon'
 import { refreshAuthSessionDeduped } from './lib/authSession'
 import {
-  CHUNK_RELOAD_SESSION_KEY,
   clearChunkReloadFlag,
-  reloadForStaleAssets,
+  isChunkLoadError,
+  recoverFromChunkLoadError,
   stripDeployRefreshFromUrl,
 } from './lib/lazyRoute'
 import { installAuthFocusQuerySync } from './lib/authFocusQuerySync'
@@ -46,23 +46,20 @@ stripDeployRefreshFromUrl()
 
 window.addEventListener('vite:preloadError', (event) => {
   event.preventDefault()
-  try {
-    if (sessionStorage.getItem(CHUNK_RELOAD_SESSION_KEY) !== '1') {
-      sessionStorage.setItem(CHUNK_RELOAD_SESSION_KEY, '1')
-      reloadForStaleAssets()
-      return
-    }
-  } catch {
-    reloadForStaleAssets()
-  }
+  recoverFromChunkLoadError()
 })
 
-router.subscribe((state) => {
-  if (state.navigation.state === 'idle') {
-    clearChunkReloadFlag()
-    stripDeployRefreshFromUrl()
-  }
+window.addEventListener('unhandledrejection', (event) => {
+  if (!isChunkLoadError(event.reason)) return
+  event.preventDefault()
+  recoverFromChunkLoadError()
 })
+
+// Clear the one-shot flag only after the shell has stayed up. Clearing it on
+// every idle navigation raced the reload and left the React Router error screen up.
+window.setTimeout(() => {
+  clearChunkReloadFlag()
+}, 8000)
 
 const queryClient = createAppQueryClient()
 attachAutoRefreshInterceptor(apiClient)

@@ -117,6 +117,8 @@ function EditableField({
       ) : (
         <Input
           type={type}
+          name={String(field)}
+          autoComplete="off"
           value={currentValue}
           onChange={(e) => {
             const val = type === 'number' ? Number(e.target.value) : e.target.value

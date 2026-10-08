@@ -105,13 +105,53 @@ function resolveStorefrontBareImports() {
 // Polling is for Docker bind-mounts / network FS. On Windows + OneDrive it makes dev painfully slow.
 const useWatchPolling = process.env.VITE_WATCH_POLLING === '1'
 
+type ModuleInfoApi = {
+  getModuleInfo: (id: string) => { importers: readonly string[]; dynamicImporters: readonly string[] } | null
+}
+
+/** True when `id` is pulled in by the HTML entry through static imports only. */
+function reachesAppEntry(id: string, getModuleInfo: ModuleInfoApi['getModuleInfo'], seen: Set<string>): boolean {
+  if (seen.has(id)) return false
+  seen.add(id)
+  const norm = id.replace(/\\/g, '/')
+  if (/\/src\/main\.[tj]sx?$/.test(norm)) return true
+  const info = getModuleInfo(id)
+  if (!info) return false
+  for (const importer of info.importers) {
+    if (reachesAppEntry(importer, getModuleInfo, seen)) return true
+  }
+  return false
+}
+
+/**
+ * Modules used by both the app shell and a lazy page must not live inside
+ * `index-*.js`. Otherwise every menu click imports that entry file, and the
+ * request 404s after the next deploy.
+ */
+function vendorSharedChunk(id: string, api: ModuleInfoApi): string | undefined {
+  const norm = id.replace(/\\/g, '/')
+  if (norm.includes('node_modules') || norm.includes('/storefront-web/')) return undefined
+  if (!norm.includes('/src/')) return undefined
+  if (/\/src\/main\.[tj]sx?$/.test(norm)) return undefined
+  if (norm.includes('/src/routes/')) return undefined
+  if (/\/src\/layouts\/(DashboardLayout|AuthLayout)\.[tj]sx?$/.test(norm)) return undefined
+  const info = api.getModuleInfo(id)
+  if (!info) return undefined
+  if (!reachesAppEntry(id, api.getModuleInfo, new Set())) return undefined
+  const sharedWithLazy = info.dynamicImporters.length > 0
+    || info.importers.some((importer) => !reachesAppEntry(importer, api.getModuleInfo, new Set()))
+  return sharedWithLazy ? 'app-shared' : undefined
+}
+
 export default defineConfig({
   plugins: [storefrontPreviewImports(), resolveStorefrontBareImports(), react()],
   base: publicBasePath,
   build: {
     rollupOptions: {
       output: {
-        manualChunks(id) {
+        manualChunks(id, api) {
+          const shared = vendorSharedChunk(id, api)
+          if (shared) return shared
           if (!id.includes('node_modules')) return
           if (id.includes('react-dom') || id.includes('/react/') || id.includes('react-router')) {
             return 'vendor-react'
@@ -119,6 +159,9 @@ export default defineConfig({
           if (id.includes('@tanstack/react-query')) return 'vendor-query'
           if (id.includes('@radix-ui')) return 'vendor-radix'
           if (id.includes('lucide-react')) return 'vendor-icons'
+          // Sidebar and category pages both use this. Leaving it in the entry
+          // makes those routes import index-*.js, which 404s after a deploy.
+          if (id.includes('@dnd-kit')) return 'vendor-dnd'
         },
       },
     },

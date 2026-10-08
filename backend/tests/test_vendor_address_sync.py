@@ -36,6 +36,26 @@ def test_store_address_from_vendor_maps_keys_and_keeps_label():
     }
 
 
+def test_vendor_update_keeps_cleared_and_short_address_fields():
+    from app.schemas.vendor import VendorUpdate
+
+    cleared = VendorUpdate(
+        street_address="  ",
+        city="",
+        state="Telangana",
+        postal_code="500064",
+        country="India",
+    )
+    dumped = cleared.model_dump(exclude_unset=True)
+    assert dumped["street_address"] is None
+    assert dumped["city"] is None
+    assert dumped["state"] == "Telangana"
+    assert dumped["country"] == "India"
+
+    short = VendorUpdate(street_address="12")
+    assert short.street_address == "12"
+
+
 def test_store_address_is_empty_ignores_country_only():
     assert store_address_is_empty({})
     assert store_address_is_empty({"country": "India", "label": "HQ"})

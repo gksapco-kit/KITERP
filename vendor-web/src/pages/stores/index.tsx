@@ -194,7 +194,9 @@ function StoreModal({
       ? profileFormFromStore(store, vendor).company_type
       : profileCompanyTypeFromVendor(vendor)
 
-  const [form, setForm] = useState<StoreFormData>(() => {
+  const userEditingRef = useRef(false)
+  const editingStoreIdRef = useRef<string | null | undefined>(undefined)
+  const [form, setFormState] = useState<StoreFormData>(() => {
     const company_type = resolveCompanyType()
     const tax = taxFieldsFromStore(store ?? undefined, vendorTaxCountry)
     if (store) {
@@ -204,7 +206,7 @@ function StoreModal({
         ...tax,
         street: store.address?.street ?? '', city: store.address?.city ?? '',
         state: store.address?.state ?? '', pincode: store.address?.pincode ?? '',
-        country: store.address?.country || defaultCountry,
+        country: store.address?.country ?? '',
         is_default: store.is_default,
         company_type,
       }
@@ -212,27 +214,39 @@ function StoreModal({
     return { ...EMPTY_FORM, ...tax, code: autoCode, company_type, country: defaultCountry }
   })
 
+  const setForm: typeof setFormState = (action) => {
+    userEditingRef.current = true
+    setFormState(action)
+  }
+
   useEffect(() => {
+    const storeId = store?.id ?? null
+    if (editingStoreIdRef.current !== storeId) {
+      editingStoreIdRef.current = storeId
+      userEditingRef.current = false
+    } else if (userEditingRef.current) {
+      return
+    }
     const company_type = store
       ? profileFormFromStore(store, vendor).company_type
       : profileCompanyTypeFromVendor(vendor)
     const tax = taxFieldsFromStore(store ?? undefined, vendorTaxCountry)
     if (store) {
-      setForm({
+      setFormState({
         name: store.name, code: store.code ?? '', description: store.description ?? '',
         phone: store.phone ?? '', email: store.email ?? '',
         ...tax,
         street: store.address?.street ?? '', city: store.address?.city ?? '',
         state: store.address?.state ?? '', pincode: store.address?.pincode ?? '',
-        country: store.address?.country || defaultCountry,
+        country: store.address?.country ?? '',
         is_default: store.is_default,
         company_type,
       })
     } else {
-      setForm({ ...EMPTY_FORM, ...tax, code: autoCode, company_type, country: defaultCountry })
+      setFormState({ ...EMPTY_FORM, ...tax, code: autoCode, company_type, country: defaultCountry })
     }
     if (company_type) {
-      setForm((f) => (f.company_type.trim() ? f : { ...f, company_type }))
+      setFormState((f) => (f.company_type.trim() ? f : { ...f, company_type }))
     }
   }, [
     store?.id,
@@ -261,8 +275,8 @@ function StoreModal({
   ])
 
   useEffect(() => {
-    if (!store && parentBu) {
-      setForm((f) => ({ ...f, code: nextBranchAutoCode(parentBu, existingStores) }))
+    if (!store && parentBu && !userEditingRef.current) {
+      setFormState((f) => ({ ...f, code: nextBranchAutoCode(parentBu, existingStores) }))
     }
   }, [store, parentBu?.id, parentBu?.code, existingStores.length])
 
@@ -403,9 +417,9 @@ function StoreModal({
       phone: form.phone || undefined, email: form.email || undefined,
       is_default: form.is_default,
       address: {
-        street: form.street || undefined, city: form.city || undefined,
-        state: form.state || undefined, pincode: form.pincode || undefined,
-        country: form.country || defaultCountry,
+        street: form.street.trim(), city: form.city.trim(),
+        state: form.state.trim(), pincode: form.pincode.trim(),
+        country: form.country.trim(),
       },
       settings: parentBu
         ? { ...baseSettings, ...taxSettings }
