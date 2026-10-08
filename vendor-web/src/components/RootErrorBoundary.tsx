@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { isChunkLoadError, reloadForStaleAssets } from '@/lib/lazyRoute'
 
 type Props = { children: ReactNode }
 type State = { error: Error | null; errorInfo: ErrorInfo | null }
@@ -19,6 +20,24 @@ export class RootErrorBoundary extends Component<Props, State> {
   override render() {
     const { error, errorInfo } = this.state
     if (!error) return this.props.children
+
+    if (isChunkLoadError(error)) {
+      return (
+        <div className="flex min-h-screen flex-col items-center justify-center gap-3 px-6 text-center">
+          <h1 className="text-lg font-semibold text-slate-900">This page could not load</h1>
+          <p className="max-w-md text-sm text-slate-600">
+            The app was updated while this tab was open. Reload once to fetch the latest version.
+          </p>
+          <button
+            type="button"
+            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+            onClick={() => reloadForStaleAssets()}
+          >
+            Reload page
+          </button>
+        </div>
+      )
+    }
 
     return (
       <div className="min-h-screen bg-slate-50 text-slate-900 p-6 font-sans">

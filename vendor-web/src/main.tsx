@@ -17,7 +17,12 @@ import { resolveApiBaseUrl } from './lib/apiBase'
 import { matchesDraftPreviewBrowserPath, initPreviewTabOpenerBridge } from './lib/storefrontPreviewUrl'
 import { ensureAppFavicon } from './lib/appFavicon'
 import { refreshAuthSessionDeduped } from './lib/authSession'
-import { CHUNK_RELOAD_SESSION_KEY } from './lib/lazyRoute'
+import {
+  CHUNK_RELOAD_SESSION_KEY,
+  clearChunkReloadFlag,
+  reloadForStaleAssets,
+  stripDeployRefreshFromUrl,
+} from './lib/lazyRoute'
 import { installAuthFocusQuerySync } from './lib/authFocusQuerySync'
 import { getAccessToken } from './lib/authTokenStorage'
 import { coerceToastMessage, isAxiosNetworkError } from './lib/errorMessages'
@@ -37,21 +42,25 @@ initGlobalEscapeHandler()
 initPreviewTabOpenerBridge()
 ensureAppFavicon()
 
-try {
-  sessionStorage.removeItem(CHUNK_RELOAD_SESSION_KEY)
-} catch {
-  /* private mode */
-}
+stripDeployRefreshFromUrl()
 
 window.addEventListener('vite:preloadError', (event) => {
   event.preventDefault()
   try {
-    if (!sessionStorage.getItem(CHUNK_RELOAD_SESSION_KEY)) {
+    if (sessionStorage.getItem(CHUNK_RELOAD_SESSION_KEY) !== '1') {
       sessionStorage.setItem(CHUNK_RELOAD_SESSION_KEY, '1')
-      window.location.reload()
+      reloadForStaleAssets()
+      return
     }
   } catch {
-    window.location.reload()
+    reloadForStaleAssets()
+  }
+})
+
+router.subscribe((state) => {
+  if (state.navigation.state === 'idle') {
+    clearChunkReloadFlag()
+    stripDeployRefreshFromUrl()
   }
 })
 

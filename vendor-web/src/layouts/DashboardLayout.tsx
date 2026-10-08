@@ -3462,6 +3462,7 @@ export default function DashboardLayout() {
                             title={item.label}
                             ref={(el) => registerNavFocusRef(flyItemKey, el)}
                             onMouseEnter={() => prefetchVendorRoute(item.to)}
+                            onTouchStart={() => prefetchVendorRoute(item.to)}
                             onFocus={() => {
                               prefetchVendorRoute(item.to)
                               setNavFocusKey(flyItemKey)
@@ -3995,6 +3996,7 @@ export default function DashboardLayout() {
                                                 ref={(el) => registerNavFocusRef(itemKey, el)}
                                                 tabIndex={isSectionCollapsed || tabIndexOff ? -1 : undefined}
                                                 onMouseEnter={() => prefetchVendorRoute(item.to)}
+                                                onTouchStart={() => prefetchVendorRoute(item.to)}
                                                 onFocus={() => {
                                                   prefetchVendorRoute(item.to)
                                                   setNavFocusKey(itemKey)

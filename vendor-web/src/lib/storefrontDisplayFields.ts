@@ -139,6 +139,15 @@ function applyLegacySignIn(
   return { ...map, [SIGN_IN_MANDATORY_FIELD]: readLegacySignInMandatory(settings) }
 }
 
+/** Stable key for form hydration — only display-field values for this template. */
+export function displayFieldsSnapshotKey(
+  settings: Record<string, unknown> | null | undefined,
+  templateId: string | null | undefined,
+): string {
+  const resolved = resolveTemplateDisplayFieldsFromSettings(settings, templateId)
+  return JSON.stringify(resolved)
+}
+
 export function resolveTemplateDisplayFieldsFromSettings(
   settings: Record<string, unknown> | null | undefined,
   templateId: string | null | undefined,

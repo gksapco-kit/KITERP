@@ -472,6 +472,12 @@ class VendorService:
             )
         
         update_data = data.model_dump(exclude_unset=True)
+        if "settings" in update_data and update_data["settings"] is not None:
+            from app.utils.dict_merge import deep_merge_dicts
+
+            merged_settings = dict(vendor.settings or {})
+            deep_merge_dicts(merged_settings, update_data["settings"])
+            update_data["settings"] = merged_settings
         if "social_links" in update_data and update_data["social_links"] is not None:
             from app.utils.social_link_normalize import normalize_social_links
             update_data["social_links"] = normalize_social_links(update_data["social_links"])

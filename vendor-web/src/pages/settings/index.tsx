@@ -94,7 +94,7 @@ import { APP_VERSION, APP_BUILD, LAST_UPDATED, CHANGELOG } from '@/constants/ven
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { APP_SAVE_REQUEST_EVENT } from '@/lib/appSave'
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard'
-import { useServerFormHydration } from '@/hooks/useServerFormHydration'
+import { useServerFormHydration, serverFormSnapshotKey } from '@/hooks/useServerFormHydration'
 import {
   SettingsDirtyProvider,
   useSettingsDirtyContext,
@@ -104,7 +104,9 @@ import {
   HQ_ADDRESS_LABEL_KEY,
   hqAddressLabelFromVendor,
   isAddressSectionDirty,
-  unitAddressFromStore,
+  unitAddressFormFromStore,
+  storeAddressSnapshotKey,
+  vendorHqAddressSnapshotKey,
   isBusinessHoursSectionDirty,
   isContactSectionDirty,
   isExternalDomainSectionDirty,
@@ -928,25 +930,61 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
     profileDirtyRef.current = true
   }
 
+  const profileScopeKey =
+    unitProfileEditable && activeStore
+      ? `unit:${activeStore.id}`
+      : vendor
+        ? `vendor:${vendor.id}`
+        : null
+  const profileSnapshotKey =
+    unitProfileEditable && activeStore
+      ? serverFormSnapshotKey([
+          activeStore.id,
+          activeStore.name,
+          activeStore.description,
+          JSON.stringify(activeStore.settings ?? {}),
+        ])
+      : vendor
+        ? serverFormSnapshotKey([
+            vendor.id,
+            vendor.business_name,
+            vendor.display_name,
+            vendor.description,
+            vendor.offering_type,
+            vendor.business_type,
+          ])
+        : null
+  const loadedProfileSnapshotRef = useRef<string | null>(null)
+
   useLayoutEffect(() => {
     if (profileSavingRef.current) return
-    const scopeKey =
-      unitProfileEditable && activeStore
-        ? `unit:${activeStore.id}`
-        : vendor
-          ? `vendor:${vendor.id}`
-          : null
-    if (!scopeKey) {
+    if (!profileScopeKey) {
       setProfileHydrated(false)
       loadedProfileScopeRef.current = null
+      loadedProfileSnapshotRef.current = null
       return
     }
-    const scopeChanged = loadedProfileScopeRef.current !== scopeKey
+    const scopeChanged = loadedProfileScopeRef.current !== profileScopeKey
+    if (
+      !scopeChanged
+      && profileDirtyRef.current
+    ) {
+      return
+    }
+    if (
+      !scopeChanged
+      && !profileDirtyRef.current
+      && profileSnapshotKey != null
+      && profileSnapshotKey === loadedProfileSnapshotRef.current
+    ) {
+      return
+    }
     if (profileDirtyRef.current && !scopeChanged) return
     if (unitProfileEditable && activeStore) {
       setForm(profileFormFromStore(activeStore, vendor))
       setProfileHydrated(true)
-      loadedProfileScopeRef.current = scopeKey
+      loadedProfileScopeRef.current = profileScopeKey
+      loadedProfileSnapshotRef.current = profileSnapshotKey
       if (scopeChanged) profileDirtyRef.current = false
       return
     }
@@ -960,19 +998,13 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
         company_type: profileCompanyTypeFromVendor(vendor),
       })
       setProfileHydrated(true)
-      loadedProfileScopeRef.current = scopeKey
+      loadedProfileScopeRef.current = profileScopeKey
+      loadedProfileSnapshotRef.current = profileSnapshotKey
       if (scopeChanged) profileDirtyRef.current = false
       return
     }
     setProfileHydrated(false)
-  }, [
-    vendor,
-    unitProfileEditable,
-    activeStore?.id,
-    activeStore?.name,
-    activeStore?.description,
-    JSON.stringify(activeStore?.settings ?? {}),
-  ])
+  }, [profileScopeKey, profileSnapshotKey, unitProfileEditable, activeStore, vendor])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -1667,6 +1699,22 @@ function ContactSection({
       : vendor
         ? `vendor:${vendor.id}`
         : null
+  const contactSnapshotKey =
+    unitContactEditable && activeStore
+      ? serverFormSnapshotKey([
+          activeStore.id,
+          activeStore.email,
+          activeStore.phone,
+          JSON.stringify(activeStore.settings ?? {}),
+        ])
+      : vendor
+        ? serverFormSnapshotKey([
+            vendor.id,
+            vendor.support_email,
+            vendor.support_phone,
+            JSON.stringify(vendor.settings ?? {}),
+          ])
+        : null
 
   const { markDirty: markContactDirty, clearDirty: clearContactDirty } = useServerFormHydration(
     () => {
@@ -1684,15 +1732,12 @@ function ContactSection({
         setContactHydrated(false)
       }
     },
-    [
-      vendor,
-      activeStore?.id,
-      activeStore?.email,
-      activeStore?.phone,
-      activeStore?.settings,
-      unitContactEditable,
-    ],
-    { scopeKey: contactScopeKey, isSaving: () => contactSavingRef.current },
+    [contactSnapshotKey, unitContactEditable],
+    {
+      scopeKey: contactScopeKey,
+      snapshotKey: contactSnapshotKey,
+      isSaving: () => contactSavingRef.current,
+    },
   )
 
   const updateSupportEmail = (index: number, value: string) => {
@@ -1751,10 +1796,10 @@ function ContactSection({
           onSuccess: (result) => {
             setSupportEmails(supportEmailsFromStore(result.store))
             setSupportPhones(supportPhonesFromStore(result.store))
+            clearContactDirty()
           },
           onSettled: () => {
             contactSavingRef.current = false
-            clearContactDirty()
           },
         },
       )
@@ -1771,9 +1816,11 @@ function ContactSection({
         support_phones: trimmedPhones.slice(1),
       },
     } as Partial<Vendor>, {
+      onSuccess: () => {
+        clearContactDirty()
+      },
       onSettled: () => {
         contactSavingRef.current = false
-        clearContactDirty()
       },
     })
   }
@@ -2006,20 +2053,18 @@ function AddressSection({
   const [showExtraAddress, setShowExtraAddress] = useState(false)
   const hqSavingRef = useRef(false)
   const unitSavingRef = useRef(false)
-  const hqDirtyRef = useRef(false)
-  const unitDirtyRef = useRef(false)
-  const loadedUnitStoreIdRef = useRef<string | null>(null)
   const [hqHydrated, setHqHydrated] = useState(false)
   const [unitHydrated, setUnitHydrated] = useState(false)
 
-  const hasUnitAddress = unitEditable && Boolean(activeStore)
-  const hasHqAddress = hqEditable && Boolean(vendor)
-  const showUnitFirst = hasUnitAddress
-  const secondaryIsHq = showUnitFirst && hasHqAddress
-  const secondaryIsUnit = !showUnitFirst && hasUnitAddress && hasHqAddress
+  const hqSnapshotKey = vendorHqAddressSnapshotKey(vendor)
+  const unitSnapshotKey = storeAddressSnapshotKey(activeStore)
 
-  useLayoutEffect(() => {
-    if (vendor && !hqSavingRef.current && !hqDirtyRef.current) {
+  const { markDirty: markHqDirty, clearDirty: clearHqDirty } = useServerFormHydration(
+    () => {
+      if (!vendor) {
+        setHqHydrated(false)
+        return
+      }
       setHqForm({
         label: hqAddressLabelFromVendor(vendor),
         street_address: vendor.street_address || '',
@@ -2029,35 +2074,38 @@ function AddressSection({
         postal_code: vendor.postal_code || '',
       })
       setHqHydrated(true)
-    } else if (!vendor) {
-      setHqHydrated(false)
-    }
-  }, [vendor])
+    },
+    [hqSnapshotKey, vendor?.id],
+    {
+      scopeKey: vendor?.id ?? null,
+      snapshotKey: hqSnapshotKey,
+      isSaving: () => hqSavingRef.current,
+    },
+  )
 
-  useLayoutEffect(() => {
-    if (unitSavingRef.current) return
-    if (!activeStore) {
-      setUnitForm({ label: '', street: '', city: '', state: '', country: '', pincode: '' })
-      setUnitHydrated(false)
-      loadedUnitStoreIdRef.current = null
-      return
-    }
-    const storeChanged = loadedUnitStoreIdRef.current !== activeStore.id
-    if (unitDirtyRef.current && !storeChanged) return
-    setUnitForm(unitAddressFromStore(activeStore, vendor))
-    setUnitHydrated(true)
-    loadedUnitStoreIdRef.current = activeStore.id
-    if (storeChanged) unitDirtyRef.current = false
-  }, [
-    vendor,
-    activeStore?.id,
-    activeStore?.address?.label,
-    activeStore?.address?.street,
-    activeStore?.address?.city,
-    activeStore?.address?.state,
-    activeStore?.address?.country,
-    activeStore?.address?.pincode,
-  ])
+  const { markDirty: markUnitDirty, clearDirty: clearUnitDirty } = useServerFormHydration(
+    () => {
+      if (!activeStore) {
+        setUnitForm({ label: '', street: '', city: '', state: '', country: '', pincode: '' })
+        setUnitHydrated(false)
+        return
+      }
+      setUnitForm(unitAddressFormFromStore(activeStore))
+      setUnitHydrated(true)
+    },
+    [unitSnapshotKey, activeStore?.id],
+    {
+      scopeKey: activeStore ? `store:${activeStore.id}` : null,
+      snapshotKey: unitSnapshotKey,
+      isSaving: () => unitSavingRef.current,
+    },
+  )
+
+  const hasUnitAddress = unitEditable && Boolean(activeStore)
+  const hasHqAddress = hqEditable && Boolean(vendor)
+  const showUnitFirst = hasUnitAddress
+  const secondaryIsHq = showUnitFirst && hasHqAddress
+  const secondaryIsUnit = !showUnitFirst && hasUnitAddress && hasHqAddress
 
   const handleHqSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -2066,20 +2114,22 @@ function AddressSection({
     const trimmedLabel = hqForm.label.trim()
     onSaveVendor.mutate(
       {
-        street_address: hqForm.street_address || undefined,
-        city: hqForm.city || undefined,
-        state: hqForm.state || undefined,
-        country: hqForm.country || undefined,
-        postal_code: hqForm.postal_code || undefined,
+        street_address: hqForm.street_address.trim() || null,
+        city: hqForm.city.trim() || null,
+        state: hqForm.state.trim() || null,
+        country: hqForm.country.trim() || null,
+        postal_code: hqForm.postal_code.trim() || null,
         settings: {
           ...(vendor.settings ?? {}),
           [HQ_ADDRESS_LABEL_KEY]: trimmedLabel || undefined,
         },
       } as Partial<Vendor>,
       {
+        onSuccess: () => {
+          clearHqDirty()
+        },
         onSettled: () => {
           hqSavingRef.current = false
-          hqDirtyRef.current = false
         },
       },
     )
@@ -2095,19 +2145,21 @@ function AddressSection({
         id: activeStore.id,
         data: {
           address: {
-            street: unitForm.street || undefined,
-            city: unitForm.city || undefined,
-            state: unitForm.state || undefined,
-            pincode: unitForm.pincode || undefined,
-            country: unitForm.country || undefined,
-            label: trimmedLabel || undefined,
+            street: unitForm.street.trim(),
+            city: unitForm.city.trim(),
+            state: unitForm.state.trim(),
+            pincode: unitForm.pincode.trim(),
+            country: unitForm.country.trim() || 'India',
+            label: trimmedLabel,
           },
         },
       },
       {
+        onSuccess: () => {
+          clearUnitDirty()
+        },
         onSettled: () => {
           unitSavingRef.current = false
-          unitDirtyRef.current = false
         },
       },
     )
@@ -2153,7 +2205,7 @@ function AddressSection({
 
   const handleDeleteHq = () => {
     if (!hqEditable || !vendor) return
-    hqDirtyRef.current = true
+    markHqDirty()
     setShowExtraAddress(false)
     setHqForm(emptyHqForm())
     if (!hasSavedHqAddress) return
@@ -2169,9 +2221,11 @@ function AddressSection({
         settings: restSettings,
       } as Partial<Vendor>,
       {
+        onSuccess: () => {
+          clearHqDirty()
+        },
         onSettled: () => {
           hqSavingRef.current = false
-          hqDirtyRef.current = false
         },
       },
     )
@@ -2179,7 +2233,7 @@ function AddressSection({
 
   const handleDeleteUnit = () => {
     if (!unitEditable || !activeStore) return
-    unitDirtyRef.current = true
+    markUnitDirty()
     setShowExtraAddress(false)
     setUnitForm(emptyUnitForm())
     if (!hasSavedUnitAddress) return
@@ -2190,9 +2244,11 @@ function AddressSection({
         data: { address: {} },
       },
       {
+        onSuccess: () => {
+          clearUnitDirty()
+        },
         onSettled: () => {
           unitSavingRef.current = false
-          unitDirtyRef.current = false
         },
       },
     )
@@ -2224,7 +2280,7 @@ function AddressSection({
             postal: unitForm.pincode,
           }}
           onChange={(patch) => {
-            unitDirtyRef.current = true
+            markUnitDirty()
             setUnitForm(prev => ({
               ...prev,
               street: patch.street !== undefined ? patch.street : prev.street,
@@ -2257,7 +2313,7 @@ function AddressSection({
             postal: hqForm.postal_code,
           }}
           onChange={(patch) => {
-            hqDirtyRef.current = true
+            markHqDirty()
             setHqForm(prev => ({
               ...prev,
               street_address: patch.street !== undefined ? patch.street : prev.street_address,
@@ -2357,6 +2413,17 @@ function TaxSection({
         ? `vendor:${vendor.id}`
         : null
 
+  const taxSnapshotKey = unused
+    ? null
+    : serverFormSnapshotKey([
+        taxScopeKey,
+        JSON.stringify(activeStore?.settings ?? {}),
+        JSON.stringify(vendor?.settings ?? {}),
+        vendor?.gstin,
+        vendor?.pan_number,
+        vendor?.default_tax_rate,
+      ])
+
   const { markDirty: markTaxDirty, clearDirty: clearTaxDirty } = useServerFormHydration(
     () => {
       if (unused) {
@@ -2370,8 +2437,12 @@ function TaxSection({
         setTaxHydrated(false)
       }
     },
-    [vendor, activeStore?.id, activeStore?.settings, unused],
-    { scopeKey: taxScopeKey, isSaving: () => savingRef.current },
+    [taxSnapshotKey, unused],
+    {
+      scopeKey: taxScopeKey,
+      snapshotKey: taxSnapshotKey,
+      isSaving: () => savingRef.current,
+    },
   )
 
   const handleCountryChange = (code: string) => {
@@ -2866,6 +2937,13 @@ function BusinessHoursSection({ vendor, open, toggle, onSave }: SectionProps) {
   const savingRef = useRef(false)
   const [hoursHydrated, setHoursHydrated] = useState(false)
   const hoursScopeKey = vendor ? `vendor:${vendor.id}` : null
+  const hoursSnapshotKey = vendor
+    ? serverFormSnapshotKey([
+        vendor.id,
+        JSON.stringify(vendor.business_hours ?? {}),
+        JSON.stringify(vendor.store_holidays ?? []),
+      ])
+    : null
 
   const { markDirty: markHoursDirty, clearDirty: clearHoursDirty } = useServerFormHydration(
     () => {
@@ -2892,8 +2970,12 @@ function BusinessHoursSection({ vendor, open, toggle, onSave }: SectionProps) {
         setHoursHydrated(false)
       }
     },
-    [vendor],
-    { scopeKey: hoursScopeKey, isSaving: () => savingRef.current },
+    [hoursSnapshotKey],
+    {
+      scopeKey: hoursScopeKey,
+      snapshotKey: hoursSnapshotKey,
+      isSaving: () => savingRef.current,
+    },
   )
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -3049,6 +3131,13 @@ function OrderAcceptanceSection({ vendor, open, toggle, onSave }: SectionProps) 
   const savingRef = useRef(false)
   const [ordersHydrated, setOrdersHydrated] = useState(false)
   const ordersScopeKey = vendor ? `vendor:${vendor.id}` : null
+  const ordersSnapshotKey = vendor
+    ? serverFormSnapshotKey([
+        vendor.id,
+        String(vendor.order_acceptance_enabled !== false),
+        JSON.stringify(vendor.order_acceptance_hours ?? {}),
+      ])
+    : null
 
   const { markDirty: markOrdersDirty, clearDirty: clearOrdersDirty } = useServerFormHydration(
     () => {
@@ -3073,8 +3162,12 @@ function OrderAcceptanceSection({ vendor, open, toggle, onSave }: SectionProps) 
         setOrdersHydrated(false)
       }
     },
-    [vendor],
-    { scopeKey: ordersScopeKey, isSaving: () => savingRef.current },
+    [ordersSnapshotKey],
+    {
+      scopeKey: ordersScopeKey,
+      snapshotKey: ordersSnapshotKey,
+      isSaving: () => savingRef.current,
+    },
   )
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -3394,6 +3487,12 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
   }, [])
 
   const domainScopeKey = vendor ? `vendor:${vendor.id}` : null
+  const domainSnapshotKey = vendor
+    ? serverFormSnapshotKey([
+        vendor.id,
+        JSON.stringify(vendor.settings ?? {}),
+      ])
+    : null
 
   const { markDirty: markDomainDirty, clearDirty: clearDomainDirty } = useServerFormHydration(
     () => {
@@ -3404,8 +3503,12 @@ function ExternalDomainSection({ vendor, open, toggle, onSave }: SectionProps) {
         setDomainHydrated(false)
       }
     },
-    [vendor, applyVendorToDomainForm],
-    { scopeKey: domainScopeKey, isSaving: () => savingRef.current },
+    [domainSnapshotKey, applyVendorToDomainForm],
+    {
+      scopeKey: domainScopeKey,
+      snapshotKey: domainSnapshotKey,
+      isSaving: () => savingRef.current,
+    },
   )
 
   useEffect(() => {

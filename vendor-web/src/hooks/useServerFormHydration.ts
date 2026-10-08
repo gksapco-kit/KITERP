@@ -10,6 +10,16 @@ export type ServerFormHydrationOptions = {
    * had unsaved edits for the previous scope.
    */
   scopeKey?: string | null
+  /**
+   * Serialized server payload for the current scope. When unchanged (e.g. background
+   * refetch returns a new object with the same values), hydration is skipped.
+   */
+  snapshotKey?: string | null
+}
+
+/** Build a stable key from primitive server field values (avoid whole-object deps). */
+export function serverFormSnapshotKey(parts: Array<string | number | boolean | null | undefined>): string {
+  return parts.map(p => (p == null ? '' : String(p))).join('\u001f')
 }
 
 /**
@@ -23,6 +33,7 @@ export function useServerFormHydration(
 ) {
   const dirtyRef = useRef(false)
   const loadedScopeRef = useRef<string | null>(null)
+  const loadedSnapshotRef = useRef<string | null>(null)
 
   const markDirty = useCallback(() => {
     dirtyRef.current = true
@@ -32,22 +43,33 @@ export function useServerFormHydration(
     dirtyRef.current = false
   }, [])
 
-  const { enabled = true, isSaving, scopeKey = 'default' } = options
+  const { enabled = true, isSaving, scopeKey = 'default', snapshotKey = null } = options
 
   useLayoutEffect(() => {
     if (!enabled) return
     if (scopeKey == null) {
       loadedScopeRef.current = null
+      loadedSnapshotRef.current = null
       return
     }
     if (isSaving?.()) return
     const scopeChanged = loadedScopeRef.current !== scopeKey
+    const snapshot = snapshotKey ?? null
+    if (
+      !scopeChanged
+      && !dirtyRef.current
+      && snapshot != null
+      && snapshot === loadedSnapshotRef.current
+    ) {
+      return
+    }
     if (dirtyRef.current && !scopeChanged) return
     hydrate()
     loadedScopeRef.current = scopeKey
+    loadedSnapshotRef.current = snapshot
     if (scopeChanged) dirtyRef.current = false
     // eslint-disable-next-line react-hooks/exhaustive-deps -- caller owns hydrate deps
-  }, [scopeKey, enabled, ...deps])
+  }, [scopeKey, snapshotKey, enabled, ...deps])
 
   return { markDirty, clearDirty, dirtyRef }
 }

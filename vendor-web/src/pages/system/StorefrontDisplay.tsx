@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
+import { useServerFormHydration } from '@/hooks/useServerFormHydration'
 import { useUpdateVendor } from '@/hooks/useVendor'
 import { useVendorStore } from '@/stores/vendorStore'
 import { useWebsiteTemplates, useSiteList } from '@/hooks/useWebsites'
@@ -21,6 +22,7 @@ import {
   mergeDisplayFieldMap,
   readDisplayFieldsByTemplate,
   resolveTemplateDisplayFieldsFromSettings,
+  displayFieldsSnapshotKey,
   type TemplateDisplayFields,
 } from '@/lib/storefrontDisplayFields'
 import {
@@ -105,8 +107,34 @@ export default function StorefrontDisplayPage() {
   const [requireDomainOtp, setRequireDomainOtp] = useState(false)
   const savingRef = useRef(false)
   const didAutoSelectTemplateRef = useRef(false)
-  const fieldsDirtyRef = useRef(false)
-  const loadedTemplateIdRef = useRef<string | null>(null)
+  const displayScopeKey = vendor ? `${vendor.id}:${selectedTemplateId}` : null
+  const displaySnapshotKey = displayFieldsSnapshotKey(
+    vendor?.settings as Record<string, unknown> | undefined,
+    selectedTemplateId || null,
+  )
+  const domainOtpSnapshotKey = vendor
+    ? String(requireDomainDeactivationOtp(vendor.settings as Record<string, unknown>))
+    : null
+
+  const { markDirty: markDisplayDirty, clearDirty: clearDisplayDirty, dirtyRef: displayDirtyRef } =
+    useServerFormHydration(
+      () => {
+        if (!vendor) return
+        const resolved = resolveTemplateDisplayFieldsFromSettings(
+          vendor.settings as Record<string, unknown>,
+          selectedTemplateId || null,
+        )
+        setProductFields(resolved.product)
+        setServiceFields(resolved.service)
+        setRequireDomainOtp(requireDomainDeactivationOtp(vendor.settings as Record<string, unknown>))
+      },
+      [displaySnapshotKey, domainOtpSnapshotKey, selectedTemplateId],
+      {
+        scopeKey: displayScopeKey,
+        snapshotKey: `${displaySnapshotKey}|otp:${domainOtpSnapshotKey}`,
+        isSaving: () => savingRef.current,
+      },
+    )
 
   const templateMode = resolveStorefrontTemplateMode(vendor?.settings)
   const singleTemplateId = resolveSingleFrontTemplateId(vendor?.settings)
@@ -150,23 +178,8 @@ export default function StorefrontDisplayPage() {
   }, [templates, sites, stores, singleTemplateId])
 
   useEffect(() => {
-    if (!vendor || savingRef.current) return
-    const templateKey = selectedTemplateId
-    const templateChanged = loadedTemplateIdRef.current !== templateKey
-    if (fieldsDirtyRef.current && !templateChanged) return
-    const resolved = resolveTemplateDisplayFieldsFromSettings(
-      vendor.settings as Record<string, unknown>,
-      selectedTemplateId || null,
-    )
-    setProductFields(resolved.product)
-    setServiceFields(resolved.service)
-    setRequireDomainOtp(requireDomainDeactivationOtp(vendor.settings as Record<string, unknown>))
-    loadedTemplateIdRef.current = templateKey
-    fieldsDirtyRef.current = false
-  }, [vendor, selectedTemplateId])
-
-  useEffect(() => {
     if (!vendor || didAutoSelectTemplateRef.current) return
+    if (displayDirtyRef.current) return
     const preferred =
       templateMode === 'single' && singleTemplateId
         ? singleTemplateId
@@ -208,13 +221,16 @@ export default function StorefrontDisplayPage() {
     }
     updateVendor.mutate({ settings: payload } as Partial<Vendor>, {
       onSuccess: (updated) => {
-        fieldsDirtyRef.current = false
+        clearDisplayDirty()
         const resolved = resolveTemplateDisplayFieldsFromSettings(
           (updated.settings ?? payload) as Record<string, unknown>,
           selectedTemplateId || null,
         )
         setProductFields(resolved.product)
         setServiceFields(resolved.service)
+        setRequireDomainOtp(
+          requireDomainDeactivationOtp((updated.settings ?? payload) as Record<string, unknown>),
+        )
         toast.success('Business Front display updated')
       },
       onSettled: () => {
@@ -223,12 +239,8 @@ export default function StorefrontDisplayPage() {
     })
   }
 
-  const markFieldsDirty = () => {
-    fieldsDirtyRef.current = true
-  }
-
   const toggleAll = (type: 'product' | 'service', value: boolean) => {
-    markFieldsDirty()
+    markDisplayDirty()
     if (type === 'product') {
       setProductFields(Object.fromEntries(PRODUCT_DISPLAY_FIELD_DEFS.map(f => [f.key, value])))
     } else {
@@ -237,7 +249,7 @@ export default function StorefrontDisplayPage() {
   }
 
   const resetTemplateDefaults = () => {
-    markFieldsDirty()
+    markDisplayDirty()
     const defaults = createDefaultTemplateDisplayFields()
     setProductFields(defaults.product)
     setServiceFields(defaults.service)
@@ -279,7 +291,10 @@ export default function StorefrontDisplayPage() {
             <input
               type="checkbox"
               checked={requireDomainOtp}
-              onChange={e => setRequireDomainOtp(e.target.checked)}
+              onChange={e => {
+                markDisplayDirty()
+                setRequireDomainOtp(e.target.checked)
+              }}
               className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-input text-primary"
             />
             <span className="min-w-0">
@@ -359,7 +374,7 @@ export default function StorefrontDisplayPage() {
               defs={PRODUCT_DISPLAY_FIELD_DEFS}
               values={productFields}
               onChange={next => {
-                markFieldsDirty()
+                markDisplayDirty()
                 setProductFields(next)
               }}
             />
@@ -386,7 +401,7 @@ export default function StorefrontDisplayPage() {
               defs={SERVICE_DISPLAY_FIELD_DEFS}
               values={serviceFields}
               onChange={next => {
-                markFieldsDirty()
+                markDisplayDirty()
                 setServiceFields(next)
               }}
             />

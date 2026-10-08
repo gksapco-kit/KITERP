@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { createBrowserRouter, Navigate, type RouteObject } from 'react-router-dom'
 import { lazyRoute as lazy } from '@/lib/lazyRoute'
 import RouteRouterError from '@/routes/RouteRouterError'
 import AuthLayout from '@/layouts/AuthLayout'
@@ -309,7 +309,7 @@ const DeliveryConditionsPage = lazy(() => import('@/pages/sales/DeliveryConditio
 
 const routerBasename = (import.meta.env.VITE_ROUTER_BASENAME || '').replace(/\/$/, '')
 
-export const router = createBrowserRouter([
+const appRoutes: RouteObject[] = [
   {
     path: '/preview/draft',
     element: <StorefrontBrowserPreviewShell />,
@@ -712,6 +712,13 @@ export const router = createBrowserRouter([
   {
     path: '*',
     element: <Navigate to="/" replace />,
+  },
+]
+
+export const router = createBrowserRouter([
+  {
+    errorElement: <RouteRouterError />,
+    children: appRoutes,
   },
 ], {
   basename: routerBasename || undefined,

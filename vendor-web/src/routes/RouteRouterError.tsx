@@ -1,5 +1,10 @@
+import { useEffect } from 'react'
 import { isRouteErrorResponse, useRouteError } from 'react-router-dom'
-import { isChunkLoadError } from '@/lib/lazyRoute'
+import {
+  CHUNK_RELOAD_SESSION_KEY,
+  isChunkLoadError,
+  reloadForStaleAssets,
+} from '@/lib/lazyRoute'
 
 function errorMessage(error: unknown): string {
   if (isRouteErrorResponse(error)) {
@@ -14,6 +19,18 @@ export default function RouteRouterError() {
   const message = errorMessage(error)
   const chunk = isChunkLoadError(error) || isChunkLoadError(new Error(message))
 
+  useEffect(() => {
+    if (!chunk) return
+    try {
+      if (sessionStorage.getItem(CHUNK_RELOAD_SESSION_KEY) !== '1') {
+        sessionStorage.setItem(CHUNK_RELOAD_SESSION_KEY, '1')
+        reloadForStaleAssets()
+      }
+    } catch {
+      reloadForStaleAssets()
+    }
+  }, [chunk])
+
   return (
     <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3 px-6 text-center">
       <h1 className="text-lg font-semibold text-slate-900">
@@ -21,13 +38,13 @@ export default function RouteRouterError() {
       </h1>
       <p className="max-w-md text-sm text-slate-600">
         {chunk
-          ? 'The app was updated while this tab was open. Reload once to fetch the latest version, then open Invoice Templates again.'
+          ? 'The app was updated while this tab was open. Reload once to fetch the latest version, then open this page again.'
           : message}
       </p>
       <button
         type="button"
         className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-        onClick={() => window.location.reload()}
+        onClick={() => reloadForStaleAssets()}
       >
         Reload page
       </button>

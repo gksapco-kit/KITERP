@@ -374,8 +374,12 @@ async def update_store(
                     await ensure_store_code_unique(db, vendor_id, new_code, exclude_store_id=store.id)
             except ValueError as exc:
                 raise HTTPException(status_code=400, detail=str(exc)) from exc
-    if "address" in update_data and update_data["address"]:
-        update_data["address"] = {k: v for k, v in update_data["address"].items() if v is not None}
+    if "address" in update_data and update_data["address"] is not None:
+        update_data["address"] = {
+            k: (v.strip() if isinstance(v, str) else v)
+            for k, v in update_data["address"].items()
+            if v is not None
+        }
     for field in ("email", "phone"):
         if field in update_data and update_data[field] == "":
             update_data[field] = None

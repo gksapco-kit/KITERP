@@ -108,6 +108,21 @@ const useWatchPolling = process.env.VITE_WATCH_POLLING === '1'
 export default defineConfig({
   plugins: [storefrontPreviewImports(), resolveStorefrontBareImports(), react()],
   base: publicBasePath,
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return
+          if (id.includes('react-dom') || id.includes('/react/') || id.includes('react-router')) {
+            return 'vendor-react'
+          }
+          if (id.includes('@tanstack/react-query')) return 'vendor-query'
+          if (id.includes('@radix-ui')) return 'vendor-radix'
+          if (id.includes('lucide-react')) return 'vendor-icons'
+        },
+      },
+    },
+  },
   optimizeDeps: {
     include: [
       'zustand',

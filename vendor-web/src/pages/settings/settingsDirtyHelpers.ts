@@ -50,6 +50,36 @@ export function storeAddressIsEmpty(addr: StoreRecord['address'] | undefined): b
   )
 }
 
+/** Raw business-unit address for settings forms (no vendor HQ fallback). */
+export function unitAddressFormFromStore(store: StoreRecord | undefined): UnitAddressForm {
+  const addr = store?.address
+  return {
+    label: addr?.label?.trim() ?? '',
+    street: addr?.street ?? '',
+    city: addr?.city ?? '',
+    state: addr?.state ?? '',
+    country: addr?.country || 'India',
+    pincode: addr?.pincode ?? '',
+  }
+}
+
+export function storeAddressSnapshotKey(store: StoreRecord | undefined): string {
+  const f = unitAddressFormFromStore(store)
+  return [f.label, f.street, f.city, f.state, f.country, f.pincode].join('\u001f')
+}
+
+export function vendorHqAddressSnapshotKey(vendor: Vendor | null): string {
+  if (!vendor) return ''
+  return [
+    hqAddressLabelFromVendor(vendor),
+    vendor.street_address,
+    vendor.city,
+    vendor.state,
+    vendor.country,
+    vendor.postal_code,
+  ].join('\u001f')
+}
+
 /** Unit address fields, falling back to vendor HQ when the store address was never set. */
 export function unitAddressFromStore(
   store: StoreRecord | undefined,
@@ -57,14 +87,7 @@ export function unitAddressFromStore(
 ): UnitAddressForm {
   const addr = store?.address
   if (!storeAddressIsEmpty(addr) || !vendor) {
-    return {
-      label: addr?.label?.trim() ?? '',
-      street: addr?.street ?? '',
-      city: addr?.city ?? '',
-      state: addr?.state ?? '',
-      country: addr?.country || 'India',
-      pincode: addr?.pincode ?? '',
-    }
+    return unitAddressFormFromStore(store)
   }
   return {
     label: addr?.label?.trim() ?? '',
@@ -262,7 +285,7 @@ export function isAddressSectionDirty(
       normStr(hqForm.postal_code) !== normStr(vendor.postal_code)
   }
   if (unitEditable && activeStore) {
-    const saved = unitAddressFromStore(activeStore, vendor)
+    const saved = unitAddressFormFromStore(activeStore)
     dirty =
       dirty ||
       normStr(unitForm.label) !== normStr(saved.label) ||
