@@ -17,7 +17,7 @@ import { prefetchImageUrls, usePrefetchImages } from '@/hooks/usePrefetchImages'
 import { cn, imgUrl } from '@/lib/utils'
 import { variantFlatOptionTitle } from '@/lib/variantOptions'
 import { useAddToCart, useCart, useCartVariantQty, useSetCatalogCartQty } from '@/hooks/useStore'
-import { getEffectiveStockStatus, getMaxLineQuantity, type StockEntity } from '@/lib/stockValidation'
+import { getEffectiveStockStatus, getMaxLineQuantity, getMinAddQuantity, type StockEntity } from '@/lib/stockValidation'
 import { useVendor } from '@/contexts/VendorContext'
 import { useAuthStore } from '@/stores/authStore'
 import { toast } from 'sonner'
@@ -38,6 +38,8 @@ function productStockFromItem(item: LiveItem): StockEntity {
     track_inventory: meta.track_inventory as boolean | undefined,
     allow_backorders: meta.allow_backorders as boolean | undefined,
     max_quantity_per_order: meta.max_quantity_per_order != null ? Number(meta.max_quantity_per_order) : undefined,
+    min_quantity_per_order: meta.min_quantity_per_order != null ? Number(meta.min_quantity_per_order) : undefined,
+    variants: liveItemVariants(item),
   }
 }
 
@@ -168,12 +170,13 @@ export function CatalogLiveProductTile({
     return Number.isFinite(n) && n > 0 ? Math.floor(n) : null
   })()
 
+  const minAddQty = getMinAddQuantity({ product: productStock, variant: selected })
   const cartPayload = {
     product_id: String(item.id),
     variant_id: selected?.id,
     variant_label: selected ? variantFlatOptionTitle(selected, productUom) : undefined,
     name: item.title ?? 'Product',
-    qty: 1,
+    qty: minAddQty,
     price,
     image_url: imageUrl ?? undefined,
     slug: String((item.meta as Record<string, unknown> | undefined)?.slug || ''),
@@ -317,6 +320,7 @@ export function CatalogLiveProductTile({
             outOfStock={outOfStock}
             pending={!!isAdding}
             maxQty={maxLineQty}
+            minQty={minAddQty}
             onAtMax={() =>
               toast.error(
                 maxLineQty === 0

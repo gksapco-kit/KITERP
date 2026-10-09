@@ -7,6 +7,7 @@ from fastapi import HTTPException, status
 from app.models.cart import Cart
 from app.schemas.cart import CartItemAdd, CartItemUpdate
 from app.repositories.cart_repo import CartRepository
+from app.services.order_quantity_limits import assert_order_quantity_limits
 
 
 def _clone_cart_items(items: list | None) -> list:
@@ -65,6 +66,7 @@ class CartService:
                 items[i]["price"] = item.price
                 if item.item_type:
                     items[i]["item_type"] = item.item_type
+                await assert_order_quantity_limits(self.db, vendor_id, items)
                 _persist_cart_items(cart, items)
                 await self.db.commit()
                 await self.db.refresh(cart)
@@ -72,6 +74,7 @@ class CartService:
 
         # Add new item
         items.append(item.model_dump(exclude_none=True))
+        await assert_order_quantity_limits(self.db, vendor_id, items)
         _persist_cart_items(cart, items)
         await self.db.commit()
         await self.db.refresh(cart)
@@ -90,6 +93,7 @@ class CartService:
             )
 
         items[item_index]["qty"] = data.qty
+        await assert_order_quantity_limits(self.db, vendor_id, items)
         _persist_cart_items(cart, items)
         await self.db.commit()
         await self.db.refresh(cart)

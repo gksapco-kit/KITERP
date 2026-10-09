@@ -210,6 +210,10 @@ export function ProductPurchaseActions({
             )}
           </div>
 
+          {minQty > 1 && (
+            <p className="text-xs text-gray-500">Minimum {minQty} per order</p>
+          )}
+
           {visibleQtyError && (
             <p className="text-xs font-medium text-destructive" role="alert">
               {visibleQtyError}

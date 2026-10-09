@@ -2,6 +2,8 @@ import { useCartStore } from '@/stores/cartStore'
 import { useGuestCartStore } from '@/stores/guestCartStore'
 
 export type StockEntity = {
+  id?: string
+  is_active?: boolean
   track_inventory?: boolean
   allow_backorders?: boolean
   quantity?: number
@@ -9,6 +11,7 @@ export type StockEntity = {
   low_stock_threshold?: number | null
   max_quantity_per_order?: number | null
   min_quantity_per_order?: number | null
+  variants?: StockEntity[]
 }
 
 export type CartStockLine = {
@@ -52,13 +55,43 @@ export function getCartQtyForVariant(
   }, 0)
 }
 
+/** Whole-number minimum above 1, or null when the store did not set one. */
+function readOrderMinimum(value: unknown): number | null {
+  if (value == null || value === '') return null
+  const n = Number(value)
+  if (!Number.isFinite(n)) return null
+  const whole = Math.floor(n)
+  return whole > 1 ? whole : null
+}
+
+/**
+ * Minimum pieces per order for the variant the customer is buying.
+ * Falls back to the product, then to the only active variant, so a minimum
+ * still applies before a color/size match is resolved.
+ */
+function variantMinimum(product: StockEntity, variant?: StockEntity): number | null {
+  const own = readOrderMinimum(variant?.min_quantity_per_order)
+  if (own) return own
+  const active = (product.variants ?? []).filter((v) => v.is_active !== false)
+  if (variant?.id) {
+    const match = active.find((v) => v.id === variant.id)
+    const fromMatch = readOrderMinimum(match?.min_quantity_per_order)
+    if (fromMatch) return fromMatch
+    return readOrderMinimum(product.min_quantity_per_order)
+  }
+  const fromProduct = readOrderMinimum(product.min_quantity_per_order)
+  if (fromProduct) return fromProduct
+  if (active.length === 1) return readOrderMinimum(active[0].min_quantity_per_order)
+  return null
+}
+
 function resolveStockContext(product: StockEntity, variant?: StockEntity) {
   const allowBackorders = variant?.allow_backorders ?? product.allow_backorders ?? false
   // Variant qty 0 stays 0 (that size is empty). Missing qty inherits product on-hand.
   const quantity = Number(variant?.quantity ?? product.quantity ?? 0)
   const stockStatus = variant?.stock_status ?? product.stock_status ?? 'in_stock'
   const maxPerOrder = variant?.max_quantity_per_order ?? product.max_quantity_per_order ?? null
-  const minPerOrder = variant?.min_quantity_per_order ?? product.min_quantity_per_order ?? null
+  const minPerOrder = variantMinimum(product, variant)
   const lowStockThreshold =
     variant?.low_stock_threshold ?? product.low_stock_threshold ?? null
   const explicitTrack = variant?.track_inventory ?? product.track_inventory

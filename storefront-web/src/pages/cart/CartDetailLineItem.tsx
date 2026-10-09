@@ -11,6 +11,7 @@ import {
   variantDisplayLabel,
   variantFlatOptionTitle,
 } from '@/lib/variantOptions'
+import { getMinAddQuantity } from '@/lib/stockValidation'
 
 type Props = {
   item: CheckoutCartItem
@@ -72,6 +73,9 @@ export function CartDetailLineItem({
     || product?.images?.[0]?.url
 
   const qtyCap = maxQuantity ?? item.maxQuantity ?? 99
+  const minQty = product
+    ? getMinAddQuantity({ product, variant: selectedVariant })
+    : 1
   const atMaxQty = item.quantity >= qtyCap
   const exceedsStock = item.quantity > qtyCap
   const [qtyDraft, setQtyDraft] = useState(String(item.quantity))
@@ -89,6 +93,12 @@ export function CartDetailLineItem({
     const next = Math.floor(raw)
     if (next <= 0) {
       onUpdateQuantity?.(item.id, 0)
+      return
+    }
+    if (next < minQty) {
+      toast.error(`Minimum ${minQty} per order.`)
+      setQtyDraft(String(minQty))
+      onUpdateQuantity?.(item.id, minQty)
       return
     }
     if (next > qtyCap) {
@@ -179,8 +189,8 @@ export function CartDetailLineItem({
                   type="button"
                   aria-label="Decrease quantity"
                   className="ck-btn-ghost"
-                  onClick={() => onUpdateQuantity?.(item.id, Math.max(1, item.quantity - 1))}
-                  disabled={item.quantity <= 1}
+                  onClick={() => onUpdateQuantity?.(item.id, Math.max(minQty, item.quantity - 1))}
+                  disabled={item.quantity <= minQty}
                   style={{ padding: '6px 10px' }}
                 >
                   <Minus size={14} />

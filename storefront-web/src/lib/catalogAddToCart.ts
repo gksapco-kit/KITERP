@@ -1,7 +1,7 @@
 import { toast } from 'sonner'
 import type { Product, ProductVariant, Cart } from '@/types'
 import type { GuestCartItem } from '@/stores/guestCartStore'
-import { assertCanAddToCart } from '@/lib/stockValidation'
+import { assertCanAddToCart, getMinAddQuantity } from '@/lib/stockValidation'
 import { variantDisplayLabel } from '@/lib/variantOptions'
 
 export function resolveListCartVariant(
@@ -27,6 +27,7 @@ export async function addCatalogProductToCart(input: {
   addToCart: { mutateAsync: (item: GuestCartItem) => Promise<Cart> }
 }): Promise<boolean> {
   const srcVariant = resolveListCartVariant(input.variants, input.kitVariant)
+  const requestQty = getMinAddQuantity({ product: input.product, variant: srcVariant })
   const stockCheck = assertCanAddToCart({
     vendorSlug: input.vendorSlug,
     isAuthenticated: input.isAuthenticated,
@@ -35,7 +36,7 @@ export async function addCatalogProductToCart(input: {
     product: input.product,
     variant: srcVariant,
     variantLabel: srcVariant ? variantDisplayLabel(srcVariant) || srcVariant.name : undefined,
-    requestQty: 1,
+    requestQty,
   })
   if (!stockCheck.ok) {
     toast.error(stockCheck.message)
@@ -48,7 +49,7 @@ export async function addCatalogProductToCart(input: {
       variant_label: srcVariant ? variantDisplayLabel(srcVariant) || srcVariant.name : undefined,
       slug: input.slug,
       name: input.name,
-      qty: 1,
+      qty: requestQty,
       price: input.price,
       image_url: input.image,
     })

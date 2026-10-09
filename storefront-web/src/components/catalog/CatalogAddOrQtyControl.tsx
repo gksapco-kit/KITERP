@@ -16,6 +16,8 @@ type Props = {
   outOfStock?: boolean
   /** When set, + stops at this qty and onAtMax is called instead of increasing. */
   maxQty?: number | null
+  /** Orders below this are not allowed. Minus at the minimum removes the line. */
+  minQty?: number
   onAtMax?: () => void
   labelOverride?: string
   primaryColor?: string
@@ -39,6 +41,7 @@ export function CatalogAddOrQtyControl({
   pending,
   outOfStock,
   maxQty,
+  minQty = 1,
   onAtMax,
   labelOverride,
   primaryColor,
@@ -70,6 +73,7 @@ export function CatalogAddOrQtyControl({
     'hover:bg-black/10',
   )
   const atMaxQty = maxQty != null && cartQty >= maxQty
+  const orderMin = Math.max(1, minQty)
 
   if (outOfStock && cartQty <= 0) {
     return (
@@ -117,8 +121,11 @@ export function CatalogAddOrQtyControl({
             type="button"
             className={sideBtnClass}
             disabled={disabled}
-            aria-label={cartQty <= 1 ? 'Remove from cart' : 'Decrease quantity'}
-            onClick={() => { void onQtyChange(Math.max(0, cartQty - 1)) }}
+            aria-label={cartQty <= orderMin ? 'Remove from cart' : 'Decrease quantity'}
+            onClick={() => {
+              const next = cartQty - 1
+              void onQtyChange(next < orderMin ? 0 : next)
+            }}
           >
             <Minus className={iconClass} strokeWidth={2.5} />
           </button>

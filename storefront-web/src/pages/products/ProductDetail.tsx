@@ -172,42 +172,40 @@ export default function ProductDetail() {
   const displayOnSale = pricingVariant?.is_on_sale ?? product?.is_on_sale
 
   const stockVariant = matchedVariant
+  // Color swatches can render before the combination match exists. Use the
+  // variant on screen, then the only SKU, so "Min per order" is not skipped.
+  const purchaseVariant = stockVariant ?? selectedVariant ?? (activeVariants.length === 1 ? activeVariants[0] : undefined)
 
   const onHandQty = useMemo(() => {
     if (!product) return null
-    if (hasVariants && !stockVariant) return null
-    return getOnHandQuantity(product, stockVariant ?? undefined)
-  }, [product, hasVariants, stockVariant])
+    if (hasVariants && !purchaseVariant) return null
+    return getOnHandQuantity(product, purchaseVariant)
+  }, [product, hasVariants, purchaseVariant])
 
   const maxAddQty = useMemo(() => {
     if (!product) return null
-    if (hasVariants && !stockVariant) return null
+    if (hasVariants && !purchaseVariant) return null
     return getMaxAddQuantity({
       vendorSlug,
       isAuthenticated,
       productId: product.id,
       product,
-      variant: stockVariant ?? undefined,
+      variant: purchaseVariant,
     })
-  }, [product, hasVariants, stockVariant, vendorSlug, isAuthenticated])
+  }, [product, hasVariants, purchaseVariant, vendorSlug, isAuthenticated])
 
   const minAddQty = useMemo(() => {
     if (!product) return 1
-    return getMinAddQuantity({ product, variant: stockVariant ?? undefined })
-  }, [product, stockVariant])
+    return getMinAddQuantity({ product, variant: purchaseVariant })
+  }, [product, purchaseVariant])
 
   useEffect(() => {
-    if (maxAddQty === null) return
-    if (maxAddQty < minAddQty) {
-      setQty(minAddQty)
-      return
-    }
-    setQty((current) => (current > maxAddQty ? maxAddQty : current))
-  }, [maxAddQty, minAddQty, stockVariant?.id])
-
-  useEffect(() => {
-    setQty((current) => (current < minAddQty ? minAddQty : current))
-  }, [minAddQty, stockVariant?.id])
+    setQty((current) => {
+      let next = current < minAddQty ? minAddQty : current
+      if (maxAddQty != null && maxAddQty >= minAddQty && next > maxAddQty) next = maxAddQty
+      return next
+    })
+  }, [maxAddQty, minAddQty, purchaseVariant?.id])
 
   useEffect(() => {
     if (!product) return
@@ -326,7 +324,7 @@ export default function ProductDetail() {
 
   const runStockCheck = (requestQty: number) => {
     if (!product) return { ok: false as const, message: 'Product unavailable.' }
-    const variant = stockVariant ?? undefined
+    const variant = purchaseVariant
     return assertCanAddToCart({
       vendorSlug,
       isAuthenticated,
@@ -360,8 +358,8 @@ export default function ProductDetail() {
     addToCart.mutate(
       {
         product_id: product.id,
-        variant_id: stockVariant?.id,
-        variant_label: stockVariant ? variantDisplayLabel(stockVariant) || stockVariant.name : undefined,
+        variant_id: purchaseVariant?.id,
+        variant_label: purchaseVariant ? variantDisplayLabel(purchaseVariant) || purchaseVariant.name : undefined,
         slug: product.slug,
         name: product.name,
         qty,
@@ -384,8 +382,8 @@ export default function ProductDetail() {
       || ''
     const cartItem = {
       product_id: product.id,
-      variant_id: stockVariant?.id,
-      variant_label: stockVariant ? variantDisplayLabel(stockVariant) || stockVariant.name : undefined,
+      variant_id: purchaseVariant?.id,
+      variant_label: purchaseVariant ? variantDisplayLabel(purchaseVariant) || purchaseVariant.name : undefined,
       slug: product.slug,
       name: product.name,
       qty,
@@ -418,9 +416,9 @@ export default function ProductDetail() {
     const scheduleLabel = `${config.cycles} ${interval} cycle${config.cycles !== 1 ? 's' : ''}`
     const cartItem = {
       product_id: product.id,
-      variant_id: stockVariant?.id,
+      variant_id: purchaseVariant?.id,
       variant_label: [
-        stockVariant ? variantDisplayLabel(stockVariant) || stockVariant.name : null,
+        purchaseVariant ? variantDisplayLabel(purchaseVariant) || purchaseVariant.name : null,
         scheduleLabel,
       ].filter(Boolean).join(' · '),
       item_type: 'product' as const,

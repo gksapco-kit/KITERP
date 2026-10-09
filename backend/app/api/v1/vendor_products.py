@@ -105,6 +105,20 @@ def _dt(v):
     return v.isoformat() if v else None
 
 
+def _shared_variant_limit(product, field: str):
+    """Return a per-order limit when every active variant agrees, else None."""
+    values = set()
+    for variant in getattr(product, "variants", None) or []:
+        if getattr(variant, "is_active", True) is False:
+            continue
+        value = getattr(variant, field, None)
+        if value:
+            values.add(int(value))
+    if len(values) == 1:
+        return next(iter(values))
+    return None
+
+
 def _product_to_dict(p) -> dict:
     """Serialize a Product model to JSON-compatible dict."""
     return {
@@ -158,6 +172,10 @@ def _product_to_dict(p) -> dict:
             low_stock_threshold=p.low_stock_threshold,
         ),
         "allow_backorders": p.allow_backorders or False,
+        # Shared across every active variant (typical single-SKU item). The
+        # storefront uses this when a color/size match is not ready yet.
+        "max_quantity_per_order": _shared_variant_limit(p, "max_quantity_per_order"),
+        "min_quantity_per_order": _shared_variant_limit(p, "min_quantity_per_order"),
         # Lifecycle
         "expiration_date": str(p.expiration_date) if p.expiration_date else None,
         "manufacture_date": str(p.manufacture_date) if p.manufacture_date else None,

@@ -2,6 +2,7 @@ import type { Product, ProductVariant } from '@/types'
 import {
   assertCanSetCartLineQty,
   getMaxLineQuantity,
+  getMinAddQuantity,
   type StockValidationResult,
 } from '@/lib/stockValidation'
 import { resolveSelectedVariant, variantDisplayLabel } from '@/lib/variantOptions'
@@ -53,9 +54,14 @@ export function validateCartLineQtyChange(input: {
   newQty: number
 }): StockValidationResult {
   if (!input.product || input.newQty <= 0) return { ok: true }
-  // Always allow lowering qty (including from an oversold line down to the cap).
-  if (input.newQty <= input.line.quantity) return { ok: true }
   const variant = resolveCartLineVariant(input.product, input.line)
+  const minQty = getMinAddQuantity({ product: input.product, variant })
+  if (input.newQty < minQty) {
+    const label = input.line.variantLabel?.trim() || input.line.name
+    return { ok: false, message: `Minimum ${minQty} of ${label} required per order.` }
+  }
+  // Allow lowering qty down to the minimum (including from an oversold line).
+  if (input.newQty <= input.line.quantity) return { ok: true }
   return assertCanSetCartLineQty({
     vendorSlug: input.vendorSlug,
     isAuthenticated: input.isAuthenticated,

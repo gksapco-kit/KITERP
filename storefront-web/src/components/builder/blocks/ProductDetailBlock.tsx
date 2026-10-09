@@ -13,6 +13,7 @@ import {
   assertCanAddToCart,
   getEffectiveStockStatus,
   getMaxAddQuantity,
+  getMinAddQuantity,
   type StockEntity,
 } from '@/lib/stockValidation'
 import { useVendor } from '@/contexts/VendorContext'
@@ -20,7 +21,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { toast } from 'sonner'
 import type { ProductVariant } from '@/types'
 
-function liveItemVariants(item?: LiveItem): ProductVariant[] {
+function liveItemVariants(item?: LiveItem | null): ProductVariant[] {
   const raw = (item?.meta as Record<string, unknown> | undefined)?.variants
   if (!Array.isArray(raw)) return []
   return (raw as ProductVariant[]).filter((v) => v && v.id && v.is_active !== false)
@@ -34,6 +35,8 @@ function productStockFromItem(item?: LiveItem): StockEntity {
     track_inventory: meta.track_inventory as boolean | undefined,
     allow_backorders: meta.allow_backorders as boolean | undefined,
     max_quantity_per_order: meta.max_quantity_per_order != null ? Number(meta.max_quantity_per_order) : undefined,
+    min_quantity_per_order: meta.min_quantity_per_order != null ? Number(meta.min_quantity_per_order) : undefined,
+    variants: liveItemVariants(item),
   }
 }
 
@@ -91,15 +94,18 @@ export default function ProductDetailBlock({ style, props, liveItems, blockId }:
       })
     : null
   const qtyMax = maxAddQty != null ? maxAddQty : 99
+  const minAddQty = product
+    ? getMinAddQuantity({ product: productStock, variant: selected })
+    : 1
 
   useEffect(() => {
-    if (maxAddQty == null) return
-    if (maxAddQty < 1) {
-      setQty(1)
-      return
-    }
-    setQty((current) => (current > maxAddQty ? maxAddQty : Math.max(1, current)))
-  }, [maxAddQty, selected?.id])
+    setQty((current) => {
+      let next = current < minAddQty ? minAddQty : current
+      if (maxAddQty != null && maxAddQty >= minAddQty && next > maxAddQty) next = maxAddQty
+      if (maxAddQty != null && maxAddQty < 1) next = minAddQty
+      return next
+    })
+  }, [maxAddQty, minAddQty, selected?.id])
 
   const showReviews = props.show_reviews !== false
 
@@ -232,7 +238,7 @@ export default function ProductDetailBlock({ style, props, liveItems, blockId }:
           <div className={cn('flex items-center border rounded-xl overflow-hidden', qtyBorder)}>
             <button
               type="button"
-              onClick={() => setQty(q => Math.max(1, q - 1))}
+              onClick={() => setQty(q => Math.max(minAddQty, q - 1))}
               className={cn('px-4 py-2 font-bold', qtyBtn)}
             >−</button>
             <span className={cn('px-4 py-2 border-x min-w-[48px] text-center', qtyBorder, onDark && 'text-white')}>{qty}</span>

@@ -25,6 +25,7 @@ import { CartDetailLineItem } from './CartDetailLineItem'
 import type { ProductVariant } from '@/types'
 import { variantDisplayLabel } from '@/lib/variantOptions'
 import { maxCartLineQty, validateCartLineQtyChange } from '@/lib/cartLineStock'
+import { getMinAddQuantity } from '@/lib/stockValidation'
 import { toast } from 'sonner'
 
 export default function CartPage() {
@@ -131,6 +132,13 @@ export default function CartPage() {
       line: item,
     })
     return item.quantity > cap
+  })
+  const belowMinLine = cartItems.find((item) => {
+    const product = productMap[item.productId]
+    if (!product) return false
+    const variant = (product.variants ?? []).find((v) => v.id === item.variantId)
+    const minQty = getMinAddQuantity({ product, variant })
+    return item.quantity > 0 && item.quantity < minQty
   })
 
   if (isLoading && isAuthenticated) {
@@ -244,7 +252,7 @@ export default function CartPage() {
                 <button
                   type="button"
                   onClick={handleProceedToCheckout}
-                  disabled={hasOversoldLine}
+                  disabled={hasOversoldLine || !!belowMinLine}
                   className="ck-btn-primary mt-3 flex w-full items-center justify-center gap-2 disabled:opacity-50"
                 >
                   Proceed to checkout <ChevronRight size={16} />
@@ -252,6 +260,11 @@ export default function CartPage() {
                 {hasOversoldLine && (
                   <p className="mt-2 text-center text-xs text-destructive">
                     Reduce quantities to available stock before checkout.
+                  </p>
+                )}
+                {belowMinLine && !hasOversoldLine && (
+                  <p className="mt-2 text-center text-xs text-destructive">
+                    Increase {belowMinLine.name} to the minimum order quantity before checkout.
                   </p>
                 )}
                 {requireSignIn && !isLoggedIn && (

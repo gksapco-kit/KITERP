@@ -103,6 +103,8 @@ export interface Product {
   track_inventory?: boolean
   created_at?: string
   allow_backorders?: boolean
+  max_quantity_per_order?: number
+  min_quantity_per_order?: number
   meta_title?: string | null
   meta_description?: string | null
   meta_keywords?: string[] | string | null

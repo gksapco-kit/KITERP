@@ -24,7 +24,7 @@ import { themeUi } from '@/lib/themeColors'
 import { ProductCard } from '@/kit/products/ProductCard'
 import { ProductGridSkeleton } from '@/kit/states/StateScreens'
 import { resolveProductThumbnailUrl } from '@/lib/productImageUtils'
-import { canPurchaseProduct } from '@/lib/stockValidation'
+import { canPurchaseProduct, getMinAddQuantity } from '@/lib/stockValidation'
 import { catalogToKitProduct } from '@/lib/catalogToKitProduct'
 import { addCatalogProductToCart } from '@/lib/catalogAddToCart'
 import { CatalogAddOrQtyControl } from '@/components/catalog/CatalogAddOrQtyControl'
@@ -972,6 +972,12 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
                 const showFrom = isProduct && !(Number(item.price) > 0) && effectivePrice != null && variants.some((v: any) => Number(v.price) > 0)
                 const hasPrice = effectivePrice != null
                 const listCartQty = isProduct ? (cartQtyByProduct.get(String(item.id)) ?? 0) : 0
+                const listMinQty = isProduct
+                  ? getMinAddQuantity({
+                      product: item as Product,
+                      variant: variants.length === 1 ? variants[0] : undefined,
+                    })
+                  : 1
                 const showServiceBook = !isProduct && shouldShowServiceBookCta(
                   { allow_quote_request: item.allow_quote_request, requires_booking: item.requires_booking },
                   displayFields.service,
@@ -1087,6 +1093,7 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
                           onAdd={handleListAddToCart}
                           onQtyChange={handleListQtyChange}
                           outOfStock={!hasStock}
+                          minQty={listMinQty}
                           pending={addToCart.isPending}
                           addButtonStyle="filled"
                         />

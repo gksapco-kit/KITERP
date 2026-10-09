@@ -32,7 +32,7 @@ import { useVendor } from "@/contexts/VendorContext";
 import { isDisplayFieldEnabled } from "@/lib/storefrontDisplayFields";
 import { useAuthStore } from "@/stores/authStore";
 import { toast } from "sonner";
-import { assertCanAddToCart, getEffectiveStockStatus, getMaxLineQuantity } from "@/lib/stockValidation";
+import { assertCanAddToCart, getEffectiveStockStatus, getMaxLineQuantity, getMinAddQuantity } from "@/lib/stockValidation";
 import type { Product } from "../types";
 import { formatPrice } from "../mock";
 
@@ -462,6 +462,7 @@ export function ProductCard({
               onAdd={handleAddClick}
               onQtyChange={handleQtyChange}
               maxQty={maxLineQty}
+              minQty={getMinAddQuantity({ product, variant: stockVariant })}
               onAtMax={warnAtMaxQty}
               disabled={!canAdd && cartQty === 0}
               pending={addToCartPending}

@@ -33,6 +33,7 @@ from app.services.store_resolver import parse_explicit_sales_area_id, resolve_tx
 from app.services.crm.credit_gate import find_credit_control, evaluate_credit, adjust_outstanding
 from app.services.order_commitment_service import commit_order_lines
 from app.services.partner_service import seed_buyer
+from app.services.order_quantity_limits import assert_order_quantity_limits
 
 log = logging.getLogger(__name__)
 
@@ -327,6 +328,8 @@ class OrderService:
                     detail="Cart is empty",
                 )
             items = cart.items
+
+        await assert_order_quantity_limits(self.db, vendor_id, items)
 
         # Server-authoritative totals (GST per product, shipping, coupon)
         vendor_repo = VendorRepository(self.db)
