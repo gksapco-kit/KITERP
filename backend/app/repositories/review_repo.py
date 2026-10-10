@@ -112,6 +112,32 @@ class ReviewRepository(BaseRepository[Review]):
         row = result.one()
         return {"avg_rating": round(float(row[0]), 1), "review_count": row[1]}
 
+    async def get_avg_ratings_for_ids(
+        self,
+        review_type: str,
+        ids: List[UUID],
+        *,
+        product: bool = True,
+    ) -> dict:
+        """One grouped query for a catalog page instead of one query per item."""
+        if not ids:
+            return {}
+        column = Review.product_id if product else Review.service_id
+        query = (
+            select(column, func.coalesce(func.avg(Review.rating), 0), func.count())
+            .where(
+                Review.review_type == review_type,
+                Review.is_visible == True,
+                column.in_(ids),
+            )
+            .group_by(column)
+        )
+        rows = (await self.db.execute(query)).all()
+        return {
+            row[0]: {"avg_rating": round(float(row[1]), 1), "review_count": row[2]}
+            for row in rows
+        }
+
     async def get_rating_distribution(
         self, review_type: str,
         product_id: Optional[UUID] = None, service_id: Optional[UUID] = None,

@@ -879,6 +879,7 @@ function BlockBasedPreview({ templateId }: { templateId: string }) {
       vendorSlug: 'template-preview',
       isLoading: false,
       error: null,
+      errorKind: null,
       // Enables in-preview page nav via ?p= and keeps site_pages links (no invented commerce defaults).
       previewShell: true,
       storePath: (path: string) => {

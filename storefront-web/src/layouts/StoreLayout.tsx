@@ -477,7 +477,7 @@ function StoreContent() {
     }
   }, [pathname])
   const { builderSite } = useBuilderSite()
-  const { isLoading, error, vendorSlug: ctxSlug, isCustomDomain } = useVendor()
+  const { isLoading, error, errorKind, vendorSlug: ctxSlug, isCustomDomain } = useVendor()
   const vendorSlug = (paramSlug || ctxSlug || '').trim()
   const vendor = useEffectiveVendor()
   const { storePath } = useBranch()
@@ -585,9 +585,19 @@ function StoreContent() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center max-w-md px-4">
           <AlertTriangle className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Store Not Found</h1>
-          <p className="text-gray-500 mb-6">{error || 'The store you are looking for does not exist or is no longer available.'}</p>
-          <Link to="/"><Button size="lg">Back to Home</Button></Link>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            {errorKind === 'unavailable' ? 'Store is slow to open' : 'Store Not Found'}
+          </h1>
+          <p className="text-gray-500 mb-6">
+            {error || 'The store you are looking for does not exist or is no longer available.'}
+          </p>
+          {errorKind === 'unavailable' ? (
+            <Button type="button" size="lg" onClick={() => window.location.reload()}>
+              Try again
+            </Button>
+          ) : (
+            <Link to="/"><Button size="lg">Back to Home</Button></Link>
+          )}
         </div>
       </div>
     )

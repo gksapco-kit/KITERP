@@ -3633,20 +3633,23 @@ export default function ProductForm() {
   }, onFormInvalid)
 
   const catalogProductId = product?.id || id
-  const galleryImages: ProductImage[] =
-    galleryOverride && galleryOverride.productId === catalogProductId
-      ? galleryOverride.images
-      : ((product?.images || []) as ProductImage[])
+  // A new product has no id yet. Do not treat "no override" as a match —
+  // null?.productId === undefined is true and then reading .images crashes the page.
+  const galleryOverrideMatches =
+    !!catalogProductId && !!galleryOverride && galleryOverride.productId === catalogProductId
+  const galleryImages: ProductImage[] = galleryOverrideMatches
+    ? (galleryOverride.images ?? [])
+    : ((product?.images || []) as ProductImage[])
 
   useEffect(() => {
-    if (galleryOverride?.productId === catalogProductId) {
-      galleryRef.current = galleryOverride.images
+    if (galleryOverrideMatches && galleryOverride) {
+      galleryRef.current = galleryOverride.images ?? []
       galleryReadyRef.current = true
       return
     }
     galleryRef.current = (product?.images || []) as ProductImage[]
     galleryReadyRef.current = true
-  }, [galleryOverride, catalogProductId, product?.images])
+  }, [galleryOverride, galleryOverrideMatches, product?.images])
 
   const writeGallery = useCallback((updater: (current: ProductImage[]) => ProductImage[]) => {
     const base = galleryReadyRef.current

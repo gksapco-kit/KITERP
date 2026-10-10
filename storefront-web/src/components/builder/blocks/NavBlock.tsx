@@ -434,14 +434,26 @@ export default function NavBlock({
     navigateStorePath(`/products?search=${encodeURIComponent(q)}`)
   }
 
-  const mobileSearchBarNode = showSearch && searchOpen && (
-    <form onSubmit={submitSearch} className="flex flex-1 items-center gap-1.5 min-w-0">
+  const renderSearchButton = () => showSearch && !searchOpen && (
+    <button
+      type="button"
+      onClick={() => setSearchOpen(true)}
+      className="inline-flex p-2 rounded-lg hover:opacity-70 transition-opacity"
+      style={{ color: shell.navTextCol }}
+      aria-label="Search"
+    >
+      <Search className="w-5 h-5" />
+    </button>
+  )
+
+  const searchFormNode = (compact: boolean) => showSearch && searchOpen && (
+    <form onSubmit={submitSearch} className={cn('items-center gap-1.5 min-w-0', compact ? 'flex flex-1' : 'hidden lg:flex')}>
       <Input
         autoFocus
         value={searchQuery}
         onChange={e => setSearchQuery(e.target.value)}
         placeholder="Search products, prices, variants…"
-        className="h-9 text-sm flex-1 min-w-0"
+        className={cn('h-9 text-sm min-w-0', compact ? 'flex-1' : 'w-44 xl:w-56')}
         aria-label="Search products"
       />
       <button
@@ -463,6 +475,8 @@ export default function NavBlock({
       </button>
     </form>
   )
+
+  const mobileSearchBarNode = searchFormNode(true)
 
   const mobileCartNode = showCart && (
     builderCanvas?.onNavigate ? (
@@ -509,17 +523,7 @@ export default function NavBlock({
 
   const mobileActionsNode = (
     <div className="flex items-center gap-0.5 shrink-0">
-      {showSearch && !searchOpen && (
-        <button
-          type="button"
-          onClick={() => setSearchOpen(true)}
-          className="inline-flex p-2 rounded-lg hover:opacity-70 transition-opacity"
-          style={{ color: shell.navTextCol }}
-          aria-label="Search"
-        >
-          <Search className="w-5 h-5" />
-        </button>
-      )}
+      {renderSearchButton()}
       {mobileCartNode}
     </div>
   )
@@ -724,6 +728,8 @@ export default function NavBlock({
 
   const actionsNode = (
     <div className="flex items-center gap-0.5 sm:gap-2 shrink-0">
+      {renderSearchButton()}
+      {searchFormNode(false)}
       {showCart && (
         builderCanvas?.onNavigate ? (
           <button

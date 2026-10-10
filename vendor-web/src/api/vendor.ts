@@ -1048,6 +1048,10 @@ export const vendorApi = {
     return response.data
   },
 
+  reorderCategories: async (items: { id: string; sort_order: number }[]): Promise<void> => {
+    await apiClient.post('/vendors/me/categories/reorder', { items })
+  },
+
   deleteCategory: async (id: string): Promise<void> => {
     await apiClient.delete(`/vendors/me/categories/${id}`)
   },

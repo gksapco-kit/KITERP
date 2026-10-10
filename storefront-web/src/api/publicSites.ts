@@ -86,8 +86,9 @@ export const publicSitesApi = {
     resource: string,
     limit = 12,
     params?: Record<string, unknown>,
+    timeout = 20000,
   ): Promise<{ resource: string; items: LiveItem[]; count: number }> =>
-    publicApi.get(`/${siteId}/live/${resource}`, { params: { limit, ...(params || {}) } }).then(r => r.data),
+    publicApi.get(`/${siteId}/live/${resource}`, { params: { limit, ...(params || {}) }, timeout }).then(r => r.data),
 
   /** Submit a contact form. */
   submitContact: (

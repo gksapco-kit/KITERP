@@ -31,6 +31,45 @@ def _restore_unique_value(value: Optional[str]) -> Optional[str]:
     return _DEL_SUFFIX_RE.sub("", value) or value
 
 
+def _has_variants() -> ColumnElement:
+    return exists(
+        select(ProductVariant.id).where(ProductVariant.product_id == Product.id)
+    )
+
+
+def _variant_is_out() -> ColumnElement:
+    """Same rule as the products table: quantity 0, or an out/discontinued status."""
+    return or_(
+        func.coalesce(ProductVariant.quantity, 0) <= 0,
+        ProductVariant.stock_status.in_(["out_of_stock", "discontinued"]),
+    )
+
+
+def _has_available_variant() -> ColumnElement:
+    return exists(
+        select(ProductVariant.id).where(
+            ProductVariant.product_id == Product.id,
+            ~_variant_is_out(),
+        )
+    )
+
+
+def _has_out_variant() -> ColumnElement:
+    return exists(
+        select(ProductVariant.id).where(
+            ProductVariant.product_id == Product.id,
+            _variant_is_out(),
+        )
+    )
+
+
+def _product_level_out() -> ColumnElement:
+    return or_(
+        Product.stock_status.in_(["out_of_stock", "discontinued"]),
+        func.coalesce(Product.quantity, 0) <= 0,
+    )
+
+
 def _product_sort_clauses(sort: Optional[str], *, deleted_only: bool = False) -> tuple[ColumnElement, ...]:
     if deleted_only:
         return (Product.deleted_at.desc(),)
@@ -233,22 +272,52 @@ class ProductRepository(BaseRepository[Product]):
             count_query = count_query.where(Product.product_type == product_type)
 
         if stock == "out_of_stock":
+            # Variant products follow the table total: out only when every variant is out.
             stock_filter = or_(
-                Product.stock_status.in_(["out_of_stock", "discontinued"]),
-                Product.quantity <= 0,
+                and_(~_has_variants(), _product_level_out()),
+                and_(_has_variants(), ~_has_available_variant()),
             )
             query = query.where(stock_filter)
             count_query = count_query.where(stock_filter)
         elif stock == "low_stock":
             low_threshold = func.coalesce(Product.low_stock_threshold, 5)
-            stock_filter = and_(Product.quantity > 0, Product.quantity <= low_threshold)
+            variant_low = exists(
+                select(ProductVariant.id).where(
+                    ProductVariant.product_id == Product.id,
+                    ~_variant_is_out(),
+                    func.coalesce(ProductVariant.quantity, 0) <= func.coalesce(ProductVariant.low_stock_threshold, 5),
+                )
+            )
+            stock_filter = or_(
+                and_(
+                    ~_has_variants(),
+                    func.coalesce(Product.quantity, 0) > 0,
+                    func.coalesce(Product.quantity, 0) <= low_threshold,
+                    or_(
+                        Product.stock_status.is_(None),
+                        ~Product.stock_status.in_(["out_of_stock", "discontinued"]),
+                    ),
+                ),
+                and_(_has_variants(), _has_available_variant(), or_(_has_out_variant(), variant_low)),
+            )
             query = query.where(stock_filter)
             count_query = count_query.where(stock_filter)
         elif stock == "in_stock":
             low_threshold = func.coalesce(Product.low_stock_threshold, 5)
-            stock_filter = and_(
-                Product.quantity > low_threshold,
-                or_(Product.stock_status.is_(None), Product.stock_status == "in_stock"),
+            variant_low = exists(
+                select(ProductVariant.id).where(
+                    ProductVariant.product_id == Product.id,
+                    ~_variant_is_out(),
+                    func.coalesce(ProductVariant.quantity, 0) <= func.coalesce(ProductVariant.low_stock_threshold, 5),
+                )
+            )
+            stock_filter = or_(
+                and_(
+                    ~_has_variants(),
+                    func.coalesce(Product.quantity, 0) > low_threshold,
+                    or_(Product.stock_status.is_(None), Product.stock_status == "in_stock"),
+                ),
+                and_(_has_variants(), ~_has_out_variant(), ~variant_low),
             )
             query = query.where(stock_filter)
             count_query = count_query.where(stock_filter)

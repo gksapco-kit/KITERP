@@ -989,42 +989,7 @@ function dedupeColorOptions(options: ProductColorOption[]): ProductColorOption[]
   return out
 }
 
-function colorNameFromImageMeta(alt: string | undefined, index: number): string {
-  const trimmed = alt?.trim()
-  if (trimmed && isColorLikeToken(trimmed)) return trimmed
-  if (trimmed) {
-    const lower = trimmed.toLowerCase()
-    for (const color of Object.keys(COLOR_NAME_MAP)) {
-      if (lower.includes(color)) {
-        return color.charAt(0).toUpperCase() + color.slice(1)
-      }
-    }
-  }
-  return `Color ${index + 1}`
-}
-
-function buildGalleryColorOptions(
-  variants: ProductVariant[],
-  imgs: { url: string; alt_text?: string }[],
-): ProductColorOption[] {
-  return dedupeColorOptions(
-    imgs.map((img, index) => {
-      const v = variants[index] ?? variants[0]
-      const nameFromAlt = colorNameFromImageMeta(img.alt_text, index)
-      const css = isColorLikeToken(nameFromAlt) ? (colorValueToCss(nameFromAlt) || '#e5e7eb') : '#e5e7eb'
-      return {
-        id: `gallery-${index}`,
-        variantId: v?.id ?? `gallery-${index}`,
-        name: nameFromAlt,
-        color: css,
-        imageUrl: img.url,
-        imageIndex: index,
-      }
-    }),
-  )
-}
-
-/** Color swatches for product detail — only when Color is a real option (or gallery-only products). */
+/** Color swatches for product detail — only when Color is a real option. */
 export function getProductPageColorOptions(
   variants: ProductVariant[],
   productImages?: { url: string; alt_text?: string }[],
@@ -1122,14 +1087,9 @@ export function getProductPageColorOptions(
     )
   }
 
-  // Gallery-as-Color only for products with no structured option dimensions.
-  const shouldPreferGallery = imgs.length >= 2 && !colorDim && !hasOtherOptionDims && options.length < imgs.length
-
-  if (shouldPreferGallery) {
-    return buildGalleryColorOptions(normalized, imgs)
-  }
-
-  if (options.length >= 1) {
+  // A product photo is not a Color option. Do not label it "Color 1".
+  if (!colorDim) {
+    if (!options.length) return []
     return dedupeColorOptions(
       options.map((opt) => {
         const imgMatch = matchImageToColorName(imgs, opt.name)
@@ -1140,10 +1100,6 @@ export function getProductPageColorOptions(
         }
       }),
     )
-  }
-
-  if (imgs.length >= 1 && !colorDim && !hasOtherOptionDims) {
-    return buildGalleryColorOptions(normalized, imgs)
   }
 
   return options

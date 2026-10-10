@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useLocation, useParams, useSearchParams } from 'react-router-dom'
 import axios from 'axios'
 import { setVendorContext, setVendorSlugHint } from '@/api/client'
@@ -47,11 +47,15 @@ export interface VendorData {
   settings: Record<string, unknown>
 }
 
+export type VendorLoadErrorKind = 'not_found' | 'unavailable'
+
 export interface VendorContextType {
   vendor: VendorData | null
   vendorSlug: string
   isLoading: boolean
   error: string | null
+  /** not_found = this slug does not exist. unavailable = the API was slow or unreachable. */
+  errorKind: VendorLoadErrorKind | null
   storePath: (path: string) => string
   displayFields: DisplayFields
   /** True on vendor-web /preview/draft — show nav links at all breakpoints. */
@@ -67,6 +71,7 @@ export const VendorContext = createContext<VendorContextType>({
   vendorSlug: '',
   isLoading: true,
   error: null,
+  errorKind: null,
   storePath: (p) => p,
   displayFields: resolveTemplateDisplayFieldsFromSettings(null, null),
   isCustomDomain: false,
@@ -102,6 +107,9 @@ export function VendorProvider({
   const [vendor, setVendor] = useState<VendorData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [errorKind, setErrorKind] = useState<VendorLoadErrorKind | null>(null)
+  const vendorRef = useRef(vendor)
+  vendorRef.current = vendor
 
   const slug = (slugOverride?.trim() || params?.vendorSlug || customHost.vendorSlug || '').trim()
   const omitSlug = Boolean(slugOverride) || (customHost.isCustomHost && Boolean(customHost.vendorSlug))
@@ -113,50 +121,57 @@ export function VendorProvider({
 
   useEffect(() => {
     if (!slug || slug.trim() === '') {
+      setErrorKind('not_found')
       setError('No vendor specified')
       setIsLoading(false)
       return
     }
 
     let cancelled = false
-    setIsLoading(true)
+    const keepVisible = vendorRef.current?.slug === slug
+    if (!keepVisible) {
+      setVendor(null)
+      setIsLoading(true)
+    }
     setError(null)
-    setVendor(null)
+    setErrorKind(null)
 
-    axios
-      .get(`${API_URL}/catalog/vendor/${encodeURIComponent(slug)}`, { timeout: 15_000 })
-      .then((res) => {
-        if (!cancelled) {
+    const loadVendor = async () => {
+      const attempts = 3
+      let lastError: unknown
+      for (let attempt = 0; attempt < attempts; attempt += 1) {
+        if (cancelled) return
+        try {
+          const res = await axios.get(`${API_URL}/catalog/vendor/${encodeURIComponent(slug)}`, { timeout: 20_000 })
+          if (cancelled) return
           setVendor(res.data)
-          // Tab-local sessionStorage + in-memory (never shared localStorage)
           setVendorContext(res.data.slug, res.data.id)
+          return
+        } catch (err: unknown) {
+          lastError = err
+          const status = axios.isAxiosError(err) ? err.response?.status : undefined
+          const transient = !axios.isAxiosError(err) || !err.response || status === 408 || status === 429 || (status != null && status >= 500)
+          if (!transient || attempt === attempts - 1) break
+          await new Promise((resolve) => window.setTimeout(resolve, 700 * (attempt + 1)))
         }
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          console.error('Failed to load vendor:', err)
-          const ax = err as { response?: { status?: number; data?: { detail?: string } }; code?: string; message?: string }
-          const status = ax.response?.status
-          if (status === 404) {
-            setError(
-              'No store with this slug exists yet, or the vendor is not approved/active on the business front. For local dev: from the backend folder run python setup_vendor.py (default slug test), then python seed_dev_hr_employee.py to create an ESS login.',
-            )
-            return
-          }
-          if (!ax.response) {
-            setError(
-              `Cannot reach the API at ${API_URL}. Start the backend (uvicorn on port 8000) and set VITE_API_URL if needed.`,
-            )
-            return
-          }
-          const detail = ax.response.data?.detail
-          const msg = typeof detail === 'string' ? detail : Array.isArray(detail) ? JSON.stringify(detail) : undefined
-          setError(msg ? `Server error (${status}): ${msg}` : `Failed to load store (${status || 'unknown'}). Try again later.`)
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoading(false)
-      })
+      }
+      if (cancelled) return
+      console.error('Failed to load vendor:', lastError)
+      if (vendorRef.current?.slug === slug) return
+      const ax = axios.isAxiosError(lastError) ? lastError : null
+      const status = ax?.response?.status
+      if (status === 404) {
+        setErrorKind('not_found')
+        setError('This store is not available. Check the address, or ask the store to confirm it is published.')
+        return
+      }
+      setErrorKind('unavailable')
+      setError('The store is taking longer than usual to open. Wait a moment and try again.')
+    }
+
+    void loadVendor().finally(() => {
+      if (!cancelled) setIsLoading(false)
+    })
 
     return () => {
       cancelled = true
@@ -203,6 +218,7 @@ export function VendorProvider({
         vendorSlug: slug,
         isLoading,
         error,
+        errorKind,
         storePath,
         displayFields,
         isCustomDomain: omitSlug,

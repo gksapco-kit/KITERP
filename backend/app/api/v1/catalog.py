@@ -1496,10 +1496,15 @@ async def list_products(
         items = items[skip:skip + size]
 
     review_repo = ReviewRepository(db)
+    stats_by_id = await review_repo.get_avg_ratings_for_ids(
+        "product", [p.id for p in items], product=True,
+    )
+    empty_stats = {"avg_rating": 0.0, "review_count": 0}
     product_dicts = []
     for p in items:
         d = _product_to_dict(p)
-        stats = await review_repo.get_avg_rating("product", product_id=p.id)
+        d.pop("change_history", None)
+        stats = stats_by_id.get(p.id, empty_stats)
         d["avg_rating"] = stats["avg_rating"]
         d["review_count"] = stats["review_count"]
         product_dicts.append(d)
@@ -1531,6 +1536,7 @@ async def get_product(
 
     review_repo = ReviewRepository(db)
     d = _product_to_dict(product)
+    d.pop("change_history", None)
     stats = await review_repo.get_avg_rating("product", product_id=product.id)
     d["avg_rating"] = stats["avg_rating"]
     d["review_count"] = stats["review_count"]
@@ -1761,11 +1767,15 @@ async def list_services(
 
     review_repo = ReviewRepository(db)
     from app.services.service_media import resolve_service_thumbnail_url
+    stats_by_id = await review_repo.get_avg_ratings_for_ids(
+        "service", [s.id for s in items], product=False,
+    )
+    empty_stats = {"avg_rating": 0.0, "review_count": 0}
     service_dicts = []
     for s in items:
         d = _service_to_dict(s)
         d["image_url"] = resolve_service_thumbnail_url(s) or d.get("image_url")
-        stats = await review_repo.get_avg_rating("service", service_id=s.id)
+        stats = stats_by_id.get(s.id, empty_stats)
         d["avg_rating"] = stats["avg_rating"]
         d["review_count"] = stats["review_count"]
         service_dicts.append(d)

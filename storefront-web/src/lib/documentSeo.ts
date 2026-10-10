@@ -218,3 +218,25 @@ export function vendorPageTitle(pageLabel: string, vendorName?: string | null): 
   if (!name) return `${pageLabel} | ${PLATFORM_SEO.siteName}`
   return `${pageLabel} | ${name}`
 }
+
+/** Tab title is the business name only. "Website" and "— Home" are not added. */
+export function businessDocumentTitle(input: {
+  siteName?: string | null
+  siteSeoTitle?: string | null
+  pageSeoTitle?: string | null
+  pageTitle?: string | null
+  isHomepage?: boolean
+}): string {
+  const site = input.siteName?.trim() || ''
+  const fromSite = site.replace(/\s+website$/i, '').trim() || site || 'Site'
+  const seo = input.pageSeoTitle?.trim() || ''
+  if (
+    seo
+    && !/[—|]/.test(seo)
+    && fromSite !== 'Site'
+    && seo.toLowerCase() === fromSite.toLowerCase()
+  ) {
+    return seo
+  }
+  return fromSite
+}

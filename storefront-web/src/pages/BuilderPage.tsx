@@ -29,6 +29,7 @@ import { buildDraftCatalogEmbedStorePath } from '@/lib/draftCatalogEmbed'
 import { useVendor } from '@/contexts/VendorContext'
 import type { LiveItem, PublicBlock, PublicPage, PublicSite } from '@/blocks/registry'
 import { buildPageJsonLd, siteBaseUrl } from '@/blocks/jsonLd'
+import { businessDocumentTitle } from '@/lib/documentSeo'
 import { publicSitesApi } from '@/api/publicSites'
 import AnalyticsInjector from '@/components/builder/AnalyticsInjector'
 import { getWbCatalogTemplateId } from '@/storefront/catalogTemplateIds'
@@ -232,24 +233,15 @@ export default function BuilderPage({ slug: forcedSlug, isHome }: BuilderPagePro
       : `/${(page.slug || '').replace(/^\/+/, '')}`
     const canonical = (page.canonical_url?.trim() || (baseUrl ? `${baseUrl}${pagePath}` : undefined))
 
-    // Title & description — page SEO wins; site defaults are fallback.
-    const pageSeoTitle = page.seo_title?.trim() || ''
-    const siteSeoTitle = builderSite.seo_title?.trim() || ''
+    // Title uses this business name. A template SEO title such as "SKF — Home" is ignored.
     const siteName = builderSite.name?.trim() || 'Site'
-    let docTitle: string
-    if (pageSeoTitle) {
-      // Prefer the page's SEO title (including homepage).
-      docTitle = page.is_homepage || !siteSeoTitle || pageSeoTitle === siteSeoTitle
-        ? pageSeoTitle
-        : `${pageSeoTitle} | ${siteSeoTitle}`
-    } else if (page.is_homepage) {
-      docTitle = siteSeoTitle || siteName
-    } else {
-      const pageLabel = page.title?.trim() || siteName
-      docTitle = siteSeoTitle && siteSeoTitle !== pageLabel
-        ? `${pageLabel} | ${siteSeoTitle}`
-        : pageLabel
-    }
+    const docTitle = businessDocumentTitle({
+      siteName,
+      siteSeoTitle: builderSite.seo_title,
+      pageSeoTitle: page.seo_title,
+      pageTitle: page.title,
+      isHomepage: page.is_homepage,
+    })
     document.title = docTitle
 
     const description = page.seo_description || builderSite.seo_description || builderSite.description || null
@@ -273,7 +265,10 @@ export default function BuilderPage({ slug: forcedSlug, isHome }: BuilderPagePro
 
     // Open Graph
     const ogImage = page.og_image_url || builderSite.og_image_url || builderSite.logo_url || null
-    const ogTitle = page.og_title || page.seo_title || page.title || builderSite.name
+    const customOg = page.og_title?.trim() || ''
+    const ogTitle = customOg && siteName !== 'Site' && customOg.toLowerCase().includes(siteName.toLowerCase())
+      ? customOg
+      : docTitle
     const ogDescription = page.og_description || description
     setMetaTag('property', 'og:type', page.is_homepage ? 'website' : 'article')
     setMetaTag('property', 'og:site_name', builderSite.name)

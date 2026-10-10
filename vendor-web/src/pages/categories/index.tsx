@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -7,10 +8,11 @@ import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { AiDescriptionTextarea } from '@/components/common/AiDescriptionTextarea'
 import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import {
-  useCategoryTree, useCreateCategory, useUpdateCategory, useDeleteCategory,
-  useCategoryCatalogues,
+  useCategoryTree, useCreateCategory, useUpdateCategory, useDeleteCategory, useReorderCategories,
+  useCategoryCatalogues, vendorKeys,
 } from '@/hooks/useVendor'
 import {
+  closestCenter,
   DndContext,
   DragOverlay,
   PointerSensor,
@@ -21,6 +23,7 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
+import { arrayMove } from '@dnd-kit/sortable'
 import { Loader2, Plus, Pencil, Trash2, X, ChevronRight, ChevronDown, FolderTree, Package, Wrench, Eye, EyeOff, Copy, Folder, FolderOpen, File, GripVertical } from 'lucide-react'
 import { toast } from 'sonner'
 import { processRows, type SortDir } from '@/lib/tableList'
@@ -103,6 +106,56 @@ function canReparentCategory(draggedId: string, newParentId: string | null, cate
   const dragged = findInTree(categories, draggedId)
   if (!dragged) return false
   return !isNodeInSubtree(dragged, newParentId)
+}
+
+function siblingCategories(categories: VendorCategory[], cat: VendorCategory): VendorCategory[] {
+  if (!cat.parent_id) return categories
+  return findInTree(categories, cat.parent_id)?.children ?? []
+}
+
+/** Put siblings in `orderedIds` and write sort_order so the storefront matches. */
+function applySiblingOrder(
+  categories: VendorCategory[],
+  parentId: string | null,
+  orderedIds: string[],
+): VendorCategory[] {
+  const reorder = (nodes: VendorCategory[], parent: string | null): VendorCategory[] => {
+    const next = nodes.map((node) => ({
+      ...node,
+      children: node.children?.length ? reorder(node.children, node.id) : node.children,
+    }))
+    if (parent !== parentId) return next
+    const byId = new Map(next.map((node) => [node.id, node]))
+    return orderedIds.flatMap((id, index) => {
+      const node = byId.get(id)
+      return node ? [{ ...node, sort_order: index }] : []
+    })
+  }
+  return reorder(categories, null)
+}
+
+const CATEGORY_SORT_ACCESSORS = {
+  name: (c: VendorCategory) => c.name,
+  applies_to: (c: VendorCategory) => c.applies_to,
+  status: (c: VendorCategory) => (c.is_active ? 1 : 0),
+}
+
+function treeWithSavedSort(nodes: VendorCategory[], key: string, dir: SortDir): VendorCategory[] {
+  const sorted = processRows(nodes, '', () => [], key, dir, CATEGORY_SORT_ACCESSORS)
+  return sorted.map((node, index) => ({
+    ...node,
+    sort_order: index,
+    children: node.children?.length ? treeWithSavedSort(node.children, key, dir) : node.children,
+  }))
+}
+
+function ordersFromTree(nodes: VendorCategory[]): { id: string; sort_order: number }[] {
+  const items: { id: string; sort_order: number }[] = []
+  nodes.forEach((node, index) => {
+    items.push({ id: node.id, sort_order: index })
+    if (node.children?.length) items.push(...ordersFromTree(node.children))
+  })
+  return items
 }
 
 function CategoryImageThumb({ url, className }: { url: string; className?: string }) {
@@ -226,7 +279,7 @@ function CategoryTreeBranch({
         <button
           type="button"
           className="cursor-grab touch-none rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 active:cursor-grabbing shrink-0"
-          title="Drag to move under another category"
+          title="Drag to change the order on the website"
           aria-label={`Drag ${cat.name}`}
           {...listeners}
           {...attributes}
@@ -343,6 +396,7 @@ function CategoryTreeExplorer({
   onAddSub,
   onAddRoot,
   onMove,
+  onReorder,
   onToggleVisibility,
   sortKey,
   sortDir,
@@ -356,6 +410,7 @@ function CategoryTreeExplorer({
   onAddSub: (parentId: string) => void
   onAddRoot: () => void
   onMove: (categoryId: string, newParentId: string | null) => void
+  onReorder: (parentId: string | null, orderedIds: string[]) => void
   onToggleVisibility: (cat: VendorCategory) => void
   sortKey: string
   sortDir: SortDir
@@ -377,7 +432,26 @@ function CategoryTreeExplorer({
     setActiveDrag(null)
     const draggedId = String(event.active.id)
     const overId = event.over?.id ? String(event.over.id) : null
-    if (!overId) return
+    if (!overId || overId === draggedId) return
+
+    const dragged = findInTree(categories, draggedId)
+    if (!dragged) return
+
+    if (overId.startsWith('drop-') && overId !== 'drop-root') {
+      const targetId = overId.slice(5)
+      if (targetId === draggedId) return
+      const target = findInTree(categories, targetId)
+      const currentParent = dragged.parent_id ?? null
+      const targetParent = target?.parent_id ?? null
+      if (target && currentParent === targetParent) {
+        const siblings = siblingCategories(categories, dragged)
+        const oldIndex = siblings.findIndex((item) => item.id === draggedId)
+        const newIndex = siblings.findIndex((item) => item.id === targetId)
+        if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) return
+        onReorder(currentParent, arrayMove(siblings, oldIndex, newIndex).map((item) => item.id))
+        return
+      }
+    }
 
     let newParentId: string | null = null
     if (overId === 'drop-root') {
@@ -388,8 +462,7 @@ function CategoryTreeExplorer({
       return
     }
 
-    const dragged = findInTree(categories, draggedId)
-    const currentParent = dragged?.parent_id ?? null
+    const currentParent = dragged.parent_id ?? null
     if (currentParent === newParentId) return
 
     if (!canReparentCategory(draggedId, newParentId, categories)) {
@@ -457,7 +530,7 @@ function CategoryTreeExplorer({
           )}
         </div>
       ) : (
-        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
           <RootDropZone show={!!activeDrag} />
           <ul className="sidebar-scroll min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pr-1">
             {categories.map(root => (
@@ -1108,10 +1181,13 @@ function CategoryFormPanel({
 
 // ── Main Page ────────────────────────────────────────────────────
 export default function CategoriesPage() {
+  const queryClient = useQueryClient()
   const { data, isLoading } = useCategoryTree()
   const createCategory = useCreateCategory()
   const updateCategory = useUpdateCategory()
   const deleteCategory = useDeleteCategory()
+  const reorderCategories = useReorderCategories()
+  const treeQueryKey = [...vendorKeys.all, 'categories', 'tree'] as const
 
   const [sortKey, setSortKey] = useState('name')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
@@ -1228,6 +1304,38 @@ export default function CategoriesPage() {
     updateCategory.mutate({ id: categoryId, data: { parent_id: newParentId } })
   }
 
+  const saveCategoryOrder = async (
+    items: { id: string; sort_order: number }[],
+    nextTree: VendorCategory[],
+  ) => {
+    if (!items.length) return
+    const previous = queryClient.getQueryData(treeQueryKey)
+    queryClient.setQueryData(treeQueryKey, (old: { categories: VendorCategory[] } | undefined) =>
+      old ? { ...old, categories: nextTree } : old,
+    )
+    try {
+      await reorderCategories.mutateAsync(items)
+    } catch {
+      queryClient.setQueryData(treeQueryKey, previous)
+    }
+  }
+
+  const handleReorder = (parentId: string | null, orderedIds: string[]) => {
+    const current = data?.categories ?? []
+    const nextTree = applySiblingOrder(current, parentId, orderedIds)
+    void saveCategoryOrder(
+      orderedIds.map((id, index) => ({ id, sort_order: index })),
+      nextTree,
+    )
+  }
+
+  const applySavedSort = (key: string, dir: SortDir) => {
+    const current = data?.categories ?? []
+    if (!current.length) return
+    const nextTree = treeWithSavedSort(current, key, dir)
+    void saveCategoryOrder(ordersFromTree(nextTree), nextTree)
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) return
@@ -1274,20 +1382,7 @@ export default function CategoriesPage() {
   }
   const flatOptions = flattenCategories(data?.categories || [])
 
-  const sortedCategories = useMemo(() => {
-    return processRows(
-      data?.categories,
-      '',
-      () => [],
-      sortKey,
-      sortDir,
-      {
-        name: (c) => c.name,
-        applies_to: (c) => c.applies_to,
-        status: (c) => (c.is_active ? 1 : 0),
-      },
-    )
-  }, [data?.categories, sortKey, sortDir])
+  const orderedCategories = data?.categories ?? []
 
   const selectedCategory = useMemo(
     () => (selectedId && data?.categories ? findInTree(data.categories, selectedId) : null),
@@ -1315,17 +1410,18 @@ export default function CategoriesPage() {
         <div className="grid min-h-[min(28rem,calc(100dvh-11rem))] w-full flex-1 grid-cols-1 gap-4 lg:grid-cols-2 lg:items-stretch">
           <div className="h-full min-h-0">
             <CategoryTreeExplorer
-              categories={sortedCategories}
+              categories={orderedCategories}
               selectedId={selectedId}
               onSelect={(c) => { setSelectedId(c.id); setShowForm(false) }}
               onAddSub={(pid) => openCreate(pid)}
               onAddRoot={() => openCreate()}
               onMove={handleMoveCategory}
+              onReorder={handleReorder}
               onToggleVisibility={handleToggleCategoryVisibility}
               sortKey={sortKey}
               sortDir={sortDir}
-              onSortKeyChange={setSortKey}
-              onSortDirChange={setSortDir}
+              onSortKeyChange={(key) => { setSortKey(key); applySavedSort(key, sortDir) }}
+              onSortDirChange={(dir) => { setSortDir(dir); applySavedSort(sortKey, dir) }}
               formOpen={showForm}
             />
           </div>

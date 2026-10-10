@@ -206,6 +206,20 @@ function categoryEditorialTilePaddingBottom(imageHeightPct: number): number {
   return Math.round(40 + (Math.min(100, Math.max(40, imageHeightPct)) / 100) * 85)
 }
 
+function ViewAllLink({ color }: { color: string }) {
+  const storePath = useStorePath()
+  const builderCanvas = useBuilderCanvas()
+  const className = 'text-sm underline opacity-80 hover:opacity-100'
+  if (builderCanvas?.isEditorCanvas) {
+    return <span className={className} style={{ color }}>View all</span>
+  }
+  return (
+    <Link to={storePath('/products')} className={className} style={{ color }}>
+      View all
+    </Link>
+  )
+}
+
 function CategorySectionHeader({
   title,
   textColor,
@@ -234,7 +248,7 @@ function CategorySectionHeader({
         style={{ fontFamily: style.font_heading, color: textColor }}
         placeholder="Section title"
       />
-      <span className="text-sm underline opacity-80" style={{ color: textColor }}>View all</span>
+      <ViewAllLink color={textColor} />
     </div>
   )
 }
@@ -249,13 +263,19 @@ interface Props {
   blockId?: string
   /** Other blocks on the same page — used to detect wellness category layout. */
   pageBlocks?: { block_type?: string; props?: Record<string, unknown> }[]
+  /** Catalog feed for this block. Loading and errors must not look like an empty category list. */
+  liveFeedStatus?: 'loading' | 'ready' | 'error'
+  onRetryLiveFeed?: () => void
 }
 
 function mediaUrl(url: string | null | undefined) {
   return imgUrl(url)
 }
 
-export default function ProductGridBlock({ site, style, props, liveItems, blockType = 'product_grid', pageBlocks, blockId }: Props) {
+export default function ProductGridBlock({
+  site, style, props, liveItems, blockType = 'product_grid', pageBlocks, blockId,
+  liveFeedStatus = 'ready', onRetryLiveFeed,
+}: Props) {
   const builderCanvas = useBuilderCanvas()
   const isEditorCanvas = builderCanvas?.isEditorCanvas && !!blockId
   const previewBp = isEditorCanvas ? (builderCanvas?.previewBreakpoint ?? 'desktop') : 'desktop'
@@ -358,6 +378,46 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
     ? resolveWellnessSiteProducts(normalized, Number(props.show_count) || 12)
     : normalized
 
+  const categoryFeedPlaceholder = (sectionTitle: string | null | undefined) => {
+    const icon = <FolderTree className="w-10 h-10" style={{ color: style.primary_color }} />
+    if (liveFeedStatus === 'loading') {
+      return (
+        <BlockEmptyPlaceholder
+          style={style}
+          title={sectionTitle ?? undefined}
+          message="Loading categories..."
+          icon={icon}
+        />
+      )
+    }
+    if (liveFeedStatus === 'error') {
+      return (
+        <BlockEmptyPlaceholder
+          style={style}
+          title={sectionTitle ?? undefined}
+          message="Categories are taking longer to load."
+          hint="Your categories are still saved. This shows when the store is busy."
+          actionLabel="Try again"
+          onAction={onRetryLiveFeed}
+          icon={icon}
+        />
+      )
+    }
+    return (
+      <BlockEmptyPlaceholder
+        style={style}
+        title={sectionTitle ?? undefined}
+        message={isEditorCanvas
+          ? 'Categories from your catalog will appear here once you add them.'
+          : 'No categories to show yet.'}
+        hint="Add categories in your dashboard, then they appear here automatically."
+        actionHref={vendorDashboardUrl('/categories')}
+        actionLabel="Add categories"
+        icon={icon}
+      />
+    )
+  }
+
   /** ── Wellness / Vibrant Living category cards (circular images on organic blobs) ── */
   if (
     blockType === 'category_cards'
@@ -372,21 +432,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
       skipTemplateDefaults: isEditorCanvas,
     })
 
-    if (cats.length === 0) {
-      return (
-        <BlockEmptyPlaceholder
-          style={style}
-          title={title ?? undefined}
-          message={isEditorCanvas
-            ? 'Categories from your catalog will appear here once you add them.'
-            : 'No categories to show yet.'}
-          hint="Add categories in your dashboard, then they appear here automatically."
-          actionHref={vendorDashboardUrl('/categories')}
-          actionLabel="Add categories"
-          icon={<FolderTree className="w-10 h-10" style={{ color: style.primary_color }} />}
-        />
-      )
-    }
+    if (cats.length === 0) return categoryFeedPlaceholder(title)
 
     return (
       <CategoryCardsWellness
@@ -429,21 +475,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
       skipTemplateDefaults: isEditorCanvas,
     })
 
-    if (cats.length === 0) {
-      return (
-        <BlockEmptyPlaceholder
-          style={style}
-          title={title ?? undefined}
-          message={isEditorCanvas
-            ? 'Categories from your catalog will appear here once you add them.'
-            : 'No categories to show yet.'}
-          hint="Add categories in your dashboard, then they appear here automatically."
-          actionHref={vendorDashboardUrl('/categories')}
-          actionLabel="Add categories"
-          icon={<FolderTree className="w-10 h-10" style={{ color: style.primary_color }} />}
-        />
-      )
-    }
+    if (cats.length === 0) return categoryFeedPlaceholder(title)
 
     const editorialCardClass = 'group relative isolate overflow-hidden block w-full'
 
@@ -473,7 +505,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
               style={{ fontFamily: style.font_heading, color: textColor }}
             />
           </div>
-          <span className="text-sm underline opacity-80 cursor-pointer" style={{ color: textColor }}>View all</span>
+          <ViewAllLink color={textColor} />
         </div>
         <div
           className={cn('grid', catalogCols(editorialColumns || 3))}
@@ -580,21 +612,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
     const categoryTileWrap = catalogTileImageWrapperClass(categoryImageShape)
     const categoryTileSettings = readCatalogTileShapeSettings(props)
 
-    if (cats.length === 0) {
-      return (
-        <BlockEmptyPlaceholder
-          style={style}
-          title={title ?? undefined}
-          message={isEditorCanvas
-            ? 'Categories from your catalog will appear here once you add them.'
-            : 'No categories to show yet.'}
-          hint="Add categories in your dashboard, then they appear here automatically."
-          actionHref={vendorDashboardUrl('/categories')}
-          actionLabel="Add categories"
-          icon={<FolderTree className="w-10 h-10" style={{ color: style.primary_color }} />}
-        />
-      )
-    }
+    if (cats.length === 0) return categoryFeedPlaceholder(title)
 
     const wrapCategoryLink = (
       key: string,
@@ -1033,7 +1051,7 @@ export default function ProductGridBlock({ site, style, props, liveItems, blockT
               className="text-3xl sm:text-4xl"
               style={{ fontFamily: style.font_heading, color: textColor }}
             />
-            <span className="text-sm underline opacity-80" style={{ color: textColor }}>View all</span>
+            <ViewAllLink color={textColor} />
           </div>
 
           {featuredOne && (

@@ -13,7 +13,7 @@
  *  - Blocks that need live ERP data fetch it lazily via publicSitesApi.
  *  - Unknown block types render a neutral placeholder in dev, nothing in prod.
  */
-import { lazy, Suspense, useEffect, useMemo, useState, type ComponentType, type CSSProperties } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ComponentType, type CSSProperties } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import type { PublicBlock, PublicSite, LiveItem, StyleConfig } from '@/blocks/registry'
 import { publicSitesApi } from '@/api/publicSites'
@@ -224,6 +224,16 @@ function resolveLiveSiteId(site: PublicSite): string {
   return override || site.id
 }
 
+export type LiveFeedStatus = 'loading' | 'ready' | 'error'
+
+function isTransientLiveError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return true
+  const ax = err as { response?: { status?: number } }
+  if (!ax.response) return true
+  const status = ax.response.status
+  return status === 408 || status === 429 || (status != null && status >= 500)
+}
+
 function useLiveData(block: PublicBlock, site: PublicSite, limit = 12) {
   const customFetch = useLiveDataFetch()
   const dataSource = block.props?.data_source as { type?: string; selected_ids?: string[]; limit?: number; auto?: boolean } | undefined
@@ -236,12 +246,32 @@ function useLiveData(block: PublicBlock, site: PublicSite, limit = 12) {
   const embeddedPagesKey = resource === 'pages'
     ? (site.pages || []).map(p => `${p.id}:${p.slug}:${p.title}:${p.show_in_nav}:${p.is_homepage}`).join('|')
     : ''
+  const selectedIdsKey = dataSource?.selected_ids?.join(',') || ''
   const [data, setData] = useState<LiveItem[] | null>(null)
+  const [failed, setFailed] = useState(false)
+  const [retryToken, setRetryToken] = useState(0)
+  const dataRef = useRef<LiveItem[] | null>(null)
+  const requestKeyRef = useRef('')
 
   useEffect(() => {
-    if (!resource || !liveSiteId) { setData([]); return }
+    const requestKey = `${liveSiteId}|${resource ?? ''}|${effectiveLimit}|${selectedIdsKey}`
+    if (requestKeyRef.current !== requestKey) {
+      requestKeyRef.current = requestKey
+      dataRef.current = null
+      setData(null)
+      setFailed(false)
+    }
+    if (!resource || !liveSiteId) {
+      dataRef.current = []
+      setData([])
+      setFailed(false)
+      return
+    }
     if (resource === 'pages' && site.pages?.length) {
-      setData(sitePagesToLiveItems(site, effectiveLimit))
+      const pages = sitePagesToLiveItems(site, effectiveLimit)
+      dataRef.current = pages
+      setData(pages)
+      setFailed(false)
       return
     }
     let cancelled = false
@@ -254,29 +284,49 @@ function useLiveData(block: PublicBlock, site: PublicSite, limit = 12) {
         ? items.filter(item => item.id && selectedIds.includes(item.id))
         : items
 
-    const apply = (items: LiveItem[]) => {
-      if (!cancelled) setData(applySelection(items))
-    }
-    const applyEmpty = () => {
-      // Only clear if this request is still current — a late failure must not
-      // wipe a successful response from a newer effect run.
-      if (!cancelled) setData([])
+    const load = async () => {
+      const attempts = 3
+      let lastError: unknown
+      for (let attempt = 0; attempt < attempts; attempt += 1) {
+        if (cancelled) return
+        try {
+          const items = customFetch
+            ? await customFetch(liveSiteId, resource, effectiveLimit, params)
+            : (await publicSitesApi.getLiveResource(liveSiteId, resource, effectiveLimit, params)).items
+          if (cancelled) return
+          const next = applySelection(items)
+          dataRef.current = next
+          setData(next)
+          setFailed(false)
+          return
+        } catch (err) {
+          lastError = err
+          if (!isTransientLiveError(err) || attempt === attempts - 1) break
+          await new Promise((resolve) => window.setTimeout(resolve, 600 * (attempt + 1)))
+        }
+      }
+      if (cancelled) return
+      console.error('Failed to load live catalog section:', lastError)
+      if (dataRef.current && dataRef.current.length > 0) return
+      setFailed(true)
+      setData([])
     }
 
-    if (customFetch) {
-      customFetch(liveSiteId, resource, effectiveLimit, params)
-        .then(apply)
-        .catch(applyEmpty)
-      return () => { cancelled = true }
-    }
-
-    publicSitesApi.getLiveResource(liveSiteId, resource, effectiveLimit, params)
-      .then(r => apply(r.items))
-      .catch(applyEmpty)
+    void load()
     return () => { cancelled = true }
-  }, [customFetch, liveSiteId, resource, effectiveLimit, embeddedPagesKey, dataSource?.selected_ids?.join(',')])
+  }, [customFetch, liveSiteId, resource, effectiveLimit, embeddedPagesKey, selectedIdsKey, retryToken])
 
-  return data
+  const status: LiveFeedStatus = failed ? 'error' : data === null ? 'loading' : 'ready'
+  return {
+    items: data,
+    status,
+    retry: () => {
+      dataRef.current = null
+      setData(null)
+      setFailed(false)
+      setRetryToken((n) => n + 1)
+    },
+  }
 }
 
 // ── Individual block renderer ──────────────────────────────────────────────
@@ -305,7 +355,8 @@ export function SingleBlock({
   const builderCanvas = useBuilderCanvas()
   const isEditorCanvas = builderCanvas?.isEditorCanvas ?? false
   const isSelectedOnCanvas = isEditorCanvas && builderCanvas?.activeBlockId === block.id
-  const liveItems = useLiveData(block, site, (block.props.show_count as number | undefined) || 12)
+  const liveFeed = useLiveData(block, site, (block.props.show_count as number | undefined) || 12)
+  const liveItems = liveFeed.items
   const p = block.props as Record<string, unknown>
 
   const commonProps = {
@@ -345,7 +396,14 @@ export function SingleBlock({
       case 'product_grid':
       case 'menu_grid':
       case 'category_cards':
-      case 'related_products': return <ProductGridBlock {...commonProps} blockType={block.block_type} />
+      case 'related_products': return (
+        <ProductGridBlock
+          {...commonProps}
+          blockType={block.block_type}
+          liveFeedStatus={liveFeed.status}
+          onRetryLiveFeed={liveFeed.retry}
+        />
+      )
       case 'services_cards':
       case 'services_list':    return <ServicesCardsBlock {...commonProps} />
       case 'rental_grid':

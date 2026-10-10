@@ -29,6 +29,15 @@ class CategoryCreate(BaseModel):
     custom_fields: Optional[List[CustomFieldSchema]] = None
 
 
+class CategoryReorderItem(BaseModel):
+    id: str
+    sort_order: int = 0
+
+
+class CategoryReorderRequest(BaseModel):
+    items: List[CategoryReorderItem]
+
+
 class CategoryUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=2, max_length=100)
     description: Optional[str] = Field(None, max_length=500)

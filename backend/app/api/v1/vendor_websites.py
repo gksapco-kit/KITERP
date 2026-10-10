@@ -3008,6 +3008,14 @@ async def list_templates(
     return enriched
 
 
+def _business_page_seo_title(business_name: Optional[str]) -> str:
+    """Browser title for a page created from a template. Business name only, not the template brand."""
+    name = (business_name or "").strip()
+    if name.lower().endswith(" website"):
+        name = name[: -len(" website")].strip()
+    return name or "Home"
+
+
 @router.post("/{site_id}/apply-template/{template_id}", response_model=SiteOut)
 async def apply_template(
     site_id: str,
@@ -3082,7 +3090,9 @@ async def apply_template(
             is_homepage=p_tpl.get("is_homepage", False),
             show_in_nav=p_tpl.get("show_in_nav", True),
             is_published=p_tpl.get("is_published", True),
-            seo_title=p_tpl.get("seo_title"),
+            seo_title=_business_page_seo_title(
+                getattr(vendor, "business_name", None) or getattr(vendor, "display_name", None) or site.name
+            ),
             seo_description=p_tpl.get("seo_description"),
             og_image_url=p_tpl.get("og_image_url"),
             sort_order=p_idx,

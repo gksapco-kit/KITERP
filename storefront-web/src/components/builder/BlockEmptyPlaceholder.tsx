@@ -32,6 +32,7 @@ export default function BlockEmptyPlaceholder({
   icon,
   actionHref,
   actionLabel,
+  onAction,
 }: {
   title?: string
   message: string
@@ -42,6 +43,8 @@ export default function BlockEmptyPlaceholder({
   /** Optional dashboard deep-link (e.g. create product). */
   actionHref?: string
   actionLabel?: string
+  /** In-page action, such as retrying a slow catalog load. */
+  onAction?: () => void
 }) {
   const textColor = style?.text_color || '#374151'
   const surface = style?.surface_color || style?.bg_color || '#f9fafb'
@@ -74,7 +77,16 @@ export default function BlockEmptyPlaceholder({
             {hint}
           </p>
         )}
-        {actionHref && actionLabel ? (
+        {actionLabel && onAction ? (
+          <button
+            type="button"
+            onClick={onAction}
+            className="inline-flex items-center justify-center mt-5 px-4 py-2 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-opacity"
+            style={{ backgroundColor: primary }}
+          >
+            {actionLabel}
+          </button>
+        ) : actionHref && actionLabel ? (
           <a
             href={actionHref}
             target="_blank"

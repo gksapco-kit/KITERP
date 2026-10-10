@@ -68,26 +68,39 @@ function siteHost(site: SeoSite): string {
   return `${(site.name || 'site').toLowerCase().replace(/\s+/g, '')}.site`
 }
 
+/** Tab title is the business name only. "Website" and "— Home" are not added. */
+export function businessDocumentTitle(input: {
+  siteName?: string | null
+  siteSeoTitle?: string | null
+  pageSeoTitle?: string | null
+  pageTitle?: string | null
+  isHomepage?: boolean
+}): string {
+  const site = input.siteName?.trim() || ''
+  const fromSite = site.replace(/\s+website$/i, '').trim() || site || 'Site'
+  const seo = input.pageSeoTitle?.trim() || ''
+  if (
+    seo
+    && !/[—|]/.test(seo)
+    && fromSite !== 'Site'
+    && seo.toLowerCase() === fromSite.toLowerCase()
+  ) {
+    return seo
+  }
+  return fromSite
+}
+
 export function applyPreviewDocumentSeo(site: SeoSite, page: SeoPage | null): void {
   if (typeof document === 'undefined') return
 
-  const pageSeoTitle = page?.seo_title?.trim() || ''
-  const siteSeoTitle = site.seo_title?.trim() || ''
   const siteName = site.name?.trim() || 'Site'
-
-  let docTitle: string
-  if (pageSeoTitle) {
-    docTitle = page?.is_homepage || !siteSeoTitle || pageSeoTitle === siteSeoTitle
-      ? pageSeoTitle
-      : `${pageSeoTitle} | ${siteSeoTitle}`
-  } else if (page?.is_homepage) {
-    docTitle = siteSeoTitle || siteName
-  } else {
-    const pageLabel = page?.title?.trim() || siteName
-    docTitle = siteSeoTitle && siteSeoTitle !== pageLabel
-      ? `${pageLabel} | ${siteSeoTitle}`
-      : pageLabel
-  }
+  const docTitle = businessDocumentTitle({
+    siteName,
+    siteSeoTitle: site.seo_title,
+    pageSeoTitle: page?.seo_title,
+    pageTitle: page?.title,
+    isHomepage: page?.is_homepage,
+  })
   document.title = docTitle
 
   const description =
@@ -110,7 +123,10 @@ export function applyPreviewDocumentSeo(site: SeoSite, page: SeoPage | null): vo
   setLinkTag('canonical', canonical)
 
   const ogImage = page?.og_image_url || site.og_image_url || site.logo_url || null
-  const ogTitle = page?.og_title || page?.seo_title || page?.title || site.name || null
+  const customOg = page?.og_title?.trim() || ''
+  const ogTitle = customOg && siteName !== 'Site' && customOg.toLowerCase().includes(siteName.toLowerCase())
+    ? customOg
+    : docTitle
   const ogDescription = page?.og_description || description
   setMetaTag('property', 'og:type', page?.is_homepage ? 'website' : 'article')
   setMetaTag('property', 'og:site_name', site.name || null)

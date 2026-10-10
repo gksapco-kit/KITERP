@@ -118,7 +118,12 @@ async def build_product_live_items(
     q = (
         select(Product)
         .options(selectinload(Product.images), selectinload(Product.variants))
-        .where(Product.vendor_id == vendor_id, Product.is_visible.is_(True))
+        .where(
+            Product.vendor_id == vendor_id,
+            Product.deleted_at.is_(None),
+            Product.is_visible.is_(True),
+            Product.status == "active",
+        )
         .order_by(Product.is_featured.desc(), Product.created_at.desc())
         .limit(limit)
     )

@@ -15,7 +15,7 @@ from app.models.vendor_category import VendorCategory
 from app.models.vendor_product import Product
 from app.models.vendor_service import Service
 from app.models.rental import RentalAsset
-from app.schemas.vendor_category import CategoryCreate, CategoryUpdate
+from app.schemas.vendor_category import CategoryCreate, CategoryReorderRequest, CategoryUpdate
 from app.repositories.vendor_category_repo import VendorCategoryRepository
 from app.services.vendor_service import VendorService
 from app.services.media_upload import delete_stored_file
@@ -328,6 +328,27 @@ async def create_category(
     await db.commit()
     await db.refresh(category)
     return JSONResponse(content=_category_to_dict(category), status_code=201)
+
+
+@router.post("/reorder")
+async def reorder_categories(
+    body: CategoryReorderRequest,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Save the order shown in the category tree. The storefront uses the same order."""
+    repo = VendorCategoryRepository(db)
+    for item in body.items:
+        try:
+            category_id = UUID(item.id)
+        except ValueError:
+            continue
+        category = await repo.get_by_vendor_and_id(vendor_id, category_id)
+        if category is None:
+            continue
+        category.sort_order = item.sort_order
+    await db.commit()
+    return {"ok": True}
 
 
 @router.put("/{category_id}")

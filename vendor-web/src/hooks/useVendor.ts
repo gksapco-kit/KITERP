@@ -265,6 +265,18 @@ export function useUpdateCategory() {
   })
 }
 
+export function useReorderCategories() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (items: { id: string; sort_order: number }[]) => vendorApi.reorderCategories(items),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['vendor', 'categories'] })
+      toast.success('Category order saved')
+    },
+    onError: apiError('Could not save category order'),
+  })
+}
+
 export function useDeleteCategory() {
   const qc = useQueryClient()
   return useMutation({
