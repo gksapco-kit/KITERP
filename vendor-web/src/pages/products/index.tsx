@@ -1,4 +1,5 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
@@ -33,7 +34,7 @@ import {
   Plus, Search, Pencil, Trash2, Loader2, X,
   Filter, Copy, Share2, Mail, MessageCircle, MoreVertical, Package, Eye,
   Image as ImageIcon, ChevronUp, ChevronDown, ChevronsUpDown, ScanLine,
-  Layers, RotateCcw,
+  Layers, RotateCcw, Upload, Download,
 } from 'lucide-react'
 import { formatVariantDisplayLabel } from '@/lib/productVariantPresets'
 import { variantToUpdatePayload } from '@/lib/productVariants'
@@ -231,8 +232,45 @@ const ACTIVE_INACTIVE_OPTIONS = [
   { value: 'false', label: 'Inactive' },
 ]
 
+type ProductImportResult = {
+  created: number
+  skipped: number
+  failed: number
+  ignored_examples?: number
+  rows: { row: number; name: string; result: 'created' | 'skipped' | 'failed'; status?: string | null; message: string }[]
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
+
+async function readApiError(err: unknown): Promise<string> {
+  const data = (err as { response?: { data?: unknown } })?.response?.data
+  if (data instanceof Blob) {
+    try {
+      const parsed = JSON.parse(await data.text()) as { detail?: string }
+      return parsed.detail || ''
+    } catch {
+      return ''
+    }
+  }
+  if (data && typeof data === 'object' && 'detail' in data) {
+    const detail = (data as { detail?: unknown }).detail
+    return typeof detail === 'string' ? detail : ''
+  }
+  return ''
+}
+
 export default function Products() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const selectedStore = useVendorStore(s => s.selectedStore)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
@@ -252,6 +290,14 @@ export default function Products() {
     try { return (localStorage.getItem('kiterp:products:viewMode') as 'product' | 'variant') || 'product' } catch { return 'product' }
   })
   const [showDeleted, setShowDeleted] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [exportOpen, setExportOpen] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const [importResult, setImportResult] = useState<ProductImportResult | null>(null)
+  const exportMenuRef = useRef<HTMLDivElement>(null)
+  const importInputRef = useRef<HTMLInputElement>(null)
+  const pageCheckboxRef = useRef<HTMLInputElement>(null)
   const { data: categoryData } = useCategoryTree()
   const productCategories = useMemo(
     () => flattenCategoryTree(filterCategoryTree(categoryData?.categories || [], 'product')),
@@ -390,6 +436,77 @@ export default function Products() {
     )
   }, [data?.items, sortKey, sortDir, categorySub])
 
+  const showSelect = !showDeleted && listViewMode === 'product'
+  const pageIds = displayProducts.map((product) => product.id)
+  const selectedOnPage = pageIds.filter((id) => selectedIds.has(id)).length
+  const pageAllSelected = pageIds.length > 0 && selectedOnPage === pageIds.length
+
+  useEffect(() => {
+    if (pageCheckboxRef.current) {
+      pageCheckboxRef.current.indeterminate = selectedOnPage > 0 && !pageAllSelected
+    }
+  }, [selectedOnPage, pageAllSelected])
+
+  useEffect(() => {
+    if (!exportOpen) return
+    const close = (event: MouseEvent) => {
+      if (!exportMenuRef.current?.contains(event.target as Node)) setExportOpen(false)
+    }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [exportOpen])
+
+  const togglePageSelection = (checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      for (const id of pageIds) {
+        if (checked) next.add(id)
+        else next.delete(id)
+      }
+      return next
+    })
+  }
+
+  const toggleRowSelection = (id: string, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (checked) next.add(id)
+      else next.delete(id)
+      return next
+    })
+  }
+
+  const runExport = async (mode: 'template' | 'selected' | 'all') => {
+    setExportOpen(false)
+    setExporting(true)
+    try {
+      const response = await vendorApi.exportProducts({
+        mode,
+        product_ids: mode === 'selected' ? Array.from(selectedIds) : undefined,
+      })
+      const disposition = String(response.headers?.['content-disposition'] || '')
+      const match = /filename="([^"]+)"/.exec(disposition)
+      downloadBlob(response.data as Blob, match?.[1] || 'products.zip')
+    } catch (err) {
+      toast.error((await readApiError(err)) || 'Could not export products')
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  const runImport = async (file: File) => {
+    setImporting(true)
+    try {
+      const result = await vendorApi.importProducts(file)
+      setImportResult(result)
+      await queryClient.invalidateQueries({ queryKey: ['vendor', 'products'] })
+    } catch (err) {
+      toast.error((await readApiError(err)) || 'Could not import products')
+    } finally {
+      setImporting(false)
+    }
+  }
+
   const patchVariantFields = useCallback(async (
     productId: string,
     variantId: string,
@@ -508,7 +625,7 @@ export default function Products() {
               : `${data?.total ?? 0} total products`}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           {/* View mode toggle */}
           {!showDeleted && (
           <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 text-xs">
@@ -554,6 +671,66 @@ export default function Products() {
           </Button>
           {!showDeleted && (
             <>
+          <input
+            ref={importInputRef}
+            type="file"
+            accept=".xlsx,.csv,.zip,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,application/zip"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0]
+              event.target.value = ''
+              if (file) void runImport(file)
+            }}
+          />
+          <Button
+            variant="outline"
+            className="gap-2"
+            disabled={importing}
+            onClick={() => importInputRef.current?.click()}
+          >
+            {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+            Import
+          </Button>
+          <div className="relative" ref={exportMenuRef}>
+            <Button
+              variant="outline"
+              className="gap-2"
+              disabled={exporting}
+              onClick={() => setExportOpen((open) => !open)}
+            >
+              {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              Export{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
+            </Button>
+            {exportOpen && (
+              <div className="absolute right-0 z-20 mt-1 w-64 rounded-lg border border-border bg-popover py-1 text-popover-foreground shadow-lg">
+                <button
+                  type="button"
+                  className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50"
+                  onClick={() => void runExport('template')}
+                >
+                  Download empty template
+                </button>
+                <button
+                  type="button"
+                  className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:text-gray-400"
+                  disabled={selectedIds.size === 0}
+                  onClick={() => void runExport('selected')}
+                >
+                  Export selected{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
+                </button>
+                <button
+                  type="button"
+                  className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50"
+                  onClick={() => void runExport('all')}
+                >
+                  Export all products
+                </button>
+                <p className="border-t px-3 py-2 text-xs text-gray-500">
+                  The download is a zip with products.xlsx and an images folder. Put photo files in images and set image_path to images/photo.jpg.
+                </p>
+              </div>
+            )}
+          </div>
           <Button variant="outline" className="gap-2" onClick={() => setShowScanner(true)} disabled={scanLoading}>
             {scanLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ScanLine className="w-4 h-4 text-blue-500" />}
             Scan
@@ -657,9 +834,24 @@ export default function Products() {
 
           {/* ── Product-wise view ── */}
           {listViewMode === 'product' && (
-          <ResizableTable tableId="products-v2" defaultWidths={[280, 120, 90, 100, 110, 110, 120]}>
+          <ResizableTable
+            tableId={showSelect ? 'products-v3' : 'products-v2'}
+            defaultWidths={showSelect ? [44, 280, 120, 90, 100, 110, 110, 120] : [280, 120, 90, 100, 110, 110, 120]}
+          >
             <thead>
               <tr className="border-b bg-gray-50/80">
+                {showSelect && (
+                  <th className="px-3 py-3">
+                    <input
+                      ref={pageCheckboxRef}
+                      type="checkbox"
+                      className="rounded"
+                      aria-label="Select all products on this page"
+                      checked={pageAllSelected}
+                      onChange={(event) => togglePageSelection(event.target.checked)}
+                    />
+                  </th>
+                )}
                 {([
                   { key: 'name', label: 'Product', px: 'px-5', align: 'text-left' },
                   { key: 'brand', label: 'Brand', px: 'px-4', align: 'text-left' },
@@ -694,10 +886,10 @@ export default function Products() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {isLoading ? (
-                <tr><td colSpan={7} className="px-6 py-16 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" /></td></tr>
+                <tr><td colSpan={showSelect ? 8 : 7} className="px-6 py-16 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" /></td></tr>
               ) : !displayProducts.length ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-16 text-center">
+                  <td colSpan={showSelect ? 8 : 7} className="px-6 py-16 text-center">
                     <Package className="w-12 h-12 text-gray-200 mx-auto mb-3" />
                     {showDeleted ? (
                       <>
@@ -741,6 +933,17 @@ export default function Products() {
                   className={`hover:bg-gray-50/80 transition-colors group ${showDeleted ? '' : 'cursor-pointer'}`}
                   onClick={showDeleted ? undefined : onClickableTableRow(() => navigate(`/products/${product.id}`))}
                 >
+                  {showSelect && (
+                    <td className="px-3 py-3">
+                      <input
+                        type="checkbox"
+                        className="rounded"
+                        aria-label={`Select ${product.name}`}
+                        checked={selectedIds.has(product.id)}
+                        onChange={(event) => toggleRowSelection(product.id, event.target.checked)}
+                      />
+                    </td>
+                  )}
                   <td className="px-5 py-3 max-w-[280px]">
                     <div className="flex items-center gap-3 min-w-0">
                       <CatalogListThumb src={thumbUrl} alt={product.name} />
@@ -1387,6 +1590,47 @@ export default function Products() {
                 'Move to trash'
               )}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!importResult} onOpenChange={(open) => { if (!open) setImportResult(null) }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Import finished</DialogTitle>
+            <DialogDescription>
+              {importResult
+                ? `${importResult.created} created, ${importResult.skipped} skipped, ${importResult.failed} failed. Existing SKU, material code, or name was left unchanged.${
+                    importResult.ignored_examples
+                      ? ` ${importResult.ignored_examples} example row${importResult.ignored_examples === 1 ? '' : 's'} ignored.`
+                      : ''
+                  }`
+                : ''}
+            </DialogDescription>
+          </DialogHeader>
+          {importResult && importResult.rows.length > 0 && (
+            <div className="max-h-72 space-y-1 overflow-y-auto text-sm">
+              {importResult.rows.slice(0, 40).map((row) => (
+                <div key={`${row.row}-${row.name}`} className="flex gap-2 rounded-md px-2 py-1.5 odd:bg-gray-50">
+                  <span className="w-12 shrink-0 text-xs text-gray-400">Row {row.row}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="font-medium">{row.name || 'Untitled'}</span>
+                    <span className="block text-xs text-gray-500">{row.message}</span>
+                  </span>
+                  <span className={`shrink-0 text-xs font-medium capitalize ${
+                    row.result === 'created' ? 'text-green-700' : row.result === 'skipped' ? 'text-amber-700' : 'text-red-600'
+                  }`}>
+                    {row.result}
+                  </span>
+                </div>
+              ))}
+              {importResult.rows.length > 40 && (
+                <p className="px-2 pt-1 text-xs text-gray-400">{importResult.rows.length - 40} more rows are not shown.</p>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button type="button" onClick={() => setImportResult(null)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

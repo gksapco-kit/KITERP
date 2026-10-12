@@ -1216,6 +1216,23 @@ export const vendorApi = {
     return response.data
   },
 
+  exportProducts: async (body: { mode: 'template' | 'selected' | 'all'; product_ids?: string[] }) => {
+    return apiClient.post('/vendors/me/products/export', body, { responseType: 'blob', timeout: 120_000 })
+  },
+
+  importProducts: async (file: File): Promise<{
+    created: number
+    skipped: number
+    failed: number
+    ignored_examples?: number
+    rows: { row: number; name: string; result: 'created' | 'skipped' | 'failed'; status?: string | null; message: string }[]
+  }> => {
+    const form = new FormData()
+    form.append('file', file)
+    const response = await apiClient.post('/vendors/me/products/import', form, { timeout: 120_000 })
+    return response.data
+  },
+
   // ── Services ──────────────────────────────────────────────
   listServices: async (params?: Record<string, unknown>): Promise<PaginatedResponse<Service>> => {
     const response = await apiClient.get('/vendors/me/services', { params })

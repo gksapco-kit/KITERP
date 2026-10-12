@@ -1,6 +1,6 @@
 # app/api/v1/vendor_products.py
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, Form
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from fastapi.encoders import jsonable_encoder
 from pydantic import ValidationError, BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,6 +27,7 @@ from app.repositories.product_repo import ProductRepository
 from app.services.media_upload import save_media_file, detect_media_type
 from app.services.catalog_store_scope import sync_product_stores
 from app.services.material_code import generate_product_material_code
+from app.services.product_import_export import export_product_zip, import_product_sheet
 
 from datetime import date as date_type, datetime
 
@@ -621,6 +622,58 @@ async def create_product(
 
     product = await repo.get_by_vendor_and_id(vendor_id, product.id)
     return JSONResponse(content=_product_to_dict(product), status_code=201)
+
+
+class ProductExportRequest(BaseModel):
+    mode: str = "template"
+    product_ids: List[UUID] = []
+
+
+@router.post("/export")
+async def export_products(
+    body: ProductExportRequest,
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Download a zip with products.xlsx and an images folder."""
+    try:
+        payload, filename = await export_product_zip(
+            db,
+            vendor_id,
+            mode=body.mode,
+            product_ids=body.product_ids,
+        )
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc
+    return Response(
+        content=payload,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post("/import", dependencies=[Depends(require_permission("products.create"))])
+async def import_products(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create products from an xlsx, csv, or zip. Existing products are skipped."""
+    data = await file.read()
+    if len(data) > 40 * 1024 * 1024:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "File is larger than 40 MB.")
+    try:
+        summary = await import_product_sheet(
+            db,
+            vendor_id,
+            current_user,
+            file.filename or "",
+            data,
+        )
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc
+    return summary.as_dict()
 
 
 @router.get("/{product_id}")
