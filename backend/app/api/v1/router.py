@@ -5,7 +5,7 @@ from app.api.v1 import (
     auth, vendors, vendor_relationship_manager, vendor_contact_change, vendor_products, vendor_product_config, vendor_variant_generator, vendor_variant_management, vendor_services, vendor_categories,
     vendor_orders, vendor_customers, vendor_reviews,
     vendor_team, vendor_roles, vendor_inventory, vendor_storage_locations, vendor_plants, vendor_procurement,
-    vendor_pos, vendor_invoices, vendor_invoice_templates, vendor_coupons,
+    vendor_pos, vendor_invoices, vendor_coupons,
     vendor_reports, vendor_sales_reports, vendor_template,
     vendor_bookings, vendor_projects, vendor_notifications, vendor_merchandising, vendor_loyalty,
     vendor_mrp, vendor_hr, vendor_hr_extra, vendor_stores, vendor_sales_area, vendor_message_config, vendor_production,
@@ -137,7 +137,6 @@ api_router.include_router(vendor_restaurant.router, prefix="/vendors/me/restaura
 api_router.include_router(vendor_restaurants.router, prefix="/vendors/me", tags=["Restaurant Outlets"])
 api_router.include_router(public_restaurant.router, prefix="/public/restaurant", tags=["Public Restaurant"])
 api_router.include_router(vendor_invoices.router, prefix="/vendors/me/invoices", tags=["Vendor Invoices"])
-api_router.include_router(vendor_invoice_templates.router, prefix="/vendors/me/invoice-templates", tags=["Vendor Invoice Templates"])
 api_router.include_router(vendor_coupons.router, prefix="/vendors/me/coupons", tags=["Vendor Coupons"])
 api_router.include_router(vendor_reports.router, prefix="/vendors/me/reports", tags=["Vendor Reports"])
 api_router.include_router(vendor_sales_reports.router, prefix="/vendors/me/sales-reports", tags=["Sales Manager Reports"])

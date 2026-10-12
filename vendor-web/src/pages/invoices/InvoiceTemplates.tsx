@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
-  useInvoiceSettings, useUpdateInvoiceSettings, useUploadInvoiceSignature,
-  useQuotationSettings, useUpdateQuotationSettings, useUploadQuotationSignature,
+  useInvoiceSettings, useUpdateInvoiceSettings,
+  useQuotationSettings, useUpdateQuotationSettings,
+  usePosReceiptSettings, useSavePosReceiptSettings, useUploadDocumentAsset,
 } from '@/hooks/useVendor'
 import { useQuery } from '@tanstack/react-query'
 import { vendorApi } from '@/api/vendor'
@@ -21,9 +22,9 @@ import { InvoiceAccentColorPicker } from '@/components/invoices/InvoiceAccentCol
 import {
   generateInvoiceHtml, mergeInvoiceTemplatePages, createBlankInvoiceContinuationPage,
   DEFAULT_INVOICE_SETTINGS, DEFAULT_QUOTATION_SETTINGS, PAPER_SIZES,
-  loadPosInvoiceSettings, savePosInvoiceSettings, DEFAULT_LAYOUT_SECTIONS, resolveInvoiceTemplateLogoPath,
+  DEFAULT_LAYOUT_SECTIONS, resolveInvoiceTemplateLogoPath,
   LOGO_SHAPES, URL_POSITION_OPTIONS,
-  INVOICE_TEMPLATE_LABELS,
+  INVOICE_TEMPLATE_LABELS, normalizeInvoiceTemplateId,
 } from '@/lib/invoiceTemplates'
 import type { InvoiceSettings, PaperSize, LayoutSection, LogoShape, InvoiceTemplateId } from '@/lib/invoiceTemplates'
 import { DocumentLivePreview } from '@/components/common/DocumentLivePreview'
@@ -40,13 +41,14 @@ function resolveOriginPath(url: string) {
   return `${window.location.origin}${url}`
 }
 
-async function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = ev => resolve(ev.target?.result as string)
-    reader.onerror = () => reject(new Error('read failed'))
-    reader.readAsDataURL(file)
-  })
+/** Turn a canvas data URL into a File so it can go through the normal image upload. */
+function dataUrlToFile(dataUrl: string, filename: string): File {
+  const [meta, b64 = ''] = dataUrl.split(',')
+  const mime = /data:([^;]+)/.exec(meta)?.[1] || 'image/png'
+  const bin = atob(b64)
+  const bytes = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+  return new File([bytes], filename, { type: mime })
 }
 
 function templateLabelFor(id: InvoiceTemplateId | undefined): string {
@@ -120,7 +122,7 @@ function LogoShapeIcon({ shape, selected }: { shape: LogoShape; selected?: boole
   )
 }
 
-// â”€â”€ Template theme grid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Template theme grid ───────────────────────────────────────────────────────
 
 function TemplateThemeGrid({
   selectedId,
@@ -262,7 +264,7 @@ function InvoiceDocumentPreview({
 // Shows a scaled A4 page with the margin zone (blue tint) and content area
 // (white) so the user instantly sees the effect of the slider value.
 
-// â”€â”€ Layout Section Drag-and-Drop Editor â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Layout Section Drag-and-Drop Editor ───────────────────────────────────────
 
 function LayoutEditor({
   sections,
@@ -345,7 +347,7 @@ function LayoutEditor({
   )
 }
 
-// â”€â”€ Font Size Selector â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Font Size Selector ────────────────────────────────────────────────────────
 
 function FontSizeSelector({
   value,
@@ -381,7 +383,7 @@ function MarginPreview({ margin, orientation = 'portrait' }: { margin: number; o
   const isLandscape = orientation === 'landscape'
   const W     = isLandscape ? 112 : 80            // preview pixel width
   const H     = isLandscape ? Math.round((210 / 297) * W) : Math.round((297 / 210) * W)
-  const scale = W / (isLandscape ? 297 : 210)     // 1 mm â†’ px in preview
+  const scale = W / (isLandscape ? 297 : 210)     // 1 mm → px in preview
   const mPx   = Math.max(1, Math.round(margin * scale))
 
   const LINES = [55, 30, 70, 40, 55, 35, 65, 28, 50, 38, 62]
@@ -390,7 +392,7 @@ function MarginPreview({ margin, orientation = 'portrait' }: { margin: number; o
     <div className="flex flex-col items-center gap-1 shrink-0">
       <div
         style={{ width: W, height: H, position: 'relative', backgroundColor: '#e0e7ff', borderRadius: 2, boxShadow: '0 1px 4px rgba(0,0,0,.18)' }}
-        title={margin === 0 ? 'Full bleed â€” no margin' : `${margin} mm margin on each side`}
+        title={margin === 0 ? 'Full bleed — no margin' : `${margin} mm margin on each side`}
       >
         {/* Content area (white inset) */}
         <div style={{
@@ -433,7 +435,7 @@ function MarginPreview({ margin, orientation = 'portrait' }: { margin: number; o
   )
 }
 
-// â”€â”€ Accordion section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Accordion section ─────────────────────────────────────────────────────────
 
 function AccordionSection({ title, badge, children, defaultOpen = false }: {
   title: string; badge?: string; children: React.ReactNode; defaultOpen?: boolean
@@ -531,7 +533,7 @@ function WebsiteUrlSettings({
             </div>
             {(settings.url_position ?? 'auto') === 'auto' && (
               <p className="text-xs text-blue-600 mt-2">
-                Auto uses the best spot for <strong>{templateLabelFor(settings.template)}</strong> (e.g. logo-left themes â†’ header left).
+                Auto uses the best spot for <strong>{templateLabelFor(settings.template)}</strong> (e.g. logo-left themes → header left).
               </p>
             )}
           </div>
@@ -544,7 +546,7 @@ function WebsiteUrlSettings({
   )
 }
 
-// â”€â”€ Signature drawing canvas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Signature drawing canvas ──────────────────────────────────────────────────
 
 function SignaturePad({ onSave, onClear }: { onSave: (dataUrl: string) => void; onClear: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -636,7 +638,7 @@ function SignaturePad({ onSave, onClear }: { onSave: (dataUrl: string) => void; 
   )
 }
 
-// â”€â”€ Sample invoice data for preview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Sample invoice data for preview ──────────────────────────────────────────
 
 const SAMPLE_INVOICE = {
   invoice_number: 'INV/2025-26/001',
@@ -692,7 +694,7 @@ const SAMPLE_QUOTATION = {
   booking_number: undefined,
 }
 
-// â”€â”€ Main Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function InvoiceSettingsPage() {
   const navigate = useNavigate()
@@ -708,9 +710,7 @@ export default function InvoiceSettingsPage() {
   const updateInvoiceSettings = useUpdateInvoiceSettings()
   const updateQuotationSettings = useUpdateQuotationSettings()
   const updateSettings = isQuotationMode ? updateQuotationSettings : updateInvoiceSettings
-  const uploadInvoiceSignature = useUploadInvoiceSignature()
-  const uploadQuotationSignature = useUploadQuotationSignature()
-  const uploadSignature = isQuotationMode ? uploadQuotationSignature : uploadInvoiceSignature
+  const uploadAsset = useUploadDocumentAsset()
 
   // Tab: 'invoice' = standard customer invoice (API-backed), 'pos' = POS receipt (localStorage)
   const [activeTab, setActiveTab] = useState<'invoice' | 'pos'>('invoice')
@@ -727,26 +727,56 @@ export default function InvoiceSettingsPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [sigMode, setSigMode] = useState<'upload' | 'draw'>('upload')
 
-  // POS-specific settings (localStorage)
-  const [posSettings, setPosSettings] = useState<Partial<InvoiceSettings>>(
-    () => loadPosInvoiceSettings()
-  )
+  // POS-specific settings (stored per vendor on the server; shared by every terminal)
+  const { data: serverPosSettings } = usePosReceiptSettings()
+  const savePosReceiptSettings = useSavePosReceiptSettings()
+  const [posSettings, setPosSettings] = useState<Partial<InvoiceSettings>>({})
+  // Copy server values into the editor when they arrive / after a save (never on focus: refetch is off).
+  useEffect(() => {
+    if (!serverPosSettings) return
+    const next = { ...serverPosSettings }
+    if (next.template) next.template = normalizeInvoiceTemplateId(next.template)
+    const pages = (next.template_pages_html || '').trim()
+    if (pages && countOfferPages(pages) <= 1) next.template_pages_html = ''
+    setPosSettings(next)
+  }, [serverPosSettings])
   const [posPreviewHtml, setPosPreviewHtml] = useState('')
   const [posPreviewPagesHtml, setPosPreviewPagesHtml] = useState('')
   const posMerged = (): InvoiceSettings => ({ ...DEFAULT_INVOICE_SETTINGS, ...settings, ...posSettings })
 
-  const setPos = <K extends keyof InvoiceSettings>(k: K, v: InvoiceSettings[K]) =>
-    setPosSettings(prev => ({ ...prev, [k]: v }))
+  const setPos = <K extends keyof InvoiceSettings>(k: K, v: InvoiceSettings[K]) => {
+    setPosSettings(prev => {
+      const next = { ...prev, [k]: v }
+      if (k !== 'template_pages_html' && prev.template_pages_html) next.template_pages_html = ''
+      return next
+    })
+    if (k !== 'template_pages_html') setPosPreviewPagesHtml('')
+  }
+
+  const selectPosTemplate = useCallback((id: InvoiceTemplateId) => {
+    setPosPreviewPagesHtml('')
+    setPosSettings(prev => ({ ...prev, template: id, template_pages_html: '' }))
+  }, [])
 
   // Load settings from API
   useEffect(() => {
     const base = isQuotationMode ? DEFAULT_QUOTATION_SETTINGS : DEFAULT_INVOICE_SETTINGS
     if (rawSettings && Object.keys(rawSettings).length > 0) {
       const merged = { ...base, ...(rawSettings as Partial<InvoiceSettings>) }
+      merged.template = normalizeInvoiceTemplateId(merged.template)
+      // Single-page editor snapshots freeze outdated generator HTML (wrong columns,
+      // wrong template). Drop them on load so the live template always applies.
+      const pages = (merged.template_pages_html || '').trim()
+      if (pages && countOfferPages(pages) <= 1) {
+        merged.template_pages_html = ''
+      }
       setSettings(merged)
       setPreviewPagesHtml(merged.template_pages_html || '')
-    } else if (isQuotationMode) {
-      setSettings({ ...DEFAULT_QUOTATION_SETTINGS })
+    } else {
+      // Nothing saved yet for this document type: always fall back to *its* defaults so
+      // switching between /invoices/templates and /quotations/templates never leaks state.
+      setSettings({ ...base })
+      setPreviewPagesHtml('')
     }
   }, [rawSettings, isQuotationMode])
 
@@ -775,6 +805,8 @@ export default function InvoiceSettingsPage() {
       terms_and_conditions: settings.default_terms || sampleBase.terms_and_conditions,
     }
     const generated = generateInvoiceHtml(sampleData, settings, window.location.origin)
+    // mergeInvoiceTemplatePages ignores stale single-page snapshots so Design
+    // settings (template, columns, totals) always win over a frozen editor copy.
     const stored = previewPagesHtml || settings.template_pages_html
     setPreviewHtml(mergeInvoiceTemplatePages(generated, { template_pages_html: stored }, true))
   }, [settings, previewPagesHtml, vendor, vendorLogo, vendorWebsiteFallback, isQuotationMode])
@@ -802,7 +834,22 @@ export default function InvoiceSettingsPage() {
   }, [posSettings, posPreviewPagesHtml, settings, vendor, vendorLogo, vendorWebsiteFallback])
 
   const set = useCallback(<K extends keyof InvoiceSettings>(key: K, value: InvoiceSettings[K]) => {
-    setSettings(prev => ({ ...prev, [key]: value }))
+    // Any Design/Content change must drop a frozen single-page snapshot, otherwise
+    // the editable preview keeps showing the old generated HTML.
+    setSettings(prev => {
+      const next: InvoiceSettings = { ...prev, [key]: value }
+      if (key !== 'template_pages_html' && prev.template_pages_html) {
+        next.template_pages_html = ''
+      }
+      return next
+    })
+    if (key !== 'template_pages_html') setPreviewPagesHtml('')
+  }, [])
+
+  /** Switching layout must drop the editable preview snapshot or the old HTML stays frozen. */
+  const selectTemplate = useCallback((id: InvoiceTemplateId) => {
+    setPreviewPagesHtml('')
+    setSettings(prev => ({ ...prev, template: id, template_pages_html: '' }))
   }, [])
 
   const handlePreviewPagesChange = useCallback((html: string) => {
@@ -858,15 +905,19 @@ export default function InvoiceSettingsPage() {
     }
   }
 
-  const handlePosSave = () => {
-    savePosInvoiceSettings(posSettings)
-    toast.success('POS receipt template saved!')
+  const handlePosSave = async () => {
+    try {
+      await savePosReceiptSettings.mutateAsync(posSettings)
+      toast.success('POS receipt template saved!')
+    } catch { /* error toast shown by the mutation */ }
   }
 
-  const handlePosReset = () => {
-    setPosSettings({})
-    savePosInvoiceSettings({})
-    toast.success('POS template reset to match invoice settings')
+  const handlePosReset = async () => {
+    try {
+      await savePosReceiptSettings.mutateAsync({})
+      setPosSettings({})
+      toast.success('POS template reset to match invoice settings')
+    } catch { /* error toast shown by the mutation */ }
   }
 
   const removeLogo = () => {
@@ -874,31 +925,33 @@ export default function InvoiceSettingsPage() {
     toast.success('Logo removed from invoice template')
   }
 
+  // Template images are uploaded as files (never inlined as base64 in the settings) and only become
+  // part of the saved template when the user presses Save. The company logo is not touched.
   const uploadLogo = async (file: File) => {
     try {
-      const result = await vendorApi.uploadVendorLogo(file)
-      set('logo_url', result.logo_url)
-      toast.success('Logo updated!')
-    } catch {
-      toast.error('Could not upload logo â€” use a PNG or JPG file under 2MB')
-    }
+      const { url } = await uploadAsset.mutateAsync({ kind: 'logo', file })
+      set('logo_url', url)
+      toast.success('Logo set for this template — click Save to apply (company logo is unchanged)')
+    } catch { /* error toast shown by the mutation */ }
   }
 
   const applySignatureUpload = async (file: File) => {
-    const result = await uploadSignature.mutateAsync(file)
-    set('signature_url', result.signature_url)
+    const { url } = await uploadAsset.mutateAsync({ kind: 'signature', file })
+    set('signature_url', url)
+    toast.success('Signature added — click Save to apply')
   }
 
-  const applyDrawnSignatureSave = async (file: File) => {
-    set('signature_url', await fileToDataUrl(file))
-  }
+  // A drawn signature arrives as a PNG file from the canvas, so it takes the same upload path.
+  const applyDrawnSignatureSave = applySignatureUpload
 
   const applyQrDataUrl = async (file: File) => {
-    set('qr_code_url', await fileToDataUrl(file))
+    const { url } = await uploadAsset.mutateAsync({ kind: 'qr', file })
+    set('qr_code_url', url)
   }
 
   const applyPosQrDataUrl = async (file: File) => {
-    setPos('qr_code_url', await fileToDataUrl(file))
+    const { url } = await uploadAsset.mutateAsync({ kind: 'qr', file })
+    setPos('qr_code_url', url)
   }
 
   if (isLoading) {
@@ -917,7 +970,7 @@ export default function InvoiceSettingsPage() {
             <h1 className="text-xl font-bold text-gray-900">{isQuotationMode ? 'Quotation Templates' : 'Invoice Settings'}</h1>
             <p className="text-xs text-gray-500">
               {isQuotationMode
-                ? 'Customise quotation print and PDF templates â€” layout, branding, and content'
+                ? 'Customise quotation print and PDF templates — layout, branding, and content'
                 : 'Customise how your invoices look and what they include'}
             </p>
           </div>
@@ -928,7 +981,13 @@ export default function InvoiceSettingsPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={activeTab === 'pos' ? handlePosReset : () => setSettings({ ...DEFAULT_INVOICE_SETTINGS })}
+                onClick={() => {
+                  if (!window.confirm(activeTab === 'pos'
+                    ? 'Reset the POS receipt template to match your invoice settings?'
+                    : 'Reset all invoice settings to defaults? Unsaved changes will be lost.')) return
+                  if (activeTab === 'pos') handlePosReset()
+                  else setSettings({ ...DEFAULT_INVOICE_SETTINGS })
+                }}
                 className="h-9 min-w-[5.5rem] gap-1.5 text-xs text-gray-600"
                 title={activeTab === 'pos' ? 'Reset POS template to match invoice settings' : 'Reset all settings to defaults'}
               >
@@ -958,7 +1017,10 @@ export default function InvoiceSettingsPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setSettings({ ...DEFAULT_QUOTATION_SETTINGS })}
+              onClick={() => {
+                if (!window.confirm('Reset all quotation settings to defaults? Unsaved changes will be lost.')) return
+                setSettings({ ...DEFAULT_QUOTATION_SETTINGS })
+              }}
               className="gap-1.5 text-xs text-gray-600"
               title="Reset all settings to defaults"
             >
@@ -968,11 +1030,11 @@ export default function InvoiceSettingsPage() {
 
           <Button
             onClick={!isQuotationMode && activeTab === 'pos' ? handlePosSave : handleSave}
-            disabled={isSaving && (isQuotationMode || activeTab === 'invoice')}
+            disabled={(isSaving && (isQuotationMode || activeTab === 'invoice')) || (!isQuotationMode && activeTab === 'pos' && savePosReceiptSettings.isPending)}
             className="h-9 min-w-[9.5rem] gap-2 bg-primary hover:bg-primary/90"
             title={!isQuotationMode && activeTab === 'pos' ? 'Save POS receipt template' : undefined}
           >
-            {isSaving && (isQuotationMode || activeTab === 'invoice') ? (
+            {(isSaving && (isQuotationMode || activeTab === 'invoice')) || (!isQuotationMode && activeTab === 'pos' && savePosReceiptSettings.isPending) ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <Check className="w-4 h-4 shrink-0" />
@@ -982,7 +1044,7 @@ export default function InvoiceSettingsPage() {
         </div>
       </div>
 
-      {/* â”€â”€ POS Receipt Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ── POS Receipt Tab ─────────────────────────────────────── */}
       {!isQuotationMode && activeTab === 'pos' && (
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] gap-6">
           <InvoiceDocumentPreview
@@ -990,7 +1052,7 @@ export default function InvoiceSettingsPage() {
             title="POS Preview"
             paperSize={posMerged().paper_size}
             templateId={posMerged().template}
-            onTemplateChange={id => setPos('template', id)}
+            onTemplateChange={selectPosTemplate}
             pageCount={posPageCount}
             onPagesChange={handlePosPreviewPagesChange}
             createBlankPage={createPosBlankPage}
@@ -1002,7 +1064,7 @@ export default function InvoiceSettingsPage() {
               <strong>POS Receipt</strong> settings override the Customer Invoice template only for POS transactions.
             </div>
 
-            {/* â”€â”€ POS Tab bar â”€â”€ */}
+            {/* ── POS Tab bar ── */}
             <div className="flex gap-0.5 bg-gray-100 rounded-xl p-1">
               {([
                 { id: 'design',  label: 'Design',  icon: Palette },
@@ -1024,15 +1086,15 @@ export default function InvoiceSettingsPage() {
               ))}
             </div>
 
-            {/* â”€â”€ POS DESIGN tab â”€â”€ */}
+            {/* ── POS DESIGN tab ── */}
             {posTab === 'design' && <>
-            {/* â”€â”€ Template + Layout Editor side-by-side â”€â”€ */}
+            {/* ── Template + Layout Editor side-by-side ── */}
             <AccordionSection title="Template" badge={templateLabelFor(posMerged().template)} defaultOpen>
               <div className="flex gap-3">
                 <TemplateThemeGrid
                   selectedId={posMerged().template}
                   accentColor={posMerged().color}
-                  onSelect={id => setPos('template', id)}
+                  onSelect={selectPosTemplate}
                 />
 
                 {/* Layout Editor - right panel within Template */}
@@ -1050,7 +1112,7 @@ export default function InvoiceSettingsPage() {
                   </div>
                   <div>
                     <SectionLabel className="mb-1">Section Order</SectionLabel>
-                    <p className="text-xs text-gray-400 mb-1.5 leading-tight">Drag to reorder Â· eye to hide</p>
+                    <p className="text-xs text-gray-400 mb-1.5 leading-tight">Drag to reorder · eye to hide</p>
                     {(posMerged().layout_sections ?? DEFAULT_LAYOUT_SECTIONS.map(s => ({ ...s }))).map((s, idx, arr) => (
                       <div key={s.id}
                         draggable
@@ -1086,7 +1148,7 @@ export default function InvoiceSettingsPage() {
               </div>
             </AccordionSection>
 
-            {/* â”€â”€ Paper Size + Colour side-by-side â”€â”€ */}
+            {/* ── Paper Size + Colour side-by-side ── */}
             <div className="grid grid-cols-2 gap-3">
               <AccordionSection title="Paper Size" defaultOpen>
                 <div className="space-y-1.5">
@@ -1115,14 +1177,14 @@ export default function InvoiceSettingsPage() {
 
             </>}
 
-            {/* â”€â”€ POS CONTENT tab â”€â”€ */}
+            {/* ── POS CONTENT tab ── */}
             {posTab === 'content' && <>
             <WebsiteUrlSettings
               settings={posMerged()}
               set={(k, v) => setPos(k, v)}
               vendorWebsiteFallback={vendorWebsiteFallback}
             />
-            {/* â”€â”€ POS: Discounts â”€â”€ */}
+            {/* ── POS: Discounts ── */}
             <AccordionSection title="Discounts" defaultOpen>
               <ToggleRow
                 label="Show discount on receipt"
@@ -1157,7 +1219,7 @@ export default function InvoiceSettingsPage() {
               )}
             </AccordionSection>
 
-            {/* â”€â”€ POS: Tax â”€â”€ */}
+            {/* ── POS: Tax ── */}
             <AccordionSection title="Tax">
               <ToggleRow label="Show tax breakdown (CGST / SGST / IGST)" hint="When off, shows a single combined tax row"
                 checked={posMerged().show_tax_breakdown} onChange={v => setPos('show_tax_breakdown', v)} />
@@ -1189,7 +1251,7 @@ export default function InvoiceSettingsPage() {
               </div>
             </AccordionSection>
 
-            {/* â”€â”€ Watermark â”€â”€ */}
+            {/* ── Watermark ── */}
             <AccordionSection title="Document Stamp / Watermark">
               <div className="flex flex-wrap gap-1.5 mb-2">
                 {['', 'ORIGINAL', 'DUPLICATE', 'COPY', 'DRAFT', 'CANCELLED'].map(w => (
@@ -1208,9 +1270,9 @@ export default function InvoiceSettingsPage() {
                     <Label className="text-xs text-gray-500 mb-1.5 block">Position</Label>
                     <div className="flex gap-1.5">
                       {([
-                        { id: 'top',      label: 'â–² Top' },
-                        { id: 'bottom',   label: 'â–¼ Bottom' },
-                        { id: 'diagonal', label: 'â¤¢ Diagonal' },
+                        { id: 'top',      label: '▲ Top' },
+                        { id: 'bottom',   label: '▼ Bottom' },
+                        { id: 'diagonal', label: '⤢ Diagonal' },
                       ] as { id: 'top' | 'bottom' | 'diagonal'; label: string }[]).map(p => (
                         <button key={p.id} onClick={() => setPos('watermark_position', p.id)}
                           className={`flex-1 text-xs py-1.5 rounded border transition-colors ${(posMerged().watermark_position ?? 'diagonal') === p.id ? 'bg-primary text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
@@ -1256,7 +1318,7 @@ export default function InvoiceSettingsPage() {
               )}
             </AccordionSection>
 
-            {/* â”€â”€ POS: QR Code â”€â”€ */}
+            {/* ── POS: QR Code ── */}
             <AccordionSection title="QR Code" badge="Print on receipt">
               <ToggleRow
                 label="Print QR code on receipt"
@@ -1292,15 +1354,13 @@ export default function InvoiceSettingsPage() {
                   <div className="flex-1 min-w-0 space-y-1.5">
                     <input
                       type="file"
-                      accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                      accept="image/png,image/jpeg,image/webp"
                       className="hidden"
                       id="pos-qr-upload"
                       onChange={e => {
                         const file = e.target.files?.[0]
                         if (!file) return
-                        const reader = new FileReader()
-                        reader.onload = ev => setPos('qr_code_url', ev.target?.result as string)
-                        reader.readAsDataURL(file)
+                        applyPosQrDataUrl(file).catch(() => { /* toast shown by mutation */ })
                         e.target.value = ''
                       }}
                     />
@@ -1310,7 +1370,7 @@ export default function InvoiceSettingsPage() {
                       </Button>
                     </label>
                     <p className="text-xs text-gray-400 leading-snug">
-                      PNG, JPG, SVG, WebP Â· Max 2 MB<br />
+                      PNG, JPG, SVG, WebP · Max 2 MB<br />
                       Generate via any UPI / payment app
                     </p>
                   </div>
@@ -1328,8 +1388,8 @@ export default function InvoiceSettingsPage() {
                   <Label className="text-xs text-gray-500 mb-1.5 block">Position on receipt</Label>
                   <div className="flex gap-1.5">
                     {([
-                      { id: 'footer', label: 'â–¼ Footer', hint: 'Next to signature at bottom' },
-                      { id: 'header', label: 'â–² Header', hint: 'Next to logo at top' },
+                      { id: 'footer', label: '▼ Footer', hint: 'Next to signature at bottom' },
+                      { id: 'header', label: '▲ Header', hint: 'Next to logo at top' },
                     ] as { id: 'footer' | 'header'; label: string; hint: string }[]).map(p => (
                       <button
                         key={p.id}
@@ -1349,7 +1409,7 @@ export default function InvoiceSettingsPage() {
               </div>
             </AccordionSection>
 
-            {/* â”€â”€ POS: Display Options â”€â”€ */}
+            {/* ── POS: Display Options ── */}
             <div className="border rounded-xl overflow-hidden">
               <div className="px-3 py-2 bg-gray-50 border-b">
                 <span className="text-xs font-medium text-gray-600 uppercase tracking-wide">Display Options</span>
@@ -1357,7 +1417,7 @@ export default function InvoiceSettingsPage() {
               <div className="grid grid-cols-2 gap-px bg-gray-100 p-px">
                 {([
                   { label: 'Logo',                  key: 'show_logo',             val: posMerged().show_logo },
-                  { label: 'Copy Label (Originalâ€¦)', key: 'show_copy_label',       val: posMerged().show_copy_label ?? true },
+                  { label: 'Copy Label (Original…)', key: 'show_copy_label',       val: posMerged().show_copy_label ?? true },
                   { label: 'Vendor Address',         key: 'show_vendor_address',   val: posMerged().show_vendor_address ?? true },
                   { label: 'Website URL',            key: 'show_url',              val: posMerged().show_url ?? false },
                   { label: 'GSTIN (vendor + customer)', key: 'show_gstin',         val: posMerged().show_gstin },
@@ -1399,9 +1459,9 @@ export default function InvoiceSettingsPage() {
 
             </>}
 
-            {/* â”€â”€ POS EXPORT tab â”€â”€ */}
+            {/* ── POS EXPORT tab ── */}
             {posTab === 'export' && <>
-            {/* â”€â”€ PDF Layout (POS) â”€â”€ */}
+            {/* ── PDF Layout (POS) ── */}
             <AccordionSection title="PDF Download Layout" defaultOpen>
               <div className="space-y-4">
                 <div className="flex gap-3 items-start">
@@ -1429,7 +1489,7 @@ export default function InvoiceSettingsPage() {
                     {(['portrait', 'landscape'] as const).map(o => (
                       <button key={o} onClick={() => setPos('pdf_orientation', o)}
                         className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors ${(posMerged().pdf_orientation ?? 'portrait') === o ? 'bg-primary text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
-                        <span>{o === 'portrait' ? 'ðŸ“„' : 'ðŸ“‹'}</span>
+                        <span>{o === 'portrait' ? '📄' : '📋'}</span>
                         <span className="capitalize">{o}</span>
                       </button>
                     ))}
@@ -1460,7 +1520,7 @@ export default function InvoiceSettingsPage() {
         </div>
       )}
 
-      {/* â”€â”€ Customer Invoice Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ── Customer Invoice Tab ─────────────────────────────────── */}
       {(isQuotationMode || activeTab === 'invoice') && (
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] gap-6">
         <InvoiceDocumentPreview
@@ -1468,7 +1528,7 @@ export default function InvoiceSettingsPage() {
           title={isQuotationMode ? 'Quotation Preview' : 'Invoice Preview'}
           paperSize={settings.paper_size}
           templateId={settings.template}
-          onTemplateChange={id => set('template', id)}
+          onTemplateChange={selectTemplate}
           pageCount={invoicePageCount}
           onPagesChange={handlePreviewPagesChange}
           createBlankPage={createInvoiceBlankPage}
@@ -1477,7 +1537,7 @@ export default function InvoiceSettingsPage() {
         {/* Right: Settings Panel */}
         <div className="space-y-3">
 
-          {/* â”€â”€ Tab bar â”€â”€ */}
+          {/* ── Tab bar ── */}
           <div className="flex gap-0.5 bg-gray-100 rounded-xl p-1">
             {([
               { id: 'design',   label: 'Design',   icon: Palette },
@@ -1500,15 +1560,15 @@ export default function InvoiceSettingsPage() {
             ))}
           </div>
 
-          {/* â”€â”€ DESIGN tab â”€â”€ */}
+          {/* ── DESIGN tab ── */}
           {settingsTab === 'design' && <>
-          {/* â”€â”€ Themes + Layout Editor (side-by-side) â”€â”€ */}
+          {/* ── Themes + Layout Editor (side-by-side) ── */}
           <AccordionSection title="Themes" badge={templateLabelFor(settings.template)} defaultOpen>
             <div className="flex gap-3">
               <TemplateThemeGrid
                 selectedId={settings.template}
                 accentColor={settings.color}
-                onSelect={id => set('template', id)}
+                onSelect={selectTemplate}
               />
 
               {/* Layout Editor - right panel within Themes */}
@@ -1527,7 +1587,7 @@ export default function InvoiceSettingsPage() {
 
                 <div>
                   <SectionLabel className="mb-1">Section Order</SectionLabel>
-                  <p className="text-xs text-gray-400 mb-1.5 leading-tight">Drag to reorder Â· eye to hide</p>
+                  <p className="text-xs text-gray-400 mb-1.5 leading-tight">Drag to reorder · eye to hide</p>
                   {(settings.layout_sections ?? DEFAULT_LAYOUT_SECTIONS.map(s => ({ ...s }))).map((s, idx, arr) => (
                     <div key={s.id}
                       draggable
@@ -1563,7 +1623,7 @@ export default function InvoiceSettingsPage() {
             </div>
           </AccordionSection>
 
-          {/* â”€â”€ Paper Size + Theme Colour (side-by-side accordions) â”€â”€ */}
+          {/* ── Paper Size + Theme Colour (side-by-side accordions) ── */}
           <div className="grid grid-cols-2 gap-3">
             <AccordionSection title="Paper Size" defaultOpen>
               <div className="space-y-1.5">
@@ -1592,9 +1652,9 @@ export default function InvoiceSettingsPage() {
 
           </>}
 
-          {/* â”€â”€ BRANDING tab â”€â”€ */}
+          {/* ── BRANDING tab ── */}
           {settingsTab === 'branding' && <>
-          {/* â”€â”€ Company Logo â”€â”€ */}
+          {/* ── Company Logo ── */}
           <AccordionSection title="Company Logo" defaultOpen>
             <div className="flex items-center gap-3">
               {logoUrl ? (
@@ -1629,7 +1689,7 @@ export default function InvoiceSettingsPage() {
                   buttonSize="sm"
                   buttonClassName="gap-1.5 w-full cursor-pointer text-xs"
                 />
-                <p className="text-xs text-gray-400 mt-1">PNG, JPG, SVG â€¢ Max 2 MB</p>
+                <p className="text-xs text-gray-400 mt-1">PNG, JPG, SVG • Max 2 MB</p>
               </div>
             </div>
             <div className="mt-3">
@@ -1662,13 +1722,13 @@ export default function InvoiceSettingsPage() {
             vendorWebsiteFallback={vendorWebsiteFallback}
           />
 
-          {/* â”€â”€ Authorised Signature â”€â”€ */}
+          {/* ── Authorised Signature ── */}
           <AccordionSection title="Authorised Signature" badge="Draw or Upload">
             <div className="flex gap-1 bg-gray-100 rounded-lg p-1 mb-2">
               {(['upload', 'draw'] as const).map(m => (
                 <button key={m} onClick={() => setSigMode(m)}
                   className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${sigMode === m ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
-                  {m === 'upload' ? 'â¬† Upload' : 'âœ Draw'}
+                  {m === 'upload' ? '⬆ Upload' : '✏ Draw'}
                 </button>
               ))}
             </div>
@@ -1700,22 +1760,22 @@ export default function InvoiceSettingsPage() {
                   <ImageSourcePicker
                     title="Signature"
                     onFile={applySignatureUpload}
-                    disabled={uploadSignature.isPending}
-                    uploading={uploadSignature.isPending}
+                    disabled={uploadAsset.isPending}
+                    uploading={uploadAsset.isPending}
                     buttonLabel={settings.signature_url ? 'Change signature' : 'Upload signature'}
                     buttonVariant="outline"
                     buttonSize="sm"
                     buttonClassName="gap-1.5 w-full text-xs"
                   />
-                  <p className="text-xs text-gray-400 mt-1">PNG, JPG, SVG recommended</p>
+                  <p className="text-xs text-gray-400 mt-1">PNG, JPG or WebP, up to 2 MB</p>
                 </div>
               </div>
             ) : (
               <div className="space-y-2">
-                {settings.signature_url?.startsWith('data:') && (
+                {settings.signature_url && (
                   <SingleImagePreview
                     url={settings.signature_url}
-                    alt="Drawn signature"
+                    alt="Current signature"
                     className="rounded-lg w-full"
                     imgClassName="h-14 border rounded-lg p-2 bg-white object-contain w-full"
                     editable
@@ -1728,8 +1788,12 @@ export default function InvoiceSettingsPage() {
                   </SingleImagePreview>
                 )}
                 <SignaturePad
-                  onSave={dataUrl => set('signature_url', dataUrl)}
-                  onClear={() => { if (settings.signature_url?.startsWith('data:')) set('signature_url', '') }}
+                  onSave={dataUrl => {
+                    // Upload the drawing as a PNG file instead of inlining base64 into the settings.
+                    applyDrawnSignatureSave(dataUrlToFile(dataUrl, 'signature.png')).catch(() => { /* toast shown by mutation */ })
+                  }}
+                  // Clearing the canvas only resets the drawing; use the red × on the preview to remove the saved signature.
+                  onClear={() => {}}
                 />
               </div>
             )}
@@ -1746,7 +1810,7 @@ export default function InvoiceSettingsPage() {
             </div>
           </AccordionSection>
 
-          {/* â”€â”€ QR Code â”€â”€ */}
+          {/* ── QR Code ── */}
           <AccordionSection title="QR Code" badge="Print on document">
             <ToggleRow
               label="Print QR code on invoice"
@@ -1783,15 +1847,13 @@ export default function InvoiceSettingsPage() {
                 <div className="flex-1 min-w-0 space-y-1.5">
                   <input
                     type="file"
-                    accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                    accept="image/png,image/jpeg,image/webp"
                     className="hidden"
                     id="qr-upload"
                     onChange={e => {
                       const file = e.target.files?.[0]
                       if (!file) return
-                      const reader = new FileReader()
-                      reader.onload = ev => set('qr_code_url', ev.target?.result as string)
-                      reader.readAsDataURL(file)
+                      applyQrDataUrl(file).catch(() => { /* toast shown by mutation */ })
                       e.target.value = ''
                     }}
                   />
@@ -1801,7 +1863,7 @@ export default function InvoiceSettingsPage() {
                     </Button>
                   </label>
                   <p className="text-xs text-gray-400 leading-snug">
-                    PNG, JPG, SVG, WebP Â· Max 2 MB<br />
+                    PNG, JPG, SVG, WebP · Max 2 MB<br />
                     Generate a QR via any UPI / payment app
                   </p>
                 </div>
@@ -1823,8 +1885,8 @@ export default function InvoiceSettingsPage() {
                 <Label className="text-xs text-gray-500 mb-1.5 block">Position on document</Label>
                 <div className="flex gap-1.5">
                   {([
-                    { id: 'footer', label: 'â–¼ Footer', hint: 'Next to signature at the bottom' },
-                    { id: 'header', label: 'â–² Header', hint: 'Next to logo at the top' },
+                    { id: 'footer', label: '▼ Footer', hint: 'Next to signature at the bottom' },
+                    { id: 'header', label: '▲ Header', hint: 'Next to logo at the top' },
                   ] as { id: 'footer' | 'header'; label: string; hint: string }[]).map(p => (
                     <button
                       key={p.id}
@@ -1846,9 +1908,9 @@ export default function InvoiceSettingsPage() {
 
           </>}
 
-          {/* â”€â”€ CONTENT tab â”€â”€ */}
+          {/* ── CONTENT tab ── */}
           {settingsTab === 'content' && <>
-          {/* â”€â”€ Document Watermark â”€â”€ */}
+          {/* ── Document Watermark ── */}
           <AccordionSection title="Document Stamp / Watermark" defaultOpen>
             {/* Presets */}
             <div className="flex flex-wrap gap-1.5 mb-2">
@@ -1869,9 +1931,9 @@ export default function InvoiceSettingsPage() {
                   <Label className="text-xs text-gray-500 mb-1.5 block">Position</Label>
                   <div className="flex gap-1.5">
                     {([
-                      { id: 'top',      label: 'â–² Top',      hint: 'Banner at top' },
-                      { id: 'bottom',   label: 'â–¼ Bottom',   hint: 'Banner at bottom' },
-                      { id: 'diagonal', label: 'â¤¢ Diagonal', hint: 'Full-page stamp' },
+                      { id: 'top',      label: '▲ Top',      hint: 'Banner at top' },
+                      { id: 'bottom',   label: '▼ Bottom',   hint: 'Banner at bottom' },
+                      { id: 'diagonal', label: '⤢ Diagonal', hint: 'Full-page stamp' },
                     ] as { id: 'top' | 'bottom' | 'diagonal'; label: string; hint: string }[]).map(p => (
                       <button key={p.id} title={p.hint}
                         onClick={() => set('watermark_position', p.id)}
@@ -1922,7 +1984,7 @@ export default function InvoiceSettingsPage() {
             )}
           </AccordionSection>
 
-          {/* â”€â”€ Discounts â”€â”€ */}
+          {/* ── Discounts ── */}
           <AccordionSection title="Discounts">
             <ToggleRow
               label="Show discount on invoice"
@@ -1969,7 +2031,7 @@ export default function InvoiceSettingsPage() {
             )}
           </AccordionSection>
 
-          {/* â”€â”€ Tax â”€â”€ */}
+          {/* ── Tax ── */}
           <AccordionSection title="Tax">
             <ToggleRow
               label="Show tax breakdown (CGST / SGST / IGST)"
@@ -2026,7 +2088,7 @@ export default function InvoiceSettingsPage() {
             </div>
           </AccordionSection>
 
-          {/* â”€â”€ Payment & Bank Details â”€â”€ */}
+          {/* ── Payment & Bank Details ── */}
           <AccordionSection title="Payment & Bank Details">
             <div className="mb-2">
               <Label className="text-xs text-gray-500">Default Payment Terms</Label>
@@ -2054,7 +2116,7 @@ export default function InvoiceSettingsPage() {
             )}
           </AccordionSection>
 
-          {/* â”€â”€ Notes & Terms â”€â”€ */}
+          {/* ── Notes & Terms ── */}
           <AccordionSection title="Notes & Terms">
             <ToggleRow label="Show notes" checked={settings.show_notes} onChange={v => set('show_notes', v)} />
             {settings.show_notes && (
@@ -2070,38 +2132,38 @@ export default function InvoiceSettingsPage() {
             )}
           </AccordionSection>
 
-          {/* â”€â”€ Display Options (2-col grid) â”€â”€ */}
+          {/* ── Display Options (2-col grid) ── */}
           <div className="border rounded-xl overflow-hidden">
             <div className="px-3 py-2 bg-gray-50 border-b">
               <span className="text-xs font-medium text-gray-600 uppercase tracking-wide">Display Options</span>
             </div>
             <div className="grid grid-cols-2 gap-px bg-gray-100 p-px">
               {([
-                // â”€â”€ Header â”€â”€
+                // ── Header ──
                 { label: 'Logo',                   key: 'show_logo',             val: settings.show_logo },
-                { label: 'Copy Label (Originalâ€¦)',  key: 'show_copy_label',       val: settings.show_copy_label ?? true },
+                { label: 'Copy Label (Original…)',  key: 'show_copy_label',       val: settings.show_copy_label ?? true },
                 { label: 'Vendor Address',          key: 'show_vendor_address',   val: settings.show_vendor_address ?? true },
                 { label: 'Website URL',             key: 'show_url',              val: settings.show_url ?? false },
                 { label: 'GSTIN (vendor + customer)', key: 'show_gstin',          val: settings.show_gstin },
-                // â”€â”€ Invoice Meta â”€â”€
+                // ── Invoice Meta ──
                 { label: 'Financial Year (F.Y.)',   key: 'show_financial_year',   val: settings.show_financial_year ?? true },
                 { label: isQuotationMode ? 'Valid Until' : 'Due Date', key: 'show_due_date', val: settings.show_due_date ?? true },
                 { label: 'Booking / Ref. No.',      key: 'show_booking_number',   val: settings.show_booking_number ?? true },
-                // â”€â”€ Bill To â”€â”€
+                // ── Bill To ──
                 { label: 'Customer / Bill To',      key: 'show_customer_address', val: settings.show_customer_address ?? true },
                 { label: 'Customer Phone',          key: 'show_phone',            val: settings.show_phone },
                 { label: 'Customer Email',          key: 'show_customer_email',   val: settings.show_customer_email ?? true },
-                // â”€â”€ Line Items â”€â”€
+                // ── Line Items ──
                 { label: 'Item Description',        key: 'show_description',      val: settings.show_description },
                 { label: 'Item Number (#)',          key: 'show_item_numbers',     val: settings.show_item_numbers ?? false },
                 { label: 'HSN / SAC Code',          key: 'show_hsn',              val: settings.show_hsn },
                 { label: 'Discount Column',         key: 'show_discount',         val: settings.show_discount ?? false },
                 { label: 'Product Images',          key: 'show_product_images',   val: settings.show_product_images ?? false },
-                // â”€â”€ Totals â”€â”€
+                // ── Totals ──
                 { label: 'Tax Breakdown',           key: 'show_tax_breakdown',    val: settings.show_tax_breakdown },
                 { label: 'Amount Paid',             key: 'show_amount_paid',      val: settings.show_amount_paid ?? true },
                 { label: 'Balance Due',             key: 'show_balance_due',      val: settings.show_balance_due ?? true },
-                // â”€â”€ Footer â”€â”€
+                // ── Footer ──
                 { label: 'Signature',               key: 'show_signature',        val: settings.show_signature },
                 { label: 'Bank Details',            key: 'show_bank_details',     val: settings.show_bank_details },
                 { label: 'Shipping Address',        key: 'show_shipping_address', val: settings.show_shipping_address },
@@ -2127,9 +2189,9 @@ export default function InvoiceSettingsPage() {
 
           </>}
 
-          {/* â”€â”€ EXPORT tab â”€â”€ */}
+          {/* ── EXPORT tab ── */}
           {settingsTab === 'export' && <>
-          {/* â”€â”€ PDF Download Layout â”€â”€ */}
+          {/* ── PDF Download Layout ── */}
           <AccordionSection title="PDF Download Layout" defaultOpen>
             <div className="space-y-4">
               <div className="flex gap-3 items-start">
@@ -2157,7 +2219,7 @@ export default function InvoiceSettingsPage() {
                   {(['portrait', 'landscape'] as const).map(o => (
                     <button key={o} onClick={() => set('pdf_orientation', o)}
                       className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors ${(settings.pdf_orientation ?? 'portrait') === o ? 'bg-primary text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
-                      <span>{o === 'portrait' ? 'ðŸ“„' : 'ðŸ“‹'}</span>
+                      <span>{o === 'portrait' ? '📄' : '📋'}</span>
                       <span className="capitalize">{o}</span>
                     </button>
                   ))}

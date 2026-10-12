@@ -6,6 +6,8 @@ import { apiError } from '@/lib/errorMessages'
 import { actionDocMessage, createdDocMessage, pickDocNo } from '@/lib/documentToast'
 import { useAuthStore } from '@/stores/authStore'
 import { useVendorStore } from '@/stores/vendorStore'
+import { loadLegacyPosInvoiceSettings, clearLegacyPosInvoiceSettings } from '@/lib/posReceiptLegacyStorage'
+import type { InvoiceSettings } from '@/lib/invoiceTemplates'
 import type { PaginatedResponse, Product, Service, Order, Customer, OrderStats, Review, VendorRole, TeamMember, VendorCategory } from '@/types'
 
 export const vendorKeys = {
@@ -44,7 +46,6 @@ export const vendorKeys = {
   purchaseOrder: (id: string) => [...vendorKeys.all, 'purchase-order', id] as const,
   invoices: (params?: Record<string, unknown>) => [...vendorKeys.all, 'invoices', params] as const,
   invoice: (id: string) => [...vendorKeys.all, 'invoice', id] as const,
-  invoiceTemplates: () => [...vendorKeys.all, 'invoice-templates'] as const,
   bookings: (params?: Record<string, unknown>) => [...vendorKeys.all, 'bookings', params] as const,
   booking: (id: string) => [...vendorKeys.all, 'booking', id] as const,
   posTransactions: (params?: Record<string, unknown>) =>
@@ -2346,64 +2347,6 @@ export function useUpdateInvoice() {
   })
 }
 
-// ── Invoice Templates ────────────────────────────────────────────
-export function useInvoiceTemplates() {
-  return useQuery({
-    queryKey: vendorKeys.invoiceTemplates(),
-    queryFn: () => vendorApi.listInvoiceTemplates(),
-    staleTime: 60 * 1000,
-  })
-}
-
-export function useCreateInvoiceTemplate() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (data: Record<string, unknown>) => vendorApi.createInvoiceTemplate(data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: vendorKeys.invoiceTemplates() })
-      toast.success('Template created!')
-    },
-    onError: apiError('Could not create invoice template'),
-  })
-}
-
-export function useUpdateInvoiceTemplate() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
-      vendorApi.updateInvoiceTemplate(id, data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: vendorKeys.invoiceTemplates() })
-      toast.success('Template saved!')
-    },
-    onError: apiError('Could not save invoice template changes'),
-  })
-}
-
-export function useDeleteInvoiceTemplate() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (id: string) => vendorApi.deleteInvoiceTemplate(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: vendorKeys.invoiceTemplates() })
-      toast.success('Template deleted')
-    },
-    onError: apiError('Could not delete invoice template — it may be set as default'),
-  })
-}
-
-export function useSetDefaultTemplate() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (id: string) => vendorApi.setDefaultTemplate(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: vendorKeys.invoiceTemplates() })
-      toast.success('Default template updated')
-    },
-    onError: apiError('Could not set default template'),
-  })
-}
-
 // ── Bookings ─────────────────────────────────────────────────────
 export function useUpdateBookingStatus() {
   const qc = useQueryClient()
@@ -2529,6 +2472,9 @@ export function useInvoiceSettings() {
     queryKey: ['invoiceSettings'],
     queryFn: () => vendorApi.getInvoiceSettings(),
     staleTime: 5 * 60 * 1000,
+    // The template editor copies this into local state; a background refetch on focus
+    // would overwrite unsaved edits.
+    refetchOnWindowFocus: false,
   })
 }
 
@@ -2544,15 +2490,15 @@ export function useUpdateInvoiceSettings() {
   })
 }
 
-export function useUploadInvoiceSignature() {
-  const qc = useQueryClient()
+/**
+ * Upload a template image (signature / QR code / logo). This only stores the file and returns its
+ * URL — nothing is saved to the settings until the user presses Save, so there is no refetch here.
+ */
+export function useUploadDocumentAsset() {
   return useMutation({
-    mutationFn: (file: File) => vendorApi.uploadInvoiceSignature(file),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['invoiceSettings'] })
-      toast.success('Signature uploaded!')
-    },
-    onError: apiError('Could not upload signature — file may be too large or wrong format (use PNG/JPG)'),
+    mutationFn: ({ kind, file }: { kind: 'signature' | 'qr' | 'logo'; file: File }) =>
+      vendorApi.uploadDocumentAsset(kind, file),
+    onError: apiError('Could not upload image — use a PNG, JPG or WebP file under 2 MB'),
   })
 }
 
@@ -2561,6 +2507,7 @@ export function useQuotationSettings() {
     queryKey: ['quotationSettings'],
     queryFn: () => vendorApi.getQuotationSettings(),
     staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   })
 }
 
@@ -2576,15 +2523,52 @@ export function useUpdateQuotationSettings() {
   })
 }
 
-export function useUploadQuotationSignature() {
+// ── POS receipt settings (server-side, shared by every terminal) ──────────────
+
+const POS_RECEIPT_SETTINGS_KEY = ['posReceiptSettings'] as const
+
+/**
+ * POS receipt overrides for this vendor. Also performs a one-time migration of settings that
+ * older versions stored only in this browser's localStorage:
+ *  - server already has settings -> server wins, the stale browser copy is dropped
+ *  - server empty + browser copy -> upload it (needs invoices.manage); if the user may not
+ *    save, keep using the browser copy locally until a manager saves server-side settings
+ */
+export function usePosReceiptSettings() {
+  return useQuery({
+    queryKey: POS_RECEIPT_SETTINGS_KEY,
+    staleTime: 5 * 60 * 1000,
+    // The editors copy this into local state; a refetch on focus must not clobber edits.
+    refetchOnWindowFocus: false,
+    queryFn: async (): Promise<Partial<InvoiceSettings>> => {
+      const server = (await vendorApi.getPosReceiptSettings()) as Partial<InvoiceSettings>
+      if (server && Object.keys(server).length > 0) {
+        clearLegacyPosInvoiceSettings()
+        return server
+      }
+      const legacy = loadLegacyPosInvoiceSettings()
+      if (Object.keys(legacy).length === 0) return {}
+      try {
+        const saved = (await vendorApi.updatePosReceiptSettings(legacy as Record<string, unknown>)) as Partial<InvoiceSettings>
+        clearLegacyPosInvoiceSettings()
+        return saved
+      } catch {
+        return legacy
+      }
+    },
+  })
+}
+
+export function useSavePosReceiptSettings() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (file: File) => vendorApi.uploadQuotationSignature(file),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['quotationSettings'] })
-      toast.success('Signature uploaded!')
+    mutationFn: (data: Partial<InvoiceSettings>) =>
+      vendorApi.updatePosReceiptSettings(data as Record<string, unknown>),
+    onSuccess: (saved) => {
+      qc.setQueryData(POS_RECEIPT_SETTINGS_KEY, saved as Partial<InvoiceSettings>)
+      clearLegacyPosInvoiceSettings()
     },
-    onError: apiError('Could not upload signature — file may be too large or wrong format (use PNG/JPG)'),
+    onError: apiError('Could not save POS receipt template — you need permission to manage invoice settings'),
   })
 }
 

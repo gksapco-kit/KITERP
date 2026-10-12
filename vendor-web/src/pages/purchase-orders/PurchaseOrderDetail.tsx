@@ -36,6 +36,7 @@ import { usePOTemplateSettings } from '@/hooks/useVendor'
 import { printPO, generatePOHtml, DEFAULT_PO_SETTINGS } from '@/lib/poTemplates'
 import type { POTemplateSettings } from '@/lib/poTemplates'
 import { fetchAsDataUrl, resolveMediaUrl, downloadAsPdf, shareViaWhatsApp, shareViaSms, buildShareMessage } from '@/lib/printUtils'
+import { withNoScriptCsp, writeSafeHtml } from '@/lib/htmlSafety'
 import { PO_COPY_FROM_ID_KEY } from '@/lib/copyDocument'
 import {
   PoDestinationFields,
@@ -1637,10 +1638,7 @@ function PODocumentPreviewModal({
   const openInNewTab = () => {
     if (!html) return
     const w = window.open('', '_blank')
-    if (w) {
-      w.document.write(html)
-      w.document.close()
-    }
+    if (w) writeSafeHtml(w, html)
   }
 
   return (
@@ -1712,7 +1710,7 @@ function PODocumentPreviewModal({
           ) : (
             <div className="bg-white shadow-md rounded-sm mx-auto w-full max-w-[820px] ring-1 ring-black/5 overflow-hidden">
               <iframe
-                srcDoc={html}
+                srcDoc={withNoScriptCsp(html)}
                 title={`Purchase Order ${poNumber}`}
                 className="w-full border-0 block bg-white"
                 style={{ height: '1100px' }}

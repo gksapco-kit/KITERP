@@ -36,12 +36,12 @@ import { catalogToKitProduct } from '@/lib/catalogToKitProduct'
 import { addCatalogProductToCart } from '@/lib/catalogAddToCart'
 import type { Product } from '@/types'
 
-// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Types ──────────────────────────────────────────────────────────────────────
 interface HomeSection { id: string; visible: boolean; props: SectionProps }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 // SECTION COMPONENTS
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 
 function TrustBadgesSection({ props, colors }: { props: SectionProps; colors: ReturnType<typeof useTheme>['colors'] }) {
   const badges = [
@@ -101,7 +101,7 @@ function FeaturedProductsSection({ props, theme, storePath, products, isLoading,
       <section className="max-w-7xl mx-auto px-6 lg:px-10 py-24 bg-retail-bg text-retail-ink">
         <div className="flex items-end justify-between mb-10">
           <h2 className="font-display text-3xl sm:text-4xl md:text-5xl lg:text-6xl tracking-tight">{str(props.title, 'Featured.')}</h2>
-          <Link to={viewAll} className="text-sm border-b border-retail-ink/30 pb-1">See all â†’</Link>
+          <Link to={viewAll} className="text-sm border-b border-retail-ink/30 pb-1">See all →</Link>
         </div>
         {isLoading ? (
           <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-retail-accent" /></div>
@@ -319,7 +319,7 @@ function AboutUsSection({ props, colors, vendor }: { props: SectionProps; colors
             {[
               { icon: Users, label: 'Happy Customers', value: '1,000+' },
               { icon: ShoppingBag, label: 'Products', value: '500+' },
-              { icon: Star, label: 'Avg Rating', value: '4.8â˜…' },
+              { icon: Star, label: 'Avg Rating', value: '4.8★' },
             ].map((s) => (
               <div key={s.label} className="bg-white rounded-xl p-4 border">
                 <s.icon className="w-6 h-6 mx-auto mb-2" style={{ color: linkOnLight(colors.primary, colors.secondary) }} />
@@ -408,7 +408,7 @@ function NewsletterSection({ props, colors }: { props: SectionProps; colors: Ret
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{str(props.headline, 'Stay in the loop')}</h2>
           <p className="text-gray-500 mt-2">{str(props.subtitle, 'Get exclusive deals first')}</p>
           {done ? (
-            <p className="mt-6 text-green-600 font-medium">âœ“ Thanks for subscribing!</p>
+            <p className="mt-6 text-green-600 font-medium">✓ Thanks for subscribing!</p>
           ) : (
             <form className="mt-6 flex gap-2 max-w-md mx-auto" onSubmit={(e) => { e.preventDefault(); setDone(true) }}>
               <input
@@ -544,9 +544,9 @@ function CategoryShowcaseSection({ props, colors, storePath }: { props: SectionP
   )
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 // STORE LOCATOR SECTION
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 
 interface StoreLocatorConfig {
   limit?: number           // 0 = all
@@ -622,7 +622,7 @@ function StoreLocatorSection({
 
     // geo sort
     if (userPos) {
-      // simple lat/lon approximation â€” stores without coords keep original order
+      // simple lat/lon approximation — stores without coords keep original order
       list.sort((a, b) => {
         const aCity = a.address?.city ?? ''
         const bCity = b.address?.city ?? ''
@@ -809,9 +809,9 @@ function StoreLocatorSection({
   )
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 // MAIN HOME COMPONENT
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 export default function Home() {
   const vendor = useEffectiveVendor()
   const { storePath } = useBranch()

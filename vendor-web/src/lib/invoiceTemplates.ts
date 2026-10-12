@@ -1,4 +1,11 @@
-import { buildDocumentPreviewHtml, wrapStoredDocumentPages, mergeStoredPagesForPrint } from '@/lib/documentPreview'
+import {
+  buildDocumentPreviewHtml,
+  wrapStoredDocumentPages,
+  mergeStoredPagesForPrint,
+  refreshStoredFirstPage,
+  countOfferPages,
+} from '@/lib/documentPreview'
+import { escapeDocData } from '@/lib/htmlSafety'
 
 export type PaperSize = 'A4' | '2inch' | '3inch' | '4inch'
 
@@ -25,13 +32,29 @@ export const INVOICE_TEMPLATE_IDS = [
   'centered', 'letterhead', 'banner', 'executive', 'stripe',
   'gstpro', 'retail', 'sideright', 'framed', 'slimleft', 'premiumright',
   'leftlogo', 'rightlogo',
-  'footerleft', 'footerright',
-  'toprightbottomleft', 'topleftbottomright',
   'toprightlogobottomleft',
   'topleftlogobottomright',
 ] as const
 
 export type InvoiceTemplateId = (typeof INVOICE_TEMPLATE_IDS)[number]
+
+/** Retired / legacy ids still accepted from saved settings; not shown in pickers. */
+const INVOICE_TEMPLATE_ALIASES: Record<string, InvoiceTemplateId> = {
+  footerleft: 'classic',
+  footerright: 'classic',
+  toprightbottomleft: 'toprightlogobottomleft',
+  topleftbottomright: 'topleftlogobottomright',
+  topbottom: 'toprightlogobottomleft',
+  dual: 'leftlogo',
+}
+
+export function normalizeInvoiceTemplateId(id: string | undefined | null): InvoiceTemplateId {
+  const key = (id || 'classic').trim().toLowerCase()
+  const aliased = INVOICE_TEMPLATE_ALIASES[key] ?? key
+  return (INVOICE_TEMPLATE_IDS as readonly string[]).includes(aliased)
+    ? (aliased as InvoiceTemplateId)
+    : 'classic'
+}
 
 export type UrlPosition =
   | 'auto'
@@ -79,10 +102,6 @@ export const INVOICE_TEMPLATE_LABELS: Record<InvoiceTemplateId, string> = {
   framed: 'Framed',
   slimleft: 'Slim Left',
   premiumright: 'Premium Right',
-  footerleft: 'Footer Left',
-  footerright: 'Footer Right',
-  toprightbottomleft: 'Top Right · Bottom Left',
-  topleftbottomright: 'Top Left · Bottom Right',
   toprightlogobottomleft: 'Top Right Logo · Bottom Left Logo',
   topleftlogobottomright: 'Top Left Logo · Bottom Right Logo',
 }
@@ -356,26 +375,10 @@ export function getTemplateColorLabel(hex: string): string {
 
 import { resolveMediaUrl, fetchAsDataUrl, openPrintWindow } from './printUtils'
 
-// ── POS-specific invoice settings (localStorage) ─────────────────────────────
-
-export const POS_INV_SETTINGS_KEY = 'pos_invoice_settings'
-
-/** Load POS-specific invoice settings from localStorage. */
-export function loadPosInvoiceSettings(): Partial<InvoiceSettings> {
-  try {
-    const raw = localStorage.getItem(POS_INV_SETTINGS_KEY)
-    return raw ? (JSON.parse(raw) as Partial<InvoiceSettings>) : {}
-  } catch {
-    return {}
-  }
-}
-
-/** Persist POS-specific invoice settings to localStorage. */
-export function savePosInvoiceSettings(settings: Partial<InvoiceSettings>): void {
-  try {
-    localStorage.setItem(POS_INV_SETTINGS_KEY, JSON.stringify(settings))
-  } catch { /* quota errors — silently ignore */ }
-}
+// ── POS-specific invoice settings ────────────────────────────────────────────
+// POS receipt overrides live on the server (vendor.settings.pos_receipt_settings); read them
+// with `usePosReceiptSettings()` from '@/hooks/useVendor'. The old per-browser localStorage
+// copy is only handled by '@/lib/posReceiptLegacyStorage' (one-time migration).
 
 type InvData = Record<string, unknown>
 
@@ -456,15 +459,11 @@ export function resolveWebsiteUrl(
 const TEMPLATE_DEFAULT_URL_POSITION: Partial<Record<InvoiceTemplateId, Exclude<UrlPosition, 'auto'>>> = {
   leftlogo: 'header-left',
   slimleft: 'header-left',
-  footerleft: 'footer-left',
   toprightlogobottomleft: 'footer-left',
-  toprightbottomleft: 'footer-left',
   rightlogo: 'header-right',
   premiumright: 'header-right',
   sideright: 'header-right',
-  footerright: 'footer-right',
   topleftlogobottomright: 'footer-right',
-  topleftbottomright: 'footer-right',
   centered: 'below-address',
   letterhead: 'below-address',
   corporate: 'below-address',
@@ -492,63 +491,85 @@ function vendorUrlLine(settings: InvoiceSettings, inv: InvData, extraStyle = '')
   const href = /^https?:\/\//i.test(url) ? url : `https://${url}`
   const display = url.replace(/^https?:\/\//i, '')
   const safeHref = href.replace(/"/g, '&quot;')
-  return `<div class="inv-vendor-url" style="font-size:10px;color:#6b7280;margin-top:4px;line-height:1.4;word-break:break-all;${extraStyle}"><span style="color:#9ca3af">Website:</span> <a href="${safeHref}" style="color:#4b5563;text-decoration:none">${display}</a></div>`
+  // Inherit parent colour so the link stays visible on dark headers / coloured sidebars.
+  return `<div class="inv-vendor-url" style="font-size:10px;margin-top:4px;line-height:1.4;word-break:break-all;opacity:.9;${extraStyle}"><span style="opacity:.75">Website:</span> <a href="${safeHref}" style="color:inherit;text-decoration:underline">${display}</a></div>`
 }
 
-function injectInMarkedSection(
+/** Transform a marked section; returns null when that section marker is missing. */
+function tryInjectInMarkedSection(
   html: string,
   sectionId: string,
   transform: (content: string) => string,
-): string {
-  const re = new RegExp(`(<!--INV:${sectionId}:S-->)([\\s\\S]*?)(<!--INV:${sectionId}:E-->)`, 'g')
+): string | null {
+  const re = new RegExp(`(<!--INV:${sectionId}:S-->)([\\s\\S]*?)(<!--INV:${sectionId}:E-->)`)
+  if (!re.test(html)) return null
   return html.replace(re, (_, open, content, close) => open + transform(content) + close)
 }
 
 function injectAfterVendorContact(content: string, line: string): string {
   if (content.includes('inv-vendor-url')) return content
-  const addrRe = /(<div style="font-size:10px;color:#6b7280;margin-top:2px;line-height:1\.[45][^"]*">[\s\S]*?<\/div>)/
+  const slot = /<div class="inv-url-slot"><\/div>/
+  if (slot.test(content)) return content.replace(slot, line)
+  // Address lines vary by theme (grey 10px, muted 9px, sidebar white, etc.).
+  const addrRe = /(<div style="font-size:(?:8|9|10|11)px;[^"]*(?:line-height:1\.[0-9]|margin-top:\d+px)[^"]*">[\s\S]*?<\/div>)/
   if (addrRe.test(content)) return content.replace(addrRe, `$1\n${line}`)
-  const gstinRe = /(<div style="font-size:10px;color:#6b7280;margin-top:2px">GSTIN:[^<]*<\/div>)/
+  const gstinRe = /(<div style="font-size:(?:8|9|10|11)px;[^"]*">GSTIN:[^<]*<\/div>)/
   if (gstinRe.test(content)) return content.replace(gstinRe, `$1\n${line}`)
-  const nameRe = /(<div style="font-size:(?:20|22)px;font-weight:[^"]*">[^<]*<\/div>)/
+  const nameRe = /(<div style="font-size:(?:12|14|15|18|20|22)px;font-weight:[^"]*">[^<]*<\/div>)/
   if (nameRe.test(content)) return content.replace(nameRe, `$1\n${line}`)
   return `${content}\n${line}`
 }
 
+function stripUrlSlots(html: string): string {
+  return html.replace(/<div class="inv-url-slot"><\/div>/g, '')
+}
+
 function injectWebsiteUrl(html: string, settings: InvoiceSettings, inv: InvData): string {
   const line = vendorUrlLine(settings, inv)
-  if (!line) return html
+  // Drop unused placement slots when the URL is off / empty.
+  if (!line) return stripUrlSlots(html)
+  if (html.includes('inv-vendor-url')) return stripUrlSlots(html)
 
   const pos = resolvedUrlPosition(settings)
+  const leftLine = vendorUrlLine(settings, inv, 'text-align:left;margin-top:6px;')
+  const rightLine = vendorUrlLine(settings, inv, 'text-align:right;')
+  const footerLeft = vendorUrlLine(settings, inv, 'text-align:left;margin-bottom:8px;')
+  const footerRight = vendorUrlLine(settings, inv, 'text-align:right;margin-top:8px;')
+  const headerish = pos === 'below-address' || pos === 'header' || pos === 'header-left' || pos === 'header-right'
 
-  switch (pos) {
-    case 'below-address':
-      return injectInMarkedSection(html, 'header', c => injectAfterVendorContact(c, line))
-    case 'header':
-      return injectInMarkedSection(html, 'header', c => (c.includes('inv-vendor-url') ? c : `${c}\n${line}`))
-    case 'header-left':
-      return injectInMarkedSection(html, 'header', c => (
-        c.includes('inv-vendor-url') ? c : `${vendorUrlLine(settings, inv, 'text-align:left;')}\n${c}`
-      ))
-    case 'header-right':
-      return injectInMarkedSection(html, 'header', c => (
-        c.includes('inv-vendor-url') ? c : `${c}\n${vendorUrlLine(settings, inv, 'text-align:right;')}`
-      ))
-    case 'meta':
-      return injectInMarkedSection(html, 'meta', c => (c.includes('inv-vendor-url') ? c : `${c}\n${line}`))
-    case 'footer':
-      return injectInMarkedSection(html, 'footer', c => (c.includes('inv-vendor-url') ? c : `${line}\n${c}`))
-    case 'footer-left':
-      return injectInMarkedSection(html, 'footer', c => (
-        c.includes('inv-vendor-url') ? c : `${vendorUrlLine(settings, inv, 'text-align:left;margin-bottom:8px;')}\n${c}`
-      ))
-    case 'footer-right':
-      return injectInMarkedSection(html, 'footer', c => (
-        c.includes('inv-vendor-url') ? c : `${c}\n${vendorUrlLine(settings, inv, 'text-align:right;margin-top:8px;')}`
-      ))
-    default:
-      return html
+  // Sidebar / column themes place an explicit slot under the vendor block.
+  if (headerish && html.includes('inv-url-slot')) {
+    const slotLine = pos === 'header-right' ? rightLine : (leftLine || line)
+    return stripUrlSlots(html.replace('<div class="inv-url-slot"></div>', slotLine))
   }
+
+  const intoHeader = (c: string) => {
+    if (c.includes('inv-vendor-url')) return c
+    if (pos === 'below-address' || pos === 'header-left') return injectAfterVendorContact(c, leftLine || line)
+    if (pos === 'header-right') return `${c}\n${rightLine}`
+    return `${c}\n${line}`
+  }
+  const intoMeta = (c: string) => (c.includes('inv-vendor-url') ? c : `${c}\n${line}`)
+  const intoFooter = (c: string) => {
+    if (c.includes('inv-vendor-url')) return c
+    if (pos === 'footer-right') return `${c}\n${footerRight}`
+    if (pos === 'footer-left') return `${footerLeft}\n${c}`
+    return `${line}\n${c}`
+  }
+
+  // Prefer the requested section; fall back so themes without that marker still show the link.
+  const order =
+    pos === 'meta' ? (['meta', 'header', 'footer'] as const)
+    : pos === 'footer' || pos === 'footer-left' || pos === 'footer-right'
+      ? (['footer', 'header', 'meta'] as const)
+      : (['header', 'meta', 'footer'] as const)
+
+  const transform = { header: intoHeader, meta: intoMeta, footer: intoFooter }
+  for (const id of order) {
+    const next = tryInjectInMarkedSection(html, id, transform[id])
+    if (next) return stripUrlSlots(next)
+  }
+  return stripUrlSlots(html).replace(/<\/body>/i, `${line}\n</body>`)
 }
 
 function thermalVendorUrlLine(settings: InvoiceSettings, inv: InvData): string {
@@ -586,8 +607,8 @@ function logoTag(url: string, style: string, shape: LogoShape = 'rounded'): stri
     .replace(/object-fit:[^;]+;?/gi, '')
     .replace(/aspect-ratio:[^;]+;?/gi, '')
     .replace(/clip-path:[^;]+;?/gi, '')
-    .replace(/\bwidth:\s*[^;]+;?/gi, '')
     .replace(/max-width:\s*[^;]+;?/gi, '')
+    .replace(/(?<![\w-])width:\s*[^;]+;?/gi, '')
     .replace(/height:\s*[^;]+;?/gi, '')
     .replace(/display:\s*block;?/gi, '')
     .trim()
@@ -597,11 +618,11 @@ function logoTag(url: string, style: string, shape: LogoShape = 'rounded'): stri
 
   switch (shape) {
     case 'circle':
-      return `<img src="${url}" style="${base}width:${size}px;height:${size}px;max-width:${size}px;min-width:${size}px;border-radius:50%;object-fit:cover;display:block;flex-shrink:0;" crossorigin="anonymous"/>`
+      return `<span style="display:inline-flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;min-width:${size}px;border-radius:50%;background:#f8fafc;box-shadow:0 0 0 1px #e2e8f0;overflow:hidden;flex-shrink:0;vertical-align:middle;"><img src="${url}" style="${base}width:74%;height:74%;object-fit:contain;display:block;" crossorigin="anonymous"/></span>`
     case 'oval': {
       const w = Math.round(size * 1.45)
       const h = size
-      return `<img src="${url}" style="${base}width:${w}px;height:${h}px;max-width:${w}px;border-radius:50%;object-fit:cover;display:block;flex-shrink:0;" crossorigin="anonymous"/>`
+      return `<span style="display:inline-flex;align-items:center;justify-content:center;width:${w}px;height:${h}px;border-radius:50%;background:#f8fafc;box-shadow:0 0 0 1px #e2e8f0;overflow:hidden;flex-shrink:0;vertical-align:middle;"><img src="${url}" style="${base}width:78%;height:72%;object-fit:contain;display:block;" crossorigin="anonymous"/></span>`
     }
     case 'pill':
       return `<img src="${url}" style="${base}height:${size}px;width:${Math.round(size * 2.1)}px;max-width:${Math.round(size * 2.4)}px;border-radius:9999px;object-fit:contain;display:block;flex-shrink:0;" crossorigin="anonymous"/>`
@@ -632,6 +653,32 @@ function logoImg(logoUrl: string, style: string, settings: InvoiceSettings): str
 const INV_TABLE_CELL_PAD = '8px 10px'
 const INV_PAGE_PAD_X = '32px'
 
+/** Discount column in the line-items table (not summary-only). */
+function showDiscountColumn(settings: InvoiceSettings): boolean {
+  return !!settings.show_discount && (settings.discount_display ?? 'both') !== 'summary'
+}
+
+/** Shared header cells so every template keeps the same column set as itemRows. */
+function invoiceTableHeadCells(
+  settings: InvoiceSettings,
+  th: string,
+  opts?: { itemLabel?: string; discLabel?: string; numAlign?: 'left' | 'center' },
+): string {
+  const showDisc = showDiscountColumn(settings)
+  const itemLabel = opts?.itemLabel ?? 'ITEM'
+  const discLabel = opts?.discLabel ?? 'DISC'
+  const numAlign = opts?.numAlign ?? 'center'
+  return `
+    <th style="${th};text-align:${numAlign};width:36px">#</th>
+    <th style="${th};text-align:left">${itemLabel}</th>
+    ${settings.show_hsn ? `<th style="${th};text-align:center;width:72px">HSN</th>` : ''}
+    <th style="${th};text-align:center;width:48px">QTY</th>
+    <th style="${th};text-align:right;width:90px">RATE</th>
+    ${showDisc ? `<th style="${th};text-align:right;width:80px">${discLabel}</th>` : ''}
+    <th style="${th};text-align:right;width:80px">TAX</th>
+    <th style="${th};text-align:right;width:100px">AMOUNT</th>`
+}
+
 function invoiceTableHead(settings: InvoiceSettings, color: string, filled = true): string {
   const tr = filled
     ? `<tr style="background:${color};color:#fff">`
@@ -639,20 +686,12 @@ function invoiceTableHead(settings: InvoiceSettings, color: string, filled = tru
   const th = filled
     ? `padding:${INV_TABLE_CELL_PAD};font-size:10px;font-weight:600;white-space:nowrap`
     : `padding:${INV_TABLE_CELL_PAD};font-size:10px;font-weight:600;white-space:nowrap;color:${color}`
-  return `${tr}
-    <th style="${th};text-align:center;width:36px">#</th>
-    <th style="${th};text-align:left">ITEM</th>
-    ${settings.show_hsn ? `<th style="${th};text-align:center">HSN</th>` : ''}
-    <th style="${th};text-align:center;width:48px">QTY</th>
-    <th style="${th};text-align:right">RATE</th>
-    <th style="${th};text-align:right">DISC</th>
-    <th style="${th};text-align:right">TAX</th>
-    <th style="${th};text-align:right">AMOUNT</th>
+  return `${tr}${invoiceTableHeadCells(settings, th)}
   </tr>`
 }
 
 function invoiceItemsSection(items: InvData[], settings: InvoiceSettings, color: string, filled = true): string {
-  return `<table style="margin-bottom:16px;width:100%;border-collapse:collapse">
+  return `<table style="margin-bottom:16px;width:100%;border-collapse:collapse;table-layout:auto">
     <thead>${invoiceTableHead(settings, color, filled)}</thead>
     <tbody>${itemRows(items, settings, color)}</tbody>
   </table>`
@@ -666,8 +705,8 @@ function itemThumb(it: InvData): string {
 
 function itemRows(items: InvData[], settings: InvoiceSettings, color: string): string {
   const showImg = settings.show_product_images
-  // Show discount column only when discount_display includes 'column'
-  const showDiscCol = settings.show_discount && (settings.discount_display ?? 'both') !== 'summary'
+  const showDiscCol = showDiscountColumn(settings)
+  const td = `padding:${INV_TABLE_CELL_PAD};border-bottom:1px solid #e5e7eb;vertical-align:top`
   return items.map((it, i) => {
     const qty   = Number(it.qty || it.quantity || 0)
     const rate  = Number(it.rate || it.price || 0)
@@ -680,14 +719,14 @@ function itemRows(items: InvData[], settings: InvoiceSettings, color: string): s
       ? `<div style="display:flex;align-items:center;gap:8px">${itemThumb(it)}<div><div style="font-weight:500">${it.name || ''}</div>${settings.show_description && it.description ? `<div style="font-size:10px;color:#6b7280">${it.description}</div>` : ''}</div></div>`
       : `<div style="font-weight:500">${it.name || ''}</div>${settings.show_description && it.description ? `<div style="font-size:10px;color:#6b7280">${it.description}</div>` : ''}`
     return `<tr style="background:${i % 2 === 0 ? '#fff' : '#f9fafb'}">
-      <td style="padding:${INV_TABLE_CELL_PAD};border-bottom:1px solid #e5e7eb;text-align:center;vertical-align:top;color:#6b7280">${i + 1}</td>
-      <td style="padding:${INV_TABLE_CELL_PAD};border-bottom:1px solid #e5e7eb;text-align:left;vertical-align:top">${nameCell}</td>
-      ${settings.show_hsn ? `<td style="padding:${INV_TABLE_CELL_PAD};border-bottom:1px solid #e5e7eb;text-align:center;vertical-align:top;color:#6b7280">${it.hsn_sac || it.hsn_code || ''}</td>` : ''}
-      <td style="padding:${INV_TABLE_CELL_PAD};border-bottom:1px solid #e5e7eb;text-align:center;vertical-align:top">${qty}</td>
-      <td style="padding:${INV_TABLE_CELL_PAD};border-bottom:1px solid #e5e7eb;text-align:right;vertical-align:top">${fmt(rate)}</td>
-      ${showDiscCol ? `<td style="padding:${INV_TABLE_CELL_PAD};border-bottom:1px solid #e5e7eb;text-align:right;vertical-align:top;color:#dc2626">${disc > 0 ? `-${fmt(disc)}` : '-'}</td>` : ''}
-      <td style="padding:${INV_TABLE_CELL_PAD};border-bottom:1px solid #e5e7eb;text-align:right;vertical-align:top">${tax > 0 ? fmt(tax) : '-'}</td>
-      <td style="padding:${INV_TABLE_CELL_PAD};border-bottom:1px solid #e5e7eb;text-align:right;vertical-align:top;font-weight:500">${fmt(total)}</td>
+      <td class="num" style="${td};text-align:center;color:#6b7280;width:36px">${i + 1}</td>
+      <td style="${td};text-align:left;min-width:120px;word-break:normal;overflow-wrap:break-word">${nameCell}</td>
+      ${settings.show_hsn ? `<td class="num" style="${td};text-align:center;color:#6b7280;width:72px">${it.hsn_sac || it.hsn_code || '—'}</td>` : ''}
+      <td class="num" style="${td};text-align:center;width:48px">${qty}</td>
+      <td class="num" style="${td};text-align:right;width:90px;white-space:nowrap">${fmt(rate)}</td>
+      ${showDiscCol ? `<td class="num" style="${td};text-align:right;width:80px;white-space:nowrap;color:#dc2626">${disc > 0 ? `-${fmt(disc)}` : '—'}</td>` : ''}
+      <td class="num" style="${td};text-align:right;width:80px;white-space:nowrap">${tax > 0 ? fmt(tax) : '—'}</td>
+      <td class="num" style="${td};text-align:right;width:100px;white-space:nowrap;font-weight:500">${fmt(total)}</td>
     </tr>`
   }).join('')
 }
@@ -717,6 +756,11 @@ function numToWords(n: number): string {
   return `${result} Rupee${rupees !== 1 ? 's' : ''}${paise > 0 ? ` and ${below100(paise)} Paise` : ' Only'}`
 }
 
+function totalsTable(inv: InvData, settings: InvoiceSettings, widthPx = 280, extraTableStyle = ''): string {
+  const extra = extraTableStyle ? `;${extraTableStyle}` : ''
+  return `<table style="width:${widthPx}px;border-collapse:collapse;table-layout:fixed${extra}"><colgroup><col /><col style="width:42%" /></colgroup><tbody>${totalsBlock(inv, settings)}</tbody></table>`
+}
+
 function totalsBlock(inv: InvData, settings: InvoiceSettings): string {
   const sub    = Number(inv.subtotal || 0)
   const disc   = Number(inv.discount_amount || 0)
@@ -736,22 +780,25 @@ function totalsBlock(inv: InvData, settings: InvoiceSettings): string {
   const sgstLabel   = settings.sgst_label       || 'SGST'
   const igstLabel   = settings.igst_label       || 'IGST'
   const showDiscSum = disc > 0 && settings.show_discount && (settings.discount_display ?? 'both') !== 'column'
+  // Labels left / values right keeps the totals block tight on the right edge of the page.
+  const lbl = 'padding:5px 12px 5px 10px;text-align:left;color:#6b7280;white-space:nowrap'
+  const val = 'padding:5px 10px;text-align:right;white-space:nowrap;width:1%'
 
   return `
-    <tr><td style="padding:5px 10px;text-align:right;color:#6b7280">Subtotal</td><td style="padding:5px 10px;text-align:right">${fmt(sub)}</td></tr>
-    ${showDiscSum ? `<tr><td style="padding:5px 10px;text-align:right;color:#6b7280">${discLabel}</td><td style="padding:5px 10px;text-align:right;color:#dc2626">-${fmt(disc)}</td></tr>` : ''}
-    ${settings.show_taxable_amount && (disc > 0 || taxable !== sub) ? `<tr><td style="padding:5px 10px;text-align:right;color:#6b7280">Taxable Amount</td><td style="padding:5px 10px;text-align:right">${fmt(taxable)}</td></tr>` : ''}
-    ${settings.show_tax_breakdown && cgst > 0 ? `<tr><td style="padding:5px 10px;text-align:right;color:#6b7280">${cgstLabel}</td><td style="padding:5px 10px;text-align:right">${fmt(cgst)}</td></tr>` : ''}
-    ${settings.show_tax_breakdown && sgst > 0 ? `<tr><td style="padding:5px 10px;text-align:right;color:#6b7280">${sgstLabel}</td><td style="padding:5px 10px;text-align:right">${fmt(sgst)}</td></tr>` : ''}
-    ${settings.show_tax_breakdown && igst > 0 ? `<tr><td style="padding:5px 10px;text-align:right;color:#6b7280">${igstLabel}</td><td style="padding:5px 10px;text-align:right">${fmt(igst)}</td></tr>` : ''}
-    ${!settings.show_tax_breakdown && tax > 0 ? `<tr><td style="padding:5px 10px;text-align:right;color:#6b7280">${taxLabel}</td><td style="padding:5px 10px;text-align:right">${fmt(tax)}</td></tr>` : ''}
-    ${settings.show_round_off !== false && round !== 0 ? `<tr><td style="padding:5px 10px;text-align:right;color:#6b7280">Round Off</td><td style="padding:5px 10px;text-align:right">${fmt(round)}</td></tr>` : ''}
+    <tr><td style="${lbl}">Subtotal</td><td style="${val}">${fmt(sub)}</td></tr>
+    ${showDiscSum ? `<tr><td style="${lbl}">${discLabel}</td><td style="${val};color:#dc2626">-${fmt(disc)}</td></tr>` : ''}
+    ${settings.show_taxable_amount && (disc > 0 || taxable !== sub) ? `<tr><td style="${lbl}">Taxable Amount</td><td style="${val}">${fmt(taxable)}</td></tr>` : ''}
+    ${settings.show_tax_breakdown && cgst > 0 ? `<tr><td style="${lbl}">${cgstLabel}</td><td style="${val}">${fmt(cgst)}</td></tr>` : ''}
+    ${settings.show_tax_breakdown && sgst > 0 ? `<tr><td style="${lbl}">${sgstLabel}</td><td style="${val}">${fmt(sgst)}</td></tr>` : ''}
+    ${settings.show_tax_breakdown && igst > 0 ? `<tr><td style="${lbl}">${igstLabel}</td><td style="${val}">${fmt(igst)}</td></tr>` : ''}
+    ${!settings.show_tax_breakdown && tax > 0 ? `<tr><td style="${lbl}">${taxLabel}</td><td style="${val}">${fmt(tax)}</td></tr>` : ''}
+    ${settings.show_round_off !== false && round !== 0 ? `<tr><td style="${lbl}">Round Off</td><td style="${val}">${fmt(round)}</td></tr>` : ''}
     <tr style="font-weight:700;font-size:14px;border-top:2px solid #111">
-      <td style="padding:8px 10px;text-align:right">Total</td>
-      <td style="padding:8px 10px;text-align:right">${fmt(total)}</td>
+      <td style="padding:8px 12px 8px 10px;text-align:left;white-space:nowrap">Total</td>
+      <td style="padding:8px 10px;text-align:right;white-space:nowrap;width:1%">${fmt(total)}</td>
     </tr>
-    ${!isQuotationDoc(inv) && (settings.show_amount_paid ?? true) && paid > 0 ? `<tr><td style="padding:5px 10px;text-align:right;color:#059669">Amount Paid</td><td style="padding:5px 10px;text-align:right;color:#059669">${fmt(paid)}</td></tr>` : ''}
-    ${!isQuotationDoc(inv) && (settings.show_balance_due ?? true) && bal > 0 ? `<tr><td style="padding:5px 10px;text-align:right;color:#dc2626;font-weight:600">Balance Due</td><td style="padding:5px 10px;text-align:right;color:#dc2626;font-weight:600">${fmt(bal)}</td></tr>` : ''}
+    ${!isQuotationDoc(inv) && (settings.show_amount_paid ?? true) && paid > 0 ? `<tr><td style="${lbl};color:#059669">Amount Paid</td><td style="${val};color:#059669">${fmt(paid)}</td></tr>` : ''}
+    ${!isQuotationDoc(inv) && (settings.show_balance_due ?? true) && bal > 0 ? `<tr><td style="${lbl};color:#dc2626;font-weight:600">Balance Due</td><td style="${val};color:#dc2626;font-weight:600">${fmt(bal)}</td></tr>` : ''}
     ${settings.show_amount_in_words && total > 0 ? `<tr><td colspan="2" style="padding:6px 10px;border-top:1px dashed #e5e7eb;font-size:10px;color:#6b7280;font-style:italic">Amount in words: <span style="font-weight:500;color:#374151">${numToWords(total)}</span></td></tr>` : ''}
     ${settings.show_tax_inclusive_note ? `<tr><td colspan="2" style="padding:4px 10px;font-size:10px;color:#9ca3af;font-style:italic;text-align:right">* All prices are inclusive of applicable taxes</td></tr>` : ''}
   `
@@ -1004,27 +1051,10 @@ ${sec('meta', `
       ${settings.show_gstin && inv.customer_gstin ? `<div style="font-size:11px;color:#6b7280;margin-top:2px">GSTIN: ${inv.customer_gstin}</div>` : ''}
     </div>` : '<div></div>'}
   </div>`)}
-${sec('items', `
-  <table style="margin-bottom:16px;width:100%;border-collapse:collapse">
-    <thead>
-      <tr style="background:${color};color:#fff">
-        <th style="padding:${INV_TABLE_CELL_PAD};text-align:center;font-size:10px;font-weight:600;width:36px">#</th>
-        <th style="padding:${INV_TABLE_CELL_PAD};text-align:left;font-size:10px;font-weight:600">ITEM</th>
-        ${settings.show_hsn ? `<th style="padding:${INV_TABLE_CELL_PAD};text-align:center;font-size:10px;font-weight:600">HSN</th>` : ''}
-        <th style="padding:${INV_TABLE_CELL_PAD};text-align:center;font-size:10px;font-weight:600;width:48px">QTY</th>
-        <th style="padding:${INV_TABLE_CELL_PAD};text-align:right;font-size:10px;font-weight:600">RATE</th>
-        <th style="padding:${INV_TABLE_CELL_PAD};text-align:right;font-size:10px;font-weight:600">DISC</th>
-        <th style="padding:${INV_TABLE_CELL_PAD};text-align:right;font-size:10px;font-weight:600">TAX</th>
-        <th style="padding:${INV_TABLE_CELL_PAD};text-align:right;font-size:10px;font-weight:600">AMOUNT</th>
-      </tr>
-    </thead>
-    <tbody>${itemRows(items, settings, color)}</tbody>
-  </table>`)}
+${sec('items', invoiceItemsSection(items, settings, color))}
 ${sec('totals', `
   <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
-    <table style="width:280px">
-      <tbody>${totalsBlock(inv, settings)}</tbody>
-    </table>
+    ${totalsTable(inv, settings, 280)}
   </div>`)}
   ${commonFooter(inv, settings)}
 </div></body></html>`
@@ -1086,17 +1116,10 @@ ${sec('meta', `
       </div>` : '<div></div>'}
     </div>`)}
 ${sec('items', `
-    <table style="margin-bottom:16px">
+    <table style="margin-bottom:16px;width:100%;border-collapse:collapse;table-layout:fixed">
       <thead>
         <tr style="border-bottom:2px solid ${color}">
-          <th style="padding:8px 6px;text-align:left;font-size:10px;color:${color}">#</th>
-          <th style="padding:8px 6px;text-align:left;font-size:10px;color:${color}">ITEM</th>
-          ${settings.show_hsn ? `<th style="padding:8px 6px;text-align:center;font-size:10px;color:${color}">HSN</th>` : ''}
-          <th style="padding:8px 6px;text-align:center;font-size:10px;color:${color}">QTY</th>
-          <th style="padding:8px 6px;text-align:right;font-size:10px;color:${color}">RATE</th>
-          <th style="padding:8px 6px;text-align:right;font-size:10px;color:${color}">DISC.</th>
-          <th style="padding:8px 6px;text-align:right;font-size:10px;color:${color}">TAX</th>
-          <th style="padding:8px 6px;text-align:right;font-size:10px;color:${color}">AMOUNT</th>
+          ${invoiceTableHeadCells(settings, `padding:8px 6px;font-size:10px;color:${color};font-weight:600;white-space:nowrap`, { discLabel: 'DISC.', numAlign: 'left' })}
         </tr>
       </thead>
       <tbody>${itemRows(items, settings, color)}</tbody>
@@ -1104,7 +1127,7 @@ ${sec('items', `
 ${sec('totals', `
     <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
       <div style="background:#f8fafc;border-radius:8px;padding:12px;min-width:260px">
-        <table style="width:100%"><tbody>${totalsBlock(inv, settings)}</tbody></table>
+        <table style="width:100%;border-collapse:collapse;table-layout:fixed"><colgroup><col /><col style="width:42%" /></colgroup><tbody>${totalsBlock(inv, settings)}</tbody></table>
       </div>
     </div>`)}
     ${commonFooter(inv, settings)}
@@ -1131,6 +1154,7 @@ function minimalTemplate(inv: InvData, settings: InvoiceSettings, backendApiBase
 </style></head>
 <body><div class="page">
 
+${sec('header', `
   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:40px">
     <div>
       ${logoImg(logoUrl, 'height:48px;max-width:100px;margin-bottom:8px;display:block', settings)}<br/>
@@ -1146,8 +1170,9 @@ function minimalTemplate(inv: InvData, settings: InvoiceSettings, backendApiBase
         ${(settings.show_booking_number ?? true) && inv.booking_number ? `<div style="font-size:10px;color:#6b7280;font-family:monospace;margin-top:4px">Booking: ${inv.booking_number}</div>` : ''}
       </div>
     </div>
-  </div>
+  </div>`)}
 
+${sec('meta', `
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-bottom:32px">
     ${settings.show_customer_address !== false ? `<div>
       <div style="font-size:9px;text-transform:uppercase;letter-spacing:.12em;color:#9ca3af;margin-bottom:8px">Bill To</div>
@@ -1161,28 +1186,22 @@ function minimalTemplate(inv: InvData, settings: InvoiceSettings, backendApiBase
       <div style="font-size:11px;margin-bottom:4px"><span style="color:#6b7280">Date: </span>${fmtDate(inv.created_at as string)}</div>
       ${(settings.show_due_date ?? true) && inv.due_date ? `<div style="font-size:11px"><span style="color:#6b7280">Due: </span>${fmtDate(inv.due_date as string)}</div>` : ''}
     </div>
-  </div>
+  </div>`)}
 
-  <!-- Items -->
-  <table style="margin-bottom:24px">
+  ${sec('items', `
+  <table style="margin-bottom:24px;width:100%;border-collapse:collapse;table-layout:fixed">
     <thead>
       <tr style="border-top:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb">
-        <th style="padding:8px 4px;text-align:left;font-size:10px;color:#9ca3af;font-weight:500">#</th>
-        <th style="padding:8px 4px;text-align:left;font-size:10px;color:#9ca3af;font-weight:500">DESCRIPTION</th>
-        ${settings.show_hsn ? `<th style="padding:8px 4px;text-align:center;font-size:10px;color:#9ca3af;font-weight:500">HSN</th>` : ''}
-        <th style="padding:8px 4px;text-align:center;font-size:10px;color:#9ca3af;font-weight:500">QTY</th>
-        <th style="padding:8px 4px;text-align:right;font-size:10px;color:#9ca3af;font-weight:500">RATE</th>
-        <th style="padding:8px 4px;text-align:right;font-size:10px;color:#9ca3af;font-weight:500">DISC.</th>
-        <th style="padding:8px 4px;text-align:right;font-size:10px;color:#9ca3af;font-weight:500">TAX</th>
-        <th style="padding:8px 4px;text-align:right;font-size:10px;color:#9ca3af;font-weight:500">AMOUNT</th>
+        ${invoiceTableHeadCells(settings, 'padding:8px 4px;font-size:10px;color:#9ca3af;font-weight:500;white-space:nowrap', { itemLabel: 'DESCRIPTION', discLabel: 'DISC.', numAlign: 'left' })}
       </tr>
     </thead>
     <tbody>${itemRows(items, settings, color)}</tbody>
-  </table>
+  </table>`)}
 
+  ${sec('totals', `
   <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
-    <table style="width:240px"><tbody>${totalsBlock(inv, settings)}</tbody></table>
-  </div>
+    <table style="width:260px;border-collapse:collapse;table-layout:fixed"><colgroup><col /><col style="width:42%" /></colgroup><tbody>${totalsBlock(inv, settings)}</tbody></table>
+  </div>`)}
 
   ${commonFooter(inv, settings)}
 </div></body></html>`
@@ -1207,6 +1226,7 @@ function luxuryTemplate(inv: InvData, settings: InvoiceSettings, backendApiBase:
 </style></head>
 <body><div class="page">
 
+${sec('header', `
   <!-- Dark Header -->
   <div style="background:#1f2937;padding:28px 32px;position:relative;overflow:hidden">
     <div style="position:absolute;top:0;right:0;width:200px;height:100%;background:${color};opacity:.15;transform:skewX(-15deg) translateX(30px)"></div>
@@ -1217,6 +1237,7 @@ function luxuryTemplate(inv: InvData, settings: InvoiceSettings, backendApiBase:
           <div style="font-size:20px;font-weight:700;color:#fff;letter-spacing:-0.3px">${inv.vendor_name || ''}</div>
           ${settings.show_gstin && inv.vendor_gstin ? `<div style="font-size:10px;color:rgba(255,255,255,.6);margin-top:2px">GSTIN: ${inv.vendor_gstin}</div>` : ''}
           ${settings.show_vendor_address !== false && addr ? `<div style="font-size:10px;color:rgba(255,255,255,.6);margin-top:2px">${addr}</div>` : ''}
+          <div class="inv-url-slot"></div>
         </div>
       </div>
       <div style="display:flex;align-items:flex-start;gap:12px">
@@ -1229,12 +1250,10 @@ function luxuryTemplate(inv: InvData, settings: InvoiceSettings, backendApiBase:
       </div>
     </div>
   </div>
-
-  <!-- Accent bar -->
-  <div style="height:4px;background:${color}"></div>
+  <div style="height:4px;background:${color}"></div>`)}
 
   <div style="padding:28px 32px">
-    <!-- Meta row -->
+${sec('meta', `
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:24px;border-bottom:1px solid #e5e7eb;padding-bottom:20px">
       ${settings.show_customer_address !== false ? `<div>
         <div style="font-size:9px;text-transform:uppercase;letter-spacing:.12em;color:#9ca3af;margin-bottom:6px">Bill To</div>
@@ -1255,35 +1274,29 @@ function luxuryTemplate(inv: InvData, settings: InvoiceSettings, backendApiBase:
           ${inv.balance_due ? `Balance Due: ${fmt(inv.balance_due)}` : 'Paid in Full'}
         </div>
       </div>
-    </div>
+    </div>`)}
 
-    <!-- Items -->
-    <table style="margin-bottom:20px">
+${sec('items', `
+    <table style="margin-bottom:20px;width:100%;border-collapse:collapse;table-layout:fixed">
       <thead>
         <tr style="background:#f8fafc">
-          <th style="padding:10px 8px;text-align:left;font-size:10px;color:#374151;font-weight:700;border-bottom:2px solid ${color}">#</th>
-          <th style="padding:10px 8px;text-align:left;font-size:10px;color:#374151;font-weight:700;border-bottom:2px solid ${color}">ITEM</th>
-          ${settings.show_hsn ? `<th style="padding:10px 8px;text-align:center;font-size:10px;color:#374151;font-weight:700;border-bottom:2px solid ${color}">HSN</th>` : ''}
-          <th style="padding:10px 8px;text-align:center;font-size:10px;color:#374151;font-weight:700;border-bottom:2px solid ${color}">QTY</th>
-          <th style="padding:10px 8px;text-align:right;font-size:10px;color:#374151;font-weight:700;border-bottom:2px solid ${color}">RATE</th>
-          <th style="padding:10px 8px;text-align:right;font-size:10px;color:#374151;font-weight:700;border-bottom:2px solid ${color}">DISC.</th>
-          <th style="padding:10px 8px;text-align:right;font-size:10px;color:#374151;font-weight:700;border-bottom:2px solid ${color}">TAX</th>
-          <th style="padding:10px 8px;text-align:right;font-size:10px;color:#374151;font-weight:700;border-bottom:2px solid ${color}">AMOUNT</th>
+          ${invoiceTableHeadCells(settings, `padding:10px 8px;font-size:10px;color:#374151;font-weight:700;border-bottom:2px solid ${color};white-space:nowrap`, { discLabel: 'DISC.', numAlign: 'left' })}
         </tr>
       </thead>
       <tbody>${itemRows(items, settings, color)}</tbody>
-    </table>
+    </table>`)}
 
-    <!-- Totals -->
+${sec('totals', `
     <div style="display:flex;justify-content:flex-end;margin-bottom:20px">
       <div style="min-width:260px;background:#1f2937;border-radius:8px;padding:14px">
-        <table style="width:100%">
+        <table style="width:100%;border-collapse:collapse;table-layout:fixed">
+          <colgroup><col /><col style="width:42%" /></colgroup>
           <tbody>
             ${totalsBlock(inv, settings).replace(/color:#6b7280/g, 'color:#9ca3af').replace(/color:#dc2626/g, 'color:#f87171').replace(/color:#059669/g, 'color:#34d399').replace(/#111/g, '#fff').replace(/font-size:14px/g, 'font-size:14px;color:#fff')}
           </tbody>
         </table>
       </div>
-    </div>
+    </div>`)}
 
     ${commonFooter(inv, settings)}
   </div>
@@ -1439,9 +1452,10 @@ function thermalTemplate(inv: InvData, settings: InvoiceSettings, backendApiBase
   .b{font-weight:bold}
   .sep{border-top:1px dashed #000;margin:3px 0}
   .row{display:flex;justify-content:space-between;line-height:1.6}
-  table{width:100%;border-collapse:collapse;font-size:${fs}}
-  th{border-bottom:1px solid #000;padding:1px 2px;font-size:${fs}}
-  td{padding:1px 2px;vertical-align:top}
+  table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:${fs}}
+  th{border-bottom:1px solid #000;padding:1px 1px;font-size:${fs};white-space:nowrap}
+  td{padding:1px 1px;vertical-align:top}
+  td.num,th.num{white-space:nowrap;font-variant-numeric:tabular-nums}
   @media print{body{background:#fff}.page{margin:0}}
   ${pageCss(settings.paper_size)}
 </style></head>
@@ -1472,12 +1486,18 @@ function thermalTemplate(inv: InvData, settings: InvoiceSettings, backendApiBase
 
   <div class="sep"></div>
   <table>
+    <colgroup>
+      <col style="width:34%" />
+      <col style="width:8%" />
+      <col style="width:29%" />
+      <col style="width:29%" />
+    </colgroup>
     <thead>
       <tr>
-        <th style="text-align:left;width:42%">ITEM</th>
-        <th style="text-align:center;width:10%">Q</th>
-        <th style="text-align:right;width:22%">RATE</th>
-        <th style="text-align:right;width:26%">AMT</th>
+        <th style="text-align:left">ITEM</th>
+        <th class="num" style="text-align:center">Q</th>
+        <th class="num" style="text-align:right">RATE</th>
+        <th class="num" style="text-align:right">AMT</th>
       </tr>
     </thead>
     <tbody>
@@ -1488,10 +1508,10 @@ function thermalTemplate(inv: InvData, settings: InvoiceSettings, backendApiBase
         // Pre-tax taxable amount — consistent with the Subtotal row below.
         const lineAmt = qty * rate - disc
         return `<tr>
-          <td>${it.name || ''}</td>
-          <td style="text-align:center">${qty}</td>
-          <td style="text-align:right">${fmt(rate)}</td>
-          <td style="text-align:right">${fmt(lineAmt)}</td>
+          <td style="overflow-wrap:anywhere">${it.name || ''}</td>
+          <td class="num" style="text-align:center">${qty}</td>
+          <td class="num" style="text-align:right">${fmt(rate)}</td>
+          <td class="num" style="text-align:right">${fmt(lineAmt)}</td>
         </tr>`
       }).join('')}
     </tbody>
@@ -1561,62 +1581,66 @@ function corporateTemplate(inv: InvData, settings: InvoiceSettings, backendApiBa
   const addr    = vendorAddr(inv.vendor_address as Record<string, string>)
   const logoUrl = resolveLogoUrl(settings, inv, backendApiBase)
 
+  // Horizontal inset lives on `.page` (not a wrapper between sections). applyLayout
+  // discards markup between marked sections, which previously left Notes flush on the accent bar.
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"/><title>Invoice ${inv.invoice_number}</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
-  body{font-family:'Arial',sans-serif;font-size:12px;color:#1f2937;background:#f3f4f6}
-  .page{max-width:800px;margin:20px auto;background:#fff;border-left:5px solid ${color}}
+  body{font-family:'Segoe UI',Arial,sans-serif;font-size:12px;color:#0f172a;background:#f8fafc}
+  .page{max-width:800px;margin:20px auto;background:#fff;border-left:4px solid ${color};padding:0 ${INV_PAGE_PAD_X} 28px}
   table{width:100%;border-collapse:collapse}
-  @media print{body{background:#fff}.page{margin:0;border-left:5px solid ${color}}}
+  @media print{body{background:#fff}.page{margin:0;border-left:4px solid ${color}}}
 </style></head>
-<body><div class="page">
+<body spellcheck="false"><div class="page">
 
   <!-- Letterhead -->
-  <div style="padding:28px 32px 20px;border-bottom:1px solid #e5e7eb">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start">
-      <div style="display:flex;align-items:center;gap:14px">
-        ${logoImg(logoUrl, 'height:60px;max-width:120px', settings)}
-        <div>
-          <div style="font-size:20px;font-weight:800;color:#111;letter-spacing:-0.5px">${inv.vendor_name || ''}</div>
-          ${settings.show_gstin && inv.vendor_gstin ? `<div style="font-size:10px;color:#6b7280;margin-top:3px">GSTIN: ${inv.vendor_gstin}</div>` : ''}
-          ${settings.show_vendor_address !== false && addr ? `<div style="font-size:10px;color:#6b7280;margin-top:2px;line-height:1.5">${addr}</div>` : ''}
+  ${sec('header', `
+  <div style="padding:26px 0 18px;border-bottom:1px solid #e2e8f0">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:28px">
+      <div style="display:flex;align-items:flex-start;gap:16px;min-width:0;flex:1">
+        ${logoImg(logoUrl, 'height:64px;max-width:120px', settings)}
+        <div style="min-width:0;padding-top:2px">
+          <div style="font-size:22px;font-weight:800;color:#0f172a;letter-spacing:-0.4px;line-height:1.15">${inv.vendor_name || ''}</div>
+          ${settings.show_gstin && inv.vendor_gstin ? `<div style="font-size:10px;color:#64748b;margin-top:6px;letter-spacing:.02em">GSTIN: ${inv.vendor_gstin}</div>` : ''}
+          ${settings.show_vendor_address !== false && addr ? `<div style="font-size:11px;color:#64748b;margin-top:4px;line-height:1.55;max-width:340px">${addr}</div>` : ''}
+          <div class="inv-url-slot"></div>
         </div>
       </div>
-      <div style="display:flex;align-items:flex-start;gap:14px">
+      <div style="display:flex;align-items:flex-start;gap:14px;flex-shrink:0">
         ${qrBlockHeader(settings)}
-        <div style="text-align:right;padding-left:20px;border-left:3px solid ${color};min-width:180px">
-          <div style="font-size:9px;text-transform:uppercase;letter-spacing:.15em;color:${color};font-weight:700">Tax Invoice</div>
-          <div style="font-size:22px;font-weight:800;font-family:monospace;color:#111;margin-top:3px">${inv.invoice_number}</div>
-          <div style="font-size:10px;color:#6b7280;margin-top:4px">Date: ${fmtDate(inv.created_at as string)}</div>
-          ${(settings.show_due_date ?? true) && inv.due_date ? `<div style="font-size:10px;color:#6b7280">Due: ${fmtDate(inv.due_date as string)}</div>` : ''}
-          ${(settings.show_financial_year ?? true) && inv.financial_year ? `<div style="font-size:10px;color:#6b7280">F.Y.: ${inv.financial_year}</div>` : ''}
-          ${(settings.show_booking_number ?? true) && inv.booking_number ? `<div style="font-size:10px;font-family:monospace;color:#6b7280;margin-top:2px">Ref: ${inv.booking_number}</div>` : ''}
+        <div style="text-align:right;padding-left:18px;border-left:2px solid ${color};min-width:188px">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:.16em;color:${color};font-weight:800">Tax Invoice</div>
+          <div style="font-size:15px;font-weight:800;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#0f172a;margin-top:6px">${inv.invoice_number}</div>
+          <div style="margin-top:10px;display:grid;grid-template-columns:auto auto;column-gap:14px;row-gap:2px;justify-content:end;font-size:11px;line-height:1.5">
+            <span style="color:#94a3b8;text-align:right">Date</span><span style="color:#0f172a;font-weight:600;text-align:left">${fmtDate(inv.created_at as string)}</span>
+            ${(settings.show_due_date ?? true) && inv.due_date ? `<span style="color:#94a3b8;text-align:right">Due</span><span style="color:#0f172a;font-weight:600;text-align:left">${fmtDate(inv.due_date as string)}</span>` : ''}
+            ${(settings.show_financial_year ?? true) && inv.financial_year ? `<span style="color:#94a3b8;text-align:right">F.Y.</span><span style="color:#0f172a;font-weight:600;text-align:left">${inv.financial_year}</span>` : ''}
+            ${(settings.show_booking_number ?? true) && inv.booking_number ? `<span style="color:#94a3b8;text-align:right">Ref</span><span style="color:#0f172a;font-weight:600;text-align:left">${inv.booking_number}</span>` : ''}
+          </div>
         </div>
       </div>
     </div>
-  </div>
+  </div>`)}
 
   ${settings.show_customer_address !== false ? `
   ${sec('meta', `
-  <div style="padding:14px ${INV_PAGE_PAD_X};background:#f8fafc;border-bottom:1px solid #e5e7eb">
-    <div style="border-left:4px solid ${color};padding:2px 0 2px 14px">
-      <div style="font-size:9px;text-transform:uppercase;letter-spacing:.12em;color:${color};font-weight:700;margin-bottom:6px">Bill To</div>
-      <div style="font-weight:700;font-size:13px;line-height:1.35">${inv.customer_name || ''}</div>
+  <div style="margin:16px 0 4px;padding:14px 16px;background:#f8fafc;border:1px solid #e2e8f0;border-left:3px solid ${color};border-radius:8px">
+    <div>
+      <div style="font-size:9px;text-transform:uppercase;letter-spacing:.14em;color:${color};font-weight:700;margin-bottom:6px">Bill To</div>
+      <div style="font-weight:700;font-size:14px;line-height:1.3;color:#0f172a">${inv.customer_name || ''}</div>
       ${(settings.show_customer_email ?? true) && inv.customer_email ? `<div style="font-size:11px;color:#6b7280;margin-top:4px;line-height:1.4">${inv.customer_email}</div>` : ''}
       ${settings.show_phone && inv.customer_phone ? `<div style="font-size:11px;color:#6b7280;margin-top:4px;line-height:1.4">${inv.customer_phone}</div>` : ''}
       ${settings.show_gstin && inv.customer_gstin ? `<div style="font-size:11px;color:#6b7280;margin-top:4px;line-height:1.4">GSTIN: ${inv.customer_gstin}</div>` : ''}
     </div>
   </div>`)}` : ''}
 
-  <div style="padding:20px ${INV_PAGE_PAD_X} 28px">
-  ${sec('items', invoiceItemsSection(items, settings, color))}
+  ${sec('items', `<div style="padding-top:20px">${invoiceItemsSection(items, settings, color)}</div>`)}
   ${sec('totals', `
-    <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
-      <table style="width:260px;border-collapse:collapse"><tbody>${totalsBlock(inv, settings)}</tbody></table>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:16px;padding-top:4px">
+      ${totalsTable(inv, settings, 260)}
     </div>`)}
-    ${commonFooter(inv, settings)}
-  </div>
+  ${commonFooter(inv, settings)}
 </div></body></html>`
 }
 
@@ -1633,21 +1657,25 @@ function colorblockTemplate(inv: InvData, settings: InvoiceSettings, backendApiB
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
   body{font-family:'Arial',sans-serif;font-size:12px;color:#1f2937;background:#f3f4f6}
-  .page{max-width:800px;margin:20px auto;background:#fff;display:flex;min-height:1000px}
-  .sidebar{width:200px;background:${color};flex-shrink:0;padding:28px 18px;display:flex;flex-direction:column;gap:20px}
-  .main{flex:1;padding:28px 28px;display:flex;flex-direction:column;gap:20px}
-  table{width:100%;border-collapse:collapse}
-  @media print{body{background:#fff}.page{margin:0}}
+  /* Keep a usable content width so the line-items table never collapses letter-by-letter. */
+  .page{max-width:800px;min-width:720px;margin:20px auto;background:#fff;display:flex;min-height:1000px}
+  .sidebar{width:168px;background:${color};flex-shrink:0;padding:24px 14px;display:flex;flex-direction:column;gap:18px}
+  .main{flex:1;min-width:0;padding:24px 20px;display:flex;flex-direction:column;gap:18px}
+  table{width:100%;border-collapse:collapse;table-layout:auto}
+  th,td{word-break:normal;overflow-wrap:break-word}
+  td.num,th.num{white-space:nowrap}
+  @media print{body{background:#fff}.page{margin:0;min-width:0}}
 </style></head>
 <body><div class="page">
 
-  <!-- Sidebar -->
+  <!-- Sidebar (keep outside layout markers so flex structure survives applyLayout) -->
   <div class="sidebar">
-    ${logoUrl ? `<div style="margin-bottom:4px">${logoImg(logoUrl, 'height:50px;max-width:160px;background:rgba(255,255,255,.15);padding:4px', settings)}</div>` : ''}
+    ${logoUrl ? `<div style="margin-bottom:4px">${logoImg(logoUrl, 'height:50px;max-width:140px;background:rgba(255,255,255,.15);padding:4px', settings)}</div>` : ''}
     <div>
       <div style="font-size:14px;font-weight:800;color:#fff;line-height:1.3">${inv.vendor_name || ''}</div>
       ${settings.show_gstin && inv.vendor_gstin ? `<div style="font-size:9px;color:rgba(255,255,255,.6);margin-top:4px">GSTIN: ${inv.vendor_gstin}</div>` : ''}
       ${settings.show_vendor_address !== false && addr ? `<div style="font-size:9px;color:rgba(255,255,255,.6);margin-top:4px;line-height:1.5">${addr}</div>` : ''}
+      <div class="inv-url-slot"></div>
     </div>
     <div style="border-top:1px solid rgba(255,255,255,.2);padding-top:16px">
       <div style="font-size:9px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.12em;margin-bottom:6px">Invoice No.</div>
@@ -1675,38 +1703,31 @@ function colorblockTemplate(inv: InvData, settings: InvoiceSettings, backendApiB
 
   <!-- Main content -->
   <div class="main">
-    <!-- Bill To -->
-    ${settings.show_customer_address !== false ? `<div>
+${sec('meta', settings.show_customer_address !== false ? `
+    <div>
       <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:${color};margin-bottom:6px">Bill To</div>
       <div style="font-weight:700;font-size:14px">${inv.customer_name || ''}</div>
       ${(settings.show_customer_email ?? true) && inv.customer_email ? `<div style="font-size:11px;color:#6b7280;margin-top:2px">${inv.customer_email}</div>` : ''}
       ${settings.show_phone && inv.customer_phone ? `<div style="font-size:11px;color:#6b7280">${inv.customer_phone}</div>` : ''}
       ${settings.show_gstin && inv.customer_gstin ? `<div style="font-size:11px;color:#6b7280;margin-top:2px">GSTIN: ${inv.customer_gstin}</div>` : ''}
-    </div>` : ''}
+    </div>` : '')}
 
-    <!-- Items -->
-    <div>
-      <table>
+${sec('items', `
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;table-layout:auto;min-width:480px">
         <thead>
           <tr style="border-bottom:2px solid ${color}">
-            <th style="padding:7px 5px;text-align:left;font-size:10px;color:${color}">#</th>
-            <th style="padding:7px 5px;text-align:left;font-size:10px;color:${color}">ITEM</th>
-            ${settings.show_hsn ? `<th style="padding:7px 5px;text-align:center;font-size:10px;color:${color}">HSN</th>` : ''}
-            <th style="padding:7px 5px;text-align:center;font-size:10px;color:${color}">QTY</th>
-            <th style="padding:7px 5px;text-align:right;font-size:10px;color:${color}">RATE</th>
-            <th style="padding:7px 5px;text-align:right;font-size:10px;color:${color}">DISC.</th>
-            <th style="padding:7px 5px;text-align:right;font-size:10px;color:${color}">TAX</th>
-            <th style="padding:7px 5px;text-align:right;font-size:10px;color:${color}">AMOUNT</th>
+            ${invoiceTableHeadCells(settings, `padding:7px 5px;font-size:10px;color:${color};font-weight:600;white-space:nowrap`, { discLabel: 'DISC.', numAlign: 'left' })}
           </tr>
         </thead>
         <tbody>${itemRows(items, settings, color)}</tbody>
       </table>
-    </div>
+    </div>`)}
 
-    <!-- Totals -->
+${sec('totals', `
     <div style="display:flex;justify-content:flex-end">
-      <table style="width:240px"><tbody>${totalsBlock(inv, settings)}</tbody></table>
-    </div>
+      <table style="width:260px;border-collapse:collapse;table-layout:fixed"><colgroup><col /><col style="width:42%" /></colgroup><tbody>${totalsBlock(inv, settings)}</tbody></table>
+    </div>`)}
 
     <div style="margin-top:auto">
       ${commonFooter(inv, settings)}
@@ -1734,6 +1755,7 @@ function compactTemplate(inv: InvData, settings: InvoiceSettings, backendApiBase
 </style></head>
 <body><div class="page">
 
+${sec('header', `
   <!-- Header: compact two-column -->
   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid ${color}">
     <div style="display:flex;align-items:center;gap:10px">
@@ -1753,10 +1775,10 @@ function compactTemplate(inv: InvData, settings: InvoiceSettings, backendApiBase
         ${(settings.show_booking_number ?? true) && inv.booking_number ? `<div style="font-size:9px;font-family:monospace;color:#6b7280">Ref: ${inv.booking_number}</div>` : ''}
       </div>
     </div>
-  </div>
+  </div>`)}
 
-  <!-- Bill To: inline row -->
-  ${settings.show_customer_address !== false ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;padding:8px 10px;background:#f8fafc;border-radius:4px;font-size:11px">
+${sec('meta', settings.show_customer_address !== false ? `
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;padding:8px 10px;background:#f8fafc;border-radius:4px;font-size:11px">
     <div>
       <span style="font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af;margin-right:6px">Bill To:</span>
       <span style="font-weight:700">${inv.customer_name || ''}</span>
@@ -1764,49 +1786,22 @@ function compactTemplate(inv: InvData, settings: InvoiceSettings, backendApiBase
       ${settings.show_gstin && inv.customer_gstin ? `<span style="color:#6b7280;margin-left:8px">GSTIN: ${inv.customer_gstin}</span>` : ''}
     </div>
     ${(settings.show_customer_email ?? true) && inv.customer_email ? `<div style="color:#6b7280">${inv.customer_email}</div>` : '<div></div>'}
-  </div>` : ''}
+  </div>` : '')}
 
-  <!-- Items Table: compact -->
-  <table style="margin-bottom:10px;font-size:10.5px">
+${sec('items', `
+  <table style="margin-bottom:10px;font-size:10.5px;width:100%;border-collapse:collapse;table-layout:fixed">
     <thead>
       <tr style="background:${color};color:#fff">
-        <th style="padding:5px 6px;text-align:left;font-size:9px;font-weight:600">#</th>
-        <th style="padding:5px 6px;text-align:left;font-size:9px;font-weight:600">ITEM</th>
-        ${settings.show_hsn ? `<th style="padding:5px 6px;text-align:center;font-size:9px;font-weight:600">HSN</th>` : ''}
-        <th style="padding:5px 6px;text-align:center;font-size:9px;font-weight:600">QTY</th>
-        <th style="padding:5px 6px;text-align:right;font-size:9px;font-weight:600">RATE</th>
-        <th style="padding:5px 6px;text-align:right;font-size:9px;font-weight:600">DISC.</th>
-        <th style="padding:5px 6px;text-align:right;font-size:9px;font-weight:600">TAX</th>
-        <th style="padding:5px 6px;text-align:right;font-size:9px;font-weight:600">AMOUNT</th>
+        ${invoiceTableHeadCells(settings, 'padding:5px 6px;font-size:9px;font-weight:600;white-space:nowrap', { discLabel: 'DISC.', numAlign: 'left' })}
       </tr>
     </thead>
-    <tbody>
-      ${items.map((it, i) => {
-        const qty   = Number(it.qty || it.quantity || 0)
-        const rate  = Number(it.rate || it.price || 0)
-        const disc  = Number(it.discount || 0)
-        const tax   = Number(it.cgst_amt || 0) + Number(it.sgst_amt || 0) + Number(it.igst_amt || 0)
-        const total = qty * rate - disc
-        return `<tr style="background:${i % 2 === 0 ? '#fff' : '#f9fafb'}">
-          <td style="padding:5px 6px;border-bottom:1px solid #e5e7eb;font-size:10px">${i + 1}</td>
-          <td style="padding:5px 6px;border-bottom:1px solid #e5e7eb">
-            <div style="font-weight:500;font-size:10.5px">${it.name || ''}</div>
-            ${settings.show_description && it.description ? `<div style="font-size:9px;color:#6b7280">${it.description}</div>` : ''}
-          </td>
-          ${settings.show_hsn ? `<td style="padding:5px 6px;border-bottom:1px solid #e5e7eb;text-align:center;color:#6b7280;font-size:10px">${it.hsn_sac || ''}</td>` : ''}
-          <td style="padding:5px 6px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:10px">${qty}</td>
-          <td style="padding:5px 6px;border-bottom:1px solid #e5e7eb;text-align:right;font-size:10px">${fmt(rate)}</td>
-          <td style="padding:5px 6px;border-bottom:1px solid #e5e7eb;text-align:right;font-size:10px">${disc > 0 ? fmt(disc) : '-'}</td>
-          <td style="padding:5px 6px;border-bottom:1px solid #e5e7eb;text-align:right;font-size:10px">${tax > 0 ? fmt(tax) : '-'}</td>
-          <td style="padding:5px 6px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:500;font-size:10.5px">${fmt(total)}</td>
-        </tr>`
-      }).join('')}
-    </tbody>
-  </table>
+    <tbody>${itemRows(items, settings, color)}</tbody>
+  </table>`)}
 
+${sec('totals', `
   <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
-    <table style="width:240px;font-size:11px"><tbody>${totalsBlock(inv, settings)}</tbody></table>
-  </div>
+    <table style="width:260px;font-size:11px;border-collapse:collapse;table-layout:fixed"><colgroup><col /><col style="width:42%" /></colgroup><tbody>${totalsBlock(inv, settings)}</tbody></table>
+  </div>`)}
 
   ${commonFooter(inv, settings)}
 </div></body></html>`
@@ -1831,8 +1826,9 @@ function boldTemplate(inv: InvData, settings: InvoiceSettings, backendApiBase: s
 </style></head>
 <body><div class="page">
 
+${sec('header', `
   <!-- Hero strip -->
-  <div style="background:${color};padding:0">
+  <div style="background:${color};padding:0;color:#fff">
     <div style="display:flex;justify-content:space-between;align-items:stretch">
       <div style="padding:24px 28px;display:flex;align-items:center;gap:14px">
         ${logoImg(logoUrl, 'height:52px;max-width:110px;background:rgba(255,255,255,.2);padding:4px', settings)}
@@ -1840,6 +1836,7 @@ function boldTemplate(inv: InvData, settings: InvoiceSettings, backendApiBase: s
           <div style="font-size:18px;font-weight:900;color:#fff;letter-spacing:-0.5px">${inv.vendor_name || ''}</div>
           ${settings.show_gstin && inv.vendor_gstin ? `<div style="font-size:9px;color:rgba(255,255,255,.65);margin-top:2px">GSTIN: ${inv.vendor_gstin}</div>` : ''}
           ${settings.show_vendor_address !== false && addr ? `<div style="font-size:9px;color:rgba(255,255,255,.65);margin-top:1px">${addr}</div>` : ''}
+          <div class="inv-url-slot"></div>
         </div>
       </div>
       <div style="background:rgba(0,0,0,.18);padding:24px 28px;display:flex;flex-direction:column;justify-content:center;align-items:flex-end;min-width:200px">
@@ -1850,9 +1847,9 @@ function boldTemplate(inv: InvData, settings: InvoiceSettings, backendApiBase: s
         ${(settings.show_booking_number ?? true) && inv.booking_number ? `<div style="font-size:9px;font-family:monospace;color:rgba(255,255,255,.5);margin-top:2px">Ref: ${inv.booking_number}</div>` : ''}
       </div>
     </div>
-  </div>
+  </div>`)}
 
-  <!-- Big total bar -->
+${sec('meta', `
   <div style="background:#1f2937;padding:16px 28px;display:flex;justify-content:space-between;align-items:center">
     <div style="display:flex;gap:32px">
       ${settings.show_customer_address !== false ? `<div>
@@ -1870,29 +1867,23 @@ function boldTemplate(inv: InvData, settings: InvoiceSettings, backendApiBase: s
         ${Number(inv.balance_due) > 0 ? `Balance Due: ${fmt(inv.balance_due)}` : '✓ Paid in Full'}
       </div>
     </div>
-  </div>
+  </div>`)}
 
-  <!-- Items Table -->
   <div style="padding:24px 28px 0">
-    <table style="margin-bottom:16px">
+${sec('items', `
+    <table style="margin-bottom:16px;width:100%;border-collapse:collapse;table-layout:fixed">
       <thead>
         <tr style="border-bottom:3px solid ${color}">
-          <th style="padding:8px 6px;text-align:left;font-size:10px;color:#374151;font-weight:700">#</th>
-          <th style="padding:8px 6px;text-align:left;font-size:10px;color:#374151;font-weight:700">ITEM</th>
-          ${settings.show_hsn ? `<th style="padding:8px 6px;text-align:center;font-size:10px;color:#374151;font-weight:700">HSN</th>` : ''}
-          <th style="padding:8px 6px;text-align:center;font-size:10px;color:#374151;font-weight:700">QTY</th>
-          <th style="padding:8px 6px;text-align:right;font-size:10px;color:#374151;font-weight:700">RATE</th>
-          <th style="padding:8px 6px;text-align:right;font-size:10px;color:#374151;font-weight:700">DISC.</th>
-          <th style="padding:8px 6px;text-align:right;font-size:10px;color:#374151;font-weight:700">TAX</th>
-          <th style="padding:8px 6px;text-align:right;font-size:10px;color:#374151;font-weight:700">AMOUNT</th>
+          ${invoiceTableHeadCells(settings, 'padding:8px 6px;font-size:10px;color:#374151;font-weight:700;white-space:nowrap', { discLabel: 'DISC.', numAlign: 'left' })}
         </tr>
       </thead>
       <tbody>${itemRows(items, settings, color)}</tbody>
-    </table>
+    </table>`)}
 
+${sec('totals', `
     <div style="display:flex;justify-content:flex-end;margin-bottom:20px">
-      <table style="width:260px"><tbody>${totalsBlock(inv, settings)}</tbody></table>
-    </div>
+      <table style="width:280px;border-collapse:collapse;table-layout:fixed"><colgroup><col /><col style="width:42%" /></colgroup><tbody>${totalsBlock(inv, settings)}</tbody></table>
+    </div>`)}
   </div>
 
   <div style="padding:0 28px 28px">
@@ -2102,7 +2093,7 @@ ${sec('meta', `
     </div>` : '<div></div>'}
   </div>`)}
 ${sec('items', invoiceItemsSection(items, settings, color))}
-${sec('totals', `<div style="display:flex;justify-content:flex-end;margin-bottom:16px"><table style="width:280px;border-collapse:collapse"><tbody>${totalsBlock(inv, settings)}</tbody></table></div>`)}
+${sec('totals', `<div style="display:flex;justify-content:flex-end;margin-bottom:16px">${totalsTable(inv, settings, 280)}</div>`)}
   ${commonFooter(inv, settings)}
 </div></body></html>`
 }
@@ -2144,7 +2135,7 @@ ${sec('meta', `
     </div>
   </div>`)}
 ${sec('items', invoiceItemsSection(items, settings, color, false))}
-${sec('totals', `<div style="display:flex;justify-content:flex-end;margin-bottom:16px"><table style="width:260px;border-collapse:collapse"><tbody>${totalsBlock(inv, settings)}</tbody></table></div>`)}
+${sec('totals', `<div style="display:flex;justify-content:flex-end;margin-bottom:16px">${totalsTable(inv, settings, 260)}</div>`)}
   ${commonFooter(inv, settings)}
 </div></body></html>`
 }
@@ -2159,130 +2150,51 @@ function leftlogoTemplate(inv: InvData, settings: InvoiceSettings, backendApiBas
 
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"/><title>Invoice ${inv.invoice_number}</title>
-<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;font-size:12px;color:#111;background:#f3f4f6}.page{max-width:800px;margin:20px auto;background:#fff;border-radius:8px;overflow:hidden}@media print{body{background:#fff}.page{margin:0;border-radius:0}}</style></head>
-<body><div class="page">
+<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',Arial,sans-serif;font-size:12px;color:#0f172a;background:#f8fafc}.page{max-width:800px;margin:20px auto;background:#fff;border-radius:10px;overflow:hidden}@media print{body{background:#fff}.page{margin:0;border-radius:0}}</style></head>
+<body spellcheck="false"><div class="page">
 ${sec('header', `
-  <div style="padding:24px 28px 20px;border-bottom:4px double ${color}">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:20px">
-      <div style="display:flex;align-items:center;gap:14px;min-width:140px">
-        ${logoImg(logoUrl, 'height:72px;max-width:130px;object-fit:contain', settings)}
+  <div style="padding:28px 32px 0">
+    <div style="display:flex;align-items:flex-start;gap:18px">
+      <div style="flex-shrink:0;padding-top:2px">
+        ${logoImg(logoUrl, 'height:68px;max-width:120px;object-fit:contain', settings)}
       </div>
-      <div style="flex:1;padding:0 8px">
-        <div style="font-size:20px;font-weight:800;color:#111">${inv.vendor_name || ''}</div>
-        ${settings.show_gstin && inv.vendor_gstin ? `<div style="font-size:10px;color:#6b7280;margin-top:3px">GSTIN: ${inv.vendor_gstin}</div>` : ''}
-        ${settings.show_vendor_address !== false && addr ? `<div style="font-size:10px;color:#6b7280;margin-top:2px;line-height:1.4">${addr}</div>` : ''}
-        <div style="margin-top:10px;font-size:18px;font-weight:700;color:${color};letter-spacing:2px">TAX INVOICE</div>
-        <div style="font-family:monospace;font-size:12px;color:#374151;margin-top:4px">${inv.invoice_number}</div>
-        ${(settings.show_booking_number ?? true) && inv.booking_number ? `<div style="font-size:10px;color:#9ca3af;margin-top:4px">Ref: ${inv.booking_number}</div>` : ''}
-      </div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;min-width:72px">
-        ${qrBlockHeader(settings)}
+      <div style="flex:1;min-width:0;display:flex;justify-content:space-between;align-items:flex-start;gap:24px">
+        <div style="min-width:0;flex:1;max-width:440px">
+          <div style="font-size:22px;font-weight:800;color:#0f172a;letter-spacing:-0.4px;line-height:1.15">${inv.vendor_name || ''}</div>
+          ${settings.show_gstin && inv.vendor_gstin ? `<div style="font-size:10px;color:#6b7280;margin-top:6px;letter-spacing:.02em">GSTIN: ${inv.vendor_gstin}</div>` : ''}
+          ${settings.show_vendor_address !== false && addr ? `<div style="font-size:10px;color:#6b7280;margin-top:2px;line-height:1.5;max-width:420px">${addr}</div>` : ''}
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="display:inline-block;background:${color};color:#fff;font-size:11px;font-weight:800;letter-spacing:1.6px;padding:7px 12px;border-radius:4px;line-height:1">TAX INVOICE</div>
+          <div style="margin-top:10px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;font-weight:700;color:#0f172a">${inv.invoice_number}</div>
+          ${(settings.show_booking_number ?? true) && inv.booking_number ? `<div style="font-size:10px;color:#64748b;margin-top:4px">Ref: ${inv.booking_number}</div>` : ''}
+          ${qrBlockHeader(settings) ? `<div style="display:flex;justify-content:flex-end;margin-top:10px">${qrBlockHeader(settings)}</div>` : ''}
+        </div>
       </div>
     </div>
+    <div style="height:3px;margin-top:18px;border-radius:999px;background:linear-gradient(90deg,${color} 0%,${color} 32%,#e2e8f0 32%)"></div>
   </div>`)}
-  <div style="padding:24px 28px">
+  <div style="padding:18px 32px 28px">
 ${sec('meta', `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;background:#f8fafc;border-radius:8px;padding:14px">
-      ${settings.show_customer_address !== false ? `<div>
-        <div style="font-size:9px;color:#9ca3af;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Bill To</div>
-        <div style="font-weight:700">${inv.customer_name || ''}</div>
-        ${settings.show_phone && inv.customer_phone ? `<div style="font-size:10px;color:#6b7280">${inv.customer_phone}</div>` : ''}
-        ${settings.show_gstin && inv.customer_gstin ? `<div style="font-size:10px;color:#6b7280">GSTIN: ${inv.customer_gstin}</div>` : ''}
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:22px;padding-bottom:16px;border-bottom:1px solid #e2e8f0">
+      ${settings.show_customer_address !== false ? `<div style="min-width:0">
+        <div style="font-size:9px;color:${color};text-transform:uppercase;letter-spacing:.14em;font-weight:700;margin-bottom:6px">Bill To</div>
+        <div style="font-weight:700;font-size:14px;color:#0f172a;line-height:1.3">${inv.customer_name || ''}</div>
+        ${settings.show_phone && inv.customer_phone ? `<div style="font-size:11px;color:#64748b;margin-top:4px">${inv.customer_phone}</div>` : ''}
+        ${(settings.show_customer_email ?? true) && inv.customer_email ? `<div style="font-size:11px;color:#64748b;margin-top:2px">${inv.customer_email}</div>` : ''}
+        ${settings.show_gstin && inv.customer_gstin ? `<div style="font-size:11px;color:#64748b;margin-top:2px">GSTIN: ${inv.customer_gstin}</div>` : ''}
       </div>` : '<div></div>'}
-      <div style="text-align:right">
-        <div style="font-size:11px;color:#6b7280">Date: <strong style="color:#111">${fmtDate(inv.created_at as string)}</strong></div>
-        ${(settings.show_due_date ?? true) && inv.due_date ? `<div style="font-size:11px;color:#6b7280;margin-top:4px">Due: <strong style="color:#111">${fmtDate(inv.due_date as string)}</strong></div>` : ''}
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:.14em;font-weight:700;margin-bottom:6px">Date</div>
+        <div style="font-weight:700;font-size:13px;color:#0f172a">${fmtDate(inv.created_at as string)}</div>
+        ${(settings.show_due_date ?? true) && inv.due_date ? `<div style="font-size:11px;color:#64748b;margin-top:6px">Due ${fmtDate(inv.due_date as string)}</div>` : ''}
+        ${(settings.show_financial_year ?? true) && inv.financial_year ? `<div style="font-size:11px;color:#64748b;margin-top:2px">F.Y. ${inv.financial_year}</div>` : ''}
       </div>
     </div>`)}
 ${sec('items', invoiceItemsSection(items, settings, color))}
-${sec('totals', `<div style="display:flex;justify-content:flex-end;margin-bottom:16px"><table style="width:280px;border-collapse:collapse"><tbody>${totalsBlock(inv, settings)}</tbody></table></div>`)}
+${sec('totals', `<div style="display:flex;justify-content:flex-end;margin-bottom:16px">${totalsTable(inv, settings, 280)}</div>`)}
     ${commonFooter(inv, settings)}
   </div>
-</div></body></html>`
-}
-
-// ─── Template: Footer Left Logo ───────────────────────────────────────────────
-
-function footerleftTemplate(inv: InvData, settings: InvoiceSettings, backendApiBase: string): string {
-  const color   = settings.color || '#1a56db'
-  const items   = (inv.items as InvData[]) || []
-  const addr    = vendorAddr(inv.vendor_address as Record<string, string>)
-  const logoUrl = resolveLogoUrl(settings, inv, backendApiBase)
-
-  return `<!DOCTYPE html>
-<html><head><meta charset="utf-8"/><title>Invoice ${inv.invoice_number}</title>
-<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;font-size:12px;color:#111;background:#f9fafb}.page{max-width:800px;margin:20px auto;background:#fff;padding:32px;border-radius:6px}@media print{body{background:#fff}.page{margin:0;border-radius:0}}</style></head>
-<body><div class="page">
-${sec('header', `
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid ${color}">
-    <div style="flex:1">
-      <div style="font-size:22px;font-weight:800;color:${color};letter-spacing:1px">TAX INVOICE</div>
-      ${(settings.show_copy_label ?? true) ? '<div style="font-size:9px;color:#9ca3af;margin-top:2px">ORIGINAL FOR RECIPIENT</div>' : ''}
-      <div style="font-size:20px;font-weight:700;color:#111;margin-top:12px">${inv.vendor_name || ''}</div>
-      ${settings.show_gstin && inv.vendor_gstin ? `<div style="font-size:10px;color:#6b7280;margin-top:2px">GSTIN: ${inv.vendor_gstin}</div>` : ''}
-      ${settings.show_vendor_address !== false && addr ? `<div style="font-size:10px;color:#6b7280;margin-top:2px;line-height:1.5">${addr}</div>` : ''}
-      ${(settings.show_booking_number ?? true) && inv.booking_number ? `<div style="font-size:10px;color:#6b7280;margin-top:6px;font-family:monospace">Booking: ${inv.booking_number}</div>` : ''}
-    </div>
-    <div>${qrBlockHeader(settings)}</div>
-  </div>`)}
-${sec('meta', `
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
-    <div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:6px;padding:12px">
-      <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="color:#6b7280;font-size:11px">Invoice No.</span><span style="font-weight:700;font-family:monospace">${inv.invoice_number}</span></div>
-      <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="color:#6b7280;font-size:11px">Date</span><span>${fmtDate(inv.created_at as string)}</span></div>
-      ${(settings.show_due_date ?? true) && inv.due_date ? `<div style="display:flex;justify-content:space-between"><span style="color:#6b7280;font-size:11px">Due Date</span><span>${fmtDate(inv.due_date as string)}</span></div>` : ''}
-    </div>
-    ${settings.show_customer_address !== false ? `<div>
-      <div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Bill To</div>
-      <div style="font-weight:700;font-size:13px">${inv.customer_name || ''}</div>
-      ${settings.show_phone && inv.customer_phone ? `<div style="font-size:11px;color:#6b7280;margin-top:2px">${inv.customer_phone}</div>` : ''}
-      ${settings.show_gstin && inv.customer_gstin ? `<div style="font-size:11px;color:#6b7280;margin-top:2px">GSTIN: ${inv.customer_gstin}</div>` : ''}
-    </div>` : '<div></div>'}
-  </div>`)}
-${sec('items', invoiceItemsSection(items, settings, color))}
-${sec('totals', `<div style="display:flex;justify-content:flex-end;margin-bottom:16px"><table style="width:280px;border-collapse:collapse"><tbody>${totalsBlock(inv, settings)}</tbody></table></div>`)}
-  ${commonFooter(inv, settings, logoUrl ? { url: logoUrl, position: 'left' } : undefined)}
-</div></body></html>`
-}
-
-// ─── Template: Footer Right Logo ─────────────────────────────────────────────
-
-function footerrightTemplate(inv: InvData, settings: InvoiceSettings, backendApiBase: string): string {
-  const color   = settings.color || '#1a56db'
-  const items   = (inv.items as InvData[]) || []
-  const addr    = vendorAddr(inv.vendor_address as Record<string, string>)
-  const logoUrl = resolveLogoUrl(settings, inv, backendApiBase)
-
-  return `<!DOCTYPE html>
-<html><head><meta charset="utf-8"/><title>Invoice ${inv.invoice_number}</title>
-<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;font-size:12px;color:#111;background:#f9fafb}.page{max-width:800px;margin:20px auto;background:#fff;padding:32px;border-radius:6px}@media print{body{background:#fff}.page{margin:0;border-radius:0}}</style></head>
-<body><div class="page">
-${sec('header', `
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid ${color}">
-    <div style="flex:1">
-      <div style="font-size:22px;font-weight:800;color:${color};letter-spacing:1px">TAX INVOICE</div>
-      ${(settings.show_copy_label ?? true) ? '<div style="font-size:9px;color:#9ca3af;margin-top:2px">ORIGINAL FOR RECIPIENT</div>' : ''}
-      <div style="font-size:20px;font-weight:700;color:#111;margin-top:12px">${inv.vendor_name || ''}</div>
-      ${settings.show_gstin && inv.vendor_gstin ? `<div style="font-size:10px;color:#6b7280;margin-top:2px">GSTIN: ${inv.vendor_gstin}</div>` : ''}
-      ${settings.show_vendor_address !== false && addr ? `<div style="font-size:10px;color:#6b7280;margin-top:2px;line-height:1.5">${addr}</div>` : ''}
-    </div>
-    <div>${qrBlockHeader(settings)}</div>
-  </div>`)}
-${sec('meta', `
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
-    <div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:6px;padding:12px">
-      <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="color:#6b7280;font-size:11px">Invoice No.</span><span style="font-weight:700;font-family:monospace">${inv.invoice_number}</span></div>
-      <div style="display:flex;justify-content:space-between"><span style="color:#6b7280;font-size:11px">Date</span><span>${fmtDate(inv.created_at as string)}</span></div>
-    </div>
-    ${settings.show_customer_address !== false ? `<div>
-      <div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Bill To</div>
-      <div style="font-weight:700;font-size:13px">${inv.customer_name || ''}</div>
-      ${settings.show_phone && inv.customer_phone ? `<div style="font-size:11px;color:#6b7280;margin-top:2px">${inv.customer_phone}</div>` : ''}
-    </div>` : '<div></div>'}
-  </div>`)}
-${sec('items', invoiceItemsSection(items, settings, color))}
-${sec('totals', `<div style="display:flex;justify-content:flex-end;margin-bottom:16px"><table style="width:280px;border-collapse:collapse"><tbody>${totalsBlock(inv, settings)}</tbody></table></div>`)}
-  ${commonFooter(inv, settings, logoUrl ? { url: logoUrl, position: 'right' } : undefined)}
 </div></body></html>`
 }
 
@@ -2329,15 +2241,9 @@ ${sec('meta', `
     </div>` : '<div></div>'}
   </div>`)}
 ${sec('items', invoiceItemsSection(items, settings, color))}
-${sec('totals', `<div style="display:flex;justify-content:flex-end;margin-bottom:16px"><table style="width:280px;border-collapse:collapse"><tbody>${totalsBlock(inv, settings)}</tbody></table></div>`)}
+${sec('totals', `<div style="display:flex;justify-content:flex-end;margin-bottom:16px">${totalsTable(inv, settings, 280)}</div>`)}
   ${commonFooter(inv, settings, logoUrl ? { url: logoUrl, position: 'bottom-left', size: 'md' } : undefined)}
 </div></body></html>`
-}
-
-// ─── Template: Top Right · Bottom Left (legacy id) ───────────────────────────
-
-function toprightbottomleftTemplate(inv: InvData, settings: InvoiceSettings, backendApiBase: string): string {
-  return toprightlogobottomleftTemplate(inv, settings, backendApiBase)
 }
 
 // ─── Template: Top Left Logo · Bottom Right Logo ─────────────────────────────
@@ -2383,15 +2289,9 @@ ${sec('meta', `
     </div>` : '<div></div>'}
   </div>`)}
 ${sec('items', invoiceItemsSection(items, settings, color))}
-${sec('totals', `<div style="display:flex;justify-content:flex-end;margin-bottom:16px"><table style="width:280px;border-collapse:collapse"><tbody>${totalsBlock(inv, settings)}</tbody></table></div>`)}
+${sec('totals', `<div style="display:flex;justify-content:flex-end;margin-bottom:16px">${totalsTable(inv, settings, 280)}</div>`)}
   ${commonFooter(inv, settings, logoUrl ? { url: logoUrl, position: 'bottom-right', size: 'md' } : undefined)}
 </div></body></html>`
-}
-
-// ─── Template: Top Left · Bottom Right (legacy id) ───────────────────────────
-
-function topleftbottomrightTemplate(inv: InvData, settings: InvoiceSettings, backendApiBase: string): string {
-  return topleftlogobottomrightTemplate(inv, settings, backendApiBase)
 }
 
 // ─── Template: Letterhead ──────────────────────────────────────────────────────
@@ -2431,7 +2331,7 @@ ${sec('meta', settings.show_customer_address !== false ? `
     <div style="font-size:11px;color:#6b7280;margin-top:6px">Date: ${fmtDate(inv.created_at as string)}${(settings.show_due_date ?? true) && inv.due_date ? ` · Due: ${fmtDate(inv.due_date as string)}` : ''}</div>
   </div>` : '')}
 ${sec('items', invoiceItemsSection(items, settings, color, false))}
-${sec('totals', `<div style="display:flex;justify-content:flex-end;margin-bottom:16px"><table style="width:260px;border-collapse:collapse"><tbody>${totalsBlock(inv, settings)}</tbody></table></div>`)}
+${sec('totals', `<div style="display:flex;justify-content:flex-end;margin-bottom:16px">${totalsTable(inv, settings, 260)}</div>`)}
   ${commonFooter(inv, settings)}
 </div></body></html>`
 }
@@ -2484,7 +2384,7 @@ ${sec('meta', settings.show_customer_address !== false ? `
       ${settings.show_gstin && inv.customer_gstin ? `<div style="font-size:11px;color:#6b7280;margin-top:2px">GSTIN: ${inv.customer_gstin}</div>` : ''}
     </div>` : '')}
 ${sec('items', invoiceItemsSection(items, settings, color))}
-${sec('totals', `<div style="display:flex;justify-content:flex-end;margin-bottom:16px"><table style="width:280px;border-collapse:collapse"><tbody>${totalsBlock(inv, settings)}</tbody></table></div>`)}
+${sec('totals', `<div style="display:flex;justify-content:flex-end;margin-bottom:16px">${totalsTable(inv, settings, 280)}</div>`)}
     ${commonFooter(inv, settings)}
   </div>
 </div></body></html>`
@@ -2529,7 +2429,7 @@ ${sec('meta', settings.show_customer_address !== false ? `
     ${(settings.show_due_date ?? true) && inv.due_date ? `<div style="text-align:right"><div style="font-size:9px;text-transform:uppercase;letter-spacing:.12em;color:#9ca3af;margin-bottom:6px">Due Date</div><div style="font-weight:600">${fmtDate(inv.due_date as string)}</div></div>` : '<div></div>'}
   </div>` : '')}
 ${sec('items', invoiceItemsSection(items, settings, color, false))}
-${sec('totals', `<div style="display:flex;justify-content:flex-end;margin-bottom:16px"><div style="background:#f8fafc;border-radius:8px;padding:12px;min-width:260px"><table style="width:100%;border-collapse:collapse"><tbody>${totalsBlock(inv, settings)}</tbody></table></div></div>`)}
+${sec('totals', `<div style="display:flex;justify-content:flex-end;margin-bottom:16px"><div style="background:#f8fafc;border-radius:8px;padding:12px;min-width:260px"><table style="width:100%;border-collapse:collapse;table-layout:fixed"><colgroup><col /><col style="width:42%" /></colgroup><tbody>${totalsBlock(inv, settings)}</tbody></table></div></div>`)}
   ${commonFooter(inv, settings)}
 </div></body></html>`
 }
@@ -2580,7 +2480,7 @@ ${sec('meta', `
       </div>` : '<div></div>'}
     </div>`)}
 ${sec('items', invoiceItemsSection(items, settings, color))}
-${sec('totals', `<div style="display:flex;justify-content:flex-end;margin-bottom:16px"><table style="width:280px;border-collapse:collapse"><tbody>${totalsBlock(inv, settings)}</tbody></table></div>`)}
+${sec('totals', `<div style="display:flex;justify-content:flex-end;margin-bottom:16px">${totalsTable(inv, settings, 280)}</div>`)}
     ${commonFooter(inv, settings)}
   </div>
 </div></body></html>`
@@ -2636,7 +2536,7 @@ ${sec('meta', `
       </div>` : '<div></div>'}
     </div>`)}
 ${sec('items', invoiceItemsSection(items, settings, color))}
-${sec('totals', `<div style="display:flex;justify-content:flex-end;margin-bottom:16px"><table style="width:300px;border-collapse:collapse;border:1px solid #e5e7eb"><tbody>${totalsBlock(inv, settings)}</tbody></table></div>`)}
+${sec('totals', `<div style="display:flex;justify-content:flex-end;margin-bottom:16px">${totalsTable(inv, settings, 300, 'border:1px solid #e5e7eb')}</div>`)}
     ${commonFooter(inv, settings)}
   </div>
 </div></body></html>`
@@ -2682,7 +2582,7 @@ ${sec('meta', settings.show_customer_address !== false ? `
       ${settings.show_phone && inv.customer_phone ? `<div style="font-size:11px;color:#6b7280">${inv.customer_phone}</div>` : ''}
     </div>` : '')}
 ${sec('items', invoiceItemsSection(items, settings, color))}
-${sec('totals', `<div style="display:flex;justify-content:flex-end;margin-bottom:16px"><table style="width:280px;border-collapse:collapse"><tbody>${totalsBlock(inv, settings)}</tbody></table></div>`)}
+${sec('totals', `<div style="display:flex;justify-content:flex-end;margin-bottom:16px">${totalsTable(inv, settings, 280)}</div>`)}
     ${settings.show_vendor_address !== false && addr ? `<div style="font-size:10px;color:#9ca3af;text-align:center;margin-top:8px">${addr}</div>` : ''}
     ${commonFooter(inv, settings)}
   </div>
@@ -2714,7 +2614,7 @@ ${sec('meta', settings.show_customer_address !== false ? `
       ${settings.show_gstin && inv.customer_gstin ? `<div style="font-size:11px;color:#6b7280">GSTIN: ${inv.customer_gstin}</div>` : ''}
     </div>` : '')}
 ${sec('items', invoiceItemsSection(items, settings, color))}
-${sec('totals', `<div style="display:flex;justify-content:flex-end;margin-bottom:16px"><table style="width:260px;border-collapse:collapse"><tbody>${totalsBlock(inv, settings)}</tbody></table></div>`)}
+${sec('totals', `<div style="display:flex;justify-content:flex-end;margin-bottom:16px">${totalsTable(inv, settings, 260)}</div>`)}
     ${commonFooter(inv, settings)}
   </div>
   <div style="width:150px;background:${color};color:#fff;padding:20px 14px;display:flex;flex-direction:column;align-items:center;gap:12px;flex-shrink:0">
@@ -2722,6 +2622,7 @@ ${sec('totals', `<div style="display:flex;justify-content:flex-end;margin-bottom
     <div style="text-align:center;width:100%">
       <div style="font-size:11px;font-weight:700;line-height:1.3">${inv.vendor_name || ''}</div>
       ${settings.show_gstin && inv.vendor_gstin ? `<div style="font-size:8px;opacity:.75;margin-top:6px;word-break:break-all">GSTIN: ${inv.vendor_gstin}</div>` : ''}
+      <div class="inv-url-slot"></div>
     </div>
     <div style="width:100%;height:1px;background:rgba(255,255,255,.25)"></div>
     <div style="font-size:9px;text-align:center;opacity:.8;width:100%">
@@ -2767,7 +2668,7 @@ ${sec('meta', settings.show_customer_address !== false ? `
     ${settings.show_gstin && inv.customer_gstin ? ` · GSTIN: ${inv.customer_gstin}` : ''}
   </div>` : '')}
 ${sec('items', invoiceItemsSection(items, settings, color, false))}
-${sec('totals', `<div style="display:flex;justify-content:flex-end;margin-bottom:16px"><table style="width:270px;border-collapse:collapse"><tbody>${totalsBlock(inv, settings)}</tbody></table></div>`)}
+${sec('totals', `<div style="display:flex;justify-content:flex-end;margin-bottom:16px">${totalsTable(inv, settings, 270)}</div>`)}
   ${commonFooter(inv, settings)}
 </div></body></html>`
 }
@@ -2790,6 +2691,7 @@ function slimleftTemplate(inv: InvData, settings: InvoiceSettings, backendApiBas
       <div style="font-size:12px;font-weight:800;color:#111;line-height:1.3">${inv.vendor_name || ''}</div>
       ${settings.show_gstin && inv.vendor_gstin ? `<div style="font-size:8px;color:#6b7280;margin-top:6px;word-break:break-all">GSTIN: ${inv.vendor_gstin}</div>` : ''}
       ${settings.show_vendor_address !== false && addr ? `<div style="font-size:8px;color:#9ca3af;margin-top:6px;line-height:1.4">${addr}</div>` : ''}
+      <div class="inv-url-slot"></div>
     </div>
     <div style="width:100%;height:2px;background:${color};margin-top:4px"></div>
     ${qrBlockHeader(settings)}
@@ -2810,7 +2712,7 @@ ${sec('meta', settings.show_customer_address !== false ? `
       ${settings.show_phone && inv.customer_phone ? `<div style="font-size:11px;color:#6b7280">${inv.customer_phone}</div>` : ''}
     </div>` : '')}
 ${sec('items', invoiceItemsSection(items, settings, color))}
-${sec('totals', `<div style="display:flex;justify-content:flex-end;margin-bottom:16px"><table style="width:260px;border-collapse:collapse"><tbody>${totalsBlock(inv, settings)}</tbody></table></div>`)}
+${sec('totals', `<div style="display:flex;justify-content:flex-end;margin-bottom:16px">${totalsTable(inv, settings, 260)}</div>`)}
     ${commonFooter(inv, settings)}
   </div>
 </div></body></html>`
@@ -2876,7 +2778,7 @@ ${sec('meta', settings.show_customer_address !== false ? `
       </div>` : ''}
     </div>` : '')}
 ${sec('items', invoiceItemsSection(items, settings, color))}
-${sec('totals', `<div style="display:flex;justify-content:flex-end;margin-bottom:16px"><div style="background:#f8fafc;border-radius:8px;padding:12px;min-width:280px;border:1px solid #e5e7eb"><table style="width:100%;border-collapse:collapse"><tbody>${totalsBlock(inv, settings)}</tbody></table></div></div>`)}
+${sec('totals', `<div style="display:flex;justify-content:flex-end;margin-bottom:16px"><div style="background:#f8fafc;border-radius:8px;padding:12px;min-width:280px;border:1px solid #e5e7eb"><table style="width:100%;border-collapse:collapse;table-layout:fixed"><colgroup><col /><col style="width:42%" /></colgroup><tbody>${totalsBlock(inv, settings)}</tbody></table></div></div>`)}
     ${commonFooter(inv, settings)}
   </div>
 </div></body></html>`
@@ -2885,11 +2787,17 @@ ${sec('totals', `<div style="display:flex;justify-content:flex-end;margin-bottom
 // ─── Main Export ─────────────────────────────────────────────────────────────
 
 export function generateInvoiceHtml(
-  inv: InvData,
-  settings: Partial<InvoiceSettings>,
+  rawInv: InvData,
+  rawSettings: Partial<InvoiceSettings>,
   backendApiBase = '',
 ): string {
-  const s: InvoiceSettings = { ...DEFAULT_INVOICE_SETTINGS, ...settings }
+  // The templates below insert these values into HTML as text / quoted attributes, and much of it is
+  // typed by customers (name, notes, item names) or vendors (labels, notes). Escape it once here so
+  // none of it can inject markup or script into the document. Only `template_pages_html` stays raw:
+  // it is deliberate HTML, sanitised by the server on save and on read. See htmlSafety.ts.
+  const inv = escapeDocData(rawInv)
+  const s: InvoiceSettings = escapeDocData({ ...DEFAULT_INVOICE_SETTINGS, ...rawSettings })
+  s.template = normalizeInvoiceTemplateId(s.template)
   // Narrow paper sizes always use the thermal receipt template
   if (isNarrow(s.paper_size)) return thermalTemplate(inv, s, backendApiBase)
   let html: string
@@ -2903,8 +2811,7 @@ export function generateInvoiceHtml(
     case 'bold':       html = boldTemplate(inv, s, backendApiBase); break
     case 'visual':     html = visualTemplate(inv, s, backendApiBase); break
     case 'rightlogo':  html = rightlogoTemplate(inv, s, backendApiBase); break
-    case 'leftlogo':
-    case 'dual':       html = leftlogoTemplate(inv, s, backendApiBase); break
+    case 'leftlogo':   html = leftlogoTemplate(inv, s, backendApiBase); break
     case 'centered':   html = centeredTemplate(inv, s, backendApiBase); break
     case 'letterhead': html = letterheadTemplate(inv, s, backendApiBase); break
     case 'banner':     html = bannerTemplate(inv, s, backendApiBase); break
@@ -2916,12 +2823,7 @@ export function generateInvoiceHtml(
     case 'framed':     html = framedTemplate(inv, s, backendApiBase); break
     case 'slimleft':   html = slimleftTemplate(inv, s, backendApiBase); break
     case 'premiumright': html = premiumrightTemplate(inv, s, backendApiBase); break
-    case 'footerleft':   html = footerleftTemplate(inv, s, backendApiBase); break
-    case 'footerright':  html = footerrightTemplate(inv, s, backendApiBase); break
-    case 'toprightbottomleft':
-    case 'topbottom':         html = toprightbottomleftTemplate(inv, s, backendApiBase); break
     case 'toprightlogobottomleft': html = toprightlogobottomleftTemplate(inv, s, backendApiBase); break
-    case 'topleftbottomright': html = topleftbottomrightTemplate(inv, s, backendApiBase); break
     case 'topleftlogobottomright': html = topleftlogobottomrightTemplate(inv, s, backendApiBase); break
     default:           html = classicTemplate(inv, s, backendApiBase)
   }
@@ -2995,6 +2897,13 @@ export function mergeInvoiceTemplatePages(
   const stored = settings.template_pages_html?.trim()
   if (!stored) {
     return buildDocumentPreviewHtml(generatedHtml, undefined, editable)
+  }
+  // Multi-page docs: keep continuation pages, but always refresh page 1 from the
+  // live generator so Design settings (template, columns, totals) apply.
+  if (countOfferPages(stored) > 1) {
+    const refreshed = refreshStoredFirstPage(stored, generatedHtml)
+    if (editable) return wrapStoredDocumentPages(refreshed, true)
+    return mergeStoredPagesForPrint(generatedHtml, refreshed)
   }
   if (editable) {
     return wrapStoredDocumentPages(stored, true)

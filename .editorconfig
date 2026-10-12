@@ -1,0 +1,7 @@
+# Keep every source file UTF-8 so characters such as — ─ · ₹ never get re-encoded (mojibake).
+root = true
+
+[*]
+charset = utf-8
+insert_final_newline = true
+trim_trailing_whitespace = false

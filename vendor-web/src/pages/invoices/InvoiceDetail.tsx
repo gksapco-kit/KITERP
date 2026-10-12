@@ -4,7 +4,7 @@ import { useStoreName } from '@/components/common/BusinessUnitSelect'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { vendorApi } from '@/api/vendor'
-import { useUpdateInvoice, useInvoiceSettings, useQuotationSettings, useSalesAreas } from '@/hooks/useVendor'
+import { useUpdateInvoice, useInvoiceSettings, useQuotationSettings, useSalesAreas, usePosReceiptSettings } from '@/hooks/useVendor'
 import { SalesAreaSelect } from '@/components/common/SalesAreaSelect'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -22,7 +22,7 @@ import {
 } from 'lucide-react'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { processRows, type SortDir } from '@/lib/tableList'
-import { printInvoice, generateInvoiceHtml, DEFAULT_INVOICE_SETTINGS, DEFAULT_QUOTATION_SETTINGS, loadPosInvoiceSettings, resolveInvoiceTemplateLogoPath } from '@/lib/invoiceTemplates'
+import { printInvoice, generateInvoiceHtml, DEFAULT_INVOICE_SETTINGS, DEFAULT_QUOTATION_SETTINGS, resolveInvoiceTemplateLogoPath } from '@/lib/invoiceTemplates'
 import type { InvoiceSettings } from '@/lib/invoiceTemplates'
 import {
   invoiceBadgeClass,
@@ -31,6 +31,7 @@ import {
   invoiceTypeBadge,
 } from '@/lib/invoiceBadges'
 import { fetchAsDataUrl, downloadAsPdf, shareViaWhatsApp, shareViaSms, buildShareMessage } from '@/lib/printUtils'
+import { withNoScriptCsp, writeSafeHtml } from '@/lib/htmlSafety'
 import { SALES_DOC_COPY_FROM_KEY } from '@/lib/copyDocument'
 import { QuotationExtraFieldsEditor, QuotationExtraFieldsDisplay } from '@/components/quotations/QuotationExtraFieldsEditor'
 import {
@@ -317,6 +318,7 @@ function InvoiceDocumentPreview({
   compact,
   focus,
   onTogglePanel,
+  onClose,
 }: {
   html: string
   loading: boolean
@@ -327,30 +329,76 @@ function InvoiceDocumentPreview({
   compact?: boolean
   focus?: PanelFocus
   onTogglePanel?: () => void
+  /** Hide the preview panel (show details full-width). */
+  onClose?: () => void
 }) {
   const iframeRef = useRef<HTMLIFrameElement>(null)
-  const [frameHeight, setFrameHeight] = useState(320)
+  const viewportRef = useRef<HTMLDivElement>(null)
+  const [frameHeight, setFrameHeight] = useState(480)
 
-  const resizeFrame = useCallback(() => {
+  const layoutPreview = useCallback(() => {
     const doc = iframeRef.current?.contentDocument
-    if (!doc?.body) return
-    const h = doc.documentElement.scrollHeight || doc.body.scrollHeight
-    setFrameHeight(Math.max(120, h + 8))
+    const viewport = viewportRef.current
+    if (!doc?.body || !viewport) return
+
+    const availW = Math.max(160, viewport.clientWidth)
+
+    // Use full panel width; collapse empty A4 min-height. Vertical overflow scrolls.
+    let style = doc.getElementById('kiterp-invoice-preview-fit') as HTMLStyleElement | null
+    if (!style) {
+      style = doc.createElement('style')
+      style.id = 'kiterp-invoice-preview-fit'
+      doc.head.appendChild(style)
+    }
+    style.textContent = `
+      html, body {
+        margin: 0 !important; padding: 0 !important; background: #fff !important;
+        overflow-x: auto !important; overflow-y: visible !important;
+        width: 100% !important; height: auto !important;
+      }
+      .page {
+        margin: 0 auto !important; max-width: 100% !important;
+        min-height: 0 !important; height: auto !important;
+        box-shadow: none !important; border-radius: 0 !important;
+        box-sizing: border-box !important;
+      }
+      table { width: 100%; table-layout: auto !important; }
+      th, td { word-break: normal; overflow-wrap: break-word; }
+    `
+
+    const measure = () => {
+      const page = doc.querySelector('.page') as HTMLElement | null
+      const contentH = Math.max(
+        page?.scrollHeight || 0,
+        doc.documentElement.scrollHeight || 0,
+        doc.body.scrollHeight || 0,
+        200,
+      )
+      setFrameHeight(contentH + 4)
+      // Keep iframe at the panel width so the document always uses available horizontal space.
+      if (iframeRef.current) iframeRef.current.style.width = `${availW}px`
+    }
+    requestAnimationFrame(() => requestAnimationFrame(measure))
   }, [])
 
   useEffect(() => {
     if (!html) return
-    const t = window.setTimeout(resizeFrame, 60)
+    const t = window.setTimeout(layoutPreview, 80)
     return () => window.clearTimeout(t)
-  }, [html, resizeFrame])
+  }, [html, layoutPreview, focus])
+
+  useEffect(() => {
+    const viewport = viewportRef.current
+    if (!viewport) return
+    const ro = new ResizeObserver(() => layoutPreview())
+    ro.observe(viewport)
+    return () => ro.disconnect()
+  }, [layoutPreview, html, loading])
 
   const openFullPreview = () => {
     if (!html) return
     const w = window.open('', '_blank')
-    if (w) {
-      w.document.write(html)
-      w.document.close()
-    }
+    if (w) writeSafeHtml(w, html)
   }
 
   return (
@@ -363,20 +411,17 @@ function InvoiceDocumentPreview({
           <span className="text-sm font-semibold text-gray-800 truncate">{title}</span>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          {onTogglePanel && (
+          {onTogglePanel && focus === 'preview' && (
             <Button
               type="button"
               variant="ghost"
               size="sm"
               className="h-8 px-2 text-xs text-gray-600"
               onClick={onTogglePanel}
-              title={focus === 'preview' ? 'Show split view' : 'Minimize PDF — full details'}
+              title="Show split view"
             >
-              {focus === 'preview' ? (
-                <Maximize2 className="w-3.5 h-3.5" />
-              ) : (
-                <Minimize2 className="w-3.5 h-3.5" />
-              )}
+              <Maximize2 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline ml-1">Split view</span>
             </Button>
           )}
         {!compact && (
@@ -429,9 +474,23 @@ function InvoiceDocumentPreview({
             Open full
           </Button>
         )}
+        {onClose && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 px-2 text-xs text-gray-600 hover:text-gray-900"
+            onClick={onClose}
+            title="Close preview"
+            aria-label="Close preview"
+          >
+            <X className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline ml-1">Close</span>
+          </Button>
+        )}
         </div>
       </div>
-      <div className="flex-1 overflow-auto bg-slate-100 min-h-0">
+      <div ref={viewportRef} className="flex-1 overflow-x-hidden overflow-y-auto bg-white min-h-0">
         {loading ? (
           <div className="flex flex-col items-center justify-center gap-2 h-full min-h-[200px] text-gray-400">
             <Loader2 className="w-7 h-7 animate-spin" />
@@ -443,18 +502,14 @@ function InvoiceDocumentPreview({
             <span className="text-sm">Preview unavailable</span>
           </div>
         ) : (
-          <div className="p-2 sm:p-3">
-            <div className="bg-white shadow-md rounded-sm mx-auto w-full max-w-full ring-1 ring-black/5">
-              <iframe
-                ref={iframeRef}
-                srcDoc={html}
-                title={title}
-                onLoad={resizeFrame}
-                className="w-full border-0 block bg-white rounded-sm"
-                style={{ height: `${frameHeight}px` }}
-              />
-            </div>
-          </div>
+          <iframe
+            ref={iframeRef}
+            srcDoc={withNoScriptCsp(html)}
+            title={title}
+            onLoad={layoutPreview}
+            className="border-0 block bg-white w-full"
+            style={{ height: `${frameHeight}px` }}
+          />
         )}
       </div>
     </div>
@@ -469,7 +524,8 @@ export default function InvoiceDetail() {
   const updateInvoice = useUpdateInvoice()
   const { data: rawInvSettings, isLoading: invoiceSettingsLoading } = useInvoiceSettings()
   const { data: rawQuoteSettings, isLoading: quotationSettingsLoading } = useQuotationSettings()
-  const settingsLoading = invoiceSettingsLoading || quotationSettingsLoading
+  const { data: posReceiptSettings, isLoading: posSettingsLoading } = usePosReceiptSettings()
+  const settingsLoading = invoiceSettingsLoading || quotationSettingsLoading || posSettingsLoading
 
   const invSettings = useMemo<InvoiceSettings>(() => {
     const baseDefaults = isQuotationRoute ? DEFAULT_QUOTATION_SETTINGS : DEFAULT_INVOICE_SETTINGS
@@ -483,9 +539,9 @@ export default function InvoiceDetail() {
     const notes  = String((invData || {}).notes || '')
     const num    = String((invData || {}).invoice_number || '')
     const isPOS  = notes.includes('POS Transaction') || /^POS-/i.test(num)
-    const pos    = isPOS ? loadPosInvoiceSettings() : {}
+    const pos    = isPOS ? (posReceiptSettings ?? {}) : {}
     return { ...invSettings, ...pos }
-  }, [invSettings])
+  }, [invSettings, posReceiptSettings])
 
   const { data: inv, isLoading } = useQuery({
     queryKey: ['invoice', id],
@@ -927,7 +983,7 @@ export default function InvoiceDetail() {
         {showDetails && (
         <div
           className={`order-2 lg:order-1 flex flex-col min-h-0 min-w-0 h-full ${
-            panelFocus === 'details' ? 'w-full flex-1' : 'w-full lg:w-1/2 lg:flex-1'
+            panelFocus === 'details' ? 'w-full flex-1' : 'w-full lg:flex-[3] lg:min-w-0'
           }`}
         >
           <PanelSectionHeader
@@ -1092,8 +1148,8 @@ export default function InvoiceDetail() {
               </div>
             ) : (
               editItems.map((item, idx) => (
-                <div key={idx} className="px-5 py-3 grid grid-cols-12 gap-3 items-end">
-                  <div className="col-span-12 sm:col-span-4">
+                <div key={idx} className="px-5 py-3 flex flex-wrap items-end gap-3">
+                  <div className="min-w-[140px] flex-[2.2]">
                     <Label className="text-xs text-gray-500">Item Name</Label>
                     <Input
                       value={item.name}
@@ -1102,7 +1158,7 @@ export default function InvoiceDetail() {
                       className="h-9"
                     />
                   </div>
-                  <div className="col-span-6 sm:col-span-2">
+                  <div className="w-[100px] shrink-0">
                     <Label className="text-xs text-gray-500">HSN/SAC</Label>
                     <Input
                       value={item.hsn_sac}
@@ -1111,7 +1167,7 @@ export default function InvoiceDetail() {
                       className="h-9"
                     />
                   </div>
-                  <div className="col-span-6 sm:col-span-1">
+                  <div className="w-[72px] shrink-0">
                     <Label className="text-xs text-gray-500">Qty</Label>
                     <Input
                       type="number"
@@ -1121,7 +1177,7 @@ export default function InvoiceDetail() {
                       className="h-9"
                     />
                   </div>
-                  <div className="col-span-6 sm:col-span-2">
+                  <div className="w-[100px] shrink-0">
                     <Label className="text-xs text-gray-500">Rate</Label>
                     <Input
                       type="number"
@@ -1132,7 +1188,7 @@ export default function InvoiceDetail() {
                       className="h-9"
                     />
                   </div>
-                  <div className="col-span-6 sm:col-span-1">
+                  <div className="w-[72px] shrink-0">
                     <Label className="text-xs text-gray-500">Tax %</Label>
                     <Input
                       type="number"
@@ -1143,16 +1199,19 @@ export default function InvoiceDetail() {
                       className="h-9"
                     />
                   </div>
-                  <div className="col-span-6 sm:col-span-1 text-right">
+                  <div className="w-[110px] shrink-0 text-right">
                     <Label className="text-xs text-gray-500">Amount</Label>
-                    <p className="text-sm font-medium h-9 flex items-center justify-end">{formatCurrency(item.qty * item.rate)}</p>
+                    <p className="text-sm font-medium h-9 flex items-center justify-end whitespace-nowrap tabular-nums">
+                      {formatCurrency(item.qty * item.rate)}
+                    </p>
                   </div>
-                  <div className="col-span-6 sm:col-span-1 flex justify-end">
+                  <div className="w-9 shrink-0 flex justify-end pb-0.5">
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-9 text-red-500 hover:text-red-700 hover:bg-red-50"
+                      className="h-9 w-9 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
                       onClick={() => removeItem(idx)}
+                      aria-label="Remove item"
                     >
                       <Trash2 className="w-4 h-4 text-red-600" />
                     </Button>
@@ -1370,7 +1429,9 @@ export default function InvoiceDetail() {
         {showPreview && (
         <div
           className={`order-1 lg:order-2 flex flex-col min-h-0 min-w-0 lg:h-full ${
-            panelFocus === 'preview' ? 'w-full flex-1 min-h-[min(60dvh,520px)] lg:min-h-0' : 'w-full lg:w-1/2 lg:flex-1 min-h-[min(50dvh,480px)] lg:min-h-0'
+            panelFocus === 'preview'
+              ? 'w-full flex-1 min-h-[min(60dvh,520px)] lg:min-h-0'
+              : 'w-full lg:flex-[2] lg:min-w-0 min-h-[min(50dvh,480px)] lg:min-h-0'
           }`}
         >
           <InvoiceDocumentPreview
@@ -1383,6 +1444,7 @@ export default function InvoiceDetail() {
             compact
             focus={panelFocus}
             onTogglePanel={togglePdfPanel}
+            onClose={() => applyPanelFocus('details')}
           />
         </div>
         )}

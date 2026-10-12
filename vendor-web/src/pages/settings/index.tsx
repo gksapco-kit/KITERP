@@ -93,6 +93,7 @@ import {
 import { APP_VERSION, APP_BUILD, LAST_UPDATED, CHANGELOG } from '@/constants/vendorAppMeta'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { APP_SAVE_REQUEST_EVENT } from '@/lib/appSave'
+import { useHasPermission } from '@/hooks/usePermissions'
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard'
 import { useServerFormHydration, serverFormSnapshotKey } from '@/hooks/useServerFormHydration'
 import {
@@ -871,7 +872,7 @@ function FormSaveBar({ loading, compact, top }: { loading: boolean; compact?: bo
   )
 }
 
-// â”€â”€ Profile Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Profile Section ──────────────────────────────────────────────────
 
 type ProfileSectionProps = SectionProps & {
   activeStore?: StoreRecord
@@ -913,6 +914,10 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
     offering_type: 'both' as string,
     company_type: '',
   })
+  // The company-wide logo/banner is shown on the storefront, invoices and emails, so the server only
+  // lets roles with settings.edit change it. Per-unit branding uses a different, open route.
+  const canEditCompanyBranding = useHasPermission('settings.edit')
+  const brandingLocked = !unitBrandingEditable && !canEditCompanyBranding
   const [logoUploading, setLogoUploading] = useState(false)
   const [bannerUploading, setBannerUploading] = useState(false)
   const [extraBannerUploading, setExtraBannerUploading] = useState(false)
@@ -1095,8 +1100,9 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
         if (vendor) setVendor({ ...vendor, logo_url })
         await qc.invalidateQueries({ queryKey: ['vendor', 'me'] })
       }
-    } catch {
-      toast.error('Could not upload logo — use a PNG or JPG file under 2MB')
+    } catch (err) {
+      // Show the server's reason (e.g. missing permission) instead of always blaming the file.
+      toast.error(extractApiError(err, 'Could not upload logo — use a PNG or JPG file under 5 MB'))
       throw new Error('logo upload failed')
     } finally {
       setLogoUploading(false)
@@ -1426,15 +1432,24 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
         <FormSaveBar loading={profileSaving || onSave.isPending} top />
         {/* Logo & banner — shown when: (a) vendor branding (single mode or all-BU view), or (b) per-unit branding editor */}
         {(showVendorBranding || unitBrandingEditable) ? (
-        <div className="rounded-lg border border-border/70 bg-background/80 px-3 py-3">
+        // <fieldset disabled> switches off every button/input inside it in one go.
+        <fieldset
+          disabled={brandingLocked}
+          className={cn(
+            'm-0 min-w-0 rounded-lg border border-border/70 bg-background/80 px-3 py-3',
+            brandingLocked && 'opacity-70',
+          )}
+        >
           <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
             <span className="text-xs font-medium text-foreground">
               {unitBrandingEditable ? `${activeStore?.name ?? 'Unit'} branding` : 'Store branding'}
             </span>
             <span className="text-xs text-muted-foreground">
-              {unitBrandingEditable
-                ? 'Applies to this unit only · PNG/JPG/WebP · banner 3:1'
-                : 'PNG/JPG/WebP · banner 3:1 · default for all units'}
+              {brandingLocked
+                ? 'View only · ask the account owner to change the logo or banners'
+                : unitBrandingEditable
+                  ? 'Applies to this unit only · PNG/JPG/WebP · banner 3:1'
+                  : 'PNG/JPG/WebP · banner 3:1 · default for all units'}
             </span>
           </div>
           <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-start">
@@ -1598,7 +1613,7 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
               />
             </div>
           </div>
-        </div>
+        </fieldset>
         ) : (
           <div className="rounded-lg border border-border/70 bg-muted/30 px-3 py-2.5 text-xs text-muted-foreground">
             <span className="font-medium text-foreground">Per-unit branding active.</span>{' '}
@@ -1947,7 +1962,7 @@ function ContactSection({
   )
 }
 
-// â”€â”€ Address Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Address Section ──────────────────────────────────────────────────
 
 function ReadOnlyBanner({ message }: { message: string }) {
   return (
@@ -2927,7 +2942,7 @@ function TaxSection({
   )
 }
 
-// â”€â”€ Business Hours Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Business Hours Section ───────────────────────────────────────────
 
 type StoreHoliday = { date: string; label: string; closed: boolean }
 
@@ -3122,7 +3137,7 @@ function BusinessHoursSection({ vendor, open, toggle, onSave }: SectionProps) {
   )
 }
 
-// â”€â”€ Order Acceptance Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Order Acceptance Section ─────────────────────────────────────────
 
 function OrderAcceptanceSection({ vendor, open, toggle, onSave }: SectionProps) {
   const [enabled, setEnabled] = useState(true)

@@ -5,7 +5,7 @@ Uses FileService (S3 when configured, else backend/uploads/).
 """
 import uuid
 from contextvars import ContextVar
-from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, status, Body
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile, File, status, Body
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,6 +18,7 @@ from app.api.deps import (
     get_current_vendor_id,
     preferred_vendor_id_from_request,
     resolve_dashboard_vendor,
+    require_any_permission,
     require_permission,
 )
 from app.models.user import User
@@ -26,6 +27,7 @@ from app.models.vendor_service import Service
 from app.models.procurement import Supplier
 from app.models.vendor_user import VendorUser
 from app.services.vendor_service import VendorService
+from app.services.document_assets import store_document_asset
 from app.repositories.product_repo import ProductRepository
 from app.repositories.service_repo import ServiceRepository
 from app.services.media_upload import (
@@ -170,15 +172,21 @@ async def proxy_image_from_url(
 async def upload_vendor_logo(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_active_user),
+    # The company logo is shown on the storefront, invoices, emails and every document, so
+    # changing it is a settings change, not something any staff login may do.
+    _perm: VendorUser = Depends(require_permission("settings.edit")),
     db: AsyncSession = Depends(get_db),
 ):
     """Upload or replace the vendor logo."""
+    if detect_media_type(file) != "image":
+        raise HTTPException(status_code=400, detail="The logo must be an image (PNG, JPG or WebP).")
+
     svc = VendorService(db)
     vendor = await svc.get_by_user_id(current_user.id)
     if not vendor:
         raise HTTPException(status_code=404, detail="Vendor not found")
 
-    url = await _save_file(file, "vendor-logos", max_bytes=0)
+    url = await _save_file(file, "vendor-logos")  # default image size cap (5 MB)
 
     if vendor.logo_url:
         await delete_stored_file(vendor.logo_url)
@@ -188,10 +196,34 @@ async def upload_vendor_logo(
     return JSONResponse(content={"logo_url": url})
 
 
+@router.post("/vendor/document-asset")
+async def upload_vendor_document_asset(
+    kind: str = Form(...),
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_active_user),
+    _perm: VendorUser = Depends(
+        require_any_permission(
+            "invoices.manage", "documents.templates.manage", "procurement.manage", "hr.offers",
+        )
+    ),
+    db: AsyncSession = Depends(get_db),
+):
+    """Upload a template image (signature / QR code / logo) for any document template editor.
+
+    Unlike ``/vendor/logo`` this never touches the company logo: files go to template-only folders
+    and nothing is saved to the vendor or its settings. The editor keeps the returned URL in its
+    draft and persists it with its own Save.
+    """
+    await _get_vendor_id(user, db)  # same tenant resolution as the other upload routes
+    url = await store_document_asset(kind, file)
+    return JSONResponse(content={"url": url, "kind": kind})
+
+
 @router.post("/vendor/banner")
 async def upload_vendor_banner(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_active_user),
+    _perm: VendorUser = Depends(require_permission("settings.edit")),  # storefront-wide branding
     db: AsyncSession = Depends(get_db),
 ):
     """Upload or replace the vendor banner."""

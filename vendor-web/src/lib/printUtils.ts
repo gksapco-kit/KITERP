@@ -13,6 +13,7 @@
  * needs zero network requests.
  */
 import { getAccessToken } from '@/lib/authTokenStorage'
+import { stripActiveContent, withNoScriptCsp, writeSafeHtml } from '@/lib/htmlSafety'
 
 // ── Backend base URL ──────────────────────────────────────────────────────────
 
@@ -80,12 +81,13 @@ export function openPrintWindow(html: string): void {
   if (!doc) {
     // iframes not available — fall back to popup
     const w = window.open('', '_blank', 'width=900,height=700')
-    if (w) { w.document.write(html); w.document.close(); setTimeout(() => { w.focus(); w.print() }, 800) }
+    if (w) { writeSafeHtml(w, html); setTimeout(() => { w.focus(); w.print() }, 800) }
     return
   }
 
+  // This frame shares our origin, so it must never be able to run script (see htmlSafety.ts).
   doc.open()
-  doc.write(html)
+  doc.write(withNoScriptCsp(html))
   doc.close()
 
   // Wait for images / fonts inside the iframe to finish loading
@@ -102,51 +104,24 @@ export function openPrintWindow(html: string): void {
   }, 700)
 }
 
-// ── CDN html2pdf.js loader ────────────────────────────────────────────────────
-// html2pdf.js bundles a patched version of html2canvas that correctly renders
-// border-bottom, flex layouts, and other CSS that the standalone html2canvas
-// npm package mishandles (borders appear as dashes, text misaligns, etc.).
-// We load it once from CDN and cache it on window.
+// ── html2pdf.js loader ────────────────────────────────────────────────────────
+// html2pdf.js (html2canvas + jsPDF with page-break handling) is a regular npm dependency and is
+// imported lazily, so it is only downloaded the first time someone exports a PDF. It used to be
+// fetched from cdnjs at runtime, which broke PDF download / WhatsApp PDF sharing whenever the CDN
+// was blocked (strict CSP, corporate firewall, offline POS terminal).
 
-declare global {
-  interface Window { html2pdf?: unknown }
-}
+type Html2PdfFn = () => unknown
 
-const HTML2PDF_CDN =
-  'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js'
-
-function loadHtml2Pdf(): Promise<(...args: unknown[]) => {
-  set(o: unknown): unknown; from(el: unknown): unknown; save(): Promise<void>
-}> {
-  return new Promise((resolve, reject) => {
-    if (typeof window.html2pdf === 'function') {
-      resolve(window.html2pdf as never)
-      return
-    }
-    const existing = document.querySelector(`script[src="${HTML2PDF_CDN}"]`)
-    const tag = existing ?? document.createElement('script')
-    if (!existing) {
-      (tag as HTMLScriptElement).src = HTML2PDF_CDN
-      ;(tag as HTMLScriptElement).crossOrigin = 'anonymous'
-      document.head.appendChild(tag)
-    }
-    tag.addEventListener('load', () => resolve(window.html2pdf as never))
-    tag.addEventListener('error', () => reject(new Error('html2pdf CDN load failed')))
-    // Race: script may already be in DOM and executed
-    if (existing && typeof window.html2pdf === 'function') {
-      resolve(window.html2pdf as never)
-      return
-    }
-  })
+async function loadHtml2Pdf(): Promise<Html2PdfFn> {
+  const mod = await import('html2pdf.js')
+  return ((mod as { default?: Html2PdfFn }).default ?? (mod as unknown as Html2PdfFn))
 }
 
 /**
  * Download a document as a PDF directly to the local machine's Downloads folder.
  *
- * Uses html2pdf.js (CDN, loaded once and cached) which bundles a patched
- * html2canvas that correctly renders CSS borders, flex layouts, and fonts —
- * unlike the standalone html2canvas npm package which renders border-bottom
- * as dashes and misaligns flex containers.
+ * Uses html2pdf.js (bundled with the app and loaded on first use) to render CSS borders,
+ * flex layouts and fonts and to handle page breaks.
  *
  * The PDF is generated entirely in-page (a hidden off-screen div), so no popup
  * window appears.  jsPDF.save() triggers a silent browser download.
@@ -167,11 +142,13 @@ export async function downloadAsPdf(
   // ── Mount off-screen container with the FULL HTML (head styles + body) ─────
   // We extract the <style> blocks separately so CSS classes (.page, table, etc.)
   // apply correctly — html2pdf needs real computed styles, not just inline ones.
-  const styleBlocks = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)]
+  // The container lives in the app's own DOM (not a frame), so strip anything that can run code first.
+  const safeHtml = stripActiveContent(html)
+  const styleBlocks = [...safeHtml.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)]
     .map(m => `<style>${m[1]}</style>`).join('\n')
 
-  const bodyMatch   = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i)
-  const bodyContent = bodyMatch ? bodyMatch[1] : html
+  const bodyMatch   = safeHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i)
+  const bodyContent = bodyMatch ? bodyMatch[1] : safeHtml
 
   const container = document.createElement('div')
   container.style.cssText = [
@@ -212,45 +189,13 @@ export async function downloadAsPdf(
       .from(target)
       .save()
   } catch {
-    // CDN unavailable — fall back to jsPDF image approach
-    _pdfFallback(html, safeName, margin, orientation)
+    // PDF engine failed to load or render (e.g. the lazy chunk could not be fetched offline).
+    // Open the browser's native print dialog instead — "Save as PDF" is available there and it
+    // needs no network. The old fallback re-loaded the same script from a CDN, so it failed too.
+    openPrintWindow(html)
   } finally {
     document.body.removeChild(container)
   }
-}
-
-/** jsPDF-only fallback when CDN is unavailable (no html2canvas). */
-async function _pdfFallback(
-  html: string, safeName: string, margin: number, orientation: 'portrait' | 'landscape',
-): Promise<void> {
-  const w = window.open('', '_blank', 'width=900,height=700')
-  if (!w) { _downloadHtmlFallback(html, safeName.replace(/\.pdf$/i, '') + '.html'); return }
-  const base = html.replace(/<\/body>\s*<\/html>\s*$/i, '')
-  w.document.write(`${base}
-<script src="${HTML2PDF_CDN}" crossorigin="anonymous"><\/script>
-<script>
-window.addEventListener('load',function(){
-  html2pdf().set({margin:${margin},filename:'${safeName}',
-    image:{type:'jpeg',quality:.97},
-    html2canvas:{scale:2,useCORS:true,letterRendering:true},
-    jsPDF:{unit:'mm',format:'a4',orientation:'${orientation}'}})
-  .from(document.querySelector('.page')||document.body).save()
-  .then(function(){setTimeout(function(){window.close()},600)});
-});
-<\/script></body></html>`)
-  w.document.close()
-}
-
-function _downloadHtmlFallback(html: string, name: string): void {
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
-  const url  = URL.createObjectURL(blob)
-  const a    = document.createElement('a')
-  a.href     = url
-  a.download = name
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
 }
 
 // ── WhatsApp & SMS sharing ────────────────────────────────────────────────────
@@ -305,10 +250,11 @@ export async function generatePdfBlob(
   const orientation  = opts.orientation ?? 'portrait'
   const imageQuality = Math.min(1, Math.max(0.5, opts.imageQuality ?? 0.98))
 
-  const styleBlocks = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)]
+  const safeHtml = stripActiveContent(html)  // injected into the app's own DOM: no script / handlers
+  const styleBlocks = [...safeHtml.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)]
     .map(m => `<style>${m[1]}</style>`).join('\n')
-  const bodyMatch   = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i)
-  const bodyContent = bodyMatch ? bodyMatch[1] : html
+  const bodyMatch   = safeHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i)
+  const bodyContent = bodyMatch ? bodyMatch[1] : safeHtml
 
   const container = document.createElement('div')
   container.style.cssText = 'position:absolute;left:-9999px;top:0;width:900px;background:#ffffff'

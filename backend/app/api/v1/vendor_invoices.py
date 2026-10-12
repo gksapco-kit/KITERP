@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm.attributes import flag_modified
 from uuid import UUID
-import math, uuid
+import logging, math, re, uuid
 
 from app.database import get_db
 from app.api.deps import get_current_active_user, require_permission
@@ -13,13 +13,67 @@ from app.models.vendor import Vendor
 from app.services.vendor_service import VendorService
 from app.services.invoice_service import InvoiceService
 from app.schemas.invoice import InvoiceCreate, InvoiceUpdate, RecordPayment
-from app.utils.pdf_generator import generate_invoice_pdf
-from app.services.media_upload import save_image_file, delete_stored_file
+from app.services.invoice_pdf import render_invoice_pdf
+from app.services.media_upload import delete_stored_file
+from app.services.document_assets import is_document_asset
+from app.utils.document_settings import IMAGE_KEYS, MAX_SETTINGS_BYTES, sanitize_document_settings
 
-SIGNATURE_ALLOWED = {"image/png", "image/jpeg", "image/jpg", "image/webp", "image/svg+xml"}
-MAX_SIGNATURE_BYTES = 2 * 1024 * 1024
+_SETTINGS_BLOB_KEYS = ("invoice_settings", "quotation_settings", "pos_receipt_settings")
+
+
+def _image_refs(blob) -> set:
+    """Stored-file URLs referenced by a settings blob (inline data: URLs are not files)."""
+    if not isinstance(blob, dict):
+        return set()
+    return {
+        v for k, v in blob.items()
+        if k in IMAGE_KEYS and isinstance(v, str) and v and not v.startswith("data:")
+    }
+
+
+async def _delete_orphaned_assets(removed: set, all_settings: dict, vendor: Vendor) -> None:
+    """Delete template images that no saved settings (or the company logo) reference any more.
+
+    The POS blob can reuse the invoice signature/logo, so a file is only removed when it is
+    unreferenced across invoice, quotation AND POS settings.
+    """
+    still_used = {vendor.logo_url} if vendor.logo_url else set()
+    for blob_key in _SETTINGS_BLOB_KEYS:
+        still_used |= _image_refs(all_settings.get(blob_key))
+    for url in removed - still_used:
+        if is_document_asset(url):
+            await delete_stored_file(url)
 
 router = APIRouter(dependencies=[Depends(require_permission("invoices.view"))])
+
+# Changing document templates / settings needs more than read access.
+_require_manage = Depends(require_permission("invoices.manage"))
+
+async def _read_settings_body(request: Request) -> dict:
+    """Parse + validate a settings JSON body (size-capped, sanitised)."""
+    declared = request.headers.get("content-length")
+    if declared and declared.isdigit() and int(declared) > MAX_SETTINGS_BYTES + 64 * 1024:
+        raise HTTPException(413, "Settings payload too large")
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(422, "Request body must be valid JSON")
+    return sanitize_document_settings(data, strict=True)
+
+
+async def _locked_vendor(db: AsyncSession, user: User) -> Vendor:
+    """Load the current user's Vendor row with a row lock so concurrent settings
+    saves (invoice / quotation / signature / other modules) can't overwrite each other."""
+    vendor = await VendorService(db).get_by_user_id(user.id)
+    if not vendor:
+        raise HTTPException(404, "Vendor not found")
+    result = await db.execute(
+        select(Vendor).where(Vendor.id == vendor.id).with_for_update().execution_options(populate_existing=True)
+    )
+    db_vendor = result.scalar_one_or_none()
+    if not db_vendor:
+        raise HTTPException(404, "Vendor record not found")
+    return db_vendor
 
 
 async def _vendor_id(current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)) -> UUID:
@@ -113,74 +167,43 @@ async def create_invoice(data: InvoiceCreate, user: User = Depends(get_current_a
 # a request to /settings would be captured with invoice_id="settings" and then
 # UUID("settings") would raise ValueError.
 
+def _stored_settings(vendor: Vendor, key: str) -> dict:
+    """Read a settings blob, re-sanitising legacy data saved before validation existed."""
+    return sanitize_document_settings((vendor.settings or {}).get(key, {}), strict=False)
+
+
+async def _save_settings_blob(db: AsyncSession, user: User, key: str, data: dict) -> dict:
+    db_vendor = await _locked_vendor(db, user)
+    current_settings = dict(db_vendor.settings or {})
+    removed = _image_refs(current_settings.get(key)) - _image_refs(data)
+    current_settings[key] = data
+    db_vendor.settings = current_settings
+    flag_modified(db_vendor, "settings")
+    await db.commit()
+    if removed:
+        await _delete_orphaned_assets(removed, current_settings, db_vendor)
+    return data
+
+
 @router.get("/settings")
 async def get_invoice_settings(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    svc = VendorService(db)
-    vendor = await svc.get_by_user_id(current_user.id)
+    vendor = await VendorService(db).get_by_user_id(current_user.id)
     if not vendor:
         raise HTTPException(404, "Vendor not found")
-    settings = vendor.settings or {}
-    return JSONResponse(content=settings.get("invoice_settings", {}))
+    return JSONResponse(content=_stored_settings(vendor, "invoice_settings"))
 
 
-@router.put("/settings")
+@router.put("/settings", dependencies=[_require_manage])
 async def update_invoice_settings(
     request: Request,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    data = await request.json()
-    svc = VendorService(db)
-    vendor = await svc.get_by_user_id(current_user.id)
-    if not vendor:
-        raise HTTPException(404, "Vendor not found")
-    result = await db.execute(select(Vendor).where(Vendor.id == vendor.id))
-    db_vendor = result.scalar_one_or_none()
-    if not db_vendor:
-        raise HTTPException(404, "Vendor record not found")
-    current_settings = dict(db_vendor.settings or {})
-    current_settings["invoice_settings"] = data
-    db_vendor.settings = current_settings
-    flag_modified(db_vendor, "settings")
-    await db.commit()
-    return JSONResponse(content=data)
-
-
-@router.post("/settings/signature")
-async def upload_invoice_signature(
-    file: UploadFile = File(...),
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Upload a signature image for use on invoices."""
-    svc = VendorService(db)
-    vendor = await svc.get_by_user_id(current_user.id)
-    if not vendor:
-        raise HTTPException(404, "Vendor not found")
-
-    url = await save_image_file(
-        file,
-        "vendor-signatures",
-        allowed_types=SIGNATURE_ALLOWED,
-        max_bytes=MAX_SIGNATURE_BYTES,
-    )
-
-    result = await db.execute(select(Vendor).where(Vendor.id == vendor.id))
-    db_vendor = result.scalar_one_or_none()
-    current_settings = dict(db_vendor.settings or {})
-    inv_settings = dict(current_settings.get("invoice_settings", {}))
-    old_url = inv_settings.get("signature_url")
-    inv_settings["signature_url"] = url
-    current_settings["invoice_settings"] = inv_settings
-    db_vendor.settings = current_settings
-    flag_modified(db_vendor, "settings")
-    await db.commit()
-    if old_url and old_url != url:
-        await delete_stored_file(old_url)
-    return JSONResponse(content={"signature_url": url})
+    data = await _read_settings_body(request)
+    return JSONResponse(content=await _save_settings_blob(db, current_user, "invoice_settings", data))
 
 
 @router.get("/settings/quotation")
@@ -188,68 +211,43 @@ async def get_quotation_settings(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    svc = VendorService(db)
-    vendor = await svc.get_by_user_id(current_user.id)
+    vendor = await VendorService(db).get_by_user_id(current_user.id)
     if not vendor:
         raise HTTPException(404, "Vendor not found")
-    settings = vendor.settings or {}
-    return JSONResponse(content=settings.get("quotation_settings", {}))
+    return JSONResponse(content=_stored_settings(vendor, "quotation_settings"))
 
 
-@router.put("/settings/quotation")
+@router.put("/settings/quotation", dependencies=[_require_manage])
 async def update_quotation_settings(
     request: Request,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    data = await request.json()
-    svc = VendorService(db)
-    vendor = await svc.get_by_user_id(current_user.id)
-    if not vendor:
-        raise HTTPException(404, "Vendor not found")
-    result = await db.execute(select(Vendor).where(Vendor.id == vendor.id))
-    db_vendor = result.scalar_one_or_none()
-    if not db_vendor:
-        raise HTTPException(404, "Vendor record not found")
-    current_settings = dict(db_vendor.settings or {})
-    current_settings["quotation_settings"] = data
-    db_vendor.settings = current_settings
-    flag_modified(db_vendor, "settings")
-    await db.commit()
-    return JSONResponse(content=data)
+    data = await _read_settings_body(request)
+    return JSONResponse(content=await _save_settings_blob(db, current_user, "quotation_settings", data))
 
 
-@router.post("/settings/quotation-signature")
-async def upload_quotation_signature(
-    file: UploadFile = File(...),
+# POS receipt overrides: merged on top of invoice_settings for POS sales. Stored per vendor
+# on the server (not per browser) so every terminal and reprint uses the same template.
+@router.get("/settings/pos")
+async def get_pos_receipt_settings(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    svc = VendorService(db)
-    vendor = await svc.get_by_user_id(current_user.id)
+    vendor = await VendorService(db).get_by_user_id(current_user.id)
     if not vendor:
         raise HTTPException(404, "Vendor not found")
+    return JSONResponse(content=_stored_settings(vendor, "pos_receipt_settings"))
 
-    url = await save_image_file(
-        file,
-        "vendor-signatures",
-        allowed_types=SIGNATURE_ALLOWED,
-        max_bytes=MAX_SIGNATURE_BYTES,
-    )
 
-    result = await db.execute(select(Vendor).where(Vendor.id == vendor.id))
-    db_vendor = result.scalar_one_or_none()
-    current_settings = dict(db_vendor.settings or {})
-    quote_settings = dict(current_settings.get("quotation_settings", {}))
-    old_url = quote_settings.get("signature_url")
-    quote_settings["signature_url"] = url
-    current_settings["quotation_settings"] = quote_settings
-    db_vendor.settings = current_settings
-    flag_modified(db_vendor, "settings")
-    await db.commit()
-    if old_url and old_url != url:
-        await delete_stored_file(old_url)
-    return JSONResponse(content={"signature_url": url})
+@router.put("/settings/pos", dependencies=[_require_manage])
+async def update_pos_receipt_settings(
+    request: Request,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    data = await _read_settings_body(request)
+    return JSONResponse(content=await _save_settings_blob(db, current_user, "pos_receipt_settings", data))
 
 
 # ── Per-invoice routes ────────────────────────────────────────────────────────
@@ -279,17 +277,18 @@ async def get_invoice_by_order(order_id: str, vid: UUID = Depends(_vendor_id), d
 
 
 @router.get("/{invoice_id}/pdf")
-async def download_invoice_pdf(invoice_id: str, vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db)):
+async def download_invoice_pdf(invoice_id: UUID, vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db)):
     """Generate and return a downloadable PDF for the given invoice."""
     svc = InvoiceService(db)
-    inv = await svc.get_invoice(UUID(invoice_id), vid)
+    inv = await svc.get_invoice(invoice_id, vid)
     if not inv:
         raise HTTPException(404, "Invoice not found")
     try:
-        pdf_bytes = generate_invoice_pdf(inv)
-    except Exception as e:
-        raise HTTPException(500, f"PDF generation failed: {e}")
-    safe_number = (inv.invoice_number or invoice_id).replace("/", "-")
+        pdf_bytes = await render_invoice_pdf(db, inv)
+    except Exception:
+        logging.getLogger(__name__).exception("PDF generation failed for invoice %s", invoice_id)
+        raise HTTPException(500, "PDF generation failed. Please try again or contact support.")
+    safe_number = re.sub(r"[^A-Za-z0-9._-]+", "-", str(inv.invoice_number or invoice_id))
     filename = f"{safe_number}.pdf"
     return Response(
         content=pdf_bytes,

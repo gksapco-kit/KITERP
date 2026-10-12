@@ -21,10 +21,17 @@ html,body{margin:0!important;padding:0!important;background:#fff!important;width
 `
 
 export function injectPreviewFitCss(html: string): string {
-  if (!html || html.includes('data-kiterp-preview-fit')) return html
-  const tag = `<style data-kiterp-preview-fit>${PREVIEW_FIT_STYLES}</style>`
-  if (html.includes('</head>')) return html.replace('</head>', `${tag}</head>`)
-  return `${tag}${html}`
+  if (!html) return html
+  let out = html
+  if (!out.includes('data-kiterp-preview-fit')) {
+    const tag = `<style data-kiterp-preview-fit>${PREVIEW_FIT_STYLES}</style>`
+    out = out.includes('</head>') ? out.replace('</head>', `${tag}</head>`) : `${tag}${out}`
+  }
+  // Addresses, GSTINs, and invoice numbers are not prose — skip the red spell-check underlines.
+  if (/<body\b/i.test(out) && !/<body\b[^>]*\bspellcheck=/i.test(out)) {
+    out = out.replace(/<body\b/i, '<body spellcheck="false"')
+  }
+  return out
 }
 
 /** Inject editable attributes + styles into generated document HTML. */
@@ -109,22 +116,26 @@ export function buildDocumentPreviewHtml(generatedHtml: string, storedPagesHtml?
 export function refreshStoredFirstPage(storedPagesHtml: string, generatedHtml: string): string {
   if (!storedPagesHtml?.trim()) return storedPagesHtml
   const fragments = parseOfferPageFragments(storedPagesHtml)
-  if (fragments.length <= 1) return storedPagesHtml
 
   const doc = new DOMParser().parseFromString(generatedHtml, 'text/html')
   const genPage = doc.querySelector('.page')
   const newFirst = genPage?.outerHTML
-    ?? `<div class="page" data-offer-page="1"><div class="page-inner" data-offer-custom="true">${genPage?.innerHTML ?? ''}</div></div>`
+    ?? `<div class="page" data-offer-page="1"><div class="page-inner" data-offer-custom="true">${doc.body?.innerHTML ?? ''}</div></div>`
 
-  const rest = fragments.slice(1)
   const firstWrapped = newFirst.startsWith('<div class="page"')
     ? newFirst
     : `<div class="page-inner" data-offer-page="1" data-offer-custom="true">${newFirst}</div>`
 
+  // Single-page snapshot: replace entirely with the live generator output.
+  if (fragments.length <= 1) {
+    return firstWrapped
+  }
+
+  const rest = fragments.slice(1)
   if (isMultiPageOfferHtml(storedPagesHtml) || rest.some(f => f.includes('page-inner'))) {
     return serializeMultiPageCustom([firstWrapped, ...rest])
   }
-  return storedPagesHtml
+  return serializeMultiPageCustom([firstWrapped, ...rest])
 }
 
 export function hasStoredDocumentPages(html?: string): boolean {

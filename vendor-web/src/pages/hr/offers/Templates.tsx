@@ -270,9 +270,10 @@ export default function OfferTemplatesPage() {
 
   const uploadLogo = async (file: File) => {
     try {
-      const result = await vendorApi.uploadVendorLogo(file)
-      setField('logo_url', result.logo_url)
-      toast.success('Logo uploaded')
+      // Template-only folder: unlike uploadVendorLogo this does not replace the company logo.
+      const result = await vendorApi.uploadDocumentAsset('logo', file)
+      setField('logo_url', result.url)
+      toast.success('Template logo uploaded (company logo is unchanged)')
     } catch {
       toast.error('Could not upload logo — use PNG or JPG under 2MB')
     }

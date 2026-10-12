@@ -57,32 +57,6 @@ const OFFER_ONLY: DocumentLayoutThumbnail[] = [
       ${[0,1,2,3].map(i=>`<rect x="6" y="${46+i*12}" width="108" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
     </svg>`,
   },
-  {
-    id: 'toprightbottomleft',
-    name: 'Top Right · Bottom Left',
-    desc: 'Logo top-right, accent bottom-left',
-    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
-      <rect width="120" height="160" fill="#fff" rx="3"/>
-      <rect x="82" y="6" width="32" height="22" fill="#e2e8f0" rx="2"/>
-      <rect x="6" y="10" width="46" height="5" fill="#374151" rx="1"/>
-      ${[0,1,2,3].map(i=>`<rect x="6" y="${38+i*12}" width="108" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
-      <rect x="8" y="126" width="28" height="18" fill="#e2e8f0" rx="2"/>
-      <rect x="12" y="130" width="20" height="10" fill="${color}" opacity=".65" rx="1"/>
-    </svg>`,
-  },
-  {
-    id: 'topleftbottomright',
-    name: 'Top Left · Bottom Right',
-    desc: 'Logo top-left, accent bottom-right',
-    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
-      <rect width="120" height="160" fill="#fff" rx="3"/>
-      <rect x="6" y="6" width="32" height="22" fill="#e2e8f0" rx="2"/>
-      <rect x="44" y="10" width="46" height="5" fill="#374151" rx="1"/>
-      ${[0,1,2,3].map(i=>`<rect x="6" y="${38+i*12}" width="108" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
-      <rect x="84" y="126" width="28" height="18" fill="#e2e8f0" rx="2"/>
-      <rect x="88" y="130" width="20" height="10" fill="${color}" opacity=".65" rx="1"/>
-    </svg>`,
-  },
 ]
 
 const EXISTING = new Set(DOCUMENT_LAYOUT_THUMBNAILS.map(t => t.id))

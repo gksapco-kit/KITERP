@@ -52,8 +52,6 @@ export const LAYOUT_LOGO_PLACEMENT: Record<string, string> = {
   footerright: 'No header logo — logo bottom-right in footer',
   toprightlogobottomleft: 'Logo top-right and bottom-left',
   topleftlogobottomright: 'Logo top-left and bottom-right',
-  toprightbottomleft: 'Logo top-right and bottom-left',
-  topleftbottomright: 'Logo top-left and bottom-right',
   official_gulf: 'Logo left of company block (Gulf letter)',
   employment_formal: 'Logo top-left above candidate details',
   branded_bands: 'Logo left beside company in branded header',

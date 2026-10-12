@@ -2,6 +2,7 @@
 // Template selections are stored in localStorage keyed by service ID so no
 // backend schema changes are required.
 import { openPrintWindow, downloadAsPdf } from '@/lib/printUtils'
+import { writeSafeHtml } from '@/lib/htmlSafety'
 
 export const BOOKING_DOC_TYPES = [
   {
@@ -380,8 +381,7 @@ export function viewBookingDocument(typeId: BookingDocTypeId, booking: BookingIn
   if (!html) return
   const w = window.open('', '_blank')
   if (!w) return
-  w.document.write(html)
-  w.document.close()
+  writeSafeHtml(w, html)
 }
 
 export function printBookingDocument(typeId: BookingDocTypeId, booking: BookingInfo) {

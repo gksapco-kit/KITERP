@@ -46,8 +46,13 @@ twilio>=8.13.0
 
 # PDF Generation
 reportlab==4.2.0
+pillow==12.2.0  # decodes/normalises logo, signature and QR images for the PDF
+
+# HTML sanitisation for vendor-authored document templates
+nh3==0.3.7
 
 # Testing
 pytest==7.4.4
 pytest-asyncio==0.23.3
 aiosqlite==0.20.0
+pypdf==6.20.0  # tests read text back out of generated PDFs

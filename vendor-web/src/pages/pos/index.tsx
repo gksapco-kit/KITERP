@@ -9,7 +9,8 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useProducts, useServices, useInvoiceSettings, vendorKeys, useMyMembership, useStores } from '@/hooks/useVendor'
+import { useProducts, useServices, useInvoiceSettings, vendorKeys, useMyMembership, useStores, usePosReceiptSettings, useSavePosReceiptSettings } from '@/hooks/useVendor'
+import { useHasPermission } from '@/hooks/usePermissions'
 import { vendorApi } from '@/api/vendor'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { formatCurrency, formatDate } from '@/lib/utils'
@@ -25,15 +26,17 @@ import {
   generateInvoiceHtml,
   PAPER_SIZES,
   DEFAULT_INVOICE_SETTINGS,
-  loadPosInvoiceSettings,
-  savePosInvoiceSettings,
   INVOICE_TEMPLATE_IDS,
   INVOICE_TEMPLATE_LABELS,
+  normalizeInvoiceTemplateId,
   resolveInvoiceTemplateLogoPath,
   type InvoiceSettings,
   type PaperSize,
 } from '@/lib/invoiceTemplates'
 import { fetchAsDataUrl, downloadAsPdf, openPrintWindow, shareViaWhatsApp, shareViaSms, buildShareMessage, shareInvoiceViaWhatsApp } from '@/lib/printUtils'
+import { escapeHtml, withNoScriptCsp, writeSafeHtml } from '@/lib/htmlSafety'
+import { buildPosOverrides, previewPosSettings, type PosModalValues } from '@/lib/posOverrides'
+import { cn } from '@/lib/utils'
 import {
   Search, Plus, Minus, Trash2, ShoppingCart, Receipt,
   IndianRupee, CreditCard, Smartphone, Banknote, Loader2,
@@ -196,15 +199,25 @@ export default function POS() {
   // Invoice settings for POS printing
   const { data: rawInvSettings } = useInvoiceSettings()
   const { data: vendorData } = useQuery({ queryKey: ['myVendor'], queryFn: vendorApi.getMyVendor, staleTime: 5 * 60 * 1000 })
-  const invSettings = useMemo<Partial<InvoiceSettings>>(() => ({
-    ...DEFAULT_INVOICE_SETTINGS,
-    ...(rawInvSettings as Partial<InvoiceSettings> || {}),
-  }), [rawInvSettings])
+  const invSettings = useMemo<Partial<InvoiceSettings>>(() => {
+    const merged: Partial<InvoiceSettings> = {
+      ...DEFAULT_INVOICE_SETTINGS,
+      ...(rawInvSettings as Partial<InvoiceSettings> || {}),
+    }
+    if (merged.template) merged.template = normalizeInvoiceTemplateId(merged.template)
+    return merged
+  }, [rawInvSettings])
   const [showPosSettings, setShowPosSettings] = useState(false)
   // POS-specific template overrides — merged on top of the vendor invoice settings.
-  // Persisted in localStorage so they survive page reloads.
-  const [posSettings, setPosSettings] = useState<Partial<InvoiceSettings>>(
-    () => loadPosInvoiceSettings()
+  // Stored per vendor on the server so every terminal (and invoice reprint) uses the same template.
+  const { data: serverPosSettings } = usePosReceiptSettings()
+  const savePosReceiptSettings = useSavePosReceiptSettings()
+  const canManageInvoiceSettings = useHasPermission('invoices.manage')
+  // Applied immediately on "Apply"; for users who may not save to the server it is kept for this session only.
+  const [sessionPosSettings, setSessionPosSettings] = useState<Partial<InvoiceSettings> | null>(null)
+  const posSettings = useMemo<Partial<InvoiceSettings>>(
+    () => sessionPosSettings ?? serverPosSettings ?? {},
+    [sessionPosSettings, serverPosSettings],
   )
 
   // Coupon
@@ -1930,7 +1943,14 @@ export default function POS() {
           invSettings={invSettings}
           vendor={vendorData}
           posSettings={posSettings}
-          onSettingsChange={(s) => { setPosSettings(s); savePosInvoiceSettings(s) }}
+          onSettingsChange={(s) => {
+            setSessionPosSettings(s)
+            if (canManageInvoiceSettings) {
+              savePosReceiptSettings.mutate(s, { onSuccess: () => setSessionPosSettings(null) })
+            } else {
+              toast.info('Applied for this session only. Ask a manager with invoice-settings access to save it for all terminals.')
+            }
+          }}
           onClose={() => setShowPosSettings(false)}
           defaultCustomerId={defaultCustomerId}
           defaultCustomerName={
@@ -2475,22 +2495,21 @@ function PostSaleReceipt({ data, invSettings, vendor, posSettings, onClose, onNe
     const w = window.open('', '_blank', 'width=400,height=600')
     if (!w) return
     const itemRows = items.map((i: any) =>
-      `<tr><td>${i.name}</td><td style="text-align:center">${i.qty}</td><td style="text-align:right">₹${(i.total || i.price * i.qty).toFixed(2)}</td></tr>`
+      `<tr><td>${escapeHtml(i.name)}</td><td style="text-align:center">${escapeHtml(i.qty)}</td><td style="text-align:right">₹${(i.total || i.price * i.qty).toFixed(2)}</td></tr>`
     ).join('')
-    w.document.write(`<html><head><title>Receipt</title><style>body{font-family:monospace;font-size:12px;padding:10px;max-width:300px;margin:0 auto}
+    writeSafeHtml(w, `<html><head><title>Receipt</title><style>body{font-family:monospace;font-size:12px;padding:10px;max-width:300px;margin:0 auto}
       table{width:100%;border-collapse:collapse}td{padding:2px 4px}hr{border:none;border-top:1px dashed #999;margin:6px 0}
       .center{text-align:center}.right{text-align:right}.bold{font-weight:bold}</style></head><body>
       <div class="center bold">${txnMode === 'return' ? 'REFUND' : 'RECEIPT'}</div>
-      <hr/><div>Txn: ${txnNumber}</div>${orderNumber ? `<div>Order: ${orderNumber}</div>` : ''}
-      ${invoiceNumber ? `<div>Invoice: ${invoiceNumber}</div>` : ''}
-      ${bookingNumbers.length ? `<div>Booking: ${bookingNumbers.join(', ')}</div>` : ''}
-      <div>Customer: ${customerName}</div><div>Date: ${new Date().toLocaleString('en-IN')}</div>
+      <hr/><div>Txn: ${escapeHtml(txnNumber)}</div>${orderNumber ? `<div>Order: ${escapeHtml(orderNumber)}</div>` : ''}
+      ${invoiceNumber ? `<div>Invoice: ${escapeHtml(invoiceNumber)}</div>` : ''}
+      ${bookingNumbers.length ? `<div>Booking: ${escapeHtml(bookingNumbers.join(', '))}</div>` : ''}
+      <div>Customer: ${escapeHtml(customerName)}</div><div>Date: ${new Date().toLocaleString('en-IN')}</div>
       <hr/><table><tr class="bold"><td>Item</td><td class="center">Qty</td><td class="right">Amt</td></tr>${itemRows}</table>
       <hr/><div class="right bold">Total: ₹${total.toFixed(2)}</div>
       <div class="right">Paid: ${paymentMethod?.toUpperCase()}</div>
       ${changeDue > 0 ? `<div class="right">Change: ₹${changeDue.toFixed(2)}</div>` : ''}
       <hr/><div class="center">Thank you!</div></body></html>`)
-    w.document.close()
     w.print()
   }
 
@@ -3081,20 +3100,19 @@ function TransactionDetail({ txn, onBack, invSettings, vendor, posSettings }: {
     const w = window.open('', '_blank', 'width=400,height=600')
     if (!w) return
     const itemRows = items.map((i: any) =>
-      `<tr><td>${i.name}</td><td style="text-align:center">${i.qty}</td><td style="text-align:right">₹${(i.total || i.price * i.qty).toFixed(2)}</td></tr>`
+      `<tr><td>${escapeHtml(i.name)}</td><td style="text-align:center">${escapeHtml(i.qty)}</td><td style="text-align:right">₹${(i.total || i.price * i.qty).toFixed(2)}</td></tr>`
     ).join('')
-    w.document.write(`<html><head><title>Receipt</title><style>body{font-family:monospace;font-size:12px;padding:10px;max-width:300px;margin:0 auto}
+    writeSafeHtml(w, `<html><head><title>Receipt</title><style>body{font-family:monospace;font-size:12px;padding:10px;max-width:300px;margin:0 auto}
       table{width:100%;border-collapse:collapse}td{padding:2px 4px}hr{border:none;border-top:1px dashed #999;margin:6px 0}
       .center{text-align:center}.right{text-align:right}.bold{font-weight:bold}</style></head><body>
       <div class="center bold">RECEIPT</div><hr/>
-      <div>Order: ${txn.order_number || txn.transaction_number}</div>
-      ${txn.invoice_number ? `<div>Invoice: ${txn.invoice_number}</div>` : ''}
-      <div>Customer: ${txn.customer_name || 'Walk-in'}</div>
+      <div>Order: ${escapeHtml(txn.order_number || txn.transaction_number)}</div>
+      ${txn.invoice_number ? `<div>Invoice: ${escapeHtml(txn.invoice_number)}</div>` : ''}
+      <div>Customer: ${escapeHtml(txn.customer_name || 'Walk-in')}</div>
       <div>Date: ${txn.created_at ? new Date(txn.created_at as string).toLocaleString('en-IN') : ''}</div>
       <hr/><table><tr class="bold"><td>Item</td><td class="center">Qty</td><td class="right">Amt</td></tr>${itemRows}</table>
       <hr/><div class="right bold">Total: ₹${(txn.total as number)?.toFixed(2)}</div>
       <hr/><div class="center">Thank you!</div></body></html>`)
-    w.document.close()
     w.print()
   }
 
@@ -3725,8 +3743,7 @@ function POSInvoiceSettingsModal({
   const [goldThreshold, setGoldThreshold] = useState(loyaltyProgram?.gold_threshold ?? 20000)
   const [savingLoyalty, setSavingLoyalty] = useState(false)
 
-  const currentSettings = (): Partial<InvoiceSettings> => ({
-    ...invSettings,
+  const controlValues = (): PosModalValues => ({
     template: localTemplate,
     paper_size: localPaper,
     color: localColor,
@@ -3736,6 +3753,8 @@ function POSInvoiceSettingsModal({
     show_notes: showNotes,
     show_signature: showSignature,
   })
+  // What the preview renders: invoice settings + existing POS overrides + the live controls.
+  const currentSettings = (): Partial<InvoiceSettings> => previewPosSettings(invSettings, posSettings, controlValues())
 
   useEffect(() => {
     const sampleData = {
@@ -3765,8 +3784,8 @@ function POSInvoiceSettingsModal({
   }, [custSearch])
 
   const handleApply = () => {
-    const s = currentSettings()
-    onSettingsChange(s)
+    // Save only what differs from the invoice settings, keeping overrides this modal has no control for.
+    onSettingsChange(buildPosOverrides(invSettings, posSettings, controlValues()))
     toast.success('POS invoice template saved!')
     onClose()
   }
@@ -3980,7 +3999,7 @@ function POSInvoiceSettingsModal({
             <div className="flex-1 bg-gray-100 overflow-auto flex justify-center p-6">
               <div style={{ width: previewWidth, minHeight: 400 }} className="bg-white shadow-lg rounded-lg overflow-hidden max-h-[90vh] overflow-y-auto">
                 {previewHtml ? (
-                  <iframe srcDoc={previewHtml} title="POS Invoice Preview" className="w-full border-0"
+                  <iframe srcDoc={withNoScriptCsp(previewHtml)} title="POS Invoice Preview" className="w-full border-0"
                     style={{
                       height: isNarrow ? 600 : 800,
                       transform: isNarrow ? 'scale(1)' : 'scale(0.85)',

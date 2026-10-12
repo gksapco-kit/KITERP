@@ -145,7 +145,7 @@ const TEMPLATES: DocumentLayoutThumbnail[] = [
   {
     id: 'compact',
     name: 'Compact',
-    desc: 'Dense layout â€” fits more items, great for long invoices',
+    desc: 'Dense layout — fits more items, great for long invoices',
     svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
       <rect width="120" height="160" fill="#fff" rx="3"/>
       <rect x="4" y="6" width="60" height="14" fill="#fff"/>
@@ -191,7 +191,7 @@ const TEMPLATES: DocumentLayoutThumbnail[] = [
   {
     id: 'visual',
     name: 'Visual',
-    desc: 'Product-image showcase â€” shows a photo with every line item',
+    desc: 'Product-image showcase — shows a photo with every line item',
     svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
       <rect width="120" height="160" fill="#fff" rx="3"/>
       <!-- Header -->
@@ -231,7 +231,7 @@ const TEMPLATES: DocumentLayoutThumbnail[] = [
   },
   {
     id: 'toprightlogobottomleft',
-    name: 'Top Right Logo Â· Bottom Left Logo',
+    name: 'Top Right Logo · Bottom Left Logo',
     desc: 'Top: logo right in header. Bottom: logo left below signature (dashed line)',
     svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
       <rect width="120" height="160" fill="#fff" rx="3"/>
@@ -251,7 +251,7 @@ const TEMPLATES: DocumentLayoutThumbnail[] = [
   },
   {
     id: 'topleftlogobottomright',
-    name: 'Top Left Logo Â· Bottom Right Logo',
+    name: 'Top Left Logo · Bottom Right Logo',
     desc: 'Top: logo left in header. Bottom: logo right below signature (dashed line)',
     svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
       <rect width="120" height="160" fill="#fff" rx="3"/>
@@ -272,7 +272,7 @@ const TEMPLATES: DocumentLayoutThumbnail[] = [
   {
     id: 'centered',
     name: 'Centered',
-    desc: 'Logo and company name centered â€” clean and professional',
+    desc: 'Logo and company name centered — clean and professional',
     svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
       <rect width="120" height="160" fill="#fff" rx="3"/>
       <rect x="44" y="8" width="32" height="20" fill="#e2e8f0" rx="2"/>
@@ -354,7 +354,7 @@ const TEMPLATES: DocumentLayoutThumbnail[] = [
   {
     id: 'gstpro',
     name: 'GST Pro',
-    desc: 'Indian GST format â€” logo left in bordered box',
+    desc: 'Indian GST format — logo left in bordered box',
     svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
       <rect width="120" height="160" fill="#fff" rx="3"/>
       <rect x="6" y="8" width="28" height="24" fill="#f8fafc" stroke="#e5e7eb" rx="2"/>
@@ -371,7 +371,7 @@ const TEMPLATES: DocumentLayoutThumbnail[] = [
   {
     id: 'retail',
     name: 'Retail',
-    desc: 'Store style â€” logo left, bold total header',
+    desc: 'Store style — logo left, bold total header',
     svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
       <rect width="120" height="160" fill="#fff" rx="3"/>
       <rect y="0" width="120" height="24" fill="#111"/>
@@ -400,7 +400,7 @@ const TEMPLATES: DocumentLayoutThumbnail[] = [
   {
     id: 'framed',
     name: 'Framed',
-    desc: 'Double border frame â€” logo on the right',
+    desc: 'Double border frame — logo on the right',
     svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
       <rect x="4" y="4" width="112" height="152" fill="#fff" stroke="${color}" stroke-width="2"/>
       <rect x="6" y="10" width="40" height="5" fill="#374151" rx="1"/>
@@ -445,23 +445,29 @@ const TEMPLATES: DocumentLayoutThumbnail[] = [
   {
     id: 'leftlogo',
     name: 'Left Logo',
-    desc: 'Logo on the left â€” company details beside it',
+    desc: 'Logo on the left, invoice identity on the right',
     svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
       <rect width="120" height="160" fill="#fff" rx="3"/>
-      <rect x="0" y="0" width="120" height="34" fill="#f8fafc"/>
-      <rect x="8" y="8" width="28" height="18" fill="#e2e8f0" rx="2"/>
-      <rect x="11" y="11" width="22" height="12" fill="${color}" opacity=".55" rx="1"/>
-      <rect x="42" y="10" width="48" height="5" fill="#374151" rx="1"/>
-      <rect x="42" y="18" width="34" height="3" fill="#9ca3af" rx="1"/>
-      <rect x="6" y="38" width="108" height="1" fill="#e5e7eb"/>
-      ${[0,1,2,3].map(i=>`<rect x="6" y="${44+i*12}" width="108" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
-      <rect x="76" y="96" width="38" height="28" fill="#f8fafc" rx="2"/>
+      <rect x="8" y="8" width="22" height="22" fill="#e2e8f0" rx="11"/>
+      <rect x="12" y="12" width="14" height="14" fill="${color}" opacity=".55" rx="7"/>
+      <rect x="36" y="10" width="40" height="5" fill="#0f172a" rx="1"/>
+      <rect x="36" y="18" width="28" height="3" fill="#94a3b8" rx="1"/>
+      <rect x="84" y="8" width="28" height="8" fill="${color}" rx="1"/>
+      <rect x="92" y="20" width="20" height="3" fill="#334155" rx="1"/>
+      <rect x="8" y="36" width="36" height="3" fill="${color}" rx="1"/>
+      <rect x="44" y="36" width="68" height="3" fill="#e2e8f0" rx="1"/>
+      <rect x="8" y="46" width="22" height="3" fill="${color}" opacity=".7" rx="1"/>
+      <rect x="8" y="52" width="36" height="3" fill="#374151" rx="1"/>
+      <rect x="86" y="46" width="26" height="3" fill="#94a3b8" rx="1"/>
+      <rect x="96" y="52" width="16" height="3" fill="#374151" rx="1"/>
+      ${[0,1,2,3].map(i=>`<rect x="6" y="${64+i*12}" width="108" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
+      <rect x="76" y="116" width="38" height="28" fill="#f8fafc" rx="2"/>
     </svg>`,
   },
   {
     id: 'rightlogo',
     name: 'Right Logo',
-    desc: 'Logo on the right â€” company details on the left',
+    desc: 'Logo on the right — company details on the left',
     svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
       <rect width="120" height="160" fill="#fff" rx="3"/>
       <rect x="0" y="0" width="120" height="34" fill="#f8fafc"/>
@@ -472,40 +478,6 @@ const TEMPLATES: DocumentLayoutThumbnail[] = [
       <rect x="6" y="38" width="108" height="1" fill="#e5e7eb"/>
       ${[0,1,2,3].map(i=>`<rect x="6" y="${44+i*12}" width="108" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
       <rect x="76" y="96" width="38" height="28" fill="#f8fafc" rx="2"/>
-    </svg>`,
-  },
-  {
-    id: 'footerleft',
-    name: 'Footer Left',
-    desc: 'Logo in the footer on the left â€” clean header',
-    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
-      <rect width="120" height="160" fill="#fff" rx="3"/>
-      <rect x="8" y="10" width="56" height="5" fill="#374151" rx="1"/>
-      <rect x="8" y="18" width="40" height="3" fill="#9ca3af" rx="1"/>
-      <rect x="6" y="28" width="108" height="2" fill="${color}"/>
-      ${[0,1,2,3].map(i=>`<rect x="6" y="${34+i*12}" width="108" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
-      <rect x="0" y="118" width="120" height="42" fill="#f8fafc"/>
-      <rect x="8" y="128" width="24" height="16" fill="#e2e8f0" rx="2"/>
-      <rect x="11" y="131" width="18" height="10" fill="${color}" opacity=".55" rx="1"/>
-      <rect x="38" y="132" width="40" height="3" fill="#9ca3af" rx="1"/>
-      <rect x="88" y="130" width="24" height="12" fill="#e5e7eb" rx="1"/>
-    </svg>`,
-  },
-  {
-    id: 'footerright',
-    name: 'Footer Right',
-    desc: 'Logo in the footer on the right â€” clean header',
-    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
-      <rect width="120" height="160" fill="#fff" rx="3"/>
-      <rect x="8" y="10" width="56" height="5" fill="#374151" rx="1"/>
-      <rect x="8" y="18" width="40" height="3" fill="#9ca3af" rx="1"/>
-      <rect x="6" y="28" width="108" height="2" fill="${color}"/>
-      ${[0,1,2,3].map(i=>`<rect x="6" y="${34+i*12}" width="108" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
-      <rect x="0" y="118" width="120" height="42" fill="#f8fafc"/>
-      <rect x="8" y="132" width="40" height="3" fill="#9ca3af" rx="1"/>
-      <rect x="88" y="128" width="24" height="16" fill="#e2e8f0" rx="2"/>
-      <rect x="91" y="131" width="18" height="10" fill="${color}" opacity=".55" rx="1"/>
-      <rect x="52" y="130" width="24" height="12" fill="#e5e7eb" rx="1"/>
     </svg>`,
   },
 ]

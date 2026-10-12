@@ -1940,42 +1940,6 @@ export interface PurchaseReturn {
 }
 
 // ── Invoice Template ────────────────────────────────────────────
-export interface InvoiceTemplateSections {
-  show_logo: boolean
-  show_header: boolean
-  show_customer_details: boolean
-  show_customer_gstin: boolean
-  show_shipping_address: boolean
-  show_bank_details: boolean
-  show_signature: boolean
-  show_tax_breakdown: boolean
-  show_notes: boolean
-  show_terms: boolean
-}
-
-export interface InvoiceTemplateBankDetails {
-  account_name?: string
-  account_number?: string
-  ifsc?: string
-  bank_name?: string
-  upi_id?: string
-}
-
-export interface InvoiceTemplate {
-  id: string
-  vendor_id: string
-  name: string
-  is_default: boolean
-  sections: InvoiceTemplateSections
-  bank_details: InvoiceTemplateBankDetails
-  signature_url?: string | null
-  header_text?: string | null
-  footer_text?: string | null
-  terms_text?: string | null
-  created_at: string
-  updated_at?: string | null
-}
-
 // ── Merchandising ────────────────────────────────────────────────
 export type RelationType = 'cross_sell' | 'upsell'
 export type TriggerStage = 'PDP' | 'CART' | 'CHECKOUT'

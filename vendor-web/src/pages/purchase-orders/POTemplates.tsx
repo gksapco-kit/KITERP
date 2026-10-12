@@ -372,24 +372,25 @@ export default function POTemplatesPage() {
     }
   }
 
+  // Uploaded to template-only folders: this no longer replaces the company logo or the invoice signature.
   const uploadPoLogo = async (file: File) => {
     try {
-      const result = await vendorApi.uploadVendorLogo(file)
-      set('logo_url', result.logo_url)
-      toast.success('Logo updated!')
+      const result = await vendorApi.uploadDocumentAsset('logo', file)
+      set('logo_url', result.url)
+      toast.success('PO logo updated (company logo is unchanged)')
     } catch {
-      toast.error('Could not upload PO logo — use a PNG or JPG file under 2MB')
+      toast.error('Could not upload PO logo — use a PNG, JPG or WebP file under 2 MB')
     }
   }
 
   const applyPoSignatureUpload = async (file: File) => {
     setUploadingSignature(true)
     try {
-      const result = await vendorApi.uploadInvoiceSignature(file)
-      set('signature_url', result.signature_url)
+      const result = await vendorApi.uploadDocumentAsset('signature', file)
+      set('signature_url', result.url)
       toast.success('Signature uploaded!')
     } catch {
-      toast.error('Could not upload PO signature — use a PNG or JPG file under 2MB')
+      toast.error('Could not upload PO signature — use a PNG, JPG or WebP file under 2 MB')
     } finally {
       setUploadingSignature(false)
     }

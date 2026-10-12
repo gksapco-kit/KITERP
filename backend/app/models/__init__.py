@@ -85,7 +85,6 @@ from app.models.pharma import (
 from app.models.procurement_special import (
     MaterialValuation, SubcontractingOrder, ConsignmentStock, ServiceEntrySheet,
 )
-from app.models.invoice_template import InvoiceTemplate
 from app.models.merchandising import Bundle, BundleItem, UpsellMapping
 from app.models.loyalty import LoyaltyProgram, LoyaltyAccount, LoyaltyTransaction
 from app.models.platform_setting import PlatformSetting
@@ -326,7 +325,6 @@ __all__ = [
     "SubcontractingOrder",
     "ConsignmentStock",
     "ServiceEntrySheet",
-    "InvoiceTemplate",
     "Bundle",
     "BundleItem",
     "UpsellMapping",

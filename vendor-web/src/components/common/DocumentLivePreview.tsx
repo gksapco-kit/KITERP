@@ -85,11 +85,13 @@ export const DocumentLivePreview = memo(function DocumentLivePreview({
       const style = doc.createElement('style')
       style.id = 'kiterp-preview-fit'
       style.textContent = `
-        html, body { background: #fff !important; margin: 0 !important; padding: 0 !important; overflow-x: hidden !important; overflow-y: hidden !important; width: 100% !important; }
-        .page { margin: 0 !important; min-height: 0 !important; width: 100% !important; max-width: 100% !important; overflow: hidden !important; }
+        html, body { background: #fff !important; margin: 0 !important; padding: 0 !important; overflow-x: auto !important; overflow-y: hidden !important; width: 100% !important; }
+        .page { margin: 0 auto !important; min-height: 0 !important; max-width: 100% !important; }
         .page[data-doc-page-active="true"] { box-shadow: inset 0 0 0 2px rgba(59,130,246,.35); }
-        .body-content { overflow-wrap: break-word; word-break: break-word; }
-        .body-content table, table { table-layout: fixed; width: 100% !important; }
+        .body-content { overflow-wrap: break-word; word-break: normal; }
+        /* Keep auto layout so sidebar templates (e.g. Colorblock) don't crush columns. */
+        .body-content table, table { table-layout: auto; width: 100%; }
+        th, td { word-break: normal; overflow-wrap: break-word; }
       `
       doc.head.appendChild(style)
     }
@@ -152,8 +154,11 @@ export const DocumentLivePreview = memo(function DocumentLivePreview({
       if (e.key === 'Tab' && (e.target as HTMLElement)?.closest('table')) return
     }
 
+    doc.body?.setAttribute('spellcheck', 'false')
     els.forEach(el => {
       el.contentEditable = 'true'
+      el.spellcheck = false
+      el.setAttribute('spellcheck', 'false')
       el.setAttribute('role', 'textbox')
       el.setAttribute('aria-multiline', 'true')
       el.setAttribute('aria-label', 'Document page — click to edit')

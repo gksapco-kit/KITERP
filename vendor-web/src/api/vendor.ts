@@ -1,6 +1,6 @@
 import apiClient from './client'
 import { clampPageSize } from '@/lib/pageSize'
-import type { Vendor, Product, Service, ServiceMediaItem, Customer, Order, OrderStats, Review, PaginatedResponse, VendorRole, TeamMember, VendorCategory, Supplier, PurchaseOrder, OrderAttachmentRef, InvoiceTemplate, VendorPlanInfo, Bundle, ProductMerchandising, ProductPriceRule, VendorDocument, VendorDocumentType, PurchasingInfoRecord, SourceList, PurchaseRequisition, VendorInvoice, GoodsBatch, GoodsMovementDocument, MaterialValuation, ServiceEntrySheet, RestaurantOutlet, RestaurantMenuOut, RestaurantMenuCategoryOut, RestaurantMenuZoneLinkOut } from '@/types'
+import type { Vendor, Product, Service, ServiceMediaItem, Customer, Order, OrderStats, Review, PaginatedResponse, VendorRole, TeamMember, VendorCategory, Supplier, PurchaseOrder, OrderAttachmentRef, VendorPlanInfo, Bundle, ProductMerchandising, ProductPriceRule, VendorDocument, VendorDocumentType, PurchasingInfoRecord, SourceList, PurchaseRequisition, VendorInvoice, GoodsBatch, GoodsMovementDocument, MaterialValuation, ServiceEntrySheet, RestaurantOutlet, RestaurantMenuOut, RestaurantMenuCategoryOut, RestaurantMenuZoneLinkOut } from '@/types'
 
 // ── Procurement budget rule type ─────────────────────────────────
 export interface BudgetRule {
@@ -1315,10 +1315,16 @@ export const vendorApi = {
     return response.data
   },
 
-  uploadInvoiceSignature: async (file: File): Promise<{ signature_url: string }> => {
+  /**
+   * Upload a document-template image (signature / QR code / logo) and get its URL back.
+   * Only stores the file — the caller keeps the URL in its draft and saves it with the normal
+   * Save button. Logos go to a template-only folder, so the company logo is never replaced.
+   */
+  uploadDocumentAsset: async (kind: 'signature' | 'qr' | 'logo', file: File): Promise<{ url: string; kind: string }> => {
     const form = new FormData()
+    form.append('kind', kind)
     form.append('file', file)
-    const response = await apiClient.post('/vendors/me/invoices/settings/signature', form, { headers: { 'Content-Type': 'multipart/form-data' } })
+    const response = await apiClient.post('/uploads/vendor/document-asset', form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 120_000 })
     return response.data
   },
 
@@ -1332,10 +1338,14 @@ export const vendorApi = {
     return response.data
   },
 
-  uploadQuotationSignature: async (file: File): Promise<{ signature_url: string }> => {
-    const form = new FormData()
-    form.append('file', file)
-    const response = await apiClient.post('/vendors/me/invoices/settings/quotation-signature', form, { headers: { 'Content-Type': 'multipart/form-data' } })
+  /** POS receipt overrides (merged over invoice settings for POS sales) — stored per vendor. */
+  getPosReceiptSettings: async (): Promise<Record<string, unknown>> => {
+    const response = await apiClient.get('/vendors/me/invoices/settings/pos')
+    return response.data
+  },
+
+  updatePosReceiptSettings: async (data: Record<string, unknown>): Promise<Record<string, unknown>> => {
+    const response = await apiClient.put('/vendors/me/invoices/settings/pos', data)
     return response.data
   },
 
@@ -2602,31 +2612,6 @@ export const vendorApi = {
   },
   convertEstimate: async (id: string) => {
     const response = await apiClient.post(`/vendors/me/invoices/${id}/convert`)
-    return response.data
-  },
-
-  // ── Invoice Templates ────────────────────────────────────────────
-  listInvoiceTemplates: async (): Promise<{ items: InvoiceTemplate[] }> => {
-    const response = await apiClient.get('/vendors/me/invoice-templates')
-    return response.data
-  },
-
-  createInvoiceTemplate: async (data: Record<string, unknown>): Promise<InvoiceTemplate> => {
-    const response = await apiClient.post('/vendors/me/invoice-templates', data)
-    return response.data
-  },
-
-  updateInvoiceTemplate: async (id: string, data: Record<string, unknown>): Promise<InvoiceTemplate> => {
-    const response = await apiClient.put(`/vendors/me/invoice-templates/${id}`, data)
-    return response.data
-  },
-
-  deleteInvoiceTemplate: async (id: string): Promise<void> => {
-    await apiClient.delete(`/vendors/me/invoice-templates/${id}`)
-  },
-
-  setDefaultTemplate: async (id: string): Promise<InvoiceTemplate> => {
-    const response = await apiClient.post(`/vendors/me/invoice-templates/${id}/set-default`)
     return response.data
   },
 

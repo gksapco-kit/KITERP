@@ -1,5 +1,6 @@
 import { useRef, useState, useCallback, useEffect } from 'react'
 import { FileText } from 'lucide-react'
+import { withNoScriptCsp } from '@/lib/htmlSafety'
 
 export function OfferLetterPreviewFrame({
   html,
@@ -42,7 +43,7 @@ export function OfferLetterPreviewFrame({
       <div className="mx-auto max-w-full bg-white shadow-lg overflow-hidden">
         <iframe
           ref={iframeRef}
-          srcDoc={html}
+          srcDoc={withNoScriptCsp(html)}
           title={title}
           onLoad={resizeFrame}
           scrolling="no"

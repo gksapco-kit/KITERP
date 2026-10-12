@@ -153,8 +153,8 @@ class FileService:
         try:
             if self._use_s3:
                 return await self._s3_get(key)
-            path = _LOCAL_UPLOAD_ROOT / key
-            if not path.is_file():
+            path = self.safe_local_path(key)
+            if path is None or not path.is_file():
                 return None
             async with aiofiles.open(path, "rb") as f:
                 return await f.read()
@@ -267,8 +267,11 @@ class FileService:
         logger.debug("Local upload: %s (%d bytes)", dest, len(body))
 
     def _local_delete(self, key: str) -> bool:
-        dest = _LOCAL_UPLOAD_ROOT / key
-        if dest.exists():
+        dest = self.safe_local_path(key)
+        if dest is None:
+            logger.warning("Refusing to delete path outside uploads/: %r", key)
+            return False
+        if dest.is_file():
             dest.unlink()
             logger.debug("Local delete: %s", dest)
             return True
