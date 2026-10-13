@@ -19,7 +19,7 @@ export type AppMutationMeta = {
 
 const MUTATING_METHODS = new Set(['post', 'put', 'patch', 'delete'])
 
-/** Endpoints that should not trigger a global UI refresh (frequent or auth-only). */
+/** Endpoints that should not trigger a UI refresh (frequent, auth-only, or local chrome). */
 const AUTO_REFRESH_SKIP_URL_RE = [
   /\/auth\/(?:login|refresh|handoff|change-password|2fa)/i,
   /\/auth\/(?:phone|email)\/(?:send|verify|resend|confirm)/i,
@@ -29,7 +29,49 @@ const AUTO_REFRESH_SKIP_URL_RE = [
   // active queries here re-triggers the same POST, causing an infinite loop.
   /\/config\/variants\/preview(?:\/|$)/i,
   /\/config\/rules\/evaluate(?:\/|$)/i,
+  // Sidebar layout is already applied locally; refreshing every list makes each click wait.
+  /\/sidebar-apps(?:\/|$)/i,
 ]
+
+const HINT_SKIP = new Set([
+  'status', 'activate', 'deactivate', 'approve', 'reject', 'export', 'import',
+  'pdf', 'print', 'search', 'preview', 'send', 'cancel', 'close', 'open',
+])
+
+function resourceHints(url: string): string[] {
+  const path = url.split('?')[0]
+  const parts = path.split('/').filter(Boolean)
+  const meAt = parts.findIndex((part) => part === 'me')
+  const rest = meAt >= 0 ? parts.slice(meAt + 1) : parts.slice(-2)
+  const hints = new Set<string>()
+  for (const raw of rest) {
+    if (!raw || raw.length < 3) continue
+    if (/^[0-9a-f-]{16,}$/i.test(raw)) continue
+    const token = raw.toLowerCase()
+    if (HINT_SKIP.has(token)) continue
+    hints.add(token)
+    if (token.endsWith('ies') && token.length > 4) hints.add(`${token.slice(0, -3)}y`)
+    else if (token.endsWith('s') && token.length > 4) hints.add(token.slice(0, -1))
+  }
+  return [...hints]
+}
+
+function queryKeyStrings(queryKey: readonly unknown[]): string[] {
+  const out: string[] = []
+  for (const part of queryKey) {
+    if (typeof part === 'string') out.push(part.toLowerCase())
+    else if (Array.isArray(part)) {
+      for (const inner of part) {
+        if (typeof inner === 'string') out.push(inner.toLowerCase())
+      }
+    }
+  }
+  return out
+}
+
+function keyMatchesHint(part: string, hint: string): boolean {
+  return part === hint || part.startsWith(`${hint}-`) || part.startsWith(`${hint}_`) || part.startsWith(hint)
+}
 
 let boundQueryClient: QueryClient | null = null
 let refreshTimer: ReturnType<typeof setTimeout> | null = null
@@ -42,15 +84,26 @@ export function getBoundQueryClient(): QueryClient | null {
   return boundQueryClient
 }
 
-export function scheduleActiveQueryRefresh(skip = false) {
-  if (skip || !boundQueryClient) return
-  // Never invalidate while logged out — avoids focus/mutation storms of 401s.
+/**
+ * Refresh only the lists related to the write that just finished.
+ * A full active-query refetch made every vendor action wait on badges, reports, and unrelated pages.
+ */
+export function scheduleActiveQueryRefresh(skip = false, url?: string) {
+  if (skip || !url || !boundQueryClient) return
   if (!getAccessToken()) return
+  const hints = resourceHints(url)
+  if (hints.length === 0) return
   if (refreshTimer) clearTimeout(refreshTimer)
   refreshTimer = setTimeout(() => {
     refreshTimer = null
     if (!getAccessToken()) return
-    void boundQueryClient?.invalidateQueries({ refetchType: 'active' })
+    void boundQueryClient?.invalidateQueries({
+      refetchType: 'active',
+      predicate: (query) => {
+        const parts = queryKeyStrings(query.queryKey)
+        return hints.some((hint) => parts.some((part) => keyMatchesHint(part, hint)))
+      },
+    })
   }, 50)
 }
 
@@ -68,7 +121,7 @@ function shouldSkipAxiosAutoRefresh(config: InternalAxiosRequestConfig): boolean
 export function attachAutoRefreshInterceptor(client: AxiosInstance) {
   client.interceptors.response.use((response) => {
     if (response.config && !shouldSkipAxiosAutoRefresh(response.config)) {
-      scheduleActiveQueryRefresh()
+      scheduleActiveQueryRefresh(false, response.config.url)
     }
     return response
   })
@@ -99,8 +152,8 @@ export function createAppQueryClient() {
             void queryClient.invalidateQueries({ queryKey: key })
           }
         }
-
-        scheduleActiveQueryRefresh()
+        // The axios interceptor refreshes the resource that was written.
+        // Do not refetch every mounted query here — that is what made actions feel stuck.
       },
       onError: (error, _variables, _context, mutation) => {
         // Skip when the mutation already handles its own error (has an onError callback).

@@ -50,9 +50,9 @@ export const useNewLeadCount = (enabled = true) =>
       return data.total ?? 0
     },
     enabled,
-    staleTime: 0,
+    staleTime: 10_000,
     refetchInterval: (query) =>
-      query.state.error && isAxiosAuthError(query.state.error) ? false : 5_000,
+      query.state.error && isAxiosAuthError(query.state.error) ? false : 15_000,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
   })

@@ -2,8 +2,8 @@ import { useQuery } from '@tanstack/react-query'
 import apiClient from '@/api/client'
 import { isAxiosAuthError } from '@/lib/errorMessages'
 
-/** Near-live poll so Contact Us submissions update the badge/list quickly. */
-export const CONTACT_QUERY_POLL_MS = 3_000
+/** Badge poll. Kept off the 3s cadence so it does not compete with clicks. */
+export const CONTACT_QUERY_POLL_MS = 15_000
 
 export const contactQueryKeys = {
   all: ['vendor-contact-queries'] as const,
@@ -22,7 +22,7 @@ export function useNewContactQueryCount(enabled = true) {
       return (res.data as { total: number }).total ?? 0
     },
     enabled,
-    staleTime: 0,
+    staleTime: 10_000,
     refetchInterval: (query) =>
       query.state.error && isAxiosAuthError(query.state.error) ? false : CONTACT_QUERY_POLL_MS,
     refetchIntervalInBackground: false,

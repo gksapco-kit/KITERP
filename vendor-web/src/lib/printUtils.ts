@@ -113,7 +113,9 @@ export function openPrintWindow(html: string): void {
 type Html2PdfFn = () => unknown
 
 async function loadHtml2Pdf(): Promise<Html2PdfFn> {
-  const mod = await import('html2pdf.js')
+  // The package root is a Node build that Vite cannot load in the browser.
+  // The bundle is the browser file and is only fetched when a PDF is exported.
+  const mod = await import('html2pdf.js/dist/html2pdf.bundle.min.js')
   return ((mod as { default?: Html2PdfFn }).default ?? (mod as unknown as Html2PdfFn))
 }
 

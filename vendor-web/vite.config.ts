@@ -180,6 +180,7 @@ export default defineConfig({
       '@radix-ui/react-slot',
       'use-sync-external-store/shim/with-selector',
       'use-sync-external-store/shim',
+      'html2pdf.js/dist/html2pdf.bundle.min.js',
     ],
   },
   resolve: {

@@ -1,4 +1,5 @@
 import logging
+import os
 from contextlib import asynccontextmanager
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
@@ -15,7 +16,9 @@ engine = create_async_engine(
     max_overflow=10,
     pool_timeout=30,
     pool_pre_ping=True,
-    echo=settings.DEBUG,
+    # SQL echo on every statement blocks the API under normal vendor use.
+    # Set SQL_ECHO=1 when a query log is needed.
+    echo=os.getenv("SQL_ECHO", "").lower() in ("1", "true", "yes"),
 )
 
 AsyncSessionLocal = async_sessionmaker(
