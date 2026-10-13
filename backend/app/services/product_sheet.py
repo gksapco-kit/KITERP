@@ -9,6 +9,7 @@ from xml.etree import ElementTree as ET
 
 SHEET_COLUMNS = [
     "name",
+    "variant",
     "sku",
     "material_code",
     "barcode",
@@ -28,6 +29,9 @@ _HEADER_ALIASES = {
     "name": "name",
     "product_name": "name",
     "product": "name",
+    "variant": "variant",
+    "variant_name": "variant",
+    "option": "variant",
     "sku": "sku",
     "material_code": "material_code",
     "materialcode": "material_code",
@@ -114,6 +118,7 @@ def build_xlsx(rows: list[dict[str, str]]) -> bytes:
 def template_rows() -> list[dict[str, str]]:
     return [{
         "name": EXAMPLE_NAME,
+        "variant": "250 g",
         "sku": "CK-ANDU",
         "material_code": "",
         "barcode": "",

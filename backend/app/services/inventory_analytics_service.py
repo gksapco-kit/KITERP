@@ -128,18 +128,23 @@ async def get_overview(
 
     async def _excess_value():
         """Products where on-hand > reorder_point + reorder_quantity."""
-        q = select(
-            func.sum(
-                (StoreInventory.quantity - Product.reorder_point - Product.reorder_quantity)
-                * Product.cost_price
-            ).label("excess")
-        ).join(Product, Product.id == StoreInventory.product_id).where(
+        q = (
+            select(
+                func.sum(
+                    (StoreInventory.quantity - Product.reorder_point - Product.reorder_quantity)
+                    * Product.cost_price
+                ).label("excess")
+            )
+            .select_from(StoreInventory)
+            .join(Product, Product.id == StoreInventory.product_id)
+            .where(
             StoreInventory.vendor_id == vendor_id,
             Product.track_inventory.is_(True),
             Product.reorder_point.isnot(None),
             Product.reorder_quantity.isnot(None),
             Product.cost_price.isnot(None),
             StoreInventory.quantity > Product.reorder_point + Product.reorder_quantity,
+            )
         )
         if store_id:
             q = q.where(StoreInventory.store_id == store_id)
@@ -232,6 +237,7 @@ async def get_turnover(
                 func.abs(InventoryMovement.quantity) * Product.cost_price
             ).label("cogs"),
         )
+        .select_from(InventoryMovement)
         .join(Product, Product.id == InventoryMovement.product_id)
         .where(
             InventoryMovement.vendor_id == vendor_id,

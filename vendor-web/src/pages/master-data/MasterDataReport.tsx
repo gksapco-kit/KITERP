@@ -1318,7 +1318,8 @@ export default function MasterDataReport() {
   const updateSupplier = useUpdateSupplier()
   const deleteCustomer = useDeleteCustomer()
   const deleteSupplier = useDeleteSupplier()
-  const isLoading = custLoading || suppLoading
+  // Either list can resolve first. Keep whatever has already arrived on screen
+  // instead of blanking the table while the other request is still in flight.
 
   // Normalise both datasets into MasterRecord[]
   const allRecords = useMemo<MasterRecord[]>(() => {
@@ -1368,6 +1369,11 @@ export default function MasterDataReport() {
 
     return out
   }, [custData, suppData])
+
+  const listsStillLoading = custLoading || suppLoading
+  // Full-page placeholder only before the first record arrives. A later refetch
+  // or the slower of the two lists must not wipe rows that are already loaded.
+  const showInitialLoading = listsStillLoading && allRecords.length === 0
 
   // Build dynamic type tabs — static built-ins + any custom types found in records
   const sourceTabs = useMemo(() => {
@@ -1473,8 +1479,8 @@ export default function MasterDataReport() {
     const STATUS_ORDER: Record<MasterStatus, number> = { active: 0, on_hold: 1, payment_blocked: 2, blocked: 3, inactive: 4 }
     return [...filtered].sort((a, b) => {
       let cmp = 0
-      if (sortField === 'name')         cmp = a.name.localeCompare(b.name)
-      else if (sortField === 'type')    cmp = a.type.localeCompare(b.type)
+      if (sortField === 'name')         cmp = (a.name || '').localeCompare(b.name || '')
+      else if (sortField === 'type')    cmp = (a.type || '').localeCompare(b.type || '')
       else if (sortField === 'status')  cmp = STATUS_ORDER[a.masterStatus] - STATUS_ORDER[b.masterStatus]
       else cmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
       return sortDir === 'asc' ? cmp : -cmp
@@ -1832,6 +1838,11 @@ export default function MasterDataReport() {
             <span>
               Showing <span className="font-semibold text-foreground">{filtered.length}</span> of {allRecords.length} records
             </span>
+            {listsStillLoading && allRecords.length > 0 && (
+              <span className="inline-flex items-center gap-1 text-muted-foreground">
+                <RefreshCw className="h-3 w-3 animate-spin" /> Updating…
+              </span>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
             <button
@@ -1946,7 +1957,7 @@ export default function MasterDataReport() {
         </div>
 
         <div className="max-h-[90vh] overflow-y-auto">
-        {isLoading ? (
+        {showInitialLoading ? (
           <div className="flex items-center justify-center py-20 text-gray-400">
             <RefreshCw className="w-5 h-5 animate-spin mr-2" /> Loading master data…
           </div>
@@ -2045,7 +2056,7 @@ export default function MasterDataReport() {
                               ? <img src={storedAvatar} alt={r.name} className="w-8 h-8 rounded-full object-cover shrink-0" />
                               : <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 font-bold text-xs ${
                                   r.kind === 'customer' ? 'bg-blue-100 text-blue-700' : 'bg-primary/15 text-primary'
-                                }`}>{r.name.trim()[0]?.toUpperCase() ?? '?'}</div>
+                                }`}>{(r.name || '?').trim()[0]?.toUpperCase() ?? '?'}</div>
                           })()}
                           <div>
                             <p className="font-semibold text-gray-900 text-sm leading-tight">{r.name}</p>
@@ -2166,7 +2177,7 @@ export default function MasterDataReport() {
         </div>
 
         {/* Pagination */}
-        {!isLoading && totalPages > 1 && (
+        {!showInitialLoading && totalPages > 1 && (
           <div className="flex items-center justify-between border-t border-gray-100 bg-gray-50/50 px-4 py-3">
             <span className="text-xs text-gray-500">
               Page {page} of {totalPages} · {sorted.length} records

@@ -337,10 +337,11 @@ export default function Products() {
   const { savingCellKey, setSavingCellKey, cellKey, patchField: patchProductField } = useInlineFieldPatch(updateProduct)
 
   const [productDeleteConfirm, setProductDeleteConfirm] = useState<{
-    id: string
-    name: string
+    ids: string[]
+    label: string
     permanent?: boolean
   } | null>(null)
+  const [bulkDeleting, setBulkDeleting] = useState(false)
 
   const activeFilterCount = [status, visibility, category, productType, stock].filter(Boolean).length
   const hasActiveQuery = Boolean(search.trim() || activeFilterCount > 0)
@@ -465,6 +466,47 @@ export default function Products() {
       }
       return next
     })
+  }
+
+  const askDelete = (id: string, name: string, permanent = false) => {
+    const ids = selectedIds.has(id) && selectedIds.size > 1 ? Array.from(selectedIds) : [id]
+    setProductDeleteConfirm({
+      ids,
+      label: ids.length === 1 ? name : `${ids.length} products`,
+      permanent,
+    })
+  }
+
+  const confirmDelete = async () => {
+    if (!productDeleteConfirm) return
+    const { ids, permanent } = productDeleteConfirm
+    setBulkDeleting(true)
+    let failed = 0
+    for (const id of ids) {
+      try {
+        await vendorApi.deleteProduct(id, { permanent })
+      } catch {
+        failed += 1
+      }
+    }
+    await queryClient.invalidateQueries({ queryKey: ['vendor', 'products'] })
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      for (const id of ids) next.delete(id)
+      return next
+    })
+    setProductDeleteConfirm(null)
+    setBulkDeleting(false)
+    const removed = ids.length - failed
+    if (failed === 0) {
+      toast.success(permanent
+        ? `${removed} product${removed === 1 ? '' : 's'} permanently deleted`
+        : `${removed} product${removed === 1 ? '' : 's'} moved to trash`)
+    } else if (removed > 0) {
+      toast.error(`${removed} deleted, ${failed} could not be deleted`)
+    } else {
+      toast.error('Could not delete the selected products')
+    }
   }
 
   const toggleRowSelection = (id: string, checked: boolean) => {
@@ -657,6 +699,20 @@ export default function Products() {
             </button>
           </div>
           )}
+          {selectedIds.size > 0 && !showDeleted && (
+            <Button
+              variant="outline"
+              className="gap-2 text-red-600 hover:text-red-700"
+              disabled={bulkDeleting}
+              onClick={() => setProductDeleteConfirm({
+                ids: Array.from(selectedIds),
+                label: `${selectedIds.size} product${selectedIds.size === 1 ? '' : 's'}`,
+              })}
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete ({selectedIds.size})
+            </Button>
+          )}
           <Button
             variant={showDeleted ? 'default' : 'outline'}
             className="gap-2"
@@ -726,7 +782,7 @@ export default function Products() {
                   Export all products
                 </button>
                 <p className="border-t px-3 py-2 text-xs text-gray-500">
-                  The download is a zip with products.xlsx and an images folder. Put photo files in images and set image_path to images/photo.jpg.
+                  The download is a zip with products.xlsx and an images folder. Each variant is its own row. Put photo files in images and set image_path to images/photo.jpg.
                 </p>
               </div>
             )}
@@ -1176,7 +1232,7 @@ export default function Products() {
                           size="sm"
                           className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
                           title="Delete permanently"
-                          onClick={() => setProductDeleteConfirm({ id: product.id, name: product.name, permanent: true })}
+                          onClick={() => askDelete(product.id, product.name, true)}
                         >
                           <Trash2 className="w-4 h-4 text-red-600" />
                         </Button>
@@ -1206,7 +1262,7 @@ export default function Products() {
                           size="sm"
                           className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
                           title="Move to trash"
-                          onClick={() => setProductDeleteConfirm({ id: product.id, name: product.name })}
+                          onClick={() => askDelete(product.id, product.name)}
                         >
                           <Trash2 className="w-4 h-4 text-red-600" />
                         </Button>
@@ -1497,7 +1553,7 @@ export default function Products() {
                           variant="ghost" size="sm"
                           className="h-7 w-7 p-0 shrink-0 text-red-500 hover:text-red-600 hover:bg-red-50"
                           title="Move to trash"
-                          onClick={() => setProductDeleteConfirm({ id: row.productId, name: row.productName })}
+                          onClick={() => askDelete(row.productId, row.productName)}
                         >
                           <Trash2 className="w-3.5 h-3.5 text-red-600" />
                         </Button>
@@ -1534,7 +1590,7 @@ export default function Products() {
       <Dialog
         open={Boolean(productDeleteConfirm)}
         onOpenChange={(open) => {
-          if (!open && !deleteProduct.isPending) setProductDeleteConfirm(null)
+          if (!open && !bulkDeleting) setProductDeleteConfirm(null)
         }}
       >
         <DialogContent className="max-w-md">
@@ -1548,13 +1604,13 @@ export default function Products() {
             <DialogDescription className="pt-1">
               {productDeleteConfirm?.permanent ? (
                 <>
-                  <span className="font-medium text-foreground">{productDeleteConfirm.name}</span>
+                  <span className="font-medium text-foreground">{productDeleteConfirm.label}</span>
                   {' '}will be permanently deleted. This cannot be undone.
                 </>
               ) : (
                 <>
-                  <span className="font-medium text-foreground">{productDeleteConfirm?.name}</span>
-                  {' '}will be moved to Deleted products. You can restore it later.
+                  <span className="font-medium text-foreground">{productDeleteConfirm?.label}</span>
+                  {' '}will be moved to Deleted products. You can restore them later.
                 </>
               )}
             </DialogDescription>
@@ -1563,7 +1619,7 @@ export default function Products() {
             <Button
               type="button"
               variant="outline"
-              disabled={deleteProduct.isPending}
+              disabled={bulkDeleting}
               onClick={() => setProductDeleteConfirm(null)}
             >
               Cancel
@@ -1571,18 +1627,10 @@ export default function Products() {
             <Button
               type="button"
               variant="destructive"
-              disabled={deleteProduct.isPending || !productDeleteConfirm}
-              onClick={() => {
-                if (!productDeleteConfirm) return
-                deleteProduct.mutate(
-                  productDeleteConfirm.permanent
-                    ? { id: productDeleteConfirm.id, permanent: true }
-                    : productDeleteConfirm.id,
-                  { onSettled: () => setProductDeleteConfirm(null) },
-                )
-              }}
+              disabled={bulkDeleting || !productDeleteConfirm}
+              onClick={() => void confirmDelete()}
             >
-              {deleteProduct.isPending ? (
+              {bulkDeleting ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : productDeleteConfirm?.permanent ? (
                 'Delete permanently'

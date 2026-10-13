@@ -102,6 +102,51 @@ def test_shared_string_workbook():
     assert rows[0]["status"] == ""
 
 
+def test_variant_rows_round_trip_and_group_by_product_name():
+    from app.services.product_import_export import ImportSummary, _group_product_rows
+
+    payload = build_xlsx([
+        {
+            "name": "Garlic Mixture",
+            "variant": "250 g",
+            "sku": "GM-250",
+            "material_code": "",
+            "barcode": "",
+            "brand": "Sri Sai",
+            "category": "Snacks",
+            "product_type": "physical",
+            "price": "300",
+            "quantity": "100",
+            "status": "active",
+            "visibility": "visible",
+            "image_path": "images/garlic.jpg",
+        },
+        {
+            "name": "Garlic Mixture",
+            "variant": "500 g",
+            "sku": "GM-500",
+            "material_code": "",
+            "barcode": "",
+            "brand": "",
+            "category": "",
+            "product_type": "",
+            "price": "500",
+            "quantity": "199",
+            "status": "",
+            "visibility": "",
+            "image_path": "",
+        },
+    ])
+    rows, _images = read_upload("products.xlsx", payload)
+    assert rows[0]["variant"] == "250 g"
+    assert rows[1]["variant"] == "500 g"
+    assert rows[1]["price"] == "500"
+    summary = ImportSummary()
+    groups = _group_product_rows(rows, summary)
+    assert len(groups) == 1
+    assert [row["sku"] for row in groups[0]] == ["GM-250", "GM-500"]
+
+
 def test_blank_status_follows_the_image():
     assert resolve_import_status("", image_saved=True, image_failed=False) == ("active", None)
     assert resolve_import_status("", image_saved=False, image_failed=False) == ("draft", None)

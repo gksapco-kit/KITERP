@@ -154,7 +154,7 @@ async def export_product_zip(
     query = (
         select(Product)
         .where(Product.vendor_id == vendor_id, Product.deleted_at.is_(None))
-        .options(selectinload(Product.images))
+        .options(selectinload(Product.images), selectinload(Product.variants))
         .order_by(Product.name.asc())
         .limit(MAX_EXPORT_PRODUCTS)
     )
@@ -172,23 +172,53 @@ async def export_product_zip(
     files = get_file_service()
     for product in products:
         paths = await _export_images(files, product, images, used_names)
-        price = product.price if product.price is not None else 0
-        rows.append({
-            "name": product.name or "",
-            "sku": product.sku or "",
-            "material_code": product.material_code or "",
-            "barcode": product.barcode or "",
-            "brand": product.brand or "",
-            "category": product.category or "",
-            "product_type": product.product_type or "physical",
-            "price": f"{float(price):.2f}".rstrip("0").rstrip("."),
-            "quantity": str(int(product.quantity or 0)),
-            "status": product.status or "draft",
-            "visibility": "visible" if product.is_visible else "hidden",
-            "image_path": "|".join(paths),
-        })
+        variants = list(product.variants or [])
+        variants.sort(key=lambda variant: (
+            variant.created_at.timestamp() if variant.created_at else 0,
+            (variant.name or "").lower(),
+        ))
+        if not variants:
+            rows.append(_export_row(product, None, paths))
+            continue
+        for index, variant in enumerate(variants):
+            rows.append(_export_row(product, variant, paths if index == 0 else []))
     filename = "products-selected.zip" if mode == "selected" else "products-export.zip"
     return build_export_zip(rows, images), filename
+
+
+def _export_row(product: Product, variant: ProductVariant | None, image_paths: list[str]) -> dict[str, str]:
+    """One sheet row. Variant price, stock, and SKU replace the product totals."""
+    if variant is not None:
+        price = variant.price if variant.price is not None else 0
+        quantity = int(variant.quantity or 0)
+        sku = variant.sku or ""
+        barcode = variant.barcode or ""
+        variant_name = (variant.name or "").strip()
+    else:
+        price = product.price if product.price is not None else 0
+        quantity = int(product.quantity or 0)
+        sku = product.sku or ""
+        barcode = product.barcode or ""
+        variant_name = ""
+    return {
+        "name": product.name or "",
+        "variant": variant_name,
+        "sku": sku,
+        "material_code": product.material_code or "",
+        "barcode": barcode,
+        "brand": product.brand or "",
+        "category": product.category or "",
+        "product_type": product.product_type or "physical",
+        "price": _format_number(price),
+        "quantity": str(quantity),
+        "status": product.status or "draft",
+        "visibility": "visible" if product.is_visible else "hidden",
+        "image_path": "|".join(image_paths),
+    }
+
+
+def _format_number(value) -> str:
+    return f"{float(value):.2f}".rstrip("0").rstrip(".")
 
 
 async def import_product_sheet(
@@ -208,15 +238,12 @@ async def import_product_sheet(
     seen_code: set[str] = set()
     seen_name: set[str] = set()
 
-    for row in rows:
-        row_number = int(row.get("_row") or 0)
-        name = (row.get("name") or "").strip()
-        if is_example_name(name):
-            summary.ignored_examples += 1
-            continue
+    for group in _group_product_rows(rows, summary):
+        row_number = int(group[0].get("_row") or 0)
+        name = (group[0].get("name") or "").strip()
         try:
             outcome = await _import_one(
-                db, vendor_id, user, row, images, existing, seen_sku, seen_code, seen_name,
+                db, vendor_id, user, group, images, existing, seen_sku, seen_code, seen_name,
             )
         except HTTPException:
             raise
@@ -228,59 +255,107 @@ async def import_product_sheet(
     return summary
 
 
+def _group_product_rows(rows: list[dict], summary: ImportSummary) -> list[list[dict]]:
+    """Rows that share a product name are one product with several variants."""
+    groups: dict[str, list[dict]] = {}
+    order: list[str] = []
+    for row in rows:
+        name = (row.get("name") or "").strip()
+        if is_example_name(name):
+            summary.ignored_examples += 1
+            continue
+        key = name.lower() if name else f"__blank_{row.get('_row')}"
+        if key not in groups:
+            groups[key] = []
+            order.append(key)
+        groups[key].append(row)
+    return [groups[key] for key in order]
+
+
+def _variant_from_row(row: dict, index: int, total: int) -> dict:
+    label = (row.get("variant") or "").strip()[:255]
+    if not label:
+        label = "Default" if total == 1 else f"Variant {index + 1}"
+    return {
+        "name": label,
+        "sku": (row.get("sku") or "").strip()[:100],
+        "barcode": (row.get("barcode") or "").strip()[:100],
+        "price": _parse_price(row.get("price") or ""),
+        "quantity": _parse_quantity(row.get("quantity") or ""),
+    }
+
+
+def _filled(rows: list[dict], key: str) -> str:
+    for row in rows:
+        value = (row.get(key) or "").strip()
+        if value:
+            return value
+    return ""
+
+
 async def _import_one(
     db: AsyncSession,
     vendor_id: UUID,
     user: User,
-    row: dict,
+    rows: list[dict],
     images: dict[str, bytes],
     existing: dict[str, set[str]],
     seen_sku: set[str],
     seen_code: set[str],
     seen_name: set[str],
 ) -> ImportRowResult:
+    row = rows[0]
     name = (row.get("name") or "").strip()
     if len(name) < 2:
         raise ValueError("Name is required and must be at least 2 characters.")
     if len(name) > 255:
         raise ValueError("Name must be 255 characters or less.")
 
-    sku = (row.get("sku") or "").strip()[:100]
-    material_code = (row.get("material_code") or "").strip()[:40]
+    material_code = _filled(rows, "material_code")[:40]
     name_key = name.lower()
-    sku_key = sku.lower()
     code_key = material_code.lower()
+    variant_rows = [_variant_from_row(item, index, len(rows)) for index, item in enumerate(rows)]
+    sku_keys = [item["sku"].lower() for item in variant_rows if item["sku"]]
 
-    if sku_key and (sku_key in existing["sku"] or sku_key in seen_sku):
+    if any(key in existing["sku"] or key in seen_sku for key in sku_keys):
         return ImportRowResult(0, name, "skipped", message="Already exists (same SKU).")
+    if len(sku_keys) != len(set(sku_keys)):
+        raise ValueError("Two variants in this product use the same SKU.")
     if code_key and (code_key in existing["material_code"] or code_key in seen_code):
         return ImportRowResult(0, name, "skipped", message="Already exists (same material code).")
     if name_key in existing["name"] or name_key in seen_name:
         return ImportRowResult(0, name, "skipped", message="Already exists (same name).")
 
-    typed_status = (row.get("status") or "").strip().lower()
+    typed_status = _filled(rows, "status").lower()
     if typed_status and typed_status not in _STATUSES:
         raise ValueError("Status must be draft, active, or archived.")
     if code_key and code_key in existing["material_code_any"] and code_key not in existing["material_code"]:
         raise ValueError("Material code is already used, including by a deleted product.")
 
-    product_type = resolve_product_type(row.get("product_type") or "")
-    visibility = resolve_visibility(row.get("visibility") or "")
-    price = _parse_price(row.get("price") or "")
-    quantity = _parse_quantity(row.get("quantity") or "")
-    brand = (row.get("brand") or "").strip()[:255] or None
-    category = (row.get("category") or "").strip()[:100] or None
-    barcode = (row.get("barcode") or "").strip()[:100] or None
-    paths = split_image_paths(row.get("image_path") or "")[:MAX_IMAGES]
+    product_type = resolve_product_type(_filled(rows, "product_type"))
+    visibility = resolve_visibility(_filled(rows, "visibility"))
+    price = variant_rows[0]["price"]
+    quantity = sum(item["quantity"] for item in variant_rows)
+    brand = _filled(rows, "brand")[:255] or None
+    category = _filled(rows, "category")[:100] or None
+    barcode = variant_rows[0]["barcode"] or None
+    sku = variant_rows[0]["sku"] if len(variant_rows) == 1 else ""
+    paths: list[str] = []
+    for item in rows:
+        for path in split_image_paths(item.get("image_path") or ""):
+            if path not in paths:
+                paths.append(path)
+    paths = paths[:MAX_IMAGES]
 
     saved_images, image_notes = await _store_images(paths, images)
     status, status_note = resolve_import_status(
-        row.get("status") or "",
+        typed_status,
         image_saved=bool(saved_images),
         image_failed=bool(paths) and not saved_images,
     )
     notes = [note for note in [status_note, *image_notes] if note]
-    message = f"Created as {status}."
+    variant_count = len(variant_rows)
+    message = f"Created as {status} with {variant_count} variant{'' if variant_count == 1 else 's'}."
     if notes:
         message = f"{message} {' '.join(notes)}"
 
@@ -335,20 +410,21 @@ async def _import_one(
         async with db.begin_nested():
             db.add(product)
             await db.flush()
-            db.add(ProductVariant(
-                product_id=product.id,
-                name="Default",
-                sku=sku or None,
-                barcode=barcode,
-                price=price,
-                quantity=quantity,
-                stock_status=_stock_status(quantity),
-                currency="INR",
-                attributes={},
-                media=[],
-                subscription_schedule_modes=["dates", "cycles", "pick_dates", "weekly", "recurring"],
-                is_active=True,
-            ))
+            for item in variant_rows:
+                db.add(ProductVariant(
+                    product_id=product.id,
+                    name=item["name"],
+                    sku=item["sku"] or None,
+                    barcode=item["barcode"] or None,
+                    price=item["price"],
+                    quantity=item["quantity"],
+                    stock_status=_stock_status(item["quantity"]),
+                    currency="INR",
+                    attributes={},
+                    media=[],
+                    subscription_schedule_modes=["dates", "cycles", "pick_dates", "weekly", "recurring"],
+                    is_active=True,
+                ))
             for index, (url, _ext) in enumerate(saved_images):
                 db.add(ProductImage(
                     product_id=product.id,
@@ -363,9 +439,9 @@ async def _import_one(
     except IntegrityError as exc:
         raise ValueError("Could not create this product because a unique value is already used.") from exc
 
-    if sku_key:
-        existing["sku"].add(sku_key)
-        seen_sku.add(sku_key)
+    for key in sku_keys:
+        existing["sku"].add(key)
+        seen_sku.add(key)
     if material_code:
         existing["material_code"].add(material_code.lower())
         existing["material_code_any"].add(material_code.lower())

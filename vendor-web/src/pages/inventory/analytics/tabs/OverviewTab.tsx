@@ -423,7 +423,7 @@ export function OverviewTab({
   const params = filtersToParams(filters)
   const [openReport, setOpenReport] = useState<string | null>(null)
 
-  const { data, isLoading, isFetching, refetch } = useQuery({
+  const { data, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ['vendor', 'inv-analytics-overview', params, refreshKey],
     queryFn: () => vendorApi.inventoryAnalyticsOverview(params),
   })
@@ -469,12 +469,29 @@ export function OverviewTab({
     transit:   transitSnap,
   }
 
-  if (isLoading) {
+  if (isLoading && !data) {
     return (
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
         {Array.from({ length: 10 }).map((_, i) => (
           <div key={i} className="h-24 rounded-xl border border-border bg-muted/40 animate-pulse" />
         ))}
+      </div>
+    )
+  }
+
+  if (isError || !data) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-border bg-card px-6 py-16 text-center">
+        <AlertTriangle className="h-8 w-8 text-amber-500" />
+        <p className="text-sm font-medium text-foreground">Inventory report could not be loaded</p>
+        <p className="text-xs text-gray-500">The summary request failed. Retry to load the KPI cards.</p>
+        <button
+          type="button"
+          onClick={() => refetch()}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-accent"
+        >
+          <RefreshCw className={cn('h-3.5 w-3.5', isFetching && 'animate-spin')} /> Retry
+        </button>
       </div>
     )
   }

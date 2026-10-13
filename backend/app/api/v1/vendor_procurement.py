@@ -180,7 +180,7 @@ async def list_suppliers(
     search: Optional[str] = None,
     is_active: Optional[bool] = None,
     page: int = Query(1, ge=1),
-    size: int = Query(100, ge=1, le=500),
+    size: int = Query(100, ge=1, le=10000),
     vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
