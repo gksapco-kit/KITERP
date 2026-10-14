@@ -1,9 +1,6 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react'
-<<<<<<< Updated upstream
 import { useQueryClient } from '@tanstack/react-query'
-=======
 import { usePersistedPageSize } from '@/hooks/usePersistedPageSize'
->>>>>>> Stashed changes
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'

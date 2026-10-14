@@ -2062,15 +2062,9 @@ export default function MasterDataReport() {
           </div>
         </div>
 
-<<<<<<< Updated upstream
         <div className="max-h-[90vh] overflow-y-auto">
         {showInitialLoading ? (
           <div className="flex items-center justify-center py-20 text-gray-400">
-=======
-        <div className="max-h-[min(55vh,28rem)] overflow-x-auto overflow-y-auto">
-        {isLoading ? (
-          <div className="flex items-center justify-center py-10 text-gray-400">
->>>>>>> Stashed changes
             <RefreshCw className="w-5 h-5 animate-spin mr-2" /> Loading master data…
           </div>
         ) : loadError ? (
@@ -2297,13 +2291,8 @@ export default function MasterDataReport() {
         </div>
 
         {/* Pagination */}
-<<<<<<< Updated upstream
         {!showInitialLoading && totalPages > 1 && (
           <div className="flex items-center justify-between border-t border-gray-100 bg-gray-50/50 px-4 py-3">
-=======
-        {!isLoading && totalPages > 1 && (
-          <div className="flex items-center justify-between border-t border-gray-100 bg-gray-50/50 px-2 py-1.5">
->>>>>>> Stashed changes
             <span className="text-xs text-gray-500">
               Page {page} of {totalPages} · {sorted.length} records
             </span>
