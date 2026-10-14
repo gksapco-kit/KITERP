@@ -19,10 +19,14 @@ interface Props {
 
 function placeCardCopy(address: string): { title: string; detail: string } {
   const parts = address.split(',').map((part) => part.trim()).filter(Boolean)
-  if (parts.length > 1 && parts[0].length <= 32) {
-    return { title: parts[0], detail: address }
+  if (parts.length <= 1) return { title: address || 'Location', detail: '' }
+
+  // A leading house number is not a title. Keep it on the street line.
+  const leadingNumber = /^\d+[a-zA-Z]?$/.test(parts[0])
+  if (leadingNumber && parts.length > 2) {
+    return { title: `${parts[0]}, ${parts[1]}`, detail: parts.slice(2).join(', ') }
   }
-  return { title: 'Location', detail: address }
+  return { title: parts[0], detail: parts.slice(1).join(', ') }
 }
 
 function readMapCoord(raw: unknown): number | null {
@@ -137,17 +141,19 @@ export default function MapEmbedBlock({ style, props, liveItems, blockId }: Prop
         </div>
       )}
       {placeCard && mapsUrl && (
-        <div className="absolute left-3 top-3 z-20 w-[min(22rem,calc(100%-1.5rem))] rounded-2xl bg-white p-4 text-gray-900 shadow-[0_1px_3px_rgba(60,64,67,0.3),0_4px_12px_rgba(60,64,67,0.18)]">
-          <p className="text-[15px] font-semibold leading-5">{placeCard.title}</p>
-          <p className="mt-1 text-[13px] leading-5 text-gray-600">{placeCard.detail}</p>
-          <div className="mt-3.5 flex items-center gap-3">
+        <div className="absolute left-0 top-0 z-20 w-[min(18rem,calc(100%-2.5rem))] rounded-br-2xl border-b border-r border-gray-200 bg-white px-4 pb-3.5 pt-4 text-gray-900 shadow-[8px_10px_22px_rgba(15,23,42,0.12)]">
+          <p className="truncate text-[15px] font-semibold leading-5">{placeCard.title}</p>
+          {placeCard.detail && (
+            <p className="mt-1 line-clamp-2 text-[13px] leading-5 text-gray-600">{placeCard.detail}</p>
+          )}
+          <div className="mt-3 flex items-center gap-2">
             <a
               href={mapsUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex h-10 items-center gap-2 rounded-full bg-[#1a73e8] px-4 text-sm font-semibold text-white hover:bg-[#1765cc]"
+              className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#1a73e8] px-3.5 text-sm font-semibold leading-none text-white hover:bg-[#1765cc]"
             >
-              <ExternalLink className="h-4 w-4 shrink-0" />
+              <ExternalLink className="h-3.5 w-3.5 shrink-0" />
               Open in Maps
             </a>
             {directionsUrl && (
@@ -156,7 +162,7 @@ export default function MapEmbedBlock({ style, props, liveItems, blockId }: Prop
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Directions"
-                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-[#1a73e8] bg-white text-[#1a73e8] hover:bg-[#e8f0fe]"
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-[#1a73e8] bg-white text-[#1a73e8] hover:bg-[#e8f0fe]"
               >
                 <Navigation className="h-4 w-4" />
               </a>
