@@ -639,7 +639,32 @@ async def _catalog_vendor_payload(vendor, db: AsyncSession) -> dict:
         theme_payload = normalize_theme_config(raw_theme)
 
     stores_by_vendor = await _default_stores_by_vendor(db, [vendor.id])
-    partner_addr = _partner_directory_item(vendor, stores_by_vendor.get(vendor.id))
+    default_store = stores_by_vendor.get(vendor.id)
+    partner_addr = _partner_directory_item(vendor, default_store)
+
+    from app.services.storefront_contact import resolve_public_support_phones
+
+    settings_payload = dict(vendor.settings or {})
+    support_phone_out = vendor.support_phone
+    if default_store is not None:
+        store_settings = default_store.settings if isinstance(getattr(default_store, "settings", None), dict) else {}
+        store_phone = (getattr(default_store, "phone", None) or "").strip()
+        store_extra = store_settings.get("support_phones")
+        store_has_phones = bool(store_phone) or (
+            isinstance(store_extra, list) and any(isinstance(item, str) and item.strip() for item in store_extra)
+        )
+        if store_has_phones:
+            public_phones = resolve_public_support_phones(vendor, default_store)
+            support_phone_out = public_phones[0] if public_phones else None
+            settings_payload["support_phones"] = public_phones[1:]
+
+    registered_address = {
+        "street_address": _clean_location_part(vendor.street_address),
+        "city": _clean_location_part(vendor.city),
+        "state": _clean_location_part(vendor.state),
+        "postal_code": _clean_location_part(vendor.postal_code),
+        "country": _clean_location_part(vendor.country),
+    }
 
     return {
         "id": str(vendor.id),
@@ -656,8 +681,9 @@ async def _catalog_vendor_payload(vendor, db: AsyncSession) -> dict:
         "primary_email": vendor.primary_email,
         "primary_phone": vendor.primary_phone,
         "support_email": vendor.support_email,
-        "support_phone": vendor.support_phone,
-        "settings": vendor.settings or {},
+        "support_phone": support_phone_out,
+        "settings": settings_payload,
+        "registered_address": registered_address,
         "street_address": partner_addr.get("street_address"),
         "city": partner_addr.get("city"),
         "state": partner_addr.get("state"),

@@ -22,9 +22,9 @@ import { recallDraftEmbedPreviewToken } from '@/lib/draftEmbedPreview'
 import { builderSectionContainerWithMax } from '@/lib/builderSectionLayout'
 import { extractApiError } from '@/lib/errorMessages'
 import {
-  resolveBusinessContactAddress,
+  collectBusinessContactAddresses,
+  collectBusinessContactPhones,
   resolveBusinessContactEmail,
-  resolveBusinessContactPhone,
 } from '@/lib/businessContact'
 import { isBlockFieldHidden, resolveBlockTextField } from '@/lib/blockHiddenFields'
 
@@ -89,29 +89,29 @@ export default function ContactFormBlock({ site, style, props, liveItems, blockI
   const imageOnRight = imagePosition === 'right'
 
   const profile = liveItems?.[0]
-  const phoneFromBusiness = resolveBusinessContactPhone(undefined, profile, vendor)
   const emailFromBusiness = resolveBusinessContactEmail(undefined, profile, vendor)
-  const addressFromBusiness = resolveBusinessContactAddress(
-    undefined,
-    profile,
-    vendor,
-  )
+  const phonesFromBusiness = collectBusinessContactPhones(profile, vendor)
+  const addressesFromBusiness = collectBusinessContactAddresses(profile, vendor)
   // Live storefront: Business Settings / BU only. Editor may preview block props when unset.
-  const phone = isBlockFieldHidden(props, 'phone')
-    ? null
-    : phoneFromBusiness
-      || (isEditorCanvas ? String(props.phone ?? '').trim() : '')
-      || null
+  const phones = isBlockFieldHidden(props, 'phone')
+    ? []
+    : phonesFromBusiness.length > 0
+      ? phonesFromBusiness
+      : isEditorCanvas && String(props.phone ?? '').trim()
+        ? [String(props.phone).trim()]
+        : []
   const emailAddr = isBlockFieldHidden(props, 'email')
     ? null
     : emailFromBusiness
       || (isEditorCanvas ? String(props.email ?? '').trim() : '')
       || null
-  const address = isBlockFieldHidden(props, 'address')
-    ? null
-    : addressFromBusiness
-      || (isEditorCanvas ? String(props.address ?? '').trim() : '')
-      || null
+  const addresses = isBlockFieldHidden(props, 'address')
+    ? []
+    : addressesFromBusiness.length > 0
+      ? addressesFromBusiness
+      : isEditorCanvas && String(props.address ?? '').trim()
+        ? [String(props.address).trim()]
+        : []
 
   const showTitle = !isBlockFieldHidden(props, 'title') && (title || isEditorCanvas)
 
@@ -119,7 +119,7 @@ export default function ContactFormBlock({ site, style, props, liveItems, blockI
   const sideImageRaw = useSideImage && !sideImageHidden ? (props.bg_image_url as string | undefined) : undefined
   const sideImageUrl = sideImageRaw ? imgUrl(sideImageRaw) : undefined
 
-  const mapSrc = showMap && address ? `https://www.google.com/maps?q=${encodeURIComponent(address)}&output=embed` : null
+  const mapSrc = showMap && addresses[0] ? `https://www.google.com/maps?q=${encodeURIComponent(addresses[0])}&output=embed` : null
 
   const defaultFields: FormField[] = [
     { name: 'name', label: 'Full Name', type: 'text', required: true, placeholder: 'Your Name', step: 1 },
@@ -218,7 +218,7 @@ export default function ContactFormBlock({ site, style, props, liveItems, blockI
     />
   )
 
-  const infoPanel = (emailAddr || phone || address || isEditorCanvas) ? (
+  const infoPanel = (emailAddr || phones.length > 0 || addresses.length > 0 || isEditorCanvas) ? (
     <div className={cn(isStacked ? 'flex flex-wrap justify-center gap-6' : 'space-y-4 mt-8')}>
       {emailAddr && (
         <div className={cn('flex items-center gap-3', mutedTextClass)}>
@@ -228,22 +228,22 @@ export default function ContactFormBlock({ site, style, props, liveItems, blockI
           <span>{emailAddr}</span>
         </div>
       )}
-      {phone && (
-        <div className={cn('flex items-center gap-3', mutedTextClass)}>
+      {phones.map((phone) => (
+        <div key={phone} className={cn('flex items-center gap-3', mutedTextClass)}>
           <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${primary}15` }}>
             <Phone className="w-5 h-5" style={{ color: primary }} />
           </div>
-          <span>{phone}</span>
+          <a href={`tel:${phone.replace(/\s+/g, '')}`} className="hover:underline">{phone}</a>
         </div>
-      )}
-      {address && (
-        <div className={cn('flex items-center gap-3', mutedTextClass)}>
+      ))}
+      {addresses.map((address) => (
+        <div key={address} className={cn('flex items-start gap-3', mutedTextClass)}>
           <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${primary}15` }}>
             <MapPin className="w-5 h-5" style={{ color: primary }} />
           </div>
           <span>{address}</span>
         </div>
-      )}
+      ))}
     </div>
   ) : null
 

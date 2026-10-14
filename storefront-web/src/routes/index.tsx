@@ -30,6 +30,7 @@ import Register from '@/pages/auth/Register'
 import ForgotPassword from '@/pages/auth/ForgotPassword'
 import ProductList from '@/pages/products/ProductList'
 import ProductDetail from '@/pages/products/ProductDetail'
+import CategoryCatalogRedirect from '@/pages/products/CategoryCatalogRedirect'
 import ServiceList from '@/pages/services/ServiceList'
 import ServiceDetail from '@/pages/services/ServiceDetail'
 import ServiceBookingPage from '@/pages/services/ServiceBookingPage'
@@ -190,6 +191,7 @@ const draftCatalogShellChildren = [
   { path: 'forgot-password', element: <ForgotPassword /> },
   { path: 'products', element: <ProductList /> },
   { path: 'products/:slug', element: <ProductDetail /> },
+  { path: 'categories/:slug', element: <CategoryCatalogRedirect /> },
   { path: 'services', element: <ServiceList /> },
   { path: 'services/:slug', element: <ServiceDetail /> },
   { path: 'services/:slug/book', element: <ServiceBookingPage /> },
@@ -227,6 +229,7 @@ const vendorStoreChildren = [
   { path: 'forgot-password', element: <ForgotPassword /> },
   { path: 'products', element: <ProductList /> },
   { path: 'products/:slug', element: <ProductDetail /> },
+  { path: 'categories/:slug', element: <CategoryCatalogRedirect /> },
   { path: 'services', element: <ServiceList /> },
   { path: 'services/:slug', element: <ServiceDetail /> },
   { path: 'services/:slug/book', element: <ServiceBookingPage /> },

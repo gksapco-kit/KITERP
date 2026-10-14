@@ -34,9 +34,9 @@ import StorefrontBuAuthSync from '@/components/store/StorefrontBuAuthSync'
 import { SocialLinksIconRow } from '@/components/store/SocialLinksIconRow'
 import {
   buildFooterContactLinks,
+  collectBusinessContactAddresses,
   collectBusinessContactEmails,
   collectBusinessContactPhones,
-  resolveBusinessContactAddress,
 } from '@/lib/businessContact'
 import StoreRouteSeo from '@/components/seo/StoreRouteSeo'
 import { isVendorSubpath, storefrontPath } from '@/lib/storefrontPaths'
@@ -244,9 +244,9 @@ function FooterContactLines({
 }) {
   const phones = collectBusinessContactPhones(undefined, vendor)
   const emails = collectBusinessContactEmails(undefined, vendor)
-  const address = resolveBusinessContactAddress(undefined, undefined, vendor)
+  const addresses = collectBusinessContactAddresses(undefined, vendor)
 
-  if (phones.length === 0 && emails.length === 0 && !address) return null
+  if (phones.length === 0 && emails.length === 0 && addresses.length === 0) return null
 
   return (
     <div className={cn('space-y-2.5 text-sm', compact && 'text-sm')}>
@@ -262,12 +262,12 @@ function FooterContactLines({
           <a href={`mailto:${email}`} className={surface.linkClass}>{email}</a>
         </p>
       ))}
-      {address && (
-        <p className="flex items-start gap-2">
+      {addresses.map((address) => (
+        <p key={address} className="flex items-start gap-2">
           <MapPin className="w-3.5 h-3.5 shrink-0 mt-0.5" />
           <span>{address}</span>
         </p>
-      )}
+      ))}
     </div>
   )
 }

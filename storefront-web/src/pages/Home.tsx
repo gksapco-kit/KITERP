@@ -17,9 +17,9 @@ import {
   Mail, Briefcase, Users, ExternalLink, Send, Navigation,
 } from 'lucide-react'
 import {
+  collectBusinessContactAddresses,
   collectBusinessContactEmails,
   collectBusinessContactPhones,
-  resolveBusinessContactAddress,
 } from '@/lib/businessContact'
 import StarRating from '@/components/StarRating'
 import { storeApi, type StoreLocation } from '@/api/store'
@@ -335,10 +335,9 @@ function AboutUsSection({ props, colors, vendor }: { props: SectionProps; colors
 }
 
 function ContactMapSection({ props, colors, vendor }: { props: SectionProps; colors: ReturnType<typeof useTheme>['colors']; vendor: ReturnType<typeof useVendor>['vendor'] }) {
-  const address = resolveBusinessContactAddress(undefined, undefined, vendor)
+  const addresses = collectBusinessContactAddresses(undefined, vendor)
   const phones = collectBusinessContactPhones(undefined, vendor)
   const emails = collectBusinessContactEmails(undefined, vendor)
-  const phone = phones[0]
   const email = emails[0]
   return (
     <section className="py-10 bg-white">
@@ -346,24 +345,24 @@ function ContactMapSection({ props, colors, vendor }: { props: SectionProps; col
         <h2 className="text-xl sm:text-2xl font-bold text-gray-900 text-center mb-8">{str(props.title, 'Find Us')}</h2>
         <div className="grid md:grid-cols-2 gap-8 items-start">
           <div className="space-y-4">
-            {address && (
-              <div className="flex items-start gap-3 p-4 rounded-xl border bg-gray-50">
+            {addresses.map((address) => (
+              <div key={address} className="flex items-start gap-3 p-4 rounded-xl border bg-gray-50">
                 <MapPin className="w-5 h-5 mt-0.5 shrink-0" style={{ color: linkOnLight(colors.primary, colors.secondary) }} />
                 <div>
                   <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Address</p>
                   <p className="text-gray-800 mt-0.5">{address}</p>
                 </div>
               </div>
-            )}
-            {phone && (
-              <div className="flex items-start gap-3 p-4 rounded-xl border bg-gray-50">
+            ))}
+            {phones.map((phone) => (
+              <div key={phone} className="flex items-start gap-3 p-4 rounded-xl border bg-gray-50">
                 <Phone className="w-5 h-5 mt-0.5 shrink-0" style={{ color: linkOnLight(colors.primary, colors.secondary) }} />
                 <div>
                   <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Phone</p>
                   <a href={`tel:${phone.replace(/\s+/g, '')}`} className="text-gray-800 hover:underline mt-0.5">{phone}</a>
                 </div>
               </div>
-            )}
+            ))}
             {email && (
               <div className="flex items-start gap-3 p-4 rounded-xl border bg-gray-50">
                 <Mail className="w-5 h-5 mt-0.5 shrink-0" style={{ color: linkOnLight(colors.primary, colors.secondary) }} />

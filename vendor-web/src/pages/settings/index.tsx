@@ -2065,7 +2065,8 @@ function AddressSection({
     country: '',
     pincode: '',
   })
-  const [showExtraAddress, setShowExtraAddress] = useState(false)
+  const [extraAddressOpened, setExtraAddressOpened] = useState(false)
+  const [extraAddressDismissed, setExtraAddressDismissed] = useState(false)
   const hqSavingRef = useRef(false)
   const unitSavingRef = useRef(false)
   const [hqHydrated, setHqHydrated] = useState(false)
@@ -2218,10 +2219,23 @@ function AddressSection({
         activeStore.address?.pincode?.trim()),
   )
 
+  const secondaryHasSavedContent = secondaryIsHq
+    ? hasSavedHqAddress
+    : secondaryIsUnit
+      ? hasSavedUnitAddress
+      : false
+  const showExtraAddress =
+    extraAddressOpened || (secondaryHasSavedContent && !extraAddressDismissed)
+
+  const dismissExtraAddress = () => {
+    setExtraAddressOpened(false)
+    setExtraAddressDismissed(true)
+  }
+
   const handleDeleteHq = () => {
     if (!hqEditable || !vendor) return
     markHqDirty()
-    setShowExtraAddress(false)
+    dismissExtraAddress()
     setHqForm(emptyHqForm())
     if (!hasSavedHqAddress) return
     hqSavingRef.current = true
@@ -2249,7 +2263,7 @@ function AddressSection({
   const handleDeleteUnit = () => {
     if (!unitEditable || !activeStore) return
     markUnitDirty()
-    setShowExtraAddress(false)
+    dismissExtraAddress()
     setUnitForm(emptyUnitForm())
     if (!hasSavedUnitAddress) return
     unitSavingRef.current = true
@@ -2357,7 +2371,10 @@ function AddressSection({
             variant="link"
             size="sm"
             className="h-auto gap-1 px-0 text-blue-600"
-            onClick={() => setShowExtraAddress(true)}
+            onClick={() => {
+              setExtraAddressDismissed(false)
+              setExtraAddressOpened(true)
+            }}
           >
             <Plus className="h-3.5 w-3.5" />
             Add more address

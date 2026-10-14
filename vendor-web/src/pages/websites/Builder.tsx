@@ -897,7 +897,7 @@ export type OverlayLinkType =
   // Live ERP catalog
   | 'product'       // live product detail (/products/{slug})
   | 'service'       // live service detail (/services/{slug})
-  | 'category'      // live category page  (/categories/{slug})
+  | 'category'      // catalog filtered by category (/products?category=)
   | 'team_member'   // live team member profile (/team/{slug})
   | 'testimonial'   // jump to specific testimonial block
   | 'media'         // direct link to a file in the media library
@@ -1639,7 +1639,15 @@ function LinkEditorPopup({
     }
     if (type === 'testimonial') return `#testimonial-${item.id}`
     if (type === 'team_member') return item.url || `/team/${item.id}`
-    if (type === 'category')    return item.url || `/categories/${item.id}`
+    if (type === 'category') {
+      const fromApi = (item.url || '').trim()
+      if (fromApi.startsWith('/products') || fromApi.startsWith('/services')) return fromApi
+      const name = (item.title || '').trim()
+      if (!name) return fromApi || '/products'
+      const appliesTo = String((item.meta as { applies_to?: string } | null)?.applies_to || '').toLowerCase()
+      const base = appliesTo === 'service' ? '/services' : '/products'
+      return `${base}?category=${encodeURIComponent(name)}`
+    }
     if (type === 'store') {
       const code = (item.meta as any)?.code || item.id
       return `?branch=${encodeURIComponent(String(code))}`

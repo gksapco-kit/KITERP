@@ -187,6 +187,13 @@ export function applyBranchToVendor(vendor: VendorData, branch: StoreLocation | 
   const branding = resolveStorefrontBranding(vendor, branch)
   const contact = resolveBranchContactOverlay(vendor, branch)
   const address = resolveBranchAddressOverlay(vendor, branch)
+  const registered_address = vendor.registered_address ?? {
+    street_address: vendor.street_address,
+    city: vendor.city,
+    state: vendor.state,
+    postal_code: vendor.postal_code,
+    country: vendor.country,
+  }
   const social_links = resolveStorefrontSocialLinks(vendor, branch)
   const socialIconStyle = resolveStorefrontSocialIconStyle(vendor, branch)
   return {
@@ -200,6 +207,7 @@ export function applyBranchToVendor(vendor: VendorData, branch: StoreLocation | 
     social_links,
     support_email: contact.support_email,
     support_phone: contact.support_phone,
+    registered_address,
     street_address: address.street_address,
     city: address.city,
     state: address.state,

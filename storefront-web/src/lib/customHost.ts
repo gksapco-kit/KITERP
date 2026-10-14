@@ -35,3 +35,57 @@ export function currentCustomDomainHost(): string | null {
   const host = normalizeBrowserHostname()
   return isCustomDomainHostname(host) ? host : null
 }
+
+function hostWithoutWww(hostname: string): string {
+  return normalizeBrowserHostname(hostname).replace(/^www\./, '')
+}
+
+/** True when two hosts are the same site, ignoring a leading www. */
+export function hostsMatchIgnoringWww(a: string, b: string): boolean {
+  const left = hostWithoutWww(a)
+  const right = hostWithoutWww(b)
+  return Boolean(left) && left === right
+}
+
+/** `https://shop.example` for a stored custom domain, or null when it is empty. */
+export function customDomainOrigin(domain: string | null | undefined): string | null {
+  const raw = (domain || '').trim()
+  if (!raw) return null
+  const withScheme = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`
+  try {
+    return new URL(withScheme).origin
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Customer-facing origin. Apex domains are stored without www, while DNS points
+ * the apex at www. Leave subdomains (shop.example.com) unchanged.
+ */
+function customerFacingOrigin(domain: string | null | undefined): string | null {
+  const origin = customDomainOrigin(domain)
+  if (!origin) return null
+  const url = new URL(origin)
+  const labels = url.hostname.split('.').filter(Boolean)
+  if (labels.length === 2) url.hostname = `www.${url.hostname}`
+  return url.origin
+}
+
+/**
+ * Absolute URL on the vendor's own domain for a store-relative path such as
+ * `/products?category=Snacks`. Returns null when there is no custom domain,
+ * or the browser is already on that domain (keep the current host, including www).
+ */
+export function customDomainAbsolutePath(
+  storeRelativePath: string,
+  domain: string | null | undefined,
+): string | null {
+  const origin = customerFacingOrigin(domain)
+  if (!origin || typeof window === 'undefined') return null
+  if (!isPlatformHostname(window.location.hostname)) return null
+  const targetHost = new URL(origin).hostname
+  if (hostsMatchIgnoringWww(window.location.hostname, targetHost)) return null
+  const path = storeRelativePath.startsWith('/') ? storeRelativePath : `/${storeRelativePath}`
+  return `${origin}${path}`
+}

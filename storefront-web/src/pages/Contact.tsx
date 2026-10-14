@@ -11,9 +11,9 @@ import { useEffectiveVendor } from '@/hooks/useEffectiveVendor'
 import { storeApi } from '@/api/store'
 import { PublicFormTrap, emptyTrapState, trapPayload } from '@/components/landing/PublicFormTrap'
 import {
-  resolveBusinessContactAddress,
+  collectBusinessContactAddresses,
+  collectBusinessContactPhones,
   resolveBusinessContactEmail,
-  resolveBusinessContactPhone,
 } from '@/lib/businessContact'
 
 export default function ContactPage() {
@@ -21,8 +21,8 @@ export default function ContactPage() {
   const vendor = useEffectiveVendor()
 
   const email = resolveBusinessContactEmail(undefined, undefined, vendor)
-  const phone = resolveBusinessContactPhone(undefined, undefined, vendor)
-  const address = resolveBusinessContactAddress(undefined, undefined, vendor)
+  const phones = collectBusinessContactPhones(undefined, vendor)
+  const addresses = collectBusinessContactAddresses(undefined, vendor)
 
   const [form, setForm] = useState({ name: '', email: '', phone: '', message: '' })
   const [trap, setTrap] = useState(emptyTrapState)
@@ -70,8 +70,9 @@ export default function ContactPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-3">
-          {phone ? (
+          {phones.map((phone) => (
             <a
+              key={phone}
               href={`tel:${phone.replace(/\s+/g, '')}`}
               className="flex items-center gap-3 rounded-xl border bg-white p-4 hover:shadow-sm transition-shadow"
             >
@@ -81,7 +82,7 @@ export default function ContactPage() {
                 <p className="text-sm text-gray-600">{phone}</p>
               </div>
             </a>
-          ) : null}
+          ))}
           {email ? (
             <a
               href={`mailto:${email}`}
@@ -94,16 +95,16 @@ export default function ContactPage() {
               </div>
             </a>
           ) : null}
-          {address ? (
-            <div className="flex items-start gap-3 rounded-xl border bg-white p-4">
+          {addresses.map((address) => (
+            <div key={address} className="flex items-start gap-3 rounded-xl border bg-white p-4">
               <MapPin className="w-5 h-5 text-primary shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-medium text-gray-900">Address</p>
                 <p className="text-sm text-gray-600">{address}</p>
               </div>
             </div>
-          ) : null}
-          {!phone && !email && !address && (
+          ))}
+          {phones.length === 0 && !email && addresses.length === 0 && (
             <div className="rounded-xl border border-dashed bg-white p-4 text-sm text-gray-500">
               Contact details are not set yet. The store can add them under Settings → Contact Information.
             </div>

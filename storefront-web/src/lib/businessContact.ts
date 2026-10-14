@@ -77,16 +77,60 @@ export function collectBusinessContactEmails(
  * Public-facing support phones from Business Settings / active business unit only.
  * Does not fall back to account primary_phone (vendor storefront only).
  */
+function stringList(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value.filter((item): item is string => typeof item === 'string')
+}
+
+function formatAddressLine(parts: Array<string | null | undefined>): string {
+  return parts.map((part) => meaningfulContactValue(part)).filter(Boolean).join(', ')
+}
+
+/**
+ * Branch location and registered HQ, in that order.
+ * Matching lines are returned once.
+ */
+export function collectBusinessContactAddresses(
+  profile: LiveItem | undefined,
+  vendor: VendorData | null | undefined,
+): string[] {
+  const meta = profile?.meta as Record<string, unknown> | undefined
+  const hq = vendor?.registered_address
+  const lines = [
+    formatAddressLine([
+      vendor?.street_address,
+      vendor?.city,
+      vendor?.state,
+      vendor?.postal_code,
+    ]),
+    formatAddressLine([
+      hq?.street_address,
+      hq?.city,
+      hq?.state,
+      hq?.postal_code,
+    ]),
+    ...stringList(meta?.addresses),
+  ]
+  const unique = uniqueStrings(lines)
+  if (unique.length > 0) return unique
+
+  const fromProfile = meaningfulContactValue(typeof meta?.address === 'string' ? meta.address : undefined)
+  return fromProfile ? [fromProfile] : []
+}
+
 export function collectBusinessContactPhones(
   profile: LiveItem | undefined,
   vendor: VendorData | null | undefined,
 ): string[] {
   const meta = profile?.meta as Record<string, unknown> | undefined
   const fromSettings = supportPhonesFromVendor(vendor)
-  if (fromSettings.length > 0) return fromSettings.map(formatPhoneDisplay)
-
-  const fromProfile = firstNonEmpty(meta?.support_phone as string, meta?.phone as string)
-  return fromProfile ? [formatPhoneDisplay(fromProfile)] : []
+  const fromProfile = uniqueStrings([
+    ...stringList(meta?.phones),
+    firstNonEmpty(meta?.support_phone as string, meta?.phone as string),
+    ...stringList(meta?.support_phones),
+  ])
+  const chosen = fromSettings.length > 0 ? fromSettings : fromProfile
+  return uniqueStrings(chosen.map((phone) => formatPhoneDisplay(phone)))
 }
 
 /**
@@ -113,23 +157,13 @@ export function resolveBusinessContactPhone(
   return collectBusinessContactPhones(profile, vendor)[0] ?? ''
 }
 
-/** HQ / registered address for public contact blocks. */
+/** First public address line (branch, then registered HQ). */
 export function resolveBusinessContactAddress(
   propsAddress: string | undefined,
   profile: LiveItem | undefined,
   vendor: VendorData | null | undefined,
 ): string {
-  const fromVendor = [vendor?.street_address, vendor?.city, vendor?.state, vendor?.postal_code]
-    .map((part) => meaningfulContactValue(part))
-    .filter(Boolean)
-    .join(', ')
-  if (fromVendor) return fromVendor
-
-  const meta = profile?.meta as Record<string, unknown> | undefined
-  const fromProfile = meaningfulContactValue(typeof meta?.address === 'string' ? meta.address : undefined)
-  if (fromProfile) return fromProfile
-
-  return meaningfulContactValue(propsAddress)
+  return collectBusinessContactAddresses(profile, vendor)[0] ?? meaningfulContactValue(propsAddress)
 }
 
 export function isFooterContactColumn(title: string): boolean {
@@ -152,8 +186,7 @@ export function buildFooterContactLinks(
     links.push({ label: email, href: `mailto:${email}`, external: true })
   }
 
-  const address = resolveBusinessContactAddress(undefined, profile, vendor)
-  if (address) {
+  for (const address of collectBusinessContactAddresses(profile, vendor)) {
     links.push({ label: address, href: '#', external: false })
   }
 

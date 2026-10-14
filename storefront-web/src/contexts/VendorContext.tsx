@@ -22,6 +22,8 @@ export interface VendorData {
   business_name: string
   display_name: string
   slug: string
+  /** Verified customer domain, when the business is not only on kiterp.com. */
+  custom_domain?: string | null
   description?: string
   offering_type?: 'products' | 'services' | 'both'
   logo_url?: string
@@ -36,6 +38,14 @@ export interface VendorData {
   state?: string
   postal_code?: string
   country?: string
+  /** Registered HQ. Kept separate from the business-unit address shown in street_address. */
+  registered_address?: {
+    street_address?: string | null
+    city?: string | null
+    state?: string | null
+    postal_code?: string | null
+    country?: string | null
+  }
   /** Optional geo for maps / store locator (when provided by API) */
   latitude?: number
   longitude?: number

@@ -1,6 +1,7 @@
 # app/services/category_live_feed.py
 """Build live-feed items for storefront category blocks."""
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, Optional
+from urllib.parse import quote
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -9,6 +10,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.vendor_product import Product
 from app.models.vendor_service import Service
 from app.repositories.vendor_category_repo import VendorCategoryRepository
+
+
+def catalog_path_for_category(name: Optional[str], applies_to: Optional[str] = None) -> Optional[str]:
+    """Storefront path that lists this category. There is no /categories/{slug} page."""
+    label = (name or "").strip()
+    if not label:
+        return None
+    base = "/services" if (applies_to or "").strip().lower() == "service" else "/products"
+    return f"{base}?category={quote(label, safe='')}"
 
 
 async def build_category_live_items(
@@ -44,7 +54,7 @@ async def build_category_live_items(
                 subtitle=f"{cnt} item{'s' if cnt != 1 else ''}" if cnt else None,
                 description=c.description,
                 image_url=c.image_url,
-                url=f"/categories/{c.slug}" if c.slug else None,
+                url=catalog_path_for_category(c.name, c.applies_to),
                 meta={
                     "count": cnt,
                     "slug": c.slug,
@@ -76,6 +86,7 @@ async def build_category_live_items(
             id=cat,
             title=cat,
             subtitle=f"{cnt} item{'s' if cnt != 1 else ''}",
+            url=catalog_path_for_category(cat),
             meta={"count": cnt},
         ))
     return items

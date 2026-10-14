@@ -1,4 +1,4 @@
-import { MapPin, Navigation } from 'lucide-react'
+import { ExternalLink, MapPin, Navigation } from 'lucide-react'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
@@ -15,6 +15,14 @@ interface Props {
   liveItems: LiveItem[]
   branchCode?: string | null
   blockId?: string
+}
+
+function placeCardCopy(address: string): { title: string; detail: string } {
+  const parts = address.split(',').map((part) => part.trim()).filter(Boolean)
+  if (parts.length > 1 && parts[0].length <= 32) {
+    return { title: parts[0], detail: address }
+  }
+  return { title: 'Location', detail: address }
 }
 
 function readMapCoord(raw: unknown): number | null {
@@ -61,7 +69,7 @@ export default function MapEmbedBlock({ style, props, liveItems, blockId }: Prop
   const mapSrc = lat != null && lng != null
     ? `https://www.openstreetmap.org/export/embed.html?bbox=${lng - 0.01},${lat - 0.01},${lng + 0.01},${lat + 0.01}&layer=mapnik&marker=${lat},${lng}`
     : !addressHidden && address
-      ? `https://www.google.com/maps?q=${encodeURIComponent(address)}&output=embed`
+      ? `https://maps.google.com/maps?q=${encodeURIComponent(address)}&z=16&output=embed&iwloc=near`
       : null
 
   const layout = String(props.layout ?? 'card')
@@ -79,6 +87,14 @@ export default function MapEmbedBlock({ style, props, liveItems, blockId }: Prop
     : address
       ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`
       : null
+  const mapsUrl = lat != null && lng != null
+    ? `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
+    : address
+      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`
+      : null
+  const placeCard = mapsUrl && address && mapSrc?.includes('google.com/maps')
+    ? placeCardCopy(address)
+    : null
 
   const showTitle = !isBlockFieldHidden(props, 'title') && (title || isEditorCanvas) && !isMinimal
   const showAddress = !addressHidden && (address || isEditorCanvas) && !isMinimal
@@ -117,6 +133,34 @@ export default function MapEmbedBlock({ style, props, liveItems, blockId }: Prop
           <div className="text-center">
             <MapPin className={cn('mx-auto opacity-30', isMinimal ? 'w-6 h-6' : 'w-10 h-10 mb-2')} />
             {!isMinimal && <p className="text-sm">Set a location in the builder to show the map</p>}
+          </div>
+        </div>
+      )}
+      {placeCard && mapsUrl && (
+        <div className="absolute left-3 top-3 z-20 w-[min(22rem,calc(100%-1.5rem))] rounded-2xl bg-white p-4 text-gray-900 shadow-[0_1px_3px_rgba(60,64,67,0.3),0_4px_12px_rgba(60,64,67,0.18)]">
+          <p className="text-[15px] font-semibold leading-5">{placeCard.title}</p>
+          <p className="mt-1 text-[13px] leading-5 text-gray-600">{placeCard.detail}</p>
+          <div className="mt-3.5 flex items-center gap-3">
+            <a
+              href={mapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-10 items-center gap-2 rounded-full bg-[#1a73e8] px-4 text-sm font-semibold text-white hover:bg-[#1765cc]"
+            >
+              <ExternalLink className="h-4 w-4 shrink-0" />
+              Open in Maps
+            </a>
+            {directionsUrl && (
+              <a
+                href={directionsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Directions"
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-[#1a73e8] bg-white text-[#1a73e8] hover:bg-[#e8f0fe]"
+              >
+                <Navigation className="h-4 w-4" />
+              </a>
+            )}
           </div>
         </div>
       )}

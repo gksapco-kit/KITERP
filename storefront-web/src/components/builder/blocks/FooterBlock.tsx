@@ -7,6 +7,7 @@ import { useVendor, type VendorData } from '@/contexts/VendorContext'
 import { useEffectiveVendor } from '@/hooks/useEffectiveVendor'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { isDraftPreviewShellHref } from '@/lib/previewNavRouting'
+import { customDomainAbsolutePath } from '@/lib/customHost'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { BuilderSocialIcon } from '@/components/builder/BuilderSocialIcon'
 import { ColumnFooter } from '@/kit/footer/ColumnFooter'
@@ -78,6 +79,7 @@ function resolveFooterHref(
   rawHref: string | undefined | null,
   storePath: (p: string) => string,
   openInNewTab?: boolean | null,
+  customDomain?: string | null,
 ): { href: string; external: boolean; openInNewTab: boolean } {
   const raw = String(rawHref ?? '/').trim() || '/'
 
@@ -106,11 +108,15 @@ function resolveFooterHref(
     return { href: raw, external: true, openInNewTab: openInNewTab === true }
   }
 
-  const href = storePath(raw.startsWith('/') ? raw : `/${raw}`)
+  const storeRelative = raw.startsWith('/') ? raw : `/${raw}`
   if (openInNewTab === true) {
-    return { href, external: true, openInNewTab: true }
+    const onCustomDomain = customDomainAbsolutePath(storeRelative, customDomain)
+    if (onCustomDomain) {
+      return { href: onCustomDomain, external: true, openInNewTab: true }
+    }
+    return { href: storePath(storeRelative), external: true, openInNewTab: true }
   }
-  return { href, external: false, openInNewTab: false }
+  return { href: storePath(storeRelative), external: false, openInNewTab: false }
 }
 
 function resolvePoweredByHref(
@@ -228,6 +234,7 @@ function normalizeFooterColumns(
   previewShell = false,
   profile?: LiveItem,
   vendor?: VendorData | null,
+  customDomain?: string | null,
 ): FooterColumn[] {
   if (!Array.isArray(rawCols) || rawCols.length === 0) return []
   const liveContactLinks = buildFooterContactLinks(profile, vendor)
@@ -250,7 +257,7 @@ function normalizeFooterColumns(
             if (typeof x === 'string') {
               return { label: x, href: storePath('/'), external: previewShell || undefined }
             }
-            const resolved = resolveFooterHref(x.href, storePath, x.openInNewTab)
+            const resolved = resolveFooterHref(x.href, storePath, x.openInNewTab, customDomain)
             return {
               label: x.label ?? '',
               href: resolved.href,
@@ -498,7 +505,15 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
 
   const profile = liveItems[0]
   const rawCols = props.footer_columns as RawColumn[] | undefined
-  const footerColumns = normalizeFooterColumns(rawCols, storePath, previewShell === true, profile, effectiveVendor)
+  const customDomain = site.custom_domain?.trim() || vendor?.custom_domain?.trim() || null
+  const footerColumns = normalizeFooterColumns(
+    rawCols,
+    storePath,
+    previewShell === true,
+    profile,
+    effectiveVendor,
+    customDomain,
+  )
   const showSocial = props.show_social !== false
   const socialLinks = resolveFooterSocialLinks(
     effectiveVendor?.social_links as Record<string, string> | undefined,

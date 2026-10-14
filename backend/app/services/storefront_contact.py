@@ -55,17 +55,76 @@ def resolve_public_support_email(vendor, store=None) -> Optional[str]:
     return None
 
 
-def resolve_public_support_phone(vendor, store=None) -> Optional[str]:
-    """Business support phone only (BU → vendor defaults). No account primary_phone fallback."""
-    from app.services.sms_service import format_public_phone
+def _dedupe_lines(values: list[str]) -> list[str]:
+    out: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        text = value.strip()
+        if not text:
+            continue
+        key = "".join(text.lower().split())
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(text)
+    return out
 
+
+def _address_line(*parts: Any) -> str:
+    cleaned = []
+    for part in parts:
+        text = _str(part)
+        if text and not _is_placeholder_contact(text):
+            cleaned.append(text)
+    return ", ".join(cleaned)
+
+
+def resolve_public_addresses(vendor, store=None) -> list[str]:
+    """Branch location and registered HQ as separate lines. Identical lines collapse to one."""
+    lines: list[str] = []
+    if store and isinstance(getattr(store, "address", None), dict):
+        addr = store.address or {}
+        branch = _address_line(
+            addr.get("street"),
+            addr.get("city"),
+            addr.get("state"),
+            addr.get("pincode") or addr.get("postal_code"),
+        )
+        if branch:
+            lines.append(branch)
+    hq = _address_line(
+        getattr(vendor, "street_address", None),
+        getattr(vendor, "city", None),
+        getattr(vendor, "state", None),
+        getattr(vendor, "postal_code", None),
+    )
+    if hq:
+        lines.append(hq)
+    return _dedupe_lines(lines)
+
+
+def resolve_public_support_phones(vendor, store=None) -> list[str]:
+    """Every business support number (primary + extras). A unit list replaces the company list."""
+    vendor_settings = dict(getattr(vendor, "settings", None) or {})
+    store_settings = dict(getattr(store, "settings", None) or {}) if store else {}
     branch_phone = _str(getattr(store, "phone", None)) if store else ""
-    if branch_phone and not _is_placeholder_contact(branch_phone):
-        return format_public_phone(branch_phone)
-    primary = _str(getattr(vendor, "support_phone", None))
-    if primary and not _is_placeholder_contact(primary):
-        return format_public_phone(primary)
-    return None
+    branch_extra = _extra_strings(store_settings, "support_phones")
+    vendor_phone = _str(getattr(vendor, "support_phone", None))
+    vendor_extra = _extra_strings(vendor_settings, "support_phones")
+
+    if branch_phone or branch_extra:
+        raw = [branch_phone, *branch_extra]
+    else:
+        raw = [vendor_phone, *vendor_extra]
+
+    usable = [value for value in raw if value and not _is_placeholder_contact(value)]
+    return _dedupe_lines(_format_public_phones(usable))
+
+
+def resolve_public_support_phone(vendor, store=None) -> Optional[str]:
+    """First business support phone (BU → vendor defaults). No account primary_phone fallback."""
+    phones = resolve_public_support_phones(vendor, store)
+    return phones[0] if phones else None
 
 
 def resolve_public_address_parts(vendor, store=None) -> dict[str, Optional[str]]:
@@ -110,20 +169,19 @@ def format_public_address(parts: Mapping[str, Optional[str]]) -> str:
 def build_profile_live_meta(vendor, store=None) -> dict[str, Any]:
     """Profile meta for website builder / public site live `profile` resource."""
     support_email = resolve_public_support_email(vendor, store)
-    support_phone = resolve_public_support_phone(vendor, store)
+    phones = resolve_public_support_phones(vendor, store)
+    support_phone = phones[0] if phones else None
+    addresses = resolve_public_addresses(vendor, store)
     addr_parts = resolve_public_address_parts(vendor, store)
-    addr = format_public_address(addr_parts)
+    addr = addresses[0] if addresses else format_public_address(addr_parts)
 
     vendor_settings = dict(getattr(vendor, "settings", None) or {})
     store_settings = dict(getattr(store, "settings", None) or {}) if store else {}
 
     branch_email = _str(getattr(store, "email", None)) if store else ""
-    branch_phone = _str(getattr(store, "phone", None)) if store else ""
     branch_extra_emails = _extra_strings(store_settings, "support_emails")
-    branch_extra_phones = _extra_strings(store_settings, "support_phones")
 
     use_branch_emails = bool(branch_email or branch_extra_emails)
-    use_branch_phones = bool(branch_phone or branch_extra_phones)
 
     meta = {
         "business_name": vendor.business_name,
@@ -133,7 +191,9 @@ def build_profile_live_meta(vendor, store=None) -> dict[str, Any]:
         "support_email": support_email,
         "phone": support_phone,
         "support_phone": support_phone,
+        "phones": phones,
         "address": addr,
+        "addresses": addresses,
         "city": addr_parts.get("city"),
         "state": addr_parts.get("state"),
         "country": addr_parts.get("country"),
@@ -149,9 +209,7 @@ def build_profile_live_meta(vendor, store=None) -> dict[str, Any]:
         "support_emails": branch_extra_emails
         if use_branch_emails
         else _extra_strings(vendor_settings, "support_emails"),
-        "support_phones": _format_public_phones(
-            branch_extra_phones if use_branch_phones else _extra_strings(vendor_settings, "support_phones")
-        ),
+        "support_phones": phones[1:],
     }
     return meta
 
