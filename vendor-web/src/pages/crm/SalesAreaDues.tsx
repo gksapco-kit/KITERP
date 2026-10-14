@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { usePersistedPageSize } from '@/hooks/usePersistedPageSize'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -234,7 +235,7 @@ function AreaCustomerRows({
   search: string
 }) {
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = usePersistedPageSize('crm.salesAreaDues')
   const saveFollowup = useSavePaymentFollowup()
 
   const params: Record<string, unknown> = {

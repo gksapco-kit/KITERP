@@ -29,6 +29,7 @@ const ServiceForm = lazy(() => import('@/pages/services/ServiceForm'))
 const ServiceAuditReport = lazy(() => import('@/pages/services/ServiceAuditReport'))
 const Customers = lazy(() => import('@/pages/customers/index'))
 const CustomerDetail = lazy(() => import('@/pages/customers/CustomerDetail'))
+const SupplierDetail = lazy(() => import('@/pages/suppliers/SupplierDetail'))
 const ReviewsPage = lazy(() => import('@/pages/reviews/index'))
 const TeamPage = lazy(() => import('@/pages/team/index'))
 const RolesPage = lazy(() => import('@/pages/roles/index'))
@@ -86,6 +87,8 @@ const NotificationSettingsPage = lazy(() => import('@/pages/notifications/settin
 const SuppliersPage = lazy(() => import('@/pages/suppliers/index'))
 const MasterDataReport = lazy(() => import('@/pages/master-data/MasterDataReport'))
 const MasterDataNew = lazy(() => import('@/pages/master-data/MasterDataNew'))
+const MasterDataGroups = lazy(() => import('@/pages/master-data/GroupsPage'))
+const MasterDataPartyRoles = lazy(() => import('@/pages/master-data/PartyRolesPage'))
 const PurchaseOrdersPage = lazy(() => import('@/pages/purchase-orders/index'))
 const PurchaseOrderDetail = lazy(() => import('@/pages/purchase-orders/PurchaseOrderDetail'))
 const POTemplatesPage = lazy(() => import('@/pages/purchase-orders/POTemplates'))
@@ -383,6 +386,8 @@ const appRoutes: RouteObject[] = [
       { path: 'product-groups/:id', element: <ProductGroupDetailPage /> },
       { path: 'master-data', element: <MasterDataReport /> },
       { path: 'master-data/new', element: <MasterDataNew /> },
+      { path: 'master-data/groups', element: <MasterDataGroups /> },
+      { path: 'master-data/roles', element: <MasterDataPartyRoles /> },
       { path: 'suppliers', element: <Navigate to="/master-data" replace /> },
       { path: 'procurement/suppliers', element: <SupplierManagementPage /> },
       { path: 'purchase-orders', element: <PurchaseOrdersPage /> },
@@ -512,6 +517,7 @@ const appRoutes: RouteObject[] = [
       { path: 'website-templates', element: <Navigate to="/websites/templates" replace /> },
       { path: 'customers', element: <Navigate to="/master-data" replace /> },
       { path: 'customers/:id', element: <CustomerDetail /> },
+      { path: 'suppliers/:id', element: <SupplierDetail /> },
       { path: 'reviews', element: <ReviewsPage /> },
       { path: 'stores', element: <StoresPage /> },
       { path: 'team', element: <TeamPage /> },

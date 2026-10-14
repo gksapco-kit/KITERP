@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { usePersistedPageSize } from '@/hooks/usePersistedPageSize'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowDown, ArrowUp, ArrowUpDown, Check, ChevronDown, ChevronRight, ClipboardPaste, Columns3, Copy, DollarSign,
@@ -227,7 +228,7 @@ export function VariantFastEditGrid({ productId, search: searchProp, onSearchCha
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
   const [bulkPending, setBulkPending] = useState(false)
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
+  const [pageSize, setPageSize] = usePersistedPageSize('products.variantGrid', DEFAULT_PAGE_SIZE)
 
   const visibleColumnOrder = useMemo(() => COLUMN_ORDER.filter(c => visibleCols.has(c)), [visibleCols])
 

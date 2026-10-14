@@ -195,7 +195,7 @@ const CUSTOM_FIELD_TYPES: { value: CustomFieldType; label: string }[] = [
   { value: 'date',     label: 'Date'        },
   { value: 'url',      label: 'Link / URL'  },
   { value: 'location', label: 'Location'    },
-  { value: 'relation', label: 'Party Link'  },
+  { value: 'relation', label: 'Business Partner Link'  },
 ]
 
 interface CustomFieldEntry {
@@ -741,7 +741,7 @@ function RelationPicker({ value, onChange }: { value: string; onChange: (v: stri
       if (ss.status === 'fulfilled') {
         const items = (ss.value as { items?: unknown[] })?.items ?? (Array.isArray(ss.value) ? ss.value : [])
         ;(items as Record<string, unknown>[]).forEach(s =>
-          hits.push({ id: String(s.id), label: String(s.name ?? ''), sub: 'Vendor/Party' }))
+          hits.push({ id: String(s.id), label: String(s.name ?? ''), sub: 'Vendor / Business Partner' }))
       }
       setResults(hits)
       setOpen(hits.length > 0)
@@ -895,7 +895,7 @@ export function AddPartyModal({
   )
 
   // More Details
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState(true)
   // Party / business country — controls which tax ID fields appear
   const [partyCountry, setPartyCountry] = useState<CountryEntry>(COUNTRIES.find(c => c.iso === 'IN')!)
 
@@ -1443,6 +1443,8 @@ export function AddPartyModal({
         account_type:         accountType || undefined,
         ifsc_code:            ifscCode || undefined,
         notes:                finalNotes || undefined,
+        // Portal login — pass a custom password only when the toggle is on
+        portal_password:      enablePortal && password ? password : undefined,
         roles:                roleDefs,
       })
       const createdId = (created as unknown as { id?: string }).id
@@ -1510,7 +1512,7 @@ export function AddPartyModal({
   return (
     <>
     <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-2 sm:p-3">
-      <ModalPanel className="max-w-md min-h-[min(36rem,calc(100dvh-1rem))] max-h-[calc(100dvh-0.75rem)] !rounded-lg">
+      <ModalPanel className="w-full max-w-5xl h-[min(44rem,calc(100dvh-1rem))] max-h-[calc(100dvh-0.75rem)] !rounded-lg">
         <ModalHeader
           title={
             <div className="flex min-w-0 items-center gap-2">
@@ -1522,17 +1524,17 @@ export function AddPartyModal({
                   {isEditMode ? `Edit — ${name || 'Record'}` : 'Master Data'}
                 </h2>
                 <p className="truncate text-xs text-muted-foreground">
-                  {isEditMode ? 'Update master data record' : 'Add new party record'}
+                  {isEditMode ? 'Update master data record' : 'Add new business partner record'}
                 </p>
               </div>
             </div>
           }
           onClose={onClose}
-          className="border-0 px-4 py-3"
+          className="border-0 px-5 py-2.5"
         />
 
         <form id="add-party-form" onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
-          <ModalBody className="space-y-2.5 overflow-y-auto px-4 pb-3 pt-0">
+          <ModalBody className="space-y-2 overflow-y-auto px-5 pb-2 pt-0">
 
           {/* Error / warning banner */}
           {duplicateError && (() => {
@@ -1573,10 +1575,10 @@ export function AddPartyModal({
             )
           })()}
 
-          {/* TOP ROW: Profile + Smart Lookup + Country */}
-          <div className="flex items-start gap-2">
-            <div className="relative shrink-0 pt-4">
-              <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-primary/30 bg-gradient-to-br from-indigo-100 to-blue-100 select-none">
+          {/* TOP: Profile + Lookup + Country + Name/Phone/Email */}
+          <div className="flex items-start gap-3">
+            <div className="relative shrink-0 pt-3">
+              <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border border-primary/30 bg-gradient-to-br from-indigo-100 to-blue-100 select-none">
                 {profilePreview ? (
                   <SingleImagePreview
                     url={profilePreview}
@@ -1614,296 +1616,296 @@ export function AddPartyModal({
             </div>
 
             <div className="min-w-0 flex-1 space-y-1.5">
-              <div ref={lookupContainerRef} className="relative min-w-0 space-y-0.5">
-                <Label className="flex items-center gap-1 text-[10px] leading-none text-muted-foreground">
-                  <Search className="h-3 w-3" /> Smart Lookup
-                </Label>
-                <div className="flex gap-1">
-                  <div className="relative min-w-0 flex-1">
-                    <Input
-                      value={lookup}
-                      onChange={e => handleLookupChange(e.target.value)}
-                      onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-                      placeholder={partyCountry.iso === 'IN'
-                        ? 'GSTIN, PAN, phone, email…'
-                        : `Search or enter ${activeTaxFields.map(f => f.label).join(', ')}…`}
-                      className={cn(
-                        'h-8 pr-20 text-sm',
-                        gstStatus === 'invalid' && 'border-red-400',
-                        gstStatus === 'fetched' && 'border-green-400',
-                      )}
-                      autoComplete="off"
-                    />
-                    <div className="absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center gap-0.5">
-                      {suggestionsLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
-                      {!suggestionsLoading && gstStatus === 'fetched' && <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />}
-                      {!suggestionsLoading && gstStatus === 'invalid' && <AlertCircle className="h-3.5 w-3.5 text-red-500" />}
-                      {badge.label && (
-                        <span className={`rounded px-1 py-px text-[9px] font-bold ${badge.color}`}>{badge.label}</span>
-                      )}
+              <div className="grid grid-cols-1 gap-1.5 md:grid-cols-[1fr_11rem]">
+                <div ref={lookupContainerRef} className="relative min-w-0 space-y-0.5">
+                  <Label className="flex items-center gap-1 text-[10px] leading-none text-muted-foreground">
+                    <Search className="h-3 w-3" /> Smart Lookup
+                  </Label>
+                  <div className="flex gap-1">
+                    <div className="relative min-w-0 flex-1">
+                      <Input
+                        value={lookup}
+                        onChange={e => handleLookupChange(e.target.value)}
+                        onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+                        placeholder={partyCountry.iso === 'IN'
+                          ? 'GSTIN, PAN, phone, email…'
+                          : `Search or enter ${activeTaxFields.map(f => f.label).join(', ')}…`}
+                        className={cn(
+                          'h-8 pr-20 text-sm',
+                          gstStatus === 'invalid' && 'border-red-400',
+                          gstStatus === 'fetched' && 'border-green-400',
+                        )}
+                        autoComplete="off"
+                      />
+                      <div className="absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center gap-0.5">
+                        {suggestionsLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+                        {!suggestionsLoading && gstStatus === 'fetched' && <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />}
+                        {!suggestionsLoading && gstStatus === 'invalid' && <AlertCircle className="h-3.5 w-3.5 text-red-500" />}
+                        {badge.label && (
+                          <span className={`rounded px-1 py-px text-[9px] font-bold ${badge.color}`}>{badge.label}</span>
+                        )}
+                      </div>
                     </div>
+                    {showFetchBtn && (
+                      <Button type="button" variant="outline" size="sm" onClick={fetchGstDetails} disabled={fetching} className="h-8 shrink-0 px-2 text-xs">
+                        {fetching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Fetch'}
+                      </Button>
+                    )}
                   </div>
-                  {showFetchBtn && (
-                    <Button type="button" variant="outline" size="sm" onClick={fetchGstDetails} disabled={fetching} className="h-8 shrink-0 px-2 text-xs">
-                      {fetching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Fetch'}
-                    </Button>
+                  {(suggestionsLoading || gstStatus === 'fetched' || gstStatus === 'invalid' || (lookupType === 'gstin' && lookup.length > 0 && lookup.length < 15) || (!suggestionsLoading && lookup.trim().length >= 2 && !showSuggestions && suggestions.length === 0 && lookupType === 'unknown')) && (
+                    <p className={cn(
+                      'text-[10px] leading-none',
+                      gstStatus === 'invalid' ? 'text-red-500' : gstStatus === 'fetched' ? 'text-green-600' : 'text-muted-foreground',
+                    )}>
+                      {suggestionsLoading && 'Searching…'}
+                      {!suggestionsLoading && gstStatus === 'fetched' && 'GST details fetched'}
+                      {!suggestionsLoading && gstStatus === 'invalid' && 'Invalid GSTIN'}
+                      {!suggestionsLoading && gstStatus !== 'fetched' && gstStatus !== 'invalid' && lookupType === 'gstin' && lookup.length > 0 && lookup.length < 15 && `${lookup.length}/15`}
+                      {!suggestionsLoading && gstStatus !== 'fetched' && gstStatus !== 'invalid' && !(lookupType === 'gstin' && lookup.length > 0 && lookup.length < 15) && 'No matching records'}
+                    </p>
                   )}
                 </div>
-                {(suggestionsLoading || gstStatus === 'fetched' || gstStatus === 'invalid' || (lookupType === 'gstin' && lookup.length > 0 && lookup.length < 15) || (!suggestionsLoading && lookup.trim().length >= 2 && !showSuggestions && suggestions.length === 0 && lookupType === 'unknown')) && (
-                  <p className={cn(
-                    'text-[10px] leading-none',
-                    gstStatus === 'invalid' ? 'text-red-500' : gstStatus === 'fetched' ? 'text-green-600' : 'text-muted-foreground',
-                  )}>
-                    {suggestionsLoading && 'Searching…'}
-                    {!suggestionsLoading && gstStatus === 'fetched' && 'GST details fetched'}
-                    {!suggestionsLoading && gstStatus === 'invalid' && 'Invalid GSTIN'}
-                    {!suggestionsLoading && gstStatus !== 'fetched' && gstStatus !== 'invalid' && lookupType === 'gstin' && lookup.length > 0 && lookup.length < 15 && `${lookup.length}/15`}
-                    {!suggestionsLoading && gstStatus !== 'fetched' && gstStatus !== 'invalid' && !(lookupType === 'gstin' && lookup.length > 0 && lookup.length < 15) && 'No matching records'}
-                  </p>
-                )}
-              </div>
 
-              <div className="min-w-0 space-y-0.5">
-                <Label className="flex items-center gap-1 text-[10px] leading-none text-muted-foreground">
-                  <Globe className="h-3 w-3" /> Country
-                </Label>
-                <CountryPicker
-                  value={partyCountry.name}
-                  onChange={c => { setPartyCountry(c); setGstin(''); setPan(''); setCin(''); setTaxId('') }}
-                  mode="name"
-                  className="h-8 w-full"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Name, then Phone + Email */}
-          <div className="space-y-1.5">
-            <div className="space-y-0.5">
-              <Label htmlFor="ap-name" className="text-[10px] leading-none text-muted-foreground">
-                Name <span className="text-red-500">*</span>
-              </Label>
-              <div className="relative">
-                <Users className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="ap-name"
-                  value={name}
-                  onChange={e => { setName(e.target.value); setDuplicateError(null); clearFieldErr('name') }}
-                  placeholder="Name / Company / Trade…"
-                  className={cn('h-8 pl-8 text-sm', errors.name && 'border-red-400')}
-                />
-              </div>
-              {errors.name && <p className="text-[10px] text-red-500">{errors.name}</p>}
-            </div>
-            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-              <div className="space-y-0.5">
-                <Label htmlFor="ap-phone" className="text-[10px] leading-none text-muted-foreground">Phone</Label>
-                <PhoneInput
-                  value={phone}
-                  onChange={(v) => { setPhone(v); setDuplicateError(null); clearFieldErr('phone') }}
-                  error={errors.phone}
-                  defaultCountryIso="IN"
-                  compact
-                  compactCountry
-                  subtleFeedback
-                />
-              </div>
-              <div className="space-y-0.5">
-                <Label htmlFor="ap-email" className="text-[10px] leading-none text-muted-foreground">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    id="ap-email" type="email" value={email}
-                    onChange={e => { setEmail(e.target.value); setDuplicateError(null); clearFieldErr('email') }}
-                    placeholder="email@example.com"
-                    className={cn('h-8 pl-8 text-sm', errors.email && 'border-red-400')}
+                <div className="min-w-0 space-y-0.5">
+                  <Label className="flex items-center gap-1 text-[10px] leading-none text-muted-foreground">
+                    <Globe className="h-3 w-3" /> Country
+                  </Label>
+                  <CountryPicker
+                    value={partyCountry.name}
+                    onChange={c => { setPartyCountry(c); setGstin(''); setPan(''); setCin(''); setTaxId('') }}
+                    mode="name"
+                    className="h-8 w-full"
                   />
                 </div>
-                {errors.email && <p className="text-[10px] text-red-500">{errors.email}</p>}
+              </div>
+
+              <div className="grid grid-cols-1 gap-1.5 md:grid-cols-[1.2fr_1fr_1fr]">
+                <div className="space-y-0.5">
+                  <Label htmlFor="ap-name" className="text-[10px] leading-none text-muted-foreground">
+                    Name <span className="text-red-500">*</span>
+                  </Label>
+                  <div className="relative">
+                    <Users className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      id="ap-name"
+                      value={name}
+                      onChange={e => { setName(e.target.value); setDuplicateError(null); clearFieldErr('name') }}
+                      placeholder="Name / Company / Trade…"
+                      className={cn('h-8 pl-8 text-sm', errors.name && 'border-red-400')}
+                    />
+                  </div>
+                  {errors.name && <p className="text-[10px] text-red-500">{errors.name}</p>}
+                </div>
+                <div className="space-y-0.5">
+                  <Label htmlFor="ap-phone" className="text-[10px] leading-none text-muted-foreground">Phone</Label>
+                  <PhoneInput
+                    value={phone}
+                    onChange={(v) => { setPhone(v); setDuplicateError(null); clearFieldErr('phone') }}
+                    error={errors.phone}
+                    defaultCountryIso="IN"
+                    compact
+                    compactCountry
+                    subtleFeedback
+                  />
+                </div>
+                <div className="space-y-0.5">
+                  <Label htmlFor="ap-email" className="text-[10px] leading-none text-muted-foreground">Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      id="ap-email" type="email" value={email}
+                      onChange={e => { setEmail(e.target.value); setDuplicateError(null); clearFieldErr('email') }}
+                      placeholder="email@example.com"
+                      className={cn('h-8 pl-8 text-sm', errors.email && 'border-red-400')}
+                    />
+                  </div>
+                  {errors.email && <p className="text-[10px] text-red-500">{errors.email}</p>}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Roles */}
-          <div className="space-y-1">
-            <Label className="block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-              {isEditMode ? 'Party Type' : (
-                <span className="flex items-center gap-1">
-                  Roles
-                  <span className="font-normal normal-case text-muted-foreground/70">
-                    {selectedRoles.length > 1 ? `(${selectedRoles.length} · Business Partner)` : '(one or more)'}
+          {/* Roles + Groups + Status — side by side on wide screens */}
+          <div className="grid grid-cols-1 gap-2 lg:grid-cols-[1.3fr_1fr_1.1fr]">
+            <div className="space-y-1">
+              <Label className="block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                {isEditMode ? 'Business Partner Type' : (
+                  <span className="flex items-center gap-1">
+                    Roles
+                    <span className="font-normal normal-case text-muted-foreground/70">
+                      {selectedRoles.length > 1 ? `(${selectedRoles.length} · Business Partner)` : '(one or more)'}
+                    </span>
                   </span>
-                </span>
-              )}
-            </Label>
-            <div className="flex flex-wrap items-center gap-1">
-              {PARTY_TYPES.map(({ value, label }) => {
-                const isActive = isEditMode ? partyType === value : selectedRoles.includes(value)
-                return (
-                  <button
-                    key={value} type="button"
-                    onClick={() => isEditMode ? handlePartyType(value) : toggleRole(value)}
+                )}
+              </Label>
+              <div className="flex flex-wrap items-center gap-1">
+                {PARTY_TYPES.map(({ value, label }) => {
+                  const isActive = isEditMode ? partyType === value : selectedRoles.includes(value)
+                  return (
+                    <button
+                      key={value} type="button"
+                      onClick={() => isEditMode ? handlePartyType(value) : toggleRole(value)}
+                      className={cn(
+                        'rounded-full border px-2 py-0.5 text-[11px] font-medium transition-all',
+                        isActive
+                          ? 'border-primary bg-primary text-white shadow-sm'
+                          : 'border-border bg-background text-foreground hover:border-primary/60 hover:text-primary',
+                      )}
+                    >
+                      {label}
+                    </button>
+                  )
+                })}
+                {customPartyTypes.map(ct => {
+                  const isActive = isEditMode ? partyType === ct : selectedRoles.includes(ct)
+                  return (
+                  <span
+                    key={ct}
                     className={cn(
-                      'rounded-full border px-2 py-0.5 text-[11px] font-medium transition-all',
+                      'inline-flex items-center rounded-full border text-[11px] font-medium transition-all',
                       isActive
                         ? 'border-primary bg-primary text-white shadow-sm'
-                        : 'border-border bg-background text-foreground hover:border-primary/60 hover:text-primary',
+                        : 'border-primary/40 bg-background text-primary hover:border-primary',
                     )}
                   >
-                    {label}
-                  </button>
-                )
-              })}
-              {customPartyTypes.map(ct => {
-                const isActive = isEditMode ? partyType === ct : selectedRoles.includes(ct)
-                return (
-                <span
-                  key={ct}
-                  className={cn(
-                    'inline-flex items-center rounded-full border text-[11px] font-medium transition-all',
-                    isActive
-                      ? 'border-primary bg-primary text-white shadow-sm'
-                      : 'border-primary/40 bg-background text-primary hover:border-primary',
-                  )}
-                >
+                    <button
+                      type="button"
+                      onClick={() => isEditMode ? handlePartyType(ct) : toggleRole(ct)}
+                      className="py-0.5 pl-2 pr-1 leading-none"
+                    >
+                      {ct}
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Remove ${ct}`}
+                      onClick={() => removeCustomPartyType(ct)}
+                      title={`Remove ${ct}`}
+                      className="py-0.5 pr-1.5 opacity-60 transition-opacity hover:opacity-100"
+                    >
+                      <X className="h-2.5 w-2.5" />
+                    </button>
+                  </span>
+                  )
+                })}
+                {!showCustomTypeInput ? (
                   <button
                     type="button"
-                    onClick={() => isEditMode ? handlePartyType(ct) : toggleRole(ct)}
-                    className="py-0.5 pl-2 pr-1 leading-none"
+                    onClick={() => setShowCustomTypeInput(true)}
+                    className="flex items-center gap-0.5 rounded-full border border-dashed border-primary/40 px-2 py-0.5 text-[11px] font-medium text-primary/70 transition-all hover:border-primary hover:bg-primary/10"
                   >
-                    {ct}
+                    <Plus className="h-3 w-3" /> Custom
                   </button>
-                  <button
-                    type="button"
-                    aria-label={`Remove ${ct}`}
-                    onClick={() => removeCustomPartyType(ct)}
-                    title={`Remove ${ct}`}
-                    className="py-0.5 pr-1.5 opacity-60 transition-opacity hover:opacity-100"
-                  >
-                    <X className="h-2.5 w-2.5" />
-                  </button>
-                </span>
-                )
-              })}
-              {!showCustomTypeInput ? (
+                ) : (
+                  <div className="flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-1.5 py-0.5">
+                    <input
+                      autoFocus
+                      value={customTypeInput}
+                      onChange={e => setCustomTypeInput(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') { e.preventDefault(); addCustomPartyType() }
+                        if (e.key === 'Escape') { setShowCustomTypeInput(false); setCustomTypeInput('') }
+                      }}
+                      placeholder="Type…"
+                      className="w-24 min-w-0 bg-transparent text-[11px] text-foreground outline-none"
+                    />
+                    <button
+                      type="button"
+                      onMouseDown={e => e.preventDefault()}
+                      onClick={addCustomPartyType}
+                      className="rounded-full bg-primary px-1.5 py-px text-[10px] font-medium text-white hover:bg-primary/90"
+                    >
+                      Add
+                    </button>
+                    <button
+                      type="button"
+                      onMouseDown={e => e.preventDefault()}
+                      onClick={() => { setShowCustomTypeInput(false); setCustomTypeInput('') }}
+                      className="p-0.5 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <GroupTagInput selected={groups} onChange={handleGroupsChange} />
+
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center justify-between gap-1.5">
+                <Label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Status</Label>
                 <button
                   type="button"
-                  onClick={() => setShowCustomTypeInput(true)}
-                  className="flex items-center gap-0.5 rounded-full border border-dashed border-primary/40 px-2 py-0.5 text-[11px] font-medium text-primary/70 transition-all hover:border-primary hover:bg-primary/10"
+                  role="switch"
+                  aria-checked={paymentBlocked}
+                  onClick={() => setPaymentBlocked(v => !v)}
+                  className={cn(
+                    'inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[10px] font-medium transition-colors',
+                    paymentBlocked
+                      ? 'border-red-300 bg-red-50 text-red-700'
+                      : 'border-border bg-muted/40 text-muted-foreground hover:border-border hover:text-foreground',
+                  )}
                 >
-                  <Plus className="h-3 w-3" /> Custom
+                  <Ban className={cn('h-3 w-3', paymentBlocked ? 'text-red-600' : 'text-muted-foreground')} />
+                  Payment blocked
+                  <span className={cn(
+                    'relative inline-flex h-3.5 w-6 items-center rounded-full transition-colors',
+                    paymentBlocked ? 'bg-red-500' : 'bg-muted-foreground/30',
+                  )}>
+                    <span className={cn(
+                      'inline-block h-2.5 w-2.5 transform rounded-full bg-white shadow transition-transform',
+                      paymentBlocked ? 'translate-x-[11px]' : 'translate-x-[2px]',
+                    )} />
+                  </span>
                 </button>
-              ) : (
-                <div className="flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-1.5 py-0.5">
-                  <input
-                    autoFocus
-                    value={customTypeInput}
-                    onChange={e => setCustomTypeInput(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') { e.preventDefault(); addCustomPartyType() }
-                      if (e.key === 'Escape') { setShowCustomTypeInput(false); setCustomTypeInput('') }
-                    }}
-                    placeholder="Type…"
-                    className="w-24 min-w-0 bg-transparent text-[11px] text-foreground outline-none"
-                  />
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {PARTY_STATUS_OPTS.map(opt => (
                   <button
+                    key={opt.value}
                     type="button"
-                    onMouseDown={e => e.preventDefault()}
-                    onClick={addCustomPartyType}
-                    className="rounded-full bg-primary px-1.5 py-px text-[10px] font-medium text-white hover:bg-primary/90"
+                    onClick={() => setPartyStatus(opt.value)}
+                    className={cn(
+                      'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium transition-all',
+                      partyStatus === opt.value
+                        ? opt.activeClass
+                        : 'border-border bg-background text-foreground hover:border-muted-foreground/40',
+                    )}
                   >
-                    Add
+                    {opt.icon}{opt.label}
                   </button>
-                  <button
-                    type="button"
-                    onMouseDown={e => e.preventDefault()}
-                    onClick={() => { setShowCustomTypeInput(false); setCustomTypeInput('') }}
-                    className="p-0.5 text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
+                ))}
+              </div>
+
+              {partyStatus === 'on_hold' && (
+                <div className="flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2 py-1">
+                  <Clock className="h-3 w-3 shrink-0 text-amber-600" />
+                  <span className="whitespace-nowrap text-[10px] text-amber-700">Hold until</span>
+                  <div className="flex flex-1 flex-wrap gap-1">
+                    {[7, 14, 30].map(d => (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() => setHoldUntil(addDays(d))}
+                        className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700 hover:bg-amber-200"
+                      >
+                        +{d}d
+                      </button>
+                    ))}
+                    <input
+                      type="date"
+                      value={holdUntil}
+                      min={new Date().toISOString().split('T')[0]}
+                      onChange={e => setHoldUntil(e.target.value)}
+                      className="min-w-0 flex-1 rounded border border-amber-200 bg-white px-1.5 py-0.5 text-[10px] focus:outline-none focus:ring-1 focus:ring-amber-300"
+                    />
+                  </div>
                 </div>
               )}
             </div>
           </div>
 
-          <GroupTagInput selected={groups} onChange={handleGroupsChange} />
-
-          {/* Status + Payment Blocked */}
-          <div className="space-y-1">
-            <div className="flex flex-wrap items-center justify-between gap-1.5">
-              <Label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Status</Label>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={paymentBlocked}
-                onClick={() => setPaymentBlocked(v => !v)}
-                className={cn(
-                  'inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[10px] font-medium transition-colors',
-                  paymentBlocked
-                    ? 'border-red-300 bg-red-50 text-red-700'
-                    : 'border-border bg-muted/40 text-muted-foreground hover:border-border hover:text-foreground',
-                )}
-              >
-                <Ban className={cn('h-3 w-3', paymentBlocked ? 'text-red-600' : 'text-muted-foreground')} />
-                Payment blocked
-                <span className={cn(
-                  'relative inline-flex h-3.5 w-6 items-center rounded-full transition-colors',
-                  paymentBlocked ? 'bg-red-500' : 'bg-muted-foreground/30',
-                )}>
-                  <span className={cn(
-                    'inline-block h-2.5 w-2.5 transform rounded-full bg-white shadow transition-transform',
-                    paymentBlocked ? 'translate-x-[11px]' : 'translate-x-[2px]',
-                  )} />
-                </span>
-              </button>
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {PARTY_STATUS_OPTS.map(opt => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setPartyStatus(opt.value)}
-                  className={cn(
-                    'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium transition-all',
-                    partyStatus === opt.value
-                      ? opt.activeClass
-                      : 'border-border bg-background text-foreground hover:border-muted-foreground/40',
-                  )}
-                >
-                  {opt.icon}{opt.label}
-                </button>
-              ))}
-            </div>
-
-            {partyStatus === 'on_hold' && (
-              <div className="flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2 py-1">
-                <Clock className="h-3 w-3 shrink-0 text-amber-600" />
-                <span className="whitespace-nowrap text-[10px] text-amber-700">Hold until</span>
-                <div className="flex flex-1 flex-wrap gap-1">
-                  {[7, 14, 30].map(d => (
-                    <button
-                      key={d}
-                      type="button"
-                      onClick={() => setHoldUntil(addDays(d))}
-                      className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700 hover:bg-amber-200"
-                    >
-                      +{d}d
-                    </button>
-                  ))}
-                  <input
-                    type="date"
-                    value={holdUntil}
-                    min={new Date().toISOString().split('T')[0]}
-                    onChange={e => setHoldUntil(e.target.value)}
-                    className="min-w-0 flex-1 rounded border border-amber-200 bg-white px-1.5 py-0.5 text-[10px] focus:outline-none focus:ring-1 focus:ring-amber-300"
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* More Details — collapsible */}
+          {/* More Details — collapsible, 2-column when open */}
           <div className="overflow-hidden rounded-md border border-border">
             <button
               type="button"
@@ -1915,20 +1917,22 @@ export function AddPartyModal({
             </button>
 
             {expanded && (
-              <div className="p-4 space-y-4">
-
+              <div className="p-3 space-y-2.5">
+                <div className="grid grid-cols-1 gap-x-4 gap-y-2.5 lg:grid-cols-2">
+                {/* LEFT COLUMN */}
+                <div className="space-y-2.5 min-w-0">
                 {/* Tax / Registration IDs — shown based on partyCountry */}
                 <div>
-                  <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5 flex items-center gap-1">
+                  <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-1 flex items-center gap-1">
                     <span
-                      className="inline-flex items-center justify-center rounded px-1 py-0.5 text-xs font-bold bg-primary/10 text-primary border border-primary/20"
+                      className="inline-flex items-center justify-center rounded px-1 py-0.5 text-[10px] font-bold bg-primary/10 text-primary border border-primary/20"
                     >{partyCountry.iso}</span>
                     Tax &amp; Registration IDs
                   </p>
-                  <div className={`grid gap-3 ${activeTaxFields.length === 1 ? 'grid-cols-1' : activeTaxFields.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                  <div className={`grid gap-2 ${activeTaxFields.length === 1 ? 'grid-cols-1' : activeTaxFields.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
                     {activeTaxFields.map(field => (
                       <div key={field.key}>
-                        <Label className="text-xs">{field.label}</Label>
+                        <Label className="text-[10px] text-muted-foreground">{field.label}</Label>
                         <Input
                           value={getTaxVal(field.key)}
                           onChange={e => {
@@ -1938,64 +1942,204 @@ export function AddPartyModal({
                           }}
                           placeholder={field.placeholder}
                           maxLength={field.maxLength}
-                          className={`mt-1 text-xs ${field.mono ? 'font-mono' : ''} ${errors[field.key] ? 'border-red-400' : ''}`}
+                          className={`mt-0.5 h-8 text-xs ${field.mono ? 'font-mono' : ''} ${errors[field.key] ? 'border-red-400' : ''}`}
                         />
                         {errors[field.key] && (
-                          <p className="text-xs text-red-500 mt-0.5">{errors[field.key]}</p>
+                          <p className="text-[10px] text-red-500 mt-0.5">{errors[field.key]}</p>
                         )}
                       </div>
                     ))}
                   </div>
                 </div>
 
-                {/* Website */}
-                <div>
-                  <Label className="flex items-center gap-1 text-xs"><Globe className="w-3 h-3" /> Website</Label>
-                  <Input value={website} onChange={e => { setWebsite(e.target.value); clearFieldErr('website') }}
-                    placeholder="https://example.com"
-                    className={`mt-1 text-sm ${errors.website ? 'border-red-400' : ''}`} />
-                  {errors.website && <p className="text-xs text-red-500 mt-0.5">{errors.website}</p>}
-                </div>
-
-                {/* Alternate Phone */}
-                <div>
-                  <Label className="flex items-center gap-1 text-xs"><PhoneCall className="w-3 h-3" /> Alternate Phone</Label>
-                  <div className="mt-1">
-                    <PhoneInput value={altPhone} onChange={setAltPhone} defaultCountryIso="IN" />
+                {/* Website + Alternate Phone */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="flex items-center gap-1 text-[10px] text-muted-foreground"><Globe className="w-3 h-3" /> Website</Label>
+                    <Input value={website} onChange={e => { setWebsite(e.target.value); clearFieldErr('website') }}
+                      placeholder="https://example.com"
+                      className={`mt-0.5 h-8 text-sm ${errors.website ? 'border-red-400' : ''}`} />
+                    {errors.website && <p className="text-[10px] text-red-500 mt-0.5">{errors.website}</p>}
+                  </div>
+                  <div>
+                    <Label className="flex items-center gap-1 text-[10px] text-muted-foreground"><PhoneCall className="w-3 h-3" /> Alternate Phone</Label>
+                    <div className="mt-0.5">
+                      <PhoneInput value={altPhone} onChange={setAltPhone} defaultCountryIso="IN" compact compactCountry subtleFeedback />
+                    </div>
                   </div>
                 </div>
 
+                {/* Credit Limit + Payment Terms + Opening Balance + Contact */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="flex items-center gap-1 text-[10px] text-muted-foreground"><CreditCard className="w-3 h-3" /> Credit Limit</Label>
+                    <Input type="number" step="0.01" value={creditLimit}
+                      onChange={e => setCreditLimit(e.target.value)} placeholder="0.00" className="mt-0.5 h-8 text-sm" />
+                  </div>
+                  <div>
+                    <Label className="flex items-center gap-1 text-[10px] text-muted-foreground"><Clock className="w-3 h-3" /> Payment Terms</Label>
+
+                    {showTermsInput ? (
+                      <div className="mt-0.5 flex gap-1">
+                        <Input
+                          autoFocus value={termsInput}
+                          onChange={e => setTermsInput(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') { e.preventDefault(); addCustomTerm() }
+                            if (e.key === 'Escape') { setShowTermsInput(false); setTermsInput('') }
+                          }}
+                          placeholder="e.g. Net 120…"
+                          className="flex-1 text-sm h-8"
+                        />
+                        <Button type="button" size="sm" onMouseDown={e => e.preventDefault()} onClick={addCustomTerm}
+                          className="h-8 px-2 bg-primary hover:bg-primary/90 text-white shrink-0 text-xs">Add</Button>
+                        <Button type="button" size="sm" variant="ghost" onMouseDown={e => e.preventDefault()}
+                          onClick={() => { setShowTermsInput(false); setTermsInput('') }}
+                          className="h-8 px-1.5 shrink-0 text-gray-400 hover:text-gray-700">
+                          <X className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="mt-0.5 flex gap-1">
+                        <ThemeSelect
+                          value={paymentTerms}
+                          onChange={setPaymentTerms}
+                          options={[
+                            { value: '', label: 'Select terms…' },
+                            ...PAYMENT_TERMS_DEFAULT.map(t => ({ value: t, label: t, group: 'Standard' })),
+                            ...customTerms.map(t => ({ value: t, label: t, group: 'Custom' })),
+                          ]}
+                          className="flex-1 text-sm rounded-lg px-2 h-8 bg-white text-gray-700"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowTermsInput(true)}
+                          className="shrink-0 flex items-center gap-0.5 text-[10px] font-medium text-primary bg-primary/10 hover:bg-primary/15 border border-primary/30 rounded-lg px-2 h-8 transition-colors whitespace-nowrap"
+                        >
+                          <Plus className="w-3 h-3" /> Custom
+                        </button>
+                      </div>
+                    )}
+
+                    {paymentTerms && !showTermsInput && (
+                      <div className="mt-1 flex items-center gap-1">
+                        <span className="inline-flex items-center gap-1 bg-primary/10 border border-primary/30 text-primary text-[10px] font-medium rounded-md px-2 py-0.5">
+                          <CheckCircle2 className="w-3 h-3 text-primary/60" />
+                          {paymentTerms}
+                          <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => setPaymentTerms('')}
+                            className="ml-0.5 text-primary/40 hover:text-primary transition-colors">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      </div>
+                    )}
+
+                    {customTerms.length > 0 && !showTermsInput && (
+                      <div className="mt-1">
+                        <div className="flex flex-wrap gap-1">
+                          {customTerms.map(t => (
+                            <span key={t} className="inline-flex items-center gap-1 text-[10px] bg-gray-100 text-gray-600 border border-gray-200 rounded-md px-1.5 py-0.5">
+                              {t}
+                              <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => removeCustomTerm(t)}
+                                className="text-gray-400 hover:text-red-500 transition-colors">
+                                <X className="w-3 h-3" />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <Label className="flex items-center gap-1 text-[10px] text-muted-foreground"><IndianRupee className="w-3 h-3" /> Opening Balance</Label>
+                    <Input type="number" step="0.01" value={openingBalance}
+                      onChange={e => { setOpeningBalance(e.target.value); clearFieldErr('openingBalance') }} placeholder="0.00"
+                      className={`mt-0.5 h-8 text-sm ${errors.openingBalance ? 'border-red-400' : ''}`} />
+                    {errors.openingBalance
+                      ? <p className="text-[10px] text-red-500 mt-0.5">{errors.openingBalance}</p>
+                      : <p className="text-[10px] text-gray-400 mt-0.5 leading-tight">
+                          {partyType === 'customer' ? '+ve = receivable, -ve = advance' : '+ve = payable, -ve = advance'}
+                        </p>
+                    }
+                  </div>
+                  {showContactPerson ? (
+                    <div>
+                      <Label className="text-[10px] text-muted-foreground">Contact Person</Label>
+                      <Input value={contactPerson} onChange={e => { setContactPerson(e.target.value); clearFieldErr('contactPerson') }}
+                        placeholder="Contact name"
+                        className={`mt-0.5 h-8 text-sm ${errors.contactPerson ? 'border-red-400' : ''}`} />
+                      {errors.contactPerson && <p className="text-[10px] text-red-500 mt-0.5">{errors.contactPerson}</p>}
+                    </div>
+                  ) : (
+                    <div />
+                  )}
+                </div>
+
+                {/* Pricing Group + Sales Area (customer only) */}
+                {partyType === 'customer' && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="flex items-center gap-1 text-[10px] text-muted-foreground"><Tag className="w-3 h-3" /> Pricing Group</Label>
+                      <ThemeSelect
+                        value={customerGroup}
+                        onChange={setCustomerGroup}
+                        options={CUSTOMER_PRICING_GROUPS.map(g => ({ value: g.value, label: g.label }))}
+                        className="mt-0.5 w-full rounded-lg px-2 h-8 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className="flex items-center gap-1 text-[10px] text-muted-foreground"><MapPin className="w-3 h-3" /> Sales Area</Label>
+                      <ThemeSelect
+                        value={salesAreaId}
+                        onChange={setSalesAreaId}
+                        options={[{ value: '', label: 'Unassigned' }, ...salesAreaOptions]}
+                        placeholder={salesAreaOptions.length ? 'Select sales area' : 'No sales areas yet'}
+                        className="mt-0.5 w-full rounded-lg px-2 h-8 text-sm"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Notes */}
+                <div>
+                  <Label className="text-[10px] text-muted-foreground">Notes</Label>
+                  <textarea value={notes} onChange={e => setNotes(e.target.value)}
+                    placeholder="Internal notes…" rows={2}
+                    className="mt-0.5 w-full text-sm border rounded-lg px-2.5 py-1.5 resize-none focus:outline-none focus:ring-2 focus:ring-primary" />
+                </div>
+                </div>
+
+                {/* RIGHT COLUMN */}
+                <div className="space-y-2.5 min-w-0">
                 {/* Addresses — multi-entry with type selector */}
-                <div className="space-y-3">
+                <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label className="flex items-center gap-1 text-xs"><MapPin className="w-3 h-3" /> Addresses</Label>
+                    <Label className="flex items-center gap-1 text-[10px] text-muted-foreground"><MapPin className="w-3 h-3" /> Addresses</Label>
                     <button
                       type="button" onClick={addAddr}
-                      className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/15 border border-primary/30 rounded-full px-2.5 py-1 transition-colors"
+                      className="flex items-center gap-1 text-[10px] font-medium text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/15 border border-primary/30 rounded-full px-2 py-0.5 transition-colors"
                     >
                       <Plus className="w-3 h-3" /> Add Address
                     </button>
                   </div>
 
                   {addresses.map((addr, idx) => (
-                    <div key={addr.id} className="border border-gray-200 rounded-xl p-3 space-y-2 bg-gray-50/50">
-                      {/* Row 1: address type dropdown + optional custom name + remove */}
+                    <div key={addr.id} className="border border-gray-200 rounded-lg p-2 space-y-1.5 bg-gray-50/50">
                       <div className="flex items-center gap-2">
                         <ThemeSelect
                           value={addr.type}
                           onChange={v => updateAddr(addr.id, { type: v as AddrType, customName: '' })}
                           options={ADDR_TYPE_OPTS.map(o => ({ value: o.value, label: o.label }))}
                           wrapperClassName="shrink-0"
-                          className="text-xs font-medium rounded-lg px-2 py-1.5 bg-white text-gray-700"
+                          className="text-xs font-medium rounded-lg px-2 py-1 bg-white text-gray-700"
                         />
 
-                        {/* Custom name input — shown only when "Other…" is selected */}
                         {addr.type === 'other' && (
                           <Input
                             value={addr.customName ?? ''}
                             onChange={e => updateAddr(addr.id, { customName: e.target.value })}
                             placeholder="Name this address…"
-                            className="flex-1 text-xs h-[30px] py-0"
+                            className="flex-1 text-xs h-7 py-0"
                             autoFocus
                           />
                         )}
@@ -2012,34 +2156,31 @@ export function AddPartyModal({
                           </button>
                         )}
                         {idx === 0 && addresses.length === 1 && addr.type !== 'other' && (
-                          <span className="text-xs text-gray-400 italic shrink-0">primary</span>
+                          <span className="text-[10px] text-gray-400 italic shrink-0">primary</span>
                         )}
                       </div>
 
-                      {/* Row 2: street */}
                       <Input
                         value={addr.street}
                         onChange={e => updateAddr(addr.id, { street: e.target.value })}
                         placeholder="Street address / flat / landmark"
-                        className="text-sm"
+                        className="h-8 text-sm"
                         autoComplete="off"
                         name={`party-line1-${addr.id}`}
                       />
 
-                      {/* Row 3: city + state */}
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-2 gap-1.5">
                         <Input value={addr.city} onChange={e => updateAddr(addr.id, { city: e.target.value })}
-                          placeholder="City" className="text-sm" autoComplete="off" name={`party-locality-${addr.id}`} />
+                          placeholder="City" className="h-8 text-sm" autoComplete="off" name={`party-locality-${addr.id}`} />
                         <Input value={addr.state} onChange={e => updateAddr(addr.id, { state: e.target.value })}
-                          placeholder="State / Province" className="text-sm" autoComplete="off" name={`party-region-${addr.id}`} />
+                          placeholder="State / Province" className="h-8 text-sm" autoComplete="off" name={`party-region-${addr.id}`} />
                       </div>
 
-                      {/* Row 4: pincode + country */}
-                      <div className="flex gap-2">
+                      <div className="flex gap-1.5">
                         <Input
                           value={addr.pincode}
                           onChange={e => updateAddr(addr.id, { pincode: e.target.value.replace(/\D/g, '').slice(0, 10) })}
-                          placeholder="PIN / ZIP" className="text-sm w-28 shrink-0" maxLength={10}
+                          placeholder="PIN / ZIP" className="h-8 text-sm w-24 shrink-0" maxLength={10}
                           autoComplete="off"
                           name={`party-code-${addr.id}`}
                         />
@@ -2047,7 +2188,7 @@ export function AddPartyModal({
                           <CountryPicker
                             value={addr.country.name}
                             onChange={c => updateAddr(addr.id, { country: c })}
-                            mode="name" className="w-full"
+                            mode="name" className="w-full h-8"
                           />
                         </div>
                       </div>
@@ -2055,168 +2196,20 @@ export function AddPartyModal({
                   ))}
                 </div>
 
-                {/* Credit Limit + Payment Terms */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label className="flex items-center gap-1 text-xs"><CreditCard className="w-3 h-3" /> Credit Limit</Label>
-                    <Input type="number" step="0.01" value={creditLimit}
-                      onChange={e => setCreditLimit(e.target.value)} placeholder="0.00" className="mt-1 text-sm" />
-                  </div>
-                  <div>
-                    <Label className="flex items-center gap-1 text-xs"><Clock className="w-3 h-3" /> Payment Terms</Label>
-
-                    {showTermsInput ? (
-                      /* ── Custom term input ── */
-                      <div className="mt-1 flex gap-1.5">
-                        <Input
-                          autoFocus value={termsInput}
-                          onChange={e => setTermsInput(e.target.value)}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter') { e.preventDefault(); addCustomTerm() }
-                            if (e.key === 'Escape') { setShowTermsInput(false); setTermsInput('') }
-                          }}
-                          placeholder="e.g. Net 120, 30 Days EOM…"
-                          className="flex-1 text-sm h-9"
-                        />
-                        <Button type="button" size="sm" onMouseDown={e => e.preventDefault()} onClick={addCustomTerm}
-                          className="h-9 px-3 bg-primary hover:bg-primary/90 text-white shrink-0">Add</Button>
-                        <Button type="button" size="sm" variant="ghost" onMouseDown={e => e.preventDefault()}
-                          onClick={() => { setShowTermsInput(false); setTermsInput('') }}
-                          className="h-9 px-2 shrink-0 text-gray-400 hover:text-gray-700">
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    ) : (
-                      /* ── Dropdown + Custom button ── */
-                      <div className="mt-1 flex gap-1.5">
-                        <ThemeSelect
-                          value={paymentTerms}
-                          onChange={setPaymentTerms}
-                          options={[
-                            { value: '', label: 'Select terms…' },
-                            ...PAYMENT_TERMS_DEFAULT.map(t => ({ value: t, label: t, group: 'Standard' })),
-                            ...customTerms.map(t => ({ value: t, label: t, group: 'Custom' })),
-                          ]}
-                          className="flex-1 text-sm rounded-lg px-3 h-9 bg-white text-gray-700"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowTermsInput(true)}
-                          className="shrink-0 flex items-center gap-1 text-xs font-medium text-primary bg-primary/10 hover:bg-primary/15 border border-primary/30 rounded-lg px-2.5 h-9 transition-colors whitespace-nowrap"
-                        >
-                          <Plus className="w-3 h-3" /> Custom
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Selected term badge */}
-                    {paymentTerms && !showTermsInput && (
-                      <div className="mt-1.5 flex items-center gap-1.5">
-                        <span className="inline-flex items-center gap-1.5 bg-primary/10 border border-primary/30 text-primary text-xs font-medium rounded-md px-2.5 py-1">
-                          <CheckCircle2 className="w-3 h-3 text-primary/60" />
-                          {paymentTerms}
-                          <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => setPaymentTerms('')}
-                            className="ml-0.5 text-primary/40 hover:text-primary transition-colors">
-                            <X className="w-3 h-3" />
-                          </button>
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Saved custom terms */}
-                    {customTerms.length > 0 && !showTermsInput && (
-                      <div className="mt-1.5">
-                        <p className="text-xs text-gray-400 font-medium mb-1">Saved custom terms</p>
-                        <div className="flex flex-wrap gap-1">
-                          {customTerms.map(t => (
-                            <span key={t} className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-600 border border-gray-200 rounded-md px-2 py-0.5">
-                              {t}
-                              <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => removeCustomTerm(t)}
-                                className="text-gray-400 hover:text-red-500 transition-colors">
-                                <X className="w-3 h-3" />
-                              </button>
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Opening Balance + Contact Person */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label className="flex items-center gap-1 text-xs"><IndianRupee className="w-3 h-3" /> Opening Balance</Label>
-                    <Input type="number" step="0.01" value={openingBalance}
-                      onChange={e => { setOpeningBalance(e.target.value); clearFieldErr('openingBalance') }} placeholder="0.00"
-                      className={`mt-1 text-sm ${errors.openingBalance ? 'border-red-400' : ''}`} />
-                    {errors.openingBalance
-                      ? <p className="text-xs text-red-500 mt-0.5">{errors.openingBalance}</p>
-                      : <p className="text-xs text-gray-400 mt-0.5">
-                          {partyType === 'customer' ? '+ve = receivable, -ve = advance/credit' : '+ve = payable, -ve = advance paid'}
-                        </p>
-                    }
-                  </div>
-                  {showContactPerson && (
-                    <div>
-                      <Label className="text-xs">Contact Person</Label>
-                      <Input value={contactPerson} onChange={e => { setContactPerson(e.target.value); clearFieldErr('contactPerson') }}
-                        placeholder="Contact name"
-                        className={`mt-1 text-sm ${errors.contactPerson ? 'border-red-400' : ''}`} />
-                      {errors.contactPerson && <p className="text-xs text-red-500 mt-0.5">{errors.contactPerson}</p>}
-                    </div>
-                  )}
-                </div>
-
-                {/* Pricing Group + Sales Area (customer only) */}
-                {partyType === 'customer' && (
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div>
-                      <Label className="flex items-center gap-1 text-xs"><Tag className="w-3 h-3" /> Pricing Group</Label>
-                      <ThemeSelect
-                        value={customerGroup}
-                        onChange={setCustomerGroup}
-                        options={CUSTOMER_PRICING_GROUPS.map(g => ({ value: g.value, label: g.label }))}
-                        className="mt-1 w-full rounded-lg px-3 py-2 text-sm"
-                      />
-                      <p className="text-xs text-gray-400 mt-0.5">Price rules at checkout &amp; POS.</p>
-                    </div>
-                    <div>
-                      <Label className="flex items-center gap-1 text-xs"><MapPin className="w-3 h-3" /> Sales Area</Label>
-                      <ThemeSelect
-                        value={salesAreaId}
-                        onChange={setSalesAreaId}
-                        options={[{ value: '', label: 'Unassigned' }, ...salesAreaOptions]}
-                        placeholder={salesAreaOptions.length ? 'Select sales area' : 'No sales areas yet'}
-                        className="mt-1 w-full rounded-lg px-3 py-2 text-sm"
-                      />
-                      <p className="text-xs text-gray-400 mt-0.5">Default area for orders, invoices, and dues.</p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Notes */}
-                <div>
-                  <Label className="text-xs">Notes</Label>
-                  <textarea value={notes} onChange={e => setNotes(e.target.value)}
-                    placeholder="Internal notes…" rows={2}
-                    className="mt-1 w-full text-sm border rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-primary" />
-                </div>
-
                 {/* Bank Details */}
-                <div className="border rounded-xl overflow-hidden">
-                  <div className="px-4 py-2.5 bg-gray-50 border-b flex items-center gap-2">
+                <div className="border rounded-lg overflow-hidden">
+                  <div className="px-2.5 py-1.5 bg-gray-50 border-b flex items-center gap-2">
                     <Landmark className="w-3.5 h-3.5 text-primary/70" />
-                    <span className="text-xs font-medium text-gray-600 uppercase tracking-wide">Bank Details</span>
+                    <span className="text-[10px] font-medium text-gray-600 uppercase tracking-wide">Bank Details</span>
                   </div>
-                  <div className="p-3 grid grid-cols-2 gap-3">
+                  <div className="p-2 grid grid-cols-2 gap-2">
                     <div>
-                      <Label className="text-xs">Bank Name</Label>
+                      <Label className="text-[10px] text-muted-foreground">Bank Name</Label>
                       <Input value={bankName} onChange={e => setBankName(e.target.value)}
-                        placeholder="e.g. State Bank of India" className="mt-1 text-sm" />
+                        placeholder="e.g. State Bank of India" className="mt-0.5 h-8 text-sm" />
                     </div>
                     <div>
-                      <Label className="text-xs">Account Type</Label>
+                      <Label className="text-[10px] text-muted-foreground">Account Type</Label>
                       <ThemeSelect
                         value={accountType}
                         onChange={setAccountType}
@@ -2224,155 +2217,152 @@ export function AddPartyModal({
                           { value: 'savings', label: 'Savings' },
                           { value: 'current', label: 'Current' },
                         ]}
-                        className="mt-1 w-full text-sm rounded-lg px-3 h-9 bg-white text-gray-700"
+                        className="mt-0.5 w-full text-sm rounded-lg px-2 h-8 bg-white text-gray-700"
                       />
                     </div>
                     <div className="col-span-2">
-                      <Label className="text-xs">Account Holder Name</Label>
+                      <Label className="text-[10px] text-muted-foreground">Account Holder Name</Label>
                       <Input value={accountHolderName} onChange={e => setAccountHolderName(e.target.value)}
-                        placeholder="As per bank records" className="mt-1 text-sm" />
+                        placeholder="As per bank records" className="mt-0.5 h-8 text-sm" />
                     </div>
                     <div>
-                      <Label className="text-xs">Account Number</Label>
+                      <Label className="text-[10px] text-muted-foreground">Account Number</Label>
                       <Input value={accountNumber} onChange={e => setAccountNumber(e.target.value.replace(/\D/g, ''))}
-                        placeholder="Account number" className="mt-1 text-sm font-mono" />
+                        placeholder="Account number" className="mt-0.5 h-8 text-sm font-mono" />
                     </div>
                     <div>
-                      <Label className="text-xs">IFSC Code</Label>
+                      <Label className="text-[10px] text-muted-foreground">IFSC Code</Label>
                       <Input value={ifscCode} onChange={e => setIfscCode(e.target.value.toUpperCase())}
-                        placeholder="SBIN0001234" maxLength={11} className="mt-1 text-sm font-mono uppercase" />
+                        placeholder="SBIN0001234" maxLength={11} className="mt-0.5 h-8 text-sm font-mono uppercase" />
                     </div>
                   </div>
                 </div>
+                </div>
+                </div>
 
-                {/* ── Custom / Extra Fields ─────────────────────────────────── */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label className="flex items-center gap-1.5 text-xs">
-                      <Tag className="w-3 h-3" /> Custom Fields
-                      <span className="text-gray-400 font-normal">(text, number, date, links, relations…)</span>
-                    </Label>
-                    <button
-                      type="button" onClick={addCustomField}
-                      className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary bg-accent hover:bg-primary/15 border border-primary/30 rounded-full px-2.5 py-1 transition-colors"
-                    >
-                      <Plus className="w-3 h-3" /> Add Field
-                    </button>
-                  </div>
-
-                  {customFields.length === 0 && (
-                    <button
-                      type="button" onClick={addCustomField}
-                      className="w-full flex items-center justify-center gap-2 text-xs text-gray-400 border border-dashed border-gray-300 rounded-xl py-3 hover:border-primary/60 hover:text-primary/80 hover:bg-accent/80 transition-colors"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      Add a custom field — character, number, date, location, party link, or more
-                    </button>
-                  )}
-
-                  {customFields.map(cf => (
-                    <div key={cf.id} className="flex items-start gap-2 border border-gray-200 rounded-xl p-2.5 bg-gray-50/50">
-                      {/* Field type badge */}
-                      <div className="shrink-0 pt-0.5">
-                        <ThemeSelect
-                          value={cf.type}
-                          onChange={v => updateCustomField(cf.id, { type: v as CustomFieldType, value: '' })}
-                          options={CUSTOM_FIELD_TYPES.map(t => ({ value: t.value, label: t.label }))}
-                          wrapperClassName="w-[90px] shrink-0"
-                          className="text-xs font-medium rounded-lg px-1.5 py-1 bg-white text-primary border-primary/30"
-                        />
-                      </div>
-
-                      {/* Label + value */}
-                      <div className="flex-1 space-y-1.5">
-                        <Input
-                          value={cf.label}
-                          onChange={e => updateCustomField(cf.id, { label: e.target.value })}
-                          placeholder="Field name / label"
-                          className="text-xs h-7 py-0"
-                        />
-                        {cf.type === 'text' && (
-                          <Input value={cf.value} onChange={e => updateCustomField(cf.id, { value: e.target.value })}
-                            placeholder="Value" className="text-sm" />
-                        )}
-                        {cf.type === 'number' && (
-                          <Input type="number" value={cf.value} onChange={e => updateCustomField(cf.id, { value: e.target.value })}
-                            placeholder="0" className="text-sm" />
-                        )}
-                        {cf.type === 'phone' && (
-                          <PhoneInput value={cf.value} onChange={(v) => updateCustomField(cf.id, { value: v })} defaultCountryIso="IN" />
-                        )}
-                        {cf.type === 'email' && (
-                          <Input type="email" value={cf.value} onChange={e => updateCustomField(cf.id, { value: e.target.value })}
-                            placeholder="email@example.com" className="text-sm" />
-                        )}
-                        {cf.type === 'date' && (
-                          <Input type="date" value={cf.value} onChange={e => updateCustomField(cf.id, { value: e.target.value })}
-                            className="text-sm" />
-                        )}
-                        {cf.type === 'url' && (
-                          <Input type="url" value={cf.value} onChange={e => updateCustomField(cf.id, { value: e.target.value })}
-                            placeholder="https://example.com" className="text-sm" />
-                        )}
-                        {cf.type === 'location' && (
-                          <Input value={cf.value} onChange={e => updateCustomField(cf.id, { value: e.target.value })}
-                            placeholder="Address, landmark, or lat,lng coordinates" className="text-sm" />
-                        )}
-                        {cf.type === 'relation' && (
-                          <RelationPicker
-                            value={cf.value}
-                            onChange={v => updateCustomField(cf.id, { value: v })}
-                          />
-                        )}
-                      </div>
-
-                      {/* Remove */}
-                      <button type="button" aria-label="Close"
-                        onClick={() => removeCustomField(cf.id)}
-                        className="shrink-0 mt-0.5 p-1 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                        title="Remove field"
+                {/* Custom Fields + Portal — side by side */}
+                <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <Label className="flex items-center gap-1 text-[10px] text-muted-foreground mb-0">
+                        <Tag className="w-3 h-3" /> Custom Fields
+                      </Label>
+                      <button
+                        type="button" onClick={addCustomField}
+                        className="flex items-center gap-0.5 text-[10px] font-medium text-primary bg-primary/10 hover:bg-primary/15 border border-primary/30 rounded-full px-2 py-0.5 transition-colors"
                       >
-                <X className="w-3.5 h-3.5" />
+                        <Plus className="w-3 h-3" /> Add Field
                       </button>
                     </div>
-                  ))}
-                </div>
 
-                {/* Portal Access */}
-                <div className="border rounded-lg overflow-hidden">
-                  <div className="flex items-center justify-between px-3 py-2.5 bg-gray-50">
-                    <Label className="flex items-center gap-1.5 text-xs cursor-pointer mb-0">
-                      <Lock className="w-3 h-3" /> Portal Access
-                      <span className="text-gray-400 font-normal">(enable login for this party)</span>
-                    </Label>
-                    <button
-                      type="button" role="switch" aria-checked={enablePortal}
-                      onClick={() => setEnablePortal(v => !v)}
-                      className={`relative inline-flex h-5 w-9 items-center rounded-full border-2 transition-colors ${enablePortal ? 'border-transparent bg-primary' : 'border-gray-300 bg-gray-200 dark:border-gray-500 dark:bg-gray-600'}`}
-                    >
-                      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow ring-1 ring-black/5 transition-transform ${
-                        enablePortal ? 'translate-x-[18px]' : 'translate-x-[2px]'
-                      }`} />
-                    </button>
-                  </div>
-                  {enablePortal && (
-                    <div className="p-3 space-y-2">
-                      <div className="relative">
-                        <Input type={showPassword ? 'text' : 'password'} value={password}
-                          onChange={e => setPassword(e.target.value)}
-                          placeholder="Set portal password (leave blank for auto)"
-                          className={`pr-10 text-sm ${errors.password ? 'border-red-400' : ''}`} />
-                        <button type="button" onClick={() => setShowPassword(v => !v)} tabIndex={-1}
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {customFields.length === 0 && (
+                      <button
+                        type="button" onClick={addCustomField}
+                        className="w-full flex items-center justify-center gap-1.5 text-[10px] text-gray-400 border border-dashed border-gray-300 rounded-lg py-2 hover:border-primary/60 hover:text-primary/80 hover:bg-accent/80 transition-colors"
+                      >
+                        <Plus className="w-3 h-3" />
+                        Add custom field
+                      </button>
+                    )}
+
+                    {customFields.map(cf => (
+                      <div key={cf.id} className="flex items-start gap-2 border border-gray-200 rounded-lg p-2 bg-gray-50/50">
+                        <div className="shrink-0 pt-0.5">
+                          <ThemeSelect
+                            value={cf.type}
+                            onChange={v => updateCustomField(cf.id, { type: v as CustomFieldType, value: '' })}
+                            options={CUSTOM_FIELD_TYPES.map(t => ({ value: t.value, label: t.label }))}
+                            wrapperClassName="w-[90px] shrink-0"
+                            className="text-xs font-medium rounded-lg px-1.5 py-1 bg-white text-primary border-primary/30"
+                          />
+                        </div>
+                        <div className="flex-1 space-y-1">
+                          <Input
+                            value={cf.label}
+                            onChange={e => updateCustomField(cf.id, { label: e.target.value })}
+                            placeholder="Field name / label"
+                            className="text-xs h-7 py-0"
+                          />
+                          {cf.type === 'text' && (
+                            <Input value={cf.value} onChange={e => updateCustomField(cf.id, { value: e.target.value })}
+                              placeholder="Value" className="h-8 text-sm" />
+                          )}
+                          {cf.type === 'number' && (
+                            <Input type="number" value={cf.value} onChange={e => updateCustomField(cf.id, { value: e.target.value })}
+                              placeholder="0" className="h-8 text-sm" />
+                          )}
+                          {cf.type === 'phone' && (
+                            <PhoneInput value={cf.value} onChange={(v) => updateCustomField(cf.id, { value: v })} defaultCountryIso="IN" compact compactCountry subtleFeedback />
+                          )}
+                          {cf.type === 'email' && (
+                            <Input type="email" value={cf.value} onChange={e => updateCustomField(cf.id, { value: e.target.value })}
+                              placeholder="email@example.com" className="h-8 text-sm" />
+                          )}
+                          {cf.type === 'date' && (
+                            <Input type="date" value={cf.value} onChange={e => updateCustomField(cf.id, { value: e.target.value })}
+                              className="h-8 text-sm" />
+                          )}
+                          {cf.type === 'url' && (
+                            <Input type="url" value={cf.value} onChange={e => updateCustomField(cf.id, { value: e.target.value })}
+                              placeholder="https://example.com" className="h-8 text-sm" />
+                          )}
+                          {cf.type === 'location' && (
+                            <Input value={cf.value} onChange={e => updateCustomField(cf.id, { value: e.target.value })}
+                              placeholder="Address or lat,lng" className="h-8 text-sm" />
+                          )}
+                          {cf.type === 'relation' && (
+                            <RelationPicker
+                              value={cf.value}
+                              onChange={v => updateCustomField(cf.id, { value: v })}
+                            />
+                          )}
+                        </div>
+                        <button type="button" aria-label="Close"
+                          onClick={() => removeCustomField(cf.id)}
+                          className="shrink-0 mt-0.5 p-1 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                          title="Remove field"
+                        >
+                          <X className="w-3.5 h-3.5" />
                         </button>
                       </div>
-                      {errors.password && <p className="text-xs text-red-500">{errors.password}</p>}
-                      <p className="text-xs text-gray-400">
-                        If left blank, default password is the phone number or <code>Welcome@123</code>
-                      </p>
+                    ))}
+                  </div>
+
+                  <div className="border rounded-lg overflow-hidden h-fit">
+                    <div className="flex items-center justify-between px-2.5 py-1.5 bg-gray-50">
+                      <Label className="flex items-center gap-1.5 text-[10px] cursor-pointer mb-0">
+                        <Lock className="w-3 h-3" /> Portal Access
+                        <span className="text-gray-400 font-normal">(enable login)</span>
+                      </Label>
+                      <button
+                        type="button" role="switch" aria-checked={enablePortal}
+                        onClick={() => setEnablePortal(v => !v)}
+                        className={`relative inline-flex h-5 w-9 items-center rounded-full border-2 transition-colors ${enablePortal ? 'border-transparent bg-primary' : 'border-gray-300 bg-gray-200 dark:border-gray-500 dark:bg-gray-600'}`}
+                      >
+                        <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow ring-1 ring-black/5 transition-transform ${
+                          enablePortal ? 'translate-x-[18px]' : 'translate-x-[2px]'
+                        }`} />
+                      </button>
                     </div>
-                  )}
+                    {enablePortal && (
+                      <div className="p-2 space-y-1.5">
+                        <div className="relative">
+                          <Input type={showPassword ? 'text' : 'password'} value={password}
+                            onChange={e => setPassword(e.target.value)}
+                            placeholder="Portal password (blank = auto)"
+                            className={`pr-10 h-8 text-sm ${errors.password ? 'border-red-400' : ''}`} />
+                          <button type="button" onClick={() => setShowPassword(v => !v)} tabIndex={-1}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                        {errors.password && <p className="text-[10px] text-red-500">{errors.password}</p>}
+                        <p className="text-[10px] text-gray-400">
+                          Blank → phone number or <code>Welcome@123</code>
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
               </div>
@@ -2380,7 +2370,7 @@ export function AddPartyModal({
           </div>
 
           </ModalBody>
-          <ModalFooter className="justify-end gap-2 border-0 bg-transparent px-4 py-3">
+          <ModalFooter className="justify-end gap-2 border-0 bg-transparent px-5 py-2.5">
             <Button type="button" variant="cancel" className="h-8 rounded-md px-3 text-sm" onClick={onClose}>
               Cancel
             </Button>

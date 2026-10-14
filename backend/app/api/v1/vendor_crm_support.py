@@ -236,7 +236,7 @@ async def delete_sla(
 
 @router.get("/tickets", response_model=PaginatedResponse)
 async def list_tickets(
-    page: int = Query(1, ge=1), size: int = Query(20, ge=1, le=100),
+    page: int = Query(1, ge=1), size: int = Query(20, ge=1, le=1000),
     q: Optional[str] = None,
     status_: Optional[str] = Query(None, alias="status"),
     priority: Optional[str] = None, assigned_to: Optional[UUID] = None,
@@ -305,7 +305,7 @@ async def add_ticket_comment(
 
 @router.get("/kb", response_model=PaginatedResponse)
 async def list_kb(
-    page: int = Query(1, ge=1), size: int = Query(20, ge=1, le=100),
+    page: int = Query(1, ge=1), size: int = Query(20, ge=1, le=1000),
     q: Optional[str] = None,
     status_: Optional[str] = Query(None, alias="status"),
     vu: VendorUser = Depends(require_permission("crm.view")),

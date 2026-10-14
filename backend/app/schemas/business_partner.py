@@ -37,6 +37,9 @@ class BusinessPartnerCreate(BaseModel):
     opening_balance: Optional[float] = 0
     notes: Optional[str] = None
     avatar_url: Optional[str] = None
+    # Portal/login credentials — sets the password for customer portal access.
+    # If omitted the default is the phone number or "Welcome@123".
+    portal_password: Optional[str] = Field(None, min_length=6, max_length=100)
     roles: List[RoleIn] = Field(default_factory=list)
 
 

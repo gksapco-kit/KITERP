@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { usePersistedPageSize } from '@/hooks/usePersistedPageSize'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useNavigate } from 'react-router-dom'
 import { useVendorStore } from '@/stores/vendorStore'
@@ -129,7 +130,7 @@ export default function Orders() {
     salesAppInstalled &&
     isPosNavVisible(vendor?.settings as Record<string, unknown> | undefined, vendor?.offering_type)
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = usePersistedPageSize('orders')
   const [statusFilter, setStatusFilter] = useState('')
   const [sourceFilter, setSourceFilter] = useState('')
   const [storeFilter, setStoreFilter] = useState(selectedStore?.id ?? '')
@@ -452,7 +453,10 @@ export default function Orders() {
                   </td>
                   <td className="px-3 py-2.5">
                     <p className="text-sm font-medium text-foreground">{order.customer_name || 'Unknown'}</p>
-                    <p className="text-xs text-muted-foreground">{order.customer_email || ''}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {order.customer_code ? <span className="mr-1 font-mono">{order.customer_code}</span> : null}
+                      {order.customer_email || ''}
+                    </p>
                   </td>
                   <td className="px-3 py-2.5 text-sm text-muted-foreground">
                     <InlineEditCell readOnly readOnlyMessage="Item count is calculated from order lines" value={order.item_count} onSave={() => {}}>

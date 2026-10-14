@@ -312,7 +312,7 @@ def _build_plans(service_id, plans_data: list) -> list:
 @router.get("")
 async def list_services(
     page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=500),
+    size: int = Query(20, ge=1, le=1000),
     status: Optional[str] = None,
     category: Optional[str] = None,
     search: Optional[str] = None,

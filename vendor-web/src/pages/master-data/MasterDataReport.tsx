@@ -10,8 +10,9 @@ import {
   useCustomers, useSuppliers,
   useUpdateSupplier, useDeleteSupplier, useUpdateCustomer, useDeleteCustomer,
   usePurchaseOrders, useAddBusinessPartnerRole, useBusinessPartners,
+  useOrders,
 } from '@/hooks/useVendor'
-import type { BusinessPartner } from '@/types'
+import type { BusinessPartner, Order } from '@/types'
 import { AddPartyModal } from '@/components/parties/AddPartyModal'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { Button } from '@/components/ui/button'
@@ -47,6 +48,8 @@ interface MasterRecord {
   name: string
   type: SourceType
   typeLabel: string
+  /** Short display code e.g. C-0042; UUID stays in `id` */
+  masterCode?: string | null
   email?: string
   phone?: string
   taxId?: string
@@ -95,6 +98,34 @@ const poStatusStyle: Record<string, string> = {
   received:         'bg-green-50 text-green-700',
   closed:           'bg-gray-100 text-gray-600',
   cancelled:        'bg-red-50 text-red-600',
+}
+
+const orderStatusStyle: Record<string, string> = {
+  pending:    'bg-amber-50 text-amber-700',
+  confirmed:  'bg-blue-50 text-blue-700',
+  processing: 'bg-indigo-50 text-indigo-700',
+  shipped:    'bg-cyan-50 text-cyan-700',
+  delivered:  'bg-green-50 text-green-700',
+  cancelled:  'bg-red-50 text-red-600',
+  returned:   'bg-rose-50 text-rose-700',
+  completed:  'bg-green-100 text-green-800',
+}
+
+/** Parse "=== Additional Addresses ===" block from party notes. */
+function parseExtraAddresses(notes?: string): { label: string; line: string }[] {
+  if (!notes) return []
+  const lines = notes.split('\n')
+  const idx = lines.findIndex(l => l.trim() === '=== Additional Addresses ===')
+  if (idx === -1) return []
+  const result: { label: string; line: string }[] = []
+  for (let i = idx + 1; i < lines.length; i++) {
+    const l = lines[i].trim()
+    if (!l || l.startsWith('===')) break
+    const colon = l.indexOf(':')
+    if (colon === -1) continue
+    result.push({ label: l.slice(0, colon).trim(), line: l.slice(colon + 1).trim() })
+  }
+  return result
 }
 
 const SOURCE_TABS: { value: SourceType; label: string; icon: React.ReactNode }[] = [
@@ -254,57 +285,125 @@ function PurchaseOrdersSection({ supplierId }: { supplierId: string }) {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
-          <ClipboardList className="w-3.5 h-3.5" /> Purchase Orders
+      <div className="flex items-center justify-between mb-1">
+        <h3 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide flex items-center gap-1">
+          <ClipboardList className="w-3 h-3" /> Purchase Orders
           {purchaseOrders.length > 0 && (
-            <span className="bg-blue-100 text-blue-700 text-xs font-bold px-1.5 py-0.5 rounded-full ml-1">
+            <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-1.5 py-px rounded-full">
               {purchaseOrders.length}
             </span>
           )}
         </h3>
-        <Button variant="outline" size="sm" className="gap-1 text-xs h-7"
+        <Button variant="outline" size="sm" className="gap-0.5 text-[11px] h-6"
           onClick={() => navigate('/purchase-orders')}>
           View All <ArrowRight className="w-3 h-3" />
         </Button>
       </div>
       {isLoading ? (
-        <div className="flex justify-center py-8">
-          <Loader2 className="w-5 h-5 animate-spin text-gray-300" />
+        <div className="flex justify-center py-3">
+          <Loader2 className="w-4 h-4 animate-spin text-gray-300" />
         </div>
       ) : purchaseOrders.length === 0 ? (
-        <div className="bg-gray-50 rounded-lg p-6 text-center">
-          <FileText className="w-10 h-10 text-gray-200 mx-auto mb-2" />
-          <p className="text-sm text-gray-400">No purchase orders with this supplier yet.</p>
+        <div className="rounded-md border border-border px-2.5 py-2 text-center">
+          <p className="text-sm text-gray-400">No purchase orders yet.</p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="rounded-md border border-border divide-y divide-border">
           {purchaseOrders.map((po) => (
             <div
               key={po.id}
-              className="flex items-center gap-3 p-3 rounded-lg border hover:bg-gray-50 cursor-pointer transition-colors"
+              className="flex items-center gap-2 px-2.5 py-1.5 hover:bg-muted/40 cursor-pointer transition-colors"
               onClick={() => navigate(`/purchase-orders/${po.id}`)}
             >
-              <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
-                <Package className="w-4 h-4 text-blue-500" />
+              <div className="w-7 h-7 rounded bg-blue-50 flex items-center justify-center shrink-0">
+                <Package className="w-3.5 h-3.5 text-blue-500" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <p className="text-sm font-semibold text-gray-900">#{po.po_number}</p>
-                  <span className={`px-2 py-0.5 text-xs rounded-full font-medium capitalize ${poStatusStyle[po.status] || 'bg-gray-100 text-gray-700'}`}>
+                  <span className={`px-1.5 py-0.5 text-[10px] rounded-full font-medium capitalize ${poStatusStyle[po.status] || 'bg-gray-100 text-gray-700'}`}>
                     {po.status.replace(/_/g, ' ')}
                   </span>
                 </div>
-                <div className="flex items-center gap-3 text-xs text-gray-500 mt-0.5">
+                <div className="flex items-center gap-2 text-[11px] text-gray-500 mt-0.5">
                   {po.order_date && <span>{formatDate(po.order_date)}</span>}
                   <span>{po.items?.length || 0} item{(po.items?.length || 0) !== 1 ? 's' : ''}</span>
                 </div>
               </div>
+              <p className="text-sm font-bold text-gray-900 shrink-0">{formatCurrency(po.total)}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── CustomerOrdersSection ─────────────────────────────────────────────────────
+
+function CustomerOrdersSection({ customerId }: { customerId: string }) {
+  const navigate = useNavigate()
+  const { data: orderData, isLoading } = useOrders({ customer_id: customerId, size: 50, sort: 'created_at', sort_dir: 'desc' })
+  const orders: Order[] = orderData?.items || []
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <h3 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide flex items-center gap-1">
+          <ShoppingBag className="w-3 h-3" /> Order History
+          {orders.length > 0 && (
+            <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-1.5 py-px rounded-full">
+              {orders.length}
+            </span>
+          )}
+        </h3>
+        <Button variant="outline" size="sm" className="gap-0.5 text-[11px] h-6"
+          onClick={() => navigate('/orders')}>
+          View All <ArrowRight className="w-3 h-3" />
+        </Button>
+      </div>
+      {isLoading ? (
+        <div className="flex justify-center py-3">
+          <Loader2 className="w-4 h-4 animate-spin text-gray-300" />
+        </div>
+      ) : orders.length === 0 ? (
+        <div className="rounded-md border border-border px-2.5 py-2 text-center">
+          <p className="text-sm text-gray-400">No orders yet.</p>
+        </div>
+      ) : (
+        <div className="rounded-md border border-border divide-y divide-border">
+          {orders.slice(0, 10).map((order) => (
+            <div
+              key={order.id}
+              className="flex items-center gap-2 px-2.5 py-1.5 hover:bg-muted/40 cursor-pointer transition-colors"
+              onClick={() => navigate(`/orders/${order.id}`)}
+            >
+              <div className="w-7 h-7 rounded bg-indigo-50 flex items-center justify-center shrink-0">
+                <Package className="w-3.5 h-3.5 text-indigo-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <p className="text-sm font-semibold text-gray-900">#{order.order_number}</p>
+                  <span className={`px-1.5 py-0.5 text-[10px] rounded-full font-medium capitalize ${orderStatusStyle[order.status] || 'bg-gray-100 text-gray-700'}`}>
+                    {order.status.replace(/_/g, ' ')}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-[11px] text-gray-500 mt-0.5">
+                  {order.items && <span>{order.item_count} item{order.item_count !== 1 ? 's' : ''}</span>}
+                  {order.source && <span className="capitalize">{order.source}</span>}
+                </div>
+              </div>
               <div className="text-right shrink-0">
-                <p className="text-sm font-bold text-gray-900">{formatCurrency(po.total)}</p>
+                <p className="text-sm font-bold text-gray-900">{formatCurrency(order.total)}</p>
+                {order.payment_status && (
+                  <p className="text-[10px] text-gray-400 capitalize">{order.payment_status.replace(/_/g, ' ')}</p>
+                )}
               </div>
             </div>
           ))}
+          {orders.length > 10 && (
+            <p className="text-[11px] text-center text-gray-400 py-1.5">Showing 10 of {orders.length}</p>
+          )}
         </div>
       )}
     </div>
@@ -623,6 +722,7 @@ function MasterDataDrawer({
   onClose: () => void
   onEdit: () => void
 }) {
+  const navigate = useNavigate()
   const updateSupplier = useUpdateSupplier()
   const deleteSupplier = useDeleteSupplier()
   const updateCustomer = useUpdateCustomer()
@@ -689,189 +789,212 @@ function MasterDataDrawer({
     (customer?.cin) || record.companyName || (bal !== undefined && bal !== 0))
   const customerNotes = customer ? cleanPartyNotes(customer.notes) : ''
   const supplierNotes = supplier ? cleanPartyNotes(supplier.notes) : ''
+  const extraAddresses = parseExtraAddresses(supplier?.notes ?? customer?.notes ?? '')
   const hasBankDetails = !!(
     customer?.bank_name || customer?.account_number || customer?.account_holder_name || customer?.ifsc_code ||
     supplier?.bank_name || supplier?.account_number || supplier?.account_holder_name || supplier?.ifsc_code
   )
+
+  // Extra BP roles beyond the primary type badge (avoids duplicate "Customer" chip)
+  const primaryRoleKey = record.kind === 'customer' ? 'customer' : (supplier?.party_type ?? 'vendor')
+  const extraRoles = existingRoles.filter(r => r !== primaryRoleKey && r !== record.type)
 
   return (
     <div data-kiterp-modal className="fixed inset-0 z-[100] flex justify-end bg-black/50 backdrop-blur-sm" onClick={onClose}>
       <div className="w-full max-w-xl bg-card border-l border-border text-foreground shadow-2xl overflow-y-auto" onClick={e => e.stopPropagation()}>
 
         {/* ── Header ── */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-card z-10">
-          <div className="flex items-center gap-3">
+        <div className="sticky top-0 z-10 bg-card border-b border-border px-3 py-2">
+          <div className="flex items-center gap-2.5">
             {(() => {
               const storedAvatar = localStorage.getItem(`md_avatar_${record.id}`)
               return storedAvatar
-                ? <img src={storedAvatar} alt={record.name} className="w-10 h-10 rounded-full object-cover shrink-0" />
-                : <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${
+                ? <img src={storedAvatar} alt={record.name} className="w-8 h-8 rounded-full object-cover shrink-0" />
+                : <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
                     record.kind === 'customer' ? 'bg-blue-100 text-blue-700' : 'bg-primary/15 text-primary'
                   }`}>{record.name.trim()[0]?.toUpperCase() ?? '?'}</div>
             })()}
-            <div>
-              <h2 className="text-base font-semibold text-gray-900 leading-tight">{record.name}</h2>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${
-                  TYPE_COLORS[record.type] ?? 'bg-gray-50 text-gray-600 border-gray-200'
-                }`}>{record.typeLabel}</span>
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${stCfg.bg} ${stCfg.text}`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${stCfg.dot}`} />
-                  {stCfg.label}
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5 mt-1.5 min-w-0 max-w-[280px]">
-                <span className="text-[10px] font-medium uppercase tracking-wide text-gray-400 shrink-0">Master ID</span>
-                <code className="text-[11px] font-mono text-gray-600 truncate" title={record.id}>{record.id}</code>
-                <button
-                  type="button"
-                  aria-label="Copy master ID"
-                  onClick={() => {
-                    navigator.clipboard.writeText(record.id)
-                    toast.success('Master ID copied')
-                  }}
-                  className="p-1 rounded hover:bg-gray-100 shrink-0"
-                >
-                  <Copy className="w-3 h-3 text-gray-400" />
-                </button>
-              </div>
-              {/* Roles row */}
-              <div className="flex flex-wrap items-center gap-1 mt-1.5">
-                {existingRoles.map(r => (
-                  <span key={r} className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full border ${ROLE_COLORS[r] ?? 'bg-gray-100 text-gray-600 border-gray-200'}`}>
-                    {ROLE_LABELS[r] ?? r}
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0 flex items-center gap-1.5 flex-wrap">
+                  <h2 className="text-sm font-semibold text-gray-900 truncate">{record.name}</h2>
+                  <span className={`inline-flex items-center px-1.5 py-px rounded-full text-[10px] font-medium border ${
+                    TYPE_COLORS[record.type] ?? 'bg-gray-50 text-gray-600 border-gray-200'
+                  }`}>{record.typeLabel}</span>
+                  <span className={`inline-flex items-center gap-1 px-1.5 py-px rounded-full text-[10px] font-medium ${stCfg.bg} ${stCfg.text}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${stCfg.dot}`} />
+                    {stCfg.label}
                   </span>
-                ))}
+                  {extraRoles.map(r => (
+                    <span key={r} className={`text-[10px] font-medium px-1.5 py-px rounded-full border ${ROLE_COLORS[r] ?? 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                      {ROLE_LABELS[r] ?? r}
+                    </span>
+                  ))}
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button variant="outline" size="sm" className="h-6 px-1.5 gap-0.5 text-[11px] text-blue-600 border-blue-200 hover:bg-blue-50"
+                    onClick={() => {
+                      navigate(record.kind === 'customer' ? `/customers/${record.id}` : `/suppliers/${record.id}`)
+                      onClose()
+                    }}>
+                    <ArrowRight className="w-3 h-3" /> Profile
+                  </Button>
+                  <Button variant="outline" size="sm" className="h-6 px-1.5 gap-0.5 text-[11px]" onClick={onEdit}>
+                    <Pencil className="w-3 h-3 text-green-600" /> Edit
+                  </Button>
+                  <button type="button" aria-label="Close" onClick={onClose} className="p-0.5 rounded hover:bg-gray-100">
+                    <X className="w-4 h-4 text-gray-500" />
+                  </button>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-x-2.5 mt-0.5 text-[10px] text-gray-400">
+                <span className="inline-flex items-center gap-1">
+                  <span className="uppercase tracking-wide">ID</span>
+                  <code className="font-mono font-semibold text-gray-700">{record.masterCode || '—'}</code>
+                  {record.masterCode && (
+                    <button type="button" aria-label="Copy master ID" className="p-0.5 rounded hover:bg-gray-100"
+                      onClick={() => { navigator.clipboard.writeText(record.masterCode!); toast.success('Master ID copied') }}>
+                      <Copy className="w-2.5 h-2.5" />
+                    </button>
+                  )}
+                </span>
+                <span className="inline-flex items-center gap-1 min-w-0">
+                  <span className="uppercase tracking-wide shrink-0">Sys</span>
+                  <code className="font-mono truncate max-w-[110px]" title={record.id}>{record.id.slice(0, 8)}…</code>
+                  <button type="button" aria-label="Copy system ID" className="p-0.5 rounded hover:bg-gray-100 shrink-0"
+                    onClick={() => { navigator.clipboard.writeText(record.id); toast.success('System ID copied') }}>
+                    <Copy className="w-2.5 h-2.5 text-gray-300" />
+                  </button>
+                </span>
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={onEdit}>
-              <Pencil className="w-3.5 h-3.5 text-green-600" /> Edit
-            </Button>
-            <button type="button" aria-label="Close" onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100">
-                <X className="w-5 h-5" />
-            </button>
-          </div>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="px-3 py-2.5 space-y-2.5">
 
           {/* ── Customer stats strip ── */}
           {customer && (
-            <div className="grid grid-cols-3 gap-3">
-              <div className="bg-gray-50 rounded-xl p-3 text-center">
-                <ShoppingBag className="w-4 h-4 text-primary/60 mx-auto mb-1" />
-                <p className="text-2xl font-bold text-gray-900">{customer.total_orders}</p>
-                <p className="text-xs text-gray-500 mt-0.5">Orders</p>
+            <div className="grid grid-cols-3 gap-1.5">
+              <div className="rounded-md border border-border bg-muted/30 px-2 py-1.5 flex items-center gap-1.5">
+                <ShoppingBag className="w-3 h-3 text-gray-400 shrink-0" />
+                <div className="min-w-0 leading-none">
+                  <p className="text-[9px] font-medium uppercase tracking-wide text-gray-400">Orders</p>
+                  <p className="text-sm font-bold text-gray-900 mt-0.5">{customer.total_orders}</p>
+                </div>
               </div>
-              <div className="bg-gray-50 rounded-xl p-3 text-center">
-                <TrendingUp className="w-4 h-4 text-green-400 mx-auto mb-1" />
-                <p className="text-sm font-bold text-gray-900">{formatCurrency(customer.total_spent)}</p>
-                <p className="text-xs text-gray-500 mt-0.5">Total Spent</p>
+              <div className="rounded-md border border-border bg-muted/30 px-2 py-1.5 flex items-center gap-1.5">
+                <TrendingUp className="w-3 h-3 text-green-500 shrink-0" />
+                <div className="min-w-0 leading-none">
+                  <p className="text-[9px] font-medium uppercase tracking-wide text-gray-400">Spent</p>
+                  <p className="text-sm font-bold text-gray-900 mt-0.5 truncate">{formatCurrency(customer.total_spent)}</p>
+                </div>
               </div>
-              <div className="bg-gray-50 rounded-xl p-3 text-center">
-                <IndianRupee className="w-4 h-4 text-orange-400 mx-auto mb-1" />
-                {(customer.opening_balance ?? 0) !== 0 ? (
-                  <>
-                    <p className={`text-sm font-bold ${(customer.opening_balance ?? 0) > 0 ? 'text-orange-600' : 'text-green-600'}`}>
+              <div className="rounded-md border border-border bg-muted/30 px-2 py-1.5 flex items-center gap-1.5">
+                <IndianRupee className="w-3 h-3 text-orange-500 shrink-0" />
+                <div className="min-w-0 leading-none">
+                  <p className="text-[9px] font-medium uppercase tracking-wide text-gray-400">Balance</p>
+                  {(customer.opening_balance ?? 0) !== 0 ? (
+                    <p className={`text-sm font-bold mt-0.5 truncate ${(customer.opening_balance ?? 0) > 0 ? 'text-orange-600' : 'text-green-600'}`}>
                       {formatCurrency(Math.abs(customer.opening_balance ?? 0))}
+                      <span className="text-[9px] font-medium text-gray-400 ml-0.5">
+                        {(customer.opening_balance ?? 0) > 0 ? 'Dr' : 'Cr'}
+                      </span>
                     </p>
-                    <p className="text-xs text-gray-500">{(customer.opening_balance ?? 0) > 0 ? 'Dr (Receivable)' : 'Cr (Advance)'}</p>
-                  </>
-                ) : (
-                  <p className="text-sm text-gray-400 pt-1">—</p>
-                )}
+                  ) : (
+                    <p className="text-sm font-medium text-gray-400 mt-0.5">₹0</p>
+                  )}
+                </div>
               </div>
             </div>
           )}
 
           {/* ── Contact Information ── */}
           <div>
-            <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Contact Information</h3>
-            <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+            <h3 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Contact</h3>
+            <div className="rounded-md border border-border divide-y divide-border">
               {supplier?.contact_name && (
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-white border flex items-center justify-center shrink-0">
-                    <Truck className="w-4 h-4 text-gray-400" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Contact Person</p>
-                    <p className="text-sm font-medium text-gray-900">{supplier.contact_name}</p>
-                  </div>
+                <div className="flex items-center gap-2 px-2.5 py-1.5">
+                  <Truck className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                  <span className="text-[11px] text-gray-400 w-14 shrink-0">Person</span>
+                  <p className="text-sm font-medium text-gray-900 truncate">{supplier.contact_name}</p>
                 </div>
               )}
               {record.email && (
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-white border flex items-center justify-center shrink-0">
-                    <Mail className="w-4 h-4 text-gray-400" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Email</p>
-                    <a href={`mailto:${record.email}`} className="text-sm font-medium text-blue-600 hover:underline">{record.email}</a>
-                  </div>
+                <div className="flex items-center gap-2 px-2.5 py-1.5">
+                  <Mail className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                  <span className="text-[11px] text-gray-400 w-14 shrink-0">Email</span>
+                  <a href={`mailto:${record.email}`} className="text-sm font-medium text-blue-600 hover:underline truncate">{record.email}</a>
                 </div>
               )}
               {record.phone && (
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-white border flex items-center justify-center shrink-0">
-                    <Phone className="w-4 h-4 text-gray-400" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Phone</p>
-                    <a href={`tel:${record.phone}`} className="text-sm font-medium text-blue-600 hover:underline">{record.phone}</a>
-                  </div>
+                <div className="flex items-center gap-2 px-2.5 py-1.5">
+                  <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                  <span className="text-[11px] text-gray-400 w-14 shrink-0">Phone</span>
+                  <a href={`tel:${record.phone}`} className="text-sm font-medium text-blue-600 hover:underline">{record.phone}</a>
                 </div>
               )}
               {hasAddr && (
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-white border flex items-center justify-center shrink-0">
-                    <MapPin className="w-4 h-4 text-gray-400" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">{customer ? 'Billing Address' : 'Address'}</p>
-                    <p className="text-sm text-gray-900">{addrLine}</p>
-                  </div>
+                <div className="flex items-start gap-2 px-2.5 py-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5" />
+                  <span className="text-[11px] text-gray-400 w-14 shrink-0">{customer ? 'Billing' : 'Address'}</span>
+                  <p className="text-sm text-gray-900 leading-snug">{addrLine}</p>
                 </div>
               )}
               {!record.email && !record.phone && !hasAddr && !supplier?.contact_name && (
-                <p className="text-sm text-gray-400 italic">No contact details added yet.</p>
+                <p className="text-sm text-gray-400 italic px-2.5 py-1.5">No contact details yet.</p>
               )}
             </div>
           </div>
 
+          {/* ── Extra Addresses ── */}
+          {extraAddresses.length > 0 && (
+            <div>
+              <h3 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Addresses</h3>
+              <div className="rounded-md border border-border divide-y divide-border">
+                {extraAddresses.map((ea, i) => (
+                  <div key={i} className="flex items-start gap-2 px-2.5 py-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5" />
+                    <span className="text-[11px] text-gray-400 w-16 shrink-0">{ea.label}</span>
+                    <p className="text-sm text-gray-900 leading-snug">{ea.line}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* ── Business / GST Details ── */}
           {hasBusinessDetails && (
             <div>
-              <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Business Details</h3>
-              <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+              <h3 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Business</h3>
+              <div className="rounded-md border border-border px-2.5 py-1 space-y-0.5">
                 {record.companyName && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-500">Company / Trade Name</span>
-                    <span className="text-sm font-medium text-gray-900">{record.companyName}</span>
+                  <div className="flex justify-between items-center gap-3 py-0.5">
+                    <span className="text-[11px] text-gray-400">Company</span>
+                    <span className="text-sm font-medium text-gray-900 text-right">{record.companyName}</span>
                   </div>
                 )}
                 {record.taxId && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-500">GSTIN</span>
+                  <div className="flex justify-between items-center gap-3 py-0.5">
+                    <span className="text-[11px] text-gray-400">GSTIN</span>
                     <span className="text-sm font-mono font-semibold text-blue-700 tracking-wider">{record.taxId}</span>
                   </div>
                 )}
                 {(supplier?.pan_number || customer?.pan_number) && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-500">PAN</span>
+                  <div className="flex justify-between items-center gap-3 py-0.5">
+                    <span className="text-[11px] text-gray-400">PAN</span>
                     <span className="text-sm font-mono font-semibold tracking-wider">{supplier?.pan_number || customer?.pan_number}</span>
                   </div>
                 )}
                 {customer?.cin && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-500">CIN / LLPIN</span>
+                  <div className="flex justify-between items-center gap-3 py-0.5">
+                    <span className="text-[11px] text-gray-400">CIN</span>
                     <span className="text-sm font-mono font-semibold tracking-wider">{customer.cin}</span>
                   </div>
                 )}
                 {bal !== undefined && bal !== 0 && (
-                  <div className="flex justify-between items-center border-t pt-3 mt-1">
-                    <span className="text-xs text-gray-500">Opening Balance</span>
+                  <div className="flex justify-between items-center gap-3 py-0.5 border-t border-border">
+                    <span className="text-[11px] text-gray-400">Opening Bal.</span>
                     <span className={`text-sm font-bold ${bal > 0 ? 'text-orange-600' : 'text-green-600'}`}>
                       {formatCurrency(Math.abs(bal))} {supplier ? (bal > 0 ? 'Payable' : 'Receivable') : (bal > 0 ? 'Dr' : 'Cr')}
                     </span>
@@ -884,35 +1007,35 @@ function MasterDataDrawer({
           {/* ── Bank Details ── */}
           {hasBankDetails && (
             <div>
-              <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Bank Details</h3>
-              <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+              <h3 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Bank</h3>
+              <div className="rounded-md border border-border px-2.5 py-1 space-y-0.5">
                 {(customer?.bank_name || supplier?.bank_name) && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-500">Bank Name</span>
+                  <div className="flex justify-between items-center gap-3 py-0.5">
+                    <span className="text-[11px] text-gray-400">Bank</span>
                     <span className="text-sm font-medium text-gray-900">{customer?.bank_name || supplier?.bank_name}</span>
                   </div>
                 )}
                 {(customer?.account_holder_name || supplier?.account_holder_name) && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-500">Account Holder</span>
+                  <div className="flex justify-between items-center gap-3 py-0.5">
+                    <span className="text-[11px] text-gray-400">Holder</span>
                     <span className="text-sm font-medium text-gray-900">{customer?.account_holder_name || supplier?.account_holder_name}</span>
                   </div>
                 )}
                 {(customer?.account_number || supplier?.account_number) && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-500">Account Number</span>
+                  <div className="flex justify-between items-center gap-3 py-0.5">
+                    <span className="text-[11px] text-gray-400">A/C No.</span>
                     <span className="text-sm font-mono font-medium text-gray-900">{customer?.account_number || supplier?.account_number}</span>
                   </div>
                 )}
                 {(customer?.ifsc_code || supplier?.ifsc_code) && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-500">IFSC</span>
+                  <div className="flex justify-between items-center gap-3 py-0.5">
+                    <span className="text-[11px] text-gray-400">IFSC</span>
                     <span className="text-sm font-mono font-semibold tracking-wider">{customer?.ifsc_code || supplier?.ifsc_code}</span>
                   </div>
                 )}
                 {(customer?.account_type || supplier?.account_type) && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-500">Account Type</span>
+                  <div className="flex justify-between items-center gap-3 py-0.5">
+                    <span className="text-[11px] text-gray-400">Type</span>
                     <span className="text-sm font-medium text-gray-900 capitalize">{customer?.account_type || supplier?.account_type}</span>
                   </div>
                 )}
@@ -923,43 +1046,32 @@ function MasterDataDrawer({
           {/* ── Notes ── */}
           {(customerNotes || supplierNotes) && (
             <div>
-              <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Notes</h3>
-              <div className="bg-gray-50 rounded-lg p-4">
-                <p className="text-sm text-gray-700 whitespace-pre-wrap">{customerNotes || supplierNotes}</p>
+              <h3 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Notes</h3>
+              <div className="rounded-md border border-border px-2.5 py-1.5">
+                <p className="text-sm text-gray-700 whitespace-pre-wrap leading-snug">{customerNotes || supplierNotes}</p>
               </div>
             </div>
           )}
 
           {/* ── Timeline ── */}
           <div>
-            <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Timeline</h3>
-            <div className="bg-gray-50 rounded-lg p-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-gray-400" />
-                  <div>
-                    <p className="text-xs text-gray-500">Added</p>
-                    <p className="text-sm font-medium">{formatDate(record.createdAt)}</p>
-                  </div>
+            <h3 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Timeline</h3>
+            <div className="rounded-md border border-border grid grid-cols-2 divide-x divide-border">
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5">
+                <Calendar className="w-3 h-3 text-gray-400 shrink-0" />
+                <div className="leading-none">
+                  <p className="text-[9px] text-gray-400 uppercase">Added</p>
+                  <p className="text-sm font-medium mt-0.5">{formatDate(record.createdAt)}</p>
                 </div>
-                {supplier?.updated_at && (
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-gray-400" />
-                    <div>
-                      <p className="text-xs text-gray-500">Last Updated</p>
-                      <p className="text-sm font-medium">{formatDate(supplier.updated_at)}</p>
-                    </div>
-                  </div>
-                )}
-                {customer?.updated_at && (
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-gray-400" />
-                    <div>
-                      <p className="text-xs text-gray-500">Last Updated</p>
-                      <p className="text-sm font-medium">{formatDate(customer.updated_at)}</p>
-                    </div>
-                  </div>
-                )}
+              </div>
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5">
+                <Calendar className="w-3 h-3 text-gray-400 shrink-0" />
+                <div className="leading-none">
+                  <p className="text-[9px] text-gray-400 uppercase">Updated</p>
+                  <p className="text-sm font-medium mt-0.5">
+                    {formatDate(supplier?.updated_at || customer?.updated_at || record.createdAt)}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -967,22 +1079,21 @@ function MasterDataDrawer({
           {/* ── Extend To (Business Partner role assignment) ── */}
           {linkedBP && (
             <div>
-              <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
-                <Link2 className="w-3.5 h-3.5" /> Extend To (Add Role)
+              <h3 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1 flex items-center gap-1">
+                <Link2 className="w-3 h-3" /> Extend To
               </h3>
-              <div className="bg-gray-50 rounded-lg p-4">
-                <p className="text-xs text-gray-500 mb-3">
-                  This party is linked to Business Partner <code className="font-mono text-gray-600">{linkedBP.id.slice(0, 8)}…</code>.
-                  Add another role to reuse the same master record.
+              <div className="rounded-md border border-border px-2.5 py-1.5">
+                <p className="text-[11px] text-gray-500 mb-1.5 leading-snug">
+                  BP <code className="font-mono text-gray-600">{linkedBP.id.slice(0, 8)}…</code> — add another role.
                 </p>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1">
                   {ALL_BP_ROLES.filter(r => !existingRoles.includes(r)).map(role => (
                     <button
                       key={role}
                       type="button"
                       disabled={extendingTo !== null}
                       onClick={() => handleExtendRole(role)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-dashed border-primary/40 text-primary text-xs font-medium hover:bg-primary/10 hover:border-primary transition-all disabled:opacity-50"
+                      className="flex items-center gap-1 px-2 py-0.5 rounded-full border border-dashed border-primary/40 text-primary text-[11px] font-medium hover:bg-primary/10 hover:border-primary transition-all disabled:opacity-50"
                     >
                       {extendingTo === role
                         ? <Loader2 className="w-3 h-3 animate-spin" />
@@ -991,7 +1102,7 @@ function MasterDataDrawer({
                     </button>
                   ))}
                   {ALL_BP_ROLES.filter(r => !existingRoles.includes(r)).length === 0 && (
-                    <p className="text-xs text-gray-400">All roles already assigned.</p>
+                    <p className="text-[11px] text-gray-400">All roles already assigned.</p>
                   )}
                 </div>
               </div>
@@ -1000,105 +1111,99 @@ function MasterDataDrawer({
 
           {/* ── Status & Access Controls ── */}
           <div>
-            <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
-              <ShieldAlert className="w-3.5 h-3.5" /> Status &amp; Access Controls
+            <h3 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1 flex items-center gap-1">
+              <ShieldAlert className="w-3 h-3" /> Status &amp; Access
             </h3>
-            <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-              {/* Current status */}
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-500">Current Status</span>
-                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${stCfg.bg} ${stCfg.text}`}>
-                  <span className={`w-2 h-2 rounded-full ${stCfg.dot}`} />
+            <div className="rounded-md border border-border px-2.5 py-1.5 space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[11px] text-gray-500">Current Status</span>
+                <span className={`inline-flex items-center gap-1 px-1.5 py-px rounded-full text-[10px] font-medium ${stCfg.bg} ${stCfg.text}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${stCfg.dot}`} />
                   {stCfg.label}
                 </span>
               </div>
 
-              {/* On hold notice */}
               {record.masterStatus === 'on_hold' && sx.hold_until != null && String(sx.hold_until) !== '' && (
-                <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                  <PauseCircle className="w-3.5 h-3.5 shrink-0" />
+                <div className="flex items-center gap-1.5 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                  <PauseCircle className="w-3 h-3 shrink-0" />
                   On hold until {new Date(sx.hold_until as string).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                 </div>
               )}
 
-              {/* Action buttons */}
-              <div className="grid grid-cols-2 gap-2 pt-1">
+              <div className="grid grid-cols-2 gap-1">
                 {record.masterStatus !== 'active' && (
                   <button disabled={statusBusy}
                     onClick={() => applyStatus({ party_status: 'active', payment_blocked: false, hold_until: null, is_active: true })}
-                    className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-green-300 bg-green-50 text-green-700 text-xs font-medium hover:bg-green-100 transition-colors disabled:opacity-50">
-                    <RotateCcw className="w-3.5 h-3.5" /> Restore Active
+                    className="flex items-center justify-center gap-1 px-2 py-1 rounded border border-green-300 bg-green-50 text-green-700 text-[11px] font-medium hover:bg-green-100 transition-colors disabled:opacity-50">
+                    <RotateCcw className="w-3 h-3" /> Restore Active
                   </button>
                 )}
 
-                {/* Supplier-only controls */}
                 {record.kind === 'supplier' && (
                   <>
                     <button disabled={statusBusy} onClick={() => setShowHoldForm(v => !v)}
-                      className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-medium transition-colors disabled:opacity-50 ${
+                      className={`flex items-center justify-center gap-1 px-2 py-1 rounded border text-[11px] font-medium transition-colors disabled:opacity-50 ${
                         showHoldForm
                           ? 'border-amber-400 bg-amber-100 text-amber-800'
                           : 'border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100'
                       }`}>
-                      <PauseCircle className="w-3.5 h-3.5" />
+                      <PauseCircle className="w-3 h-3" />
                       {record.masterStatus === 'on_hold' ? 'Adjust Hold' : 'Set On Hold'}
                     </button>
 
                     <button disabled={statusBusy}
                       onClick={() => applyStatus({ payment_blocked: !sx.payment_blocked })}
-                      className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-medium transition-colors disabled:opacity-50 ${
+                      className={`flex items-center justify-center gap-1 px-2 py-1 rounded border text-[11px] font-medium transition-colors disabled:opacity-50 ${
                         sx.payment_blocked
                           ? 'border-orange-300 bg-orange-50 text-orange-700 hover:bg-orange-100'
                           : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
                       }`}>
-                      <Ban className="w-3.5 h-3.5" />
+                      <Ban className="w-3 h-3" />
                       {sx.payment_blocked ? 'Unblock Payment' : 'Block Payment'}
                     </button>
 
                     <button disabled={statusBusy || record.masterStatus === 'blocked'}
                       onClick={() => applyStatus({ party_status: 'blocked' })}
-                      className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-red-300 bg-red-50 text-red-700 text-xs font-medium hover:bg-red-100 transition-colors disabled:opacity-50">
-                      <ShieldAlert className="w-3.5 h-3.5" />
+                      className="flex items-center justify-center gap-1 px-2 py-1 rounded border border-red-300 bg-red-50 text-red-700 text-[11px] font-medium hover:bg-red-100 transition-colors disabled:opacity-50">
+                      <ShieldAlert className="w-3 h-3" />
                       {record.masterStatus === 'blocked' ? 'Blocked' : 'Block Record'}
                     </button>
                   </>
                 )}
               </div>
 
-              {/* On-hold form (supplier only) */}
               {record.kind === 'supplier' && showHoldForm && (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
-                  <p className="text-xs font-medium text-amber-800">Hold Until</p>
-                  <div className="flex flex-wrap gap-1.5">
+                <div className="bg-amber-50 border border-amber-200 rounded p-2 space-y-1.5">
+                  <p className="text-[11px] font-medium text-amber-800">Hold Until</p>
+                  <div className="flex flex-wrap gap-1">
                     {[7, 14, 30, 60, 90].map(n => (
                       <button key={n} type="button" onClick={() => setHoldUntilDate(addDaysStr(n))}
-                        className="text-xs px-2 py-1 bg-amber-100 text-amber-700 rounded hover:bg-amber-200 transition-colors">
+                        className="text-[11px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded hover:bg-amber-200 transition-colors">
                         +{n}d
                       </button>
                     ))}
                     <input type="date" value={holdUntilDate}
                       min={new Date().toISOString().split('T')[0]}
                       onChange={e => setHoldUntilDate(e.target.value)}
-                      className="flex-1 text-xs border border-amber-300 rounded px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-amber-300 min-w-[130px]" />
+                      className="flex-1 text-[11px] border border-amber-300 rounded px-1.5 py-0.5 bg-white focus:outline-none focus:ring-1 focus:ring-amber-300 min-w-[120px]" />
                   </div>
                   <Button size="sm" disabled={statusBusy}
                     onClick={() => { applyStatus({ party_status: 'on_hold', hold_until: holdUntilDate || null }); setShowHoldForm(false) }}
-                    className="h-7 text-xs bg-amber-500 hover:bg-amber-600 text-white">
+                    className="h-6 text-[11px] bg-amber-500 hover:bg-amber-600 text-white">
                     {statusBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Confirm Hold'}
                   </Button>
                 </div>
               )}
 
-              {/* Danger zone */}
-              <div className={`flex gap-2 pt-2 border-t ${record.kind === 'customer' ? 'justify-end' : ''}`}>
+              <div className="flex gap-1 pt-1 border-t border-border">
                 <button onClick={() => setConfirmSoftDel(true)}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-red-200 bg-white text-red-600 text-xs font-medium hover:bg-red-50 transition-colors flex-1 justify-center">
-                  <Trash2 className="w-3.5 h-3.5 text-red-600" /> Deactivate
+                  className="flex items-center gap-1 px-2 py-1 rounded border border-red-200 bg-white text-red-600 text-[11px] font-medium hover:bg-red-50 transition-colors flex-1 justify-center">
+                  <Trash2 className="w-3 h-3" /> Deactivate
                 </button>
                 {record.kind === 'supplier' && (
                   <button onClick={() => setConfirmHardDel(true)}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-red-600 bg-red-600 text-white text-xs font-medium hover:bg-red-700 transition-colors flex-1 justify-center">
-                    <Trash className="w-3.5 h-3.5 text-red-600" /> Delete Permanently
+                    className="flex items-center gap-1 px-2 py-1 rounded border border-red-600 bg-red-600 text-white text-[11px] font-medium hover:bg-red-700 transition-colors flex-1 justify-center">
+                    <Trash className="w-3 h-3" /> Delete Permanently
                   </button>
                 )}
               </div>
@@ -1108,6 +1213,11 @@ function MasterDataDrawer({
           {/* ── Purchase Orders (supplier only) ── */}
           {record.kind === 'supplier' && (
             <PurchaseOrdersSection supplierId={record.id} />
+          )}
+
+          {/* ── Order History (customer only) ── */}
+          {record.kind === 'customer' && (
+            <CustomerOrdersSection customerId={record.id} />
           )}
 
         </div>
@@ -1195,7 +1305,7 @@ function FilterChip({
       type="button"
       onClick={onClick}
       className={cn(
-        'shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
+        'shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border transition-colors',
         active
           ? 'bg-primary border-primary text-primary-foreground shadow-sm kit-solid-green-btn'
           : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50',
@@ -1312,8 +1422,13 @@ export default function MasterDataReport() {
   useEscapeToClose(() => setDeleteTarget(null), !!deleteTarget && !deleteBusy)
 
   // Data — fetch all records (no pagination limit) so client-side filtering/sorting works on the full set
-  const { data: custData, isLoading: custLoading } = useCustomers({ size: 10000 })
-  const { data: suppData, isLoading: suppLoading } = useSuppliers({ size: 10000 })
+  const { data: custData, isLoading: custLoading, isError: custError, refetch: refetchCustomers } = useCustomers({ size: 10000 })
+  const { data: suppData, isLoading: suppLoading, isError: suppError, refetch: refetchSuppliers } = useSuppliers({ size: 10000 })
+  const loadError = custError || suppError
+  const retryLoad = () => {
+    if (custError) void refetchCustomers()
+    if (suppError) void refetchSuppliers()
+  }
   const updateCustomer = useUpdateCustomer()
   const updateSupplier = useUpdateSupplier()
   const deleteCustomer = useDeleteCustomer()
@@ -1336,6 +1451,7 @@ export default function MasterDataReport() {
     customers.forEach(c => out.push({
       id: c.id, kind: 'customer', name: c.full_name,
       type: 'customer', typeLabel: 'Customer',
+      masterCode: c.master_code,
       email: c.email, phone: c.phone,
       taxId: c.gstin || undefined,
       isActive: c.is_active,
@@ -1357,6 +1473,7 @@ export default function MasterDataReport() {
         id: s.id, kind: 'supplier', name: s.name,
         type: typeKey,
         typeLabel,
+        masterCode: s.master_code,
         email: s.email, phone: s.phone,
         taxId: s.gstin || undefined,
         isActive: s.is_active,
@@ -1423,6 +1540,7 @@ export default function MasterDataReport() {
                !(r.phone?.includes(q)) &&
                !(r.taxId?.toLowerCase().includes(q)) &&
                !(r.companyName?.toLowerCase().includes(q)) &&
+               !(r.masterCode?.toLowerCase().includes(q)) &&
                !r.typeLabel.toLowerCase().includes(q)) return false
       // Advanced filters
       if (af.hasEmail === 'yes' && !r.email) return false
@@ -1517,10 +1635,10 @@ export default function MasterDataReport() {
   // CSV export
   const exportCsv = () => {
     const rows = selected.size > 0 ? sorted.filter(r => selected.has(r.id)) : sorted
-    const headers = ['Name', 'Type', 'Email', 'Phone', 'Tax ID', 'Status', 'Balance', 'Created']
+    const headers = ['Master ID', 'Name', 'Type', 'Email', 'Phone', 'Tax ID', 'Status', 'Balance', 'Created', 'System ID']
     const lines = rows.map(r => [
-      r.name, r.typeLabel, r.email ?? '', r.phone ?? '', r.taxId ?? '',
-      r.masterStatus, r.balance?.toString() ?? '', formatDate(r.createdAt),
+      r.masterCode ?? '', r.name, r.typeLabel, r.email ?? '', r.phone ?? '', r.taxId ?? '',
+      r.masterStatus, r.balance?.toString() ?? '', formatDate(r.createdAt), r.id,
     ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))
     const csv = [headers.join(','), ...lines].join('\n')
     const a = document.createElement('a')
@@ -1584,94 +1702,41 @@ export default function MasterDataReport() {
   }
 
   return (
-    <div className="space-y-3 p-3 md:p-4">
+    <div className="-mt-1.5 space-y-1 md:-mt-2 lg:-mt-3 xl:-mt-4">
 
-      {/* ── Page header ──────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="min-w-0 text-xs text-muted-foreground">
-          {allRecords.length} records · customers, vendors, and other parties
-        </p>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" className="h-8 gap-1.5 px-3 text-sm" onClick={exportCsv}>
-            <Download className="h-3.5 w-3.5" /> Export CSV
-          </Button>
-          <Button className="h-8 gap-1.5 px-3 text-sm bg-primary hover:bg-primary/90" onClick={() => setShowCreate(true)}>
-            <Plus className="h-3.5 w-3.5" /> Add Record
-          </Button>
-        </div>
-      </div>
-
-      {/* ── Filters card ─────────────────────────────────────────────────── */}
+      {/* ── Unified toolbar: search, actions, filters, counts ─────────────── */}
       {(() => {
         const hasActiveFilters = !!(search || selectedTypes.size > 0 || statusTab !== 'all' || advActive || colFilterActive)
         const activeFilterCount = (search ? 1 : 0) + (selectedTypes.size > 0 ? 1 : 0) + (statusTab !== 'all' ? 1 : 0) + (advActive ? 1 : 0) + (colFilterActive ? 1 : 0)
         const clearAll = () => { setSearch(''); setSelectedTypes(new Set()); setStatusTab('all'); setAdvFilters(EMPTY_ADV); setColFilters({}); setPage(1) }
 
         return (
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 space-y-3 max-h-[90vh] overflow-y-auto">
+          <div className="rounded-md border border-gray-200 bg-white px-2 py-1 space-y-1">
 
-            {/* ── Search + Clear ── */}
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  value={search}
-                  onChange={e => { setSearch(e.target.value); setPage(1) }}
-                  placeholder="Search by name, email, phone, tax ID, company…"
-                  className="pl-9 pr-4 text-sm"
-                />
-              </div>
-              <button
-                onClick={clearAll}
-                title="Clear all filters"
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-medium transition-all whitespace-nowrap ${
-                  hasActiveFilters
-                    ? 'bg-red-50 border-red-300 text-red-600 hover:bg-red-100 shadow-sm'
-                    : 'bg-gray-50 border-gray-200 text-gray-400 cursor-default'
-                }`}
-              >
-                <RotateCcw className={`w-3.5 h-3.5 ${hasActiveFilters ? 'text-red-500' : 'text-gray-300'}`} />
-                Clear Filters
-                {hasActiveFilters && (
-                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-red-500 text-white text-xs font-bold">
-                    {activeFilterCount}
-                  </span>
-                )}
-              </button>
-            </div>
-
-            {/* ── Type multi-select (single scrollable row) ── */}
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-gray-500 shrink-0">Type</span>
-              <div className="relative flex-1 min-w-0">
-                <div
-                  className="flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-                >
+            {/* Row 1 — Type filters + action buttons */}
+            <div className="flex w-full items-center gap-2">
+              <div className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden">
+                <span className="shrink-0 text-[11px] font-medium text-gray-500">Type</span>
+                <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                   {selectedTypes.size > 0 ? (
                     <button
                       type="button"
                       onClick={() => { setSelectedTypes(new Set()); setPage(1) }}
-                      className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 transition-colors"
+                      className="inline-flex shrink-0 items-center gap-1 rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
                     >
-                      <Filter className="w-3.5 h-3.5" />
+                      <Filter className="h-3 w-3" />
                       <span>{selectedTypes.size} selected</span>
-                      <span
-                        aria-hidden
-                        className="inline-flex items-center justify-center w-4 h-4 rounded-full hover:bg-primary/15"
-                      >
-                        <X className="w-3 h-3" />
-                      </span>
+                      <X className="h-3 w-3" />
                     </button>
                   ) : (
                     <FilterChip
                       active
-                      label="All Types"
-                      icon={<Filter className="w-3.5 h-3.5" />}
+                      label="All"
+                      icon={<Filter className="h-3 w-3" />}
                       count={allRecords.length}
                       onClick={() => { setSelectedTypes(new Set()); setPage(1) }}
                     />
                   )}
-
                   {[...sourceTabs.filter(t => t.value !== 'all')]
                     .sort((a, b) => {
                       const aSelected = selectedTypes.has(a.value)
@@ -1691,33 +1756,72 @@ export default function MasterDataReport() {
                       />
                     ))}
                 </div>
-                <div className="pointer-events-none absolute right-0 top-0 h-full w-6 bg-gradient-to-l from-white to-transparent" />
+              </div>
+
+              <div className="flex shrink-0 items-center gap-1.5">
+                <button
+                  onClick={clearAll}
+                  title="Clear all filters"
+                  className={cn(
+                    'inline-flex h-7 items-center gap-1 rounded-md border px-2 text-xs font-medium whitespace-nowrap transition-all',
+                    hasActiveFilters
+                      ? 'border-red-300 bg-red-50 text-red-600 hover:bg-red-100'
+                      : 'cursor-default border-gray-200 bg-gray-50 text-gray-400',
+                  )}
+                >
+                  <RotateCcw className={cn('h-3.5 w-3.5', hasActiveFilters ? 'text-red-500' : 'text-gray-300')} />
+                  Clear
+                  {hasActiveFilters && (
+                    <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                      {activeFilterCount}
+                    </span>
+                  )}
+                </button>
+                <Button variant="outline" className="h-7 gap-1 px-2 text-xs" onClick={exportCsv}>
+                  <Download className="h-3.5 w-3.5" />
+                  Export
+                </Button>
+                <Button className="h-7 gap-1 px-2 text-xs bg-primary hover:bg-primary/90" onClick={() => setShowCreate(true)}>
+                  <Plus className="h-3.5 w-3.5" />
+                  Add
+                </Button>
               </div>
             </div>
 
-            {/* ── Status tabs ── */}
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-xs font-medium text-gray-500 mr-0.5">Status</span>
-              {STATUS_FILTER_TABS.map(tab => {
-                const active = statusTab === tab.value
-                const cfg    = tab.value !== 'all' ? STATUS_CFG[tab.value as MasterStatus] : null
-                return (
-                  <button
-                    key={tab.value}
-                    type="button"
-                    onClick={() => { setStatusTab(tab.value); setPage(1) }}
-                    className={cn(
-                      'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
-                      active
-                        ? 'bg-primary border-primary text-primary-foreground shadow-sm'
-                        : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50',
-                    )}
-                  >
-                    {cfg && !active && <span className={cn('w-1.5 h-1.5 rounded-full', cfg.dot)} />}
-                    {tab.label}
-                  </button>
-                )
-              })}
+            {/* Row 2 — Status + search filling remaining width */}
+            <div className="flex w-full items-center gap-1.5">
+              <div className="flex min-w-0 flex-wrap items-center gap-1">
+                <span className="shrink-0 text-[11px] font-medium text-gray-500">Status</span>
+                {STATUS_FILTER_TABS.map(tab => {
+                  const active = statusTab === tab.value
+                  const cfg    = tab.value !== 'all' ? STATUS_CFG[tab.value as MasterStatus] : null
+                  return (
+                    <button
+                      key={tab.value}
+                      type="button"
+                      onClick={() => { setStatusTab(tab.value); setPage(1) }}
+                      className={cn(
+                        'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium transition-colors',
+                        active
+                          ? 'border-primary bg-primary text-primary-foreground shadow-sm'
+                          : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50',
+                      )}
+                    >
+                      {cfg && !active && <span className={cn('h-1.5 w-1.5 rounded-full', cfg.dot)} />}
+                      {tab.label}
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="relative min-w-[10rem] flex-1">
+                <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+                <Input
+                  value={search}
+                  onChange={e => { setSearch(e.target.value); setPage(1) }}
+                  placeholder="Search name, email, phone…"
+                  className="h-7 w-full pl-7 pr-2 text-xs"
+                />
+              </div>
             </div>
           </div>
         )
@@ -1725,118 +1829,120 @@ export default function MasterDataReport() {
 
       {/* ── Advanced filter panel ────────────────────────────────────────── */}
       {showAdvFilters && (
-        <div className="bg-white rounded-xl border border-primary/30 shadow-sm p-4 max-h-[90vh] overflow-y-auto">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
-              <Filter className="w-4 h-4 text-primary/70" />
+        <div
+          className={[
+            'max-h-[90vh] overflow-y-auto rounded-md border border-primary/30 bg-white px-1.5 py-1',
+            // ThemeSelect defaults to h-10 via .form-select — force compact height
+            '[&_.form-select]:!h-6 [&_.form-select]:!min-h-6 [&_.form-select]:!max-h-6 [&_.form-select]:!py-0',
+            '[&_.form-select]:!px-1.5 [&_.form-select]:!text-[11px] [&_.form-select]:!rounded [&_.form-select]:!leading-none',
+            '[&_.form-select_svg]:!h-3 [&_.form-select_svg]:!w-3',
+          ].join(' ')}
+        >
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <span className="flex items-center gap-1 text-[11px] font-semibold text-gray-700">
+              <Filter className="h-3 w-3 text-primary/70" />
               Advanced Filters
-              {advActive && <span className="text-xs bg-primary/15 text-primary font-bold px-1.5 py-0.5 rounded-full">active</span>}
+              {advActive && <span className="rounded-full bg-primary/15 px-1 py-px text-[10px] font-bold text-primary">active</span>}
             </span>
-            <div className="flex items-center gap-2">
-              <button onClick={() => { setAdvFilters(EMPTY_ADV); setPage(1) }}
-                className="text-xs text-red-500 hover:text-red-700 font-medium">Reset</button>
-              <div className="w-px h-4 bg-gray-200" />
+            <div className="flex items-center gap-1">
+              <button type="button" onClick={() => { setAdvFilters(EMPTY_ADV); setPage(1) }}
+                className="text-[11px] font-medium text-red-500 hover:text-red-700">Reset</button>
+              <div className="h-3 w-px bg-gray-200" />
               <button
+                type="button"
                 onClick={() => setShowAdvFilters(false)}
-                className="flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 px-2.5 py-1.5 rounded-lg transition-colors"
+                className="inline-flex h-5 items-center gap-0.5 rounded bg-gray-100 px-1.5 text-[11px] font-medium text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-800"
               >
-                <ChevronDown className="w-3.5 h-3.5" />
+                <ChevronDown className="h-3 w-3" />
                 Minimise
               </button>
             </div>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-            {/* Has Email */}
+          <div className="grid grid-cols-2 gap-x-1.5 gap-y-1 sm:grid-cols-4 lg:grid-cols-6">
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Has Email</label>
+              <label className="mb-px block text-[10px] font-medium leading-tight text-gray-500">Has Email</label>
               <Select
                 value={advFilters.hasEmail}
                 onChange={v => setAdv({ hasEmail: v as AdvFilters['hasEmail'] })}
                 options={YES_NO_ANY_OPTIONS}
-                className="text-xs"
+                className="h-6 text-[11px]"
               />
             </div>
-            {/* Has Phone */}
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Has Phone</label>
+              <label className="mb-px block text-[10px] font-medium leading-tight text-gray-500">Has Phone</label>
               <Select
                 value={advFilters.hasPhone}
                 onChange={v => setAdv({ hasPhone: v as AdvFilters['hasPhone'] })}
                 options={YES_NO_ANY_OPTIONS}
-                className="text-xs"
+                className="h-6 text-[11px]"
               />
             </div>
-            {/* Has GST */}
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Has GST / Tax ID</label>
+              <label className="mb-px block text-[10px] font-medium leading-tight text-gray-500">Has GST / Tax ID</label>
               <Select
                 value={advFilters.hasGst}
                 onChange={v => setAdv({ hasGst: v as AdvFilters['hasGst'] })}
                 options={YES_NO_ANY_OPTIONS}
-                className="text-xs"
+                className="h-6 text-[11px]"
               />
             </div>
-            {/* Credit Limit */}
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Credit Limit</label>
+              <label className="mb-px block text-[10px] font-medium leading-tight text-gray-500">Credit Limit</label>
               <Select
                 value={advFilters.creditLimit}
                 onChange={v => setAdv({ creditLimit: v as AdvFilters['creditLimit'] })}
                 options={CREDIT_LIMIT_OPTIONS}
-                className="text-xs"
+                className="h-6 text-[11px]"
               />
             </div>
-            {/* City / State */}
             <div className="col-span-2">
-              <label className="block text-xs font-medium text-gray-500 mb-1">City / State contains</label>
+              <label className="mb-px block text-[10px] font-medium leading-tight text-gray-500">City / State</label>
               <input type="text" value={advFilters.cityContains} onChange={e => setAdv({ cityContains: e.target.value })}
                 placeholder="e.g. Mumbai, Delhi…"
-                className="w-full text-xs border rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary" />
+                className="h-6 w-full rounded border bg-white px-1.5 text-[11px] leading-none focus:outline-none focus:ring-1 focus:ring-primary" />
             </div>
-            {/* Balance range */}
-            <div className="col-span-2">
-              <label className="block text-xs font-medium text-gray-500 mb-1">Balance Range (₹)</label>
-              <div className="flex items-center gap-1.5">
+            <div className="col-span-2 sm:col-span-2 lg:col-span-2">
+              <label className="mb-px block text-[10px] font-medium leading-tight text-gray-500">Balance (₹)</label>
+              <div className="flex items-center gap-0.5">
                 <input type="number" value={advFilters.balanceMin} onChange={e => setAdv({ balanceMin: e.target.value })}
-                  placeholder="Min" className="flex-1 text-xs border rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary" />
-                <span className="text-gray-300 text-xs">—</span>
+                  placeholder="Min" className="h-6 min-w-0 flex-1 rounded border bg-white px-1.5 text-[11px] leading-none focus:outline-none focus:ring-1 focus:ring-primary" />
+                <span className="text-[10px] text-gray-300">–</span>
                 <input type="number" value={advFilters.balanceMax} onChange={e => setAdv({ balanceMax: e.target.value })}
-                  placeholder="Max" className="flex-1 text-xs border rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary" />
+                  placeholder="Max" className="h-6 min-w-0 flex-1 rounded border bg-white px-1.5 text-[11px] leading-none focus:outline-none focus:ring-1 focus:ring-primary" />
               </div>
             </div>
-            {/* Total Orders range */}
-            <div className="col-span-2">
-              <label className="block text-xs font-medium text-gray-500 mb-1">Total Orders</label>
-              <div className="flex items-center gap-1.5">
+            <div className="col-span-2 sm:col-span-2 lg:col-span-2">
+              <label className="mb-px block text-[10px] font-medium leading-tight text-gray-500">Total Orders</label>
+              <div className="flex items-center gap-0.5">
                 <input type="number" value={advFilters.ordersMin} onChange={e => setAdv({ ordersMin: e.target.value })}
-                  placeholder="Min" className="flex-1 text-xs border rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary" />
-                <span className="text-gray-300 text-xs">—</span>
+                  placeholder="Min" className="h-6 min-w-0 flex-1 rounded border bg-white px-1.5 text-[11px] leading-none focus:outline-none focus:ring-1 focus:ring-primary" />
+                <span className="text-[10px] text-gray-300">–</span>
                 <input type="number" value={advFilters.ordersMax} onChange={e => setAdv({ ordersMax: e.target.value })}
-                  placeholder="Max" className="flex-1 text-xs border rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary" />
+                  placeholder="Max" className="h-6 min-w-0 flex-1 rounded border bg-white px-1.5 text-[11px] leading-none focus:outline-none focus:ring-1 focus:ring-primary" />
               </div>
             </div>
-            {/* Total Spent range */}
-            <div className="col-span-2">
-              <label className="block text-xs font-medium text-gray-500 mb-1">Total Spent (₹)</label>
-              <div className="flex items-center gap-1.5">
+            <div className="col-span-2 sm:col-span-2 lg:col-span-2">
+              <label className="mb-px block text-[10px] font-medium leading-tight text-gray-500">Total Spent (₹)</label>
+              <div className="flex items-center gap-0.5">
                 <input type="number" value={advFilters.spentMin} onChange={e => setAdv({ spentMin: e.target.value })}
-                  placeholder="Min" className="flex-1 text-xs border rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary" />
-                <span className="text-gray-300 text-xs">—</span>
+                  placeholder="Min" className="h-6 min-w-0 flex-1 rounded border bg-white px-1.5 text-[11px] leading-none focus:outline-none focus:ring-1 focus:ring-primary" />
+                <span className="text-[10px] text-gray-300">–</span>
                 <input type="number" value={advFilters.spentMax} onChange={e => setAdv({ spentMax: e.target.value })}
-                  placeholder="Max" className="flex-1 text-xs border rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary" />
+                  placeholder="Max" className="h-6 min-w-0 flex-1 rounded border bg-white px-1.5 text-[11px] leading-none focus:outline-none focus:ring-1 focus:ring-primary" />
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── Table + toolbar ─────────────────────────────────────────────── */}
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 bg-muted/25 px-3 py-2">
-          <div className="flex min-w-0 items-center gap-3 text-xs text-muted-foreground">
+      {/* ── Table + toolbar (compact, matches filter bar above) ──────────── */}
+      {/* No overflow-hidden on outer shell — it clips the Columns dropdown */}
+      <div className="rounded-md border border-gray-200 bg-white">
+        <div className="relative z-20 flex w-full flex-wrap items-center gap-1.5 overflow-visible border-b border-gray-200 bg-white px-2 py-1">
+          <div className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
             {selected.size > 0 && <span className="font-semibold text-primary">{selected.size} selected</span>}
             <span>
-              Showing <span className="font-semibold text-foreground">{filtered.length}</span> of {allRecords.length} records
+              Showing <span className="font-semibold text-foreground">{filtered.length}</span> of {allRecords.length}
             </span>
             {listsStillLoading && allRecords.length > 0 && (
               <span className="inline-flex items-center gap-1 text-muted-foreground">
@@ -1844,15 +1950,40 @@ export default function MasterDataReport() {
               </span>
             )}
           </div>
-          <div className="flex flex-wrap items-center gap-1.5">
+
+          <span className="hidden h-3.5 w-px shrink-0 bg-gray-200 sm:block" aria-hidden />
+
+          <span className="shrink-0 text-[11px] font-medium text-gray-500">Sort</span>
+          <Select
+            value={sortField}
+            onChange={v => { setSortField(v as SortField); setPage(1) }}
+            options={SORT_FIELD_OPTIONS}
+            aria-label="Sort by column"
+            className="h-7 text-xs"
+            wrapperClassName="w-[8rem] shrink-0"
+          />
+          <Select
+            value={sortDir}
+            onChange={v => setSortDir(v as SortDir)}
+            options={[
+              { value: 'asc', label: 'A → Z' },
+              { value: 'desc', label: 'Z → A' },
+            ]}
+            aria-label="Sort direction"
+            className="h-7 text-xs"
+            wrapperClassName="w-[5.75rem] shrink-0"
+            menuMinWidth={100}
+          />
+
+          <div className="ml-auto flex shrink-0 items-center gap-1">
             <button
               type="button"
               onClick={() => setShowColFilters(v => !v)}
               className={cn(
-                'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition-colors',
+                'inline-flex h-7 items-center gap-1 rounded-md border px-2 text-xs font-medium whitespace-nowrap transition-all',
                 showColFilters || colFilterActive
                   ? 'border-primary/40 bg-primary/10 text-primary'
-                  : 'border-border bg-card text-muted-foreground hover:border-primary/30 hover:bg-accent/50 hover:text-foreground',
+                  : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50',
               )}
             >
               <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1861,31 +1992,29 @@ export default function MasterDataReport() {
               Col Filters
               {colFilterActive && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
             </button>
-
             <button
               type="button"
               onClick={() => setShowAdvFilters(v => !v)}
               className={cn(
-                'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition-colors',
+                'inline-flex h-7 items-center gap-1 rounded-md border px-2 text-xs font-medium whitespace-nowrap transition-all',
                 showAdvFilters || advActive
                   ? 'border-primary/40 bg-primary/10 text-primary'
-                  : 'border-border bg-card text-muted-foreground hover:border-primary/30 hover:bg-accent/50 hover:text-foreground',
+                  : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50',
               )}
             >
               <Filter className="h-3.5 w-3.5" />
               Filters
               {advActive && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
             </button>
-
-            <div className="relative" ref={colPickerRef}>
+            <div className="relative z-30" ref={colPickerRef}>
               <button
                 type="button"
                 onClick={() => setShowColPicker(v => !v)}
                 className={cn(
-                  'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition-colors',
+                  'inline-flex h-7 items-center gap-1 rounded-md border px-2 text-xs font-medium whitespace-nowrap transition-all',
                   showColPicker
                     ? 'border-primary/40 bg-primary/10 text-primary'
-                    : 'border-border bg-card text-muted-foreground hover:border-primary/30 hover:bg-accent/50 hover:text-foreground',
+                    : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50',
                 )}
               >
                 <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1897,16 +2026,16 @@ export default function MasterDataReport() {
                 </span>
               </button>
               {showColPicker && (
-                <div className="absolute right-0 top-full z-30 mt-1 max-h-[90vh] w-52 overflow-y-auto rounded-xl border border-gray-200 bg-white p-3 shadow-lg">
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="text-xs font-medium text-gray-700">Show / Hide Columns</span>
+                <div className="absolute right-0 top-full z-50 mt-1 w-48 rounded-lg border border-gray-200 bg-white p-1.5 shadow-lg">
+                  <div className="mb-1 flex items-center justify-between px-1">
+                    <span className="text-[11px] font-medium text-gray-700">Columns</span>
                     <button type="button" onClick={() => setVisibleCols(DEFAULT_VISIBLE_COLS)}
-                      className="text-xs text-primary hover:underline">Reset</button>
+                      className="text-[11px] text-primary hover:underline">Reset</button>
                   </div>
-                  <div className="space-y-1">
+                  <div className="flex flex-col">
                     {ALL_COL_DEFS.map(col => (
                       <label key={col.key} className={cn(
-                        'flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-xs transition-colors',
+                        'flex cursor-pointer items-center gap-1.5 rounded px-1 py-0.5 text-[11px] leading-tight transition-colors',
                         col.locked ? 'cursor-not-allowed opacity-50' : 'hover:bg-gray-50',
                       )}>
                         <input type="checkbox"
@@ -1920,51 +2049,42 @@ export default function MasterDataReport() {
                               return n
                             })
                           }}
-                          className="rounded border-gray-300 text-primary focus:ring-primary"
+                          className="h-3 w-3 rounded border-gray-300 text-primary focus:ring-0"
                         />
-                        <span className="flex-1 text-gray-700">{col.label}</span>
-                        {col.locked && <span className="text-xs uppercase tracking-wide text-gray-400">locked</span>}
+                        <span className="min-w-0 flex-1 truncate text-gray-700">{col.label}</span>
+                        {col.locked && <span className="shrink-0 text-[9px] uppercase tracking-wide text-gray-400">lock</span>}
                       </label>
                     ))}
                   </div>
                 </div>
               )}
             </div>
-
-            <span className="mx-0.5 hidden h-4 w-px shrink-0 bg-border sm:block" aria-hidden />
-            <span className="hidden shrink-0 text-[11px] font-medium text-muted-foreground sm:inline">Sort</span>
-            <Select
-              value={sortField}
-              onChange={v => { setSortField(v as SortField); setPage(1) }}
-              options={SORT_FIELD_OPTIONS}
-              aria-label="Sort by column"
-              className="h-8 text-xs"
-              wrapperClassName="w-[7.5rem] shrink-0"
-            />
-            <Select
-              value={sortDir}
-              onChange={v => setSortDir(v as SortDir)}
-              options={[
-                { value: 'asc', label: 'A → Z' },
-                { value: 'desc', label: 'Z → A' },
-              ]}
-              aria-label="Sort direction"
-              className="h-8 text-xs"
-              wrapperClassName="w-[5.75rem] shrink-0"
-              menuMinWidth={100}
-            />
           </div>
         </div>
 
+<<<<<<< Updated upstream
         <div className="max-h-[90vh] overflow-y-auto">
         {showInitialLoading ? (
           <div className="flex items-center justify-center py-20 text-gray-400">
+=======
+        <div className="max-h-[min(55vh,28rem)] overflow-x-auto overflow-y-auto">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-10 text-gray-400">
+>>>>>>> Stashed changes
             <RefreshCw className="w-5 h-5 animate-spin mr-2" /> Loading master data…
           </div>
+        ) : loadError ? (
+          <div className="flex flex-col items-center justify-center py-10 text-gray-500 gap-2">
+            <p className="font-medium text-red-600">
+              Could not load {custError && suppError ? 'customers and vendors' : custError ? 'customers' : 'vendors'}.
+            </p>
+            <p className="text-sm text-gray-400">Some records may be missing from this list.</p>
+            <button onClick={retryLoad} className="text-sm text-primary hover:underline">Retry</button>
+          </div>
         ) : pageRows.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-gray-400 gap-2">
-            <Users className="w-10 h-10 opacity-30" />
-            <p className="font-medium">No records match the current filters</p>
+          <div className="flex flex-col items-center justify-center py-10 text-gray-400 gap-2">
+            <Users className="w-8 h-8 opacity-30" />
+            <p className="font-medium text-sm">No records match the current filters</p>
             <button onClick={() => { setSearch(''); setSelectedTypes(new Set()); setStatusTab('all'); setAdvFilters(EMPTY_ADV) }}
               className="text-sm text-primary hover:underline">Clear filters</button>
           </div>
@@ -1974,14 +2094,14 @@ export default function MasterDataReport() {
               <thead className="bg-gray-50 border-b border-gray-200">
                 {/* ── Column header row ── */}
                 <tr>
-                  <th className="pl-4 pr-2 py-3 w-9">
+                  <th className="w-8 py-1 pl-2 pr-1">
                     <input type="checkbox" checked={allSelected}
                       ref={el => { if (el) el.indeterminate = someSelected && !allSelected }}
                       onChange={toggleAll}
                       className="rounded border-gray-300 text-primary focus:ring-primary" />
                   </th>
                   {ALL_COL_DEFS.filter(c => visibleCols.has(c.key)).map(col => (
-                    <th key={col.key} className={`px-4 py-3 ${col.key === 'actions' ? 'text-right' : 'text-left'} text-xs font-medium uppercase tracking-wide text-gray-500`}>
+                    <th key={col.key} className={`px-2 py-1 ${col.key === 'actions' ? 'text-right' : 'text-left'} text-[11px] font-medium uppercase tracking-wide text-gray-500 whitespace-nowrap`}>
                       {col.sortable ? (
                         <button onClick={() => clickSort(col.sortable!)} className="flex items-center gap-1 hover:text-gray-800">
                           {col.label} <SortIcon field={col.sortable} />
@@ -1994,7 +2114,7 @@ export default function MasterDataReport() {
                 {/* ── Column filter input row ── */}
                 {showColFilters && (
                   <tr className="border-b border-primary/15 bg-primary/5">
-                    <td className="py-2 pl-4 pr-2">
+                    <td className="py-1 pl-2 pr-1">
                       {colFilterActive && (
                         <button type="button" aria-label="Clear column filters" onClick={() => { setColFilters({}); setPage(1) }} title="Clear column filters"
                           className="text-primary/70 hover:text-primary">
@@ -2005,7 +2125,7 @@ export default function MasterDataReport() {
                     {ALL_COL_DEFS.filter(c => visibleCols.has(c.key)).map(col => {
                       const filterable = ['name','type','contact','email','phone','company','city','taxId'].includes(col.key)
                       return (
-                        <td key={col.key} className="px-2 py-1.5">
+                        <td key={col.key} className="px-1.5 py-0.5">
                           {filterable ? (
                             <div className="relative">
                               <input
@@ -2014,7 +2134,7 @@ export default function MasterDataReport() {
                                 onChange={e => setColFilter(col.key, e.target.value)}
                                 placeholder={`Filter…`}
                                 className={cn(
-                                  'w-full rounded-md border px-2 py-1 pr-5 text-xs outline-none transition-colors focus:ring-2 focus:ring-primary/30',
+                                  'h-6 w-full rounded border px-1.5 pr-5 text-[11px] outline-none transition-colors focus:ring-1 focus:ring-primary/30',
                                   colFilters[col.key]?.trim()
                                     ? 'border-primary/40 bg-white text-gray-800'
                                     : 'border-gray-200 bg-white/70 text-gray-500 placeholder-gray-300',
@@ -2022,7 +2142,7 @@ export default function MasterDataReport() {
                               />
                               {colFilters[col.key]?.trim() && (
                                 <button type="button" aria-label="Clear" onClick={() => setColFilter(col.key, '')}
-                                  className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500">
+                                  className="absolute right-1 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500">
                                   <X className="h-3 w-3" />
                                 </button>
                               )}
@@ -2042,13 +2162,13 @@ export default function MasterDataReport() {
                       className="hover:bg-gray-50 transition-colors cursor-pointer"
                       onClick={onClickableTableRow(() => openDrawer(r))}>
 
-                      <td className="pl-4 pr-2 py-3" data-stop-row-click onClick={() => toggleRow(r.id)}>
+                      <td className="py-1.5 pl-2 pr-1" data-stop-row-click onClick={() => toggleRow(r.id)}>
                         <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggleRow(r.id)}
                           className="rounded border-gray-300 text-primary focus:ring-primary" />
                       </td>
 
                       {/* Name */}
-                      <td className="px-4 py-3">
+                      <td className="px-2 py-1.5">
                         <div className="flex items-center gap-2.5">
                           {(() => {
                             const storedAvatar = localStorage.getItem(`md_avatar_${r.id}`)
@@ -2070,12 +2190,12 @@ export default function MasterDataReport() {
                         const raw = r.raw as unknown as Record<string, unknown>
                         switch (col.key) {
                           case 'type': return (
-                            <td key="type" className="px-4 py-3">
+                            <td key="type" className="px-2 py-1.5">
                               <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${TYPE_COLORS[r.type] ?? getCustomTypeColor(r.type)}`}>{r.typeLabel}</span>
                             </td>
                           )
                           case 'contact': return (
-                            <td key="contact" className="px-4 py-3 text-sm text-gray-600">
+                            <td key="contact" className="px-2 py-1.5 text-sm text-gray-600">
                               <div className="space-y-0.5">
                                 {r.email && <p className="text-xs truncate max-w-[160px]">{r.email}</p>}
                                 {r.phone && <p className="text-xs text-gray-400">{r.phone}</p>}
@@ -2084,47 +2204,47 @@ export default function MasterDataReport() {
                             </td>
                           )
                           case 'email': return (
-                            <td key="email" className="px-4 py-3 text-xs text-gray-600">
+                            <td key="email" className="px-2 py-1.5 text-xs text-gray-600">
                               {r.email ? <a href={`mailto:${r.email}`} className="hover:text-primary hover:underline truncate max-w-[180px] block">{r.email}</a> : <span className="text-gray-300">—</span>}
                             </td>
                           )
                           case 'phone': return (
-                            <td key="phone" className="px-4 py-3 text-xs text-gray-600">
+                            <td key="phone" className="px-2 py-1.5 text-xs text-gray-600">
                               {r.phone ?? <span className="text-gray-300">—</span>}
                             </td>
                           )
                           case 'company': return (
-                            <td key="company" className="px-4 py-3 text-xs text-gray-600">
+                            <td key="company" className="px-2 py-1.5 text-xs text-gray-600">
                               {r.companyName ?? <span className="text-gray-300">—</span>}
                             </td>
                           )
                           case 'city': return (
-                            <td key="city" className="px-4 py-3 text-xs text-gray-600">
+                            <td key="city" className="px-2 py-1.5 text-xs text-gray-600">
                               {[raw.city as string, raw.state as string].filter(Boolean).join(', ') || <span className="text-gray-300">—</span>}
                             </td>
                           )
                           case 'taxId': return (
-                            <td key="taxId" className="px-4 py-3">
+                            <td key="taxId" className="px-2 py-1.5">
                               {r.taxId ? <span className="font-mono text-xs text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded">{r.taxId}</span> : <span className="text-xs text-gray-300">—</span>}
                             </td>
                           )
                           case 'balance': return (
-                            <td key="balance" className="px-4 py-3">
+                            <td key="balance" className="px-2 py-1.5">
                               {bal !== 0 ? <span className={`text-xs font-medium ${bal > 0 ? 'text-orange-600' : 'text-green-600'}`}>{formatCurrency(Math.abs(bal))} {bal > 0 ? 'Dr' : 'Cr'}</span> : <span className="text-xs text-gray-300">—</span>}
                             </td>
                           )
                           case 'totalOrders': return (
-                            <td key="totalOrders" className="px-4 py-3 text-xs text-gray-600 text-center">
+                            <td key="totalOrders" className="px-2 py-1.5 text-xs text-gray-600 text-center">
                               {r.totalOrders ?? <span className="text-gray-300">—</span>}
                             </td>
                           )
                           case 'totalSpent': return (
-                            <td key="totalSpent" className="px-4 py-3 text-xs text-gray-600">
+                            <td key="totalSpent" className="px-2 py-1.5 text-xs text-gray-600">
                               {r.totalSpent ? <span className="font-semibold text-primary">{formatCurrency(r.totalSpent)}</span> : <span className="text-gray-300">—</span>}
                             </td>
                           )
                           case 'status': return (
-                            <td key="status" className="px-4 py-3">
+                            <td key="status" className="px-2 py-1.5">
                               <div className="flex items-center gap-2.5">
                                 <StatusToggleSwitch
                                   active={r.isActive}
@@ -2141,10 +2261,10 @@ export default function MasterDataReport() {
                             </td>
                           )
                           case 'added': return (
-                            <td key="added" className="px-4 py-3 text-xs text-gray-500">{formatDate(r.createdAt)}</td>
+                            <td key="added" className="px-2 py-1.5 text-xs text-gray-500">{formatDate(r.createdAt)}</td>
                           )
                           case 'actions': return (
-                            <td key="actions" className="px-4 py-3 text-right">
+                            <td key="actions" className="px-2 py-1.5 text-right">
                               <div className="flex items-center justify-end gap-1">
                                 <button onClick={() => openDrawer(r)} title="View details"
                                   className="p-1.5 rounded-lg text-green-600 hover:text-green-700 hover:bg-green-50 transition-colors">
@@ -2177,8 +2297,13 @@ export default function MasterDataReport() {
         </div>
 
         {/* Pagination */}
+<<<<<<< Updated upstream
         {!showInitialLoading && totalPages > 1 && (
           <div className="flex items-center justify-between border-t border-gray-100 bg-gray-50/50 px-4 py-3">
+=======
+        {!isLoading && totalPages > 1 && (
+          <div className="flex items-center justify-between border-t border-gray-100 bg-gray-50/50 px-2 py-1.5">
+>>>>>>> Stashed changes
             <span className="text-xs text-gray-500">
               Page {page} of {totalPages} · {sorted.length} records
             </span>
@@ -2203,35 +2328,6 @@ export default function MasterDataReport() {
             </div>
           </div>
         )}
-      </div>
-
-      {/* ── Summary stats strip ──────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-        {sourceTabs.filter(t => t.value !== 'all').map(tab => {
-          const cnt   = allRecords.filter(r => r.type === tab.value).length
-          const activ = allRecords.filter(r => r.type === tab.value && r.isActive).length
-          const selected = selectedTypes.has(tab.value)
-          return (
-            <button
-              key={tab.value}
-              type="button"
-              onClick={() => { toggleType(tab.value); setPage(1) }}
-              className={cn(
-                'flex flex-col items-start rounded-xl border p-3 text-left transition-colors',
-                selected
-                  ? 'border-primary bg-primary/5 shadow-sm'
-                  : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50',
-              )}
-            >
-              <div className="mb-1.5 flex items-center gap-1.5">
-                <span className={selected ? 'text-primary' : 'text-gray-500'}>{tab.icon}</span>
-                <span className={cn('text-xs font-medium', selected ? 'text-primary' : 'text-gray-600')}>{tab.label}</span>
-              </div>
-              <p className="text-xl font-bold leading-none text-gray-900">{cnt}</p>
-              <p className="mt-1 text-xs text-gray-400">{activ} active</p>
-            </button>
-          )
-        })}
       </div>
 
       {/* ── Modals ───────────────────────────────────────────────────────── */}

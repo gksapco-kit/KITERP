@@ -26,6 +26,8 @@ class Customer(Base):
     full_name = Column(String(255), nullable=False)
     email = Column(String(255), nullable=True)
     phone = Column(String(20))
+    # Short human-readable code per vendor, e.g. C-0042 (UUID stays the primary key)
+    master_code = Column(String(20), nullable=True)
     linked_customer_id = Column(UUID(as_uuid=True), ForeignKey("customer.id"), nullable=True, index=True)
     password_hash = Column(String(255), nullable=False)
     # Password-reset OTP (mirrors user.verification_code)

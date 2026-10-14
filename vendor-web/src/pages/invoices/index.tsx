@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from 'react'
+import { usePersistedPageSize } from '@/hooks/usePersistedPageSize'
 import { createPortal } from 'react-dom'
 import { isDefaultManualVariantName } from '@/lib/productVariants'
 import { TableColumnLabel, CheckboxFieldLabel, FormColumnLabel } from '@/components/common/FieldLabel'
@@ -165,7 +166,7 @@ export default function InvoicesPage() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = usePersistedPageSize('invoices')
   const [typeFilter, setTypeFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [storeFilter, setStoreFilter] = useState('')
@@ -509,7 +510,7 @@ export default function InvoicesPage() {
               onPageChange={setPage}
               onPageSizeChange={setPageSize}
               itemLabel="invoices"
-              pageSizeOptions={[10, 15, 25, 50, 100]}
+              pageSizeOptions={[10, 15, 25, 50, 100, 500, 1000]}
               countSuffix={search ? ` matching "${search}"` : undefined}
             />
           )}

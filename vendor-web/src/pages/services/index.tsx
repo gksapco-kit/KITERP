@@ -1,4 +1,5 @@
 import { useMemo, useState, useRef, useEffect } from 'react'
+import { usePersistedPageSize } from '@/hooks/usePersistedPageSize'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import {
   CatalogFilterField,
@@ -150,7 +151,7 @@ export default function Services() {
   const navigate = useNavigate()
   const selectedStore = useVendorStore(s => s.selectedStore)
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = usePersistedPageSize('services')
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')

@@ -751,7 +751,7 @@ async def ai_generate_copy(
 @router.get("/me/platform-audit", response_model=VendorPlatformAuditListResponse)
 async def list_vendor_platform_audit(
     skip: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=100),
+    limit: int = Query(50, ge=1, le=1000),
     vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):

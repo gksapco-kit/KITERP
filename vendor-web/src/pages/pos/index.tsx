@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { usePersistedPageSize } from '@/hooks/usePersistedPageSize'
 import { SectionLabel } from '@/components/common/FieldLabel'
 import { FormColumnLabel } from '@/components/common/FieldLabel'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
@@ -367,7 +368,7 @@ export default function POS() {
 
   // History
   const [histPage, setHistPage] = useState(1)
-  const [histPageSize, setHistPageSize] = useState(10)
+  const [histPageSize, setHistPageSize] = usePersistedPageSize('pos.history')
   const [histSearch, setHistSearch] = useState('')
   const [histSortKey, setHistSortKey] = useState('created_at')
   const [histSortDir, setHistSortDir] = useState<SortDir>('desc')

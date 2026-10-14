@@ -124,7 +124,7 @@ async def ai_next_best(
 
 @router.get("/audit", response_model=PaginatedResponse)
 async def list_audit(
-    page: int = Query(1, ge=1), size: int = Query(50, ge=1, le=200),
+    page: int = Query(1, ge=1), size: int = Query(50, ge=1, le=1000),
     entity: Optional[str] = None, actor_id: Optional[UUID] = None,
     entity_id: Optional[UUID] = None,
     vu: VendorUser = Depends(require_permission("crm.audit.view")),

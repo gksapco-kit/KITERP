@@ -596,6 +596,8 @@ export interface ServiceAvailability {
 export interface Customer {
   id: string
   vendor_id: string
+  /** Short human-readable code, e.g. C-0042 */
+  master_code?: string | null
   full_name: string
   email?: string
   phone?: string
@@ -809,6 +811,7 @@ export interface Order {
   vendor_id: string
   customer_id: string
   customer_name?: string
+  customer_code?: string | null
   customer_email?: string
   customer_phone?: string
   items: OrderItem[]
@@ -1135,6 +1138,8 @@ export type PartyType = 'customer' | 'supplier' | 'employee' | 'partner' | 'cont
 export interface Supplier {
   id: string
   vendor_id: string
+  /** Short human-readable code, e.g. V-0007 / E-0001 */
+  master_code?: string | null
   name: string
   party_type: 'supplier' | 'employee' | 'partner' | 'contractor'
   contact_name?: string

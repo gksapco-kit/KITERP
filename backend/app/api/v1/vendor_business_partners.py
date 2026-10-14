@@ -72,9 +72,9 @@ async def create_business_partner(
     db: AsyncSession = Depends(get_db),
 ):
     svc = BusinessPartnerService(db)
-    identity = data.model_dump(exclude={"roles"})
+    identity = data.model_dump(exclude={"roles", "portal_password"})
     roles = [r.model_dump() for r in data.roles]
-    result = await svc.create(vendor_id, identity, roles)
+    result = await svc.create(vendor_id, identity, roles, portal_password=data.portal_password)
     return JSONResponse(content=result, status_code=201)
 
 

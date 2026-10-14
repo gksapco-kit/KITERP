@@ -470,7 +470,7 @@ async def barcode_lookup(
 @router.get("")
 async def list_products(
     page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=500),
+    size: int = Query(20, ge=1, le=1000),
     status: Optional[str] = Query(None),
     category: Optional[str] = Query(None),
     search: Optional[str] = Query(None),

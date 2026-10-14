@@ -40,6 +40,7 @@ const LOADERS: Record<string, () => Promise<unknown>> = {
   "/crm/tickets/:id": () => import("@/pages/crm/TicketDetail"),
   "/crm/workflows": () => import("@/pages/crm/Workflows"),
   "/customers/:id": () => import("@/pages/customers/CustomerDetail"),
+  "/suppliers/:id": () => import("@/pages/suppliers/SupplierDetail"),
   "/document-templates": () => import("@/pages/document-templates/index"),
   "/finance": () => import("@/pages/finance/index"),
   "/finance-integration": () => import("@/pages/controlling/FinanceIntegration"),

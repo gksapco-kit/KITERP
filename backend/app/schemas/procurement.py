@@ -116,6 +116,7 @@ class SupplierResponse(BaseModel):
 
     id: str
     vendor_id: str
+    master_code: Optional[str] = None
     name: str
     party_type: str = "supplier"
     contact_name: Optional[str] = None

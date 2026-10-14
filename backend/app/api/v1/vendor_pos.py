@@ -357,7 +357,7 @@ def _txn_history_row(t, customer_name, order_number, invoice_number) -> dict:
 @router.get("/transactions")
 async def list_vendor_transactions(
     page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=100),
+    size: int = Query(20, ge=1, le=1000),
     search: Optional[str] = Query(None),
     transaction_type: Optional[str] = Query(None),
     include_voided: bool = Query(False),

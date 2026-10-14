@@ -132,7 +132,7 @@ async def list_invoices(
     search: str = None,
     customer_id: str = None,
     open_only: bool = Query(False),
-    page: int = Query(1, ge=1), size: int = Query(20, ge=1, le=100),
+    page: int = Query(1, ge=1), size: int = Query(20, ge=1, le=1000),
     vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db),
 ):
     svc = InvoiceService(db)

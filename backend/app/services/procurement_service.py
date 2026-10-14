@@ -26,6 +26,7 @@ from app.services.store_resolver import get_default_store_id
 from app.services.procurement_org_context import resolve_po_org_context
 from app.utils.procurement_utils import next_doc_number
 from app.utils.gst_utils import split_gst_rate, is_intra_state, gstin_state_code
+from app.services.master_code import allocate_master_code
 
 log = logging.getLogger(__name__)
 
@@ -169,6 +170,11 @@ class SupplierService:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=f"A supplier named '{duplicate.name}' already exists for this business",
+            )
+        if not data.get("master_code"):
+            party_type = data.get("party_type") or "supplier"
+            data["master_code"] = await allocate_master_code(
+                self.db, vendor_id, Supplier, party_type
             )
         supplier = Supplier(vendor_id=vendor_id, **data)
         self.db.add(supplier)

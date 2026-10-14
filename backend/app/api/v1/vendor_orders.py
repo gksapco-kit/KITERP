@@ -122,6 +122,7 @@ def _order_to_dict(order: Order) -> dict:
         "customer_id": _safe(order.customer_id),
         # Customer details
         "customer_name": customer.full_name if customer else None,
+        "customer_code": customer.master_code if customer else None,
         "customer_email": customer.email if customer else None,
         "customer_phone": customer.phone if customer else None,
         # Items
@@ -490,7 +491,7 @@ async def create_vendor_order(
 @router.get("")
 async def list_orders(
     page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=200),
+    size: int = Query(20, ge=1, le=1000),
     status_filter: Optional[str] = Query(None, alias="status"),
     source: Optional[str] = Query(None),
     search: Optional[str] = None,

@@ -1,4 +1,5 @@
 import { Fragment, useState } from 'react'
+import { usePersistedPageSize } from '@/hooks/usePersistedPageSize'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -11,7 +12,7 @@ import { onClickableTableRow } from '@/lib/clickableTableRow'
 
 export default function AuditPage() {
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = usePersistedPageSize('crm.audit')
   const [entity, setEntity] = useState('')
   const [action, setAction] = useState('')
   const [open, setOpen] = useState<string | null>(null)

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { usePersistedPageSize } from '@/hooks/usePersistedPageSize'
 import { SectionLabel } from '@/components/common/FieldLabel'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useSearchParams } from 'react-router-dom'
@@ -492,7 +493,7 @@ export default function ContactsPage() {
   const initialType = (searchParams.get('type') === 'company' ? 'company' : searchParams.get('type') === 'person' ? 'person' : '') as RecordFilter
 
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = usePersistedPageSize('crm.contacts')
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [typeFilter, setTypeFilter] = useState<RecordFilter>(initialType)

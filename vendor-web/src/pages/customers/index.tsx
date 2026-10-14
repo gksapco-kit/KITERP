@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { usePersistedPageSize } from '@/hooks/usePersistedPageSize'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useNavigate } from 'react-router-dom'
@@ -317,7 +318,7 @@ function CreateCustomerModal({ onClose }: { onClose: () => void }) {
 export default function Customers() {
   const navigate = useNavigate()
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = usePersistedPageSize('customers')
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [showCreate, setShowCreate] = useState(false)

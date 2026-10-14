@@ -309,7 +309,7 @@ async def list_purchase_orders(
     supplier_id: Optional[str] = None,
     pending_my_approval: bool = Query(False),
     page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=200),
+    size: int = Query(20, ge=1, le=1000),
     vendor_id: UUID = Depends(get_current_vendor_id),
     vendor_user: VendorUser = Depends(get_current_vendor_user),
     db: AsyncSession = Depends(get_db),

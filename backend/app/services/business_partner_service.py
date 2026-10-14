@@ -22,6 +22,7 @@ from app.models.customer import Customer
 from app.models.procurement import Supplier
 from app.repositories.business_partner_repo import BusinessPartnerRepository
 from app.services.sms_service import is_valid_e164, normalize_e164
+from app.services.master_code import allocate_master_code
 
 # Roles that map to the supplier table
 _SUPPLIER_PARTY_TYPES = {"vendor", "employee", "partner", "contractor"}
@@ -94,20 +95,24 @@ class BusinessPartnerService:
         bp: BusinessPartner,
         customer_group: Optional[str] = None,
         sales_area_id: Optional[UUID] = None,
+        portal_password: Optional[str] = None,
     ) -> Customer:
         """Create a Customer row seeded from the BP identity.
 
         `customer_group` (retail/wholesale/distributor/agent/dealer/…) drives which
         "party" price rules apply for this customer at checkout/POS — sourced from
         the customer role's `attributes.customer_group`.
+        `portal_password`, when provided, overrides the default (phone / Welcome@123).
         """
-        raw_password = bp.phone or "Welcome@123"
+        raw_password = portal_password or bp.phone or "Welcome@123"
         password_hash = await asyncio.to_thread(get_password_hash, raw_password)
+        master_code = await allocate_master_code(self.db, vendor_id, Customer, "customer")
         customer = Customer(
             vendor_id=vendor_id,
             full_name=bp.name,
             email=(bp.email or "").strip().lower() or None,
             phone=bp.phone,
+            master_code=master_code,
             password_hash=password_hash,
             gstin=bp.gstin,
             pan_number=bp.pan_number,
@@ -134,6 +139,7 @@ class BusinessPartnerService:
     ) -> Supplier:
         """Create a Supplier row seeded from the BP identity."""
         addr = bp.address or {}
+        master_code = await allocate_master_code(self.db, vendor_id, Supplier, party_type)
         supplier = Supplier(
             vendor_id=vendor_id,
             party_type=party_type,
@@ -141,6 +147,7 @@ class BusinessPartnerService:
             contact_name=bp.contact_name,
             email=bp.email,
             phone=bp.phone,
+            master_code=master_code,
             address=addr,
             gstin=bp.gstin,
             pan_number=bp.pan_number,
@@ -179,10 +186,12 @@ class BusinessPartnerService:
         vendor_id: UUID,
         data: dict,
         roles: List[dict],
+        portal_password: Optional[str] = None,
     ) -> dict:
         """
         Create a new BusinessPartner and provision each requested role.
         `roles` is a list of {role: str, attributes: dict|None}.
+        `portal_password`, when provided, overrides the default customer login password.
         Raises 409 on duplicate (same name/phone/email/GSTIN already has a BP).
         """
         if data.get("phone"):
@@ -215,7 +224,10 @@ class BusinessPartnerService:
         await self.repo.create(bp)
 
         for role_data in roles:
-            await self._add_role_internal(vendor_id, bp, role_data["role"], role_data.get("attributes"))
+            await self._add_role_internal(
+                vendor_id, bp, role_data["role"], role_data.get("attributes"),
+                portal_password=portal_password,
+            )
 
         await self.db.commit()
         await self.db.refresh(bp)
@@ -245,6 +257,7 @@ class BusinessPartnerService:
         bp: BusinessPartner,
         role: str,
         attributes: Optional[dict],
+        portal_password: Optional[str] = None,
     ) -> BusinessPartnerRole:
         customer_id = None
         supplier_id = None
@@ -272,6 +285,7 @@ class BusinessPartnerService:
                 bp,
                 customer_group=attrs.get("customer_group"),
                 sales_area_id=sa_uuid,
+                portal_password=portal_password,
             )
             customer_id = c.id
         else:

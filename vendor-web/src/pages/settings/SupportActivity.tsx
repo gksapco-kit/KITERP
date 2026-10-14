@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { usePersistedPageSize } from '@/hooks/usePersistedPageSize'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
@@ -33,7 +34,7 @@ function formatDetail(detail: Record<string, unknown> | null | undefined): strin
 
 export default function SupportActivityPage() {
   const [page, setPage] = useState(0)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = usePersistedPageSize('settings.supportActivity')
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['vendor-platform-audit', page, pageSize],

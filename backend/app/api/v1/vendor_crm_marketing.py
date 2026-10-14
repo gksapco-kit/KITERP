@@ -174,7 +174,7 @@ async def test_template(
 
 @router.get("/campaigns", response_model=PaginatedResponse)
 async def list_campaigns(
-    page: int = Query(1, ge=1), size: int = Query(20, ge=1, le=100),
+    page: int = Query(1, ge=1), size: int = Query(20, ge=1, le=1000),
     vu: VendorUser = Depends(require_permission("crm.view")),
     db: AsyncSession = Depends(get_db),
 ):

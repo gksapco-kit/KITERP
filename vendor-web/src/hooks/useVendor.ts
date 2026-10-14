@@ -1402,6 +1402,14 @@ export function useSuppliers(params?: Record<string, unknown>) {
   })
 }
 
+export function useSupplier(id: string) {
+  return useQuery({
+    queryKey: ['vendor', 'supplier', id],
+    queryFn: () => vendorApi.getSupplier(id),
+    enabled: !!id,
+  })
+}
+
 export function useCreateSupplier() {
   const qc = useQueryClient()
   return useMutation({

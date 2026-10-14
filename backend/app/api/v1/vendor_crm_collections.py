@@ -74,7 +74,7 @@ def _credit_payload(row: CrmCreditControl) -> dict:
 @router.get("/payment-followups", response_model=PaginatedResponse)
 async def list_payment_followups(
     page: int = Query(1, ge=1),
-    size: int = Query(50, ge=1, le=200),
+    size: int = Query(50, ge=1, le=1000),
     q: Optional[str] = None,
     status_filter: Optional[str] = Query(None, alias="status"),
     priority: Optional[str] = None,
@@ -196,7 +196,7 @@ async def delete_payment_followup(
 @router.get("/credit-control", response_model=PaginatedResponse)
 async def list_credit_controls(
     page: int = Query(1, ge=1),
-    size: int = Query(50, ge=1, le=200),
+    size: int = Query(50, ge=1, le=1000),
     q: Optional[str] = None,
     status_filter: Optional[str] = Query(None, alias="status"),
     payment_blocked: Optional[bool] = None,
@@ -648,7 +648,7 @@ async def list_sales_area_dues(
     min_due: Optional[Decimal] = Query(None),
     as_of: Optional[date] = Query(None),
     page: int = Query(1, ge=1),
-    size: int = Query(50, ge=1, le=200),
+    size: int = Query(50, ge=1, le=1000),
     vu: VendorUser = Depends(require_permission("crm.view")),
     db: AsyncSession = Depends(get_db),
 ):

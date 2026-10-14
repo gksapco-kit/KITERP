@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { usePersistedPageSize } from '@/hooks/usePersistedPageSize'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -282,7 +283,7 @@ function ActivityForm({ onClose }: { onClose: () => void }) {
 
 export default function ActivitiesPage() {
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = usePersistedPageSize('crm.activities')
   const [type, setType] = useState('')
   const [status, setStatus] = useState('open')
   const [showCreate, setShowCreate] = useState(false)

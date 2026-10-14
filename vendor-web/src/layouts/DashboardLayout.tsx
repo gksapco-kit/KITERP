@@ -704,6 +704,8 @@ const allSections: NavSection[] = [
     icon: Database,
     items: [
       { to: '/master-data', icon: PieChart, label: 'Master Data — Customers & Suppliers', labelSize: 'text-sm', requiresPermission: 'masterdata.view' },
+      { to: '/master-data/groups', icon: Tag, label: 'Business Partner Groups', requiresPermission: 'masterdata.view' },
+      { to: '/master-data/roles', icon: ShieldCheck, label: 'Business Partner Roles', requiresPermission: 'masterdata.view' },
     ],
   },
   {
@@ -1338,6 +1340,8 @@ const pageTitles: Record<string, string> = {
   '/projects': 'Projects',
   '/notifications': 'Notifications',
   '/master-data': 'Master Data — Customers / Suppliers',
+  '/master-data/groups': 'Business Partner Groups',
+  '/master-data/roles': 'Business Partner Roles',
   '/reviews': 'Reviews',
   '/reports': 'Reports',
   '/storefront-builder': 'Business Website Builder',

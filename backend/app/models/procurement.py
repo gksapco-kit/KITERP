@@ -23,6 +23,8 @@ class Supplier(Base):
     contact_name = Column(String(255))
     email = Column(String(255))
     phone = Column(String(30))
+    # Short human-readable code per vendor, e.g. V-0007 / E-0001 (UUID stays the PK)
+    master_code = Column(String(20), nullable=True)
     address = Column(JSONB, default={})
     notes = Column(Text)
     is_active = Column(Boolean, default=True)

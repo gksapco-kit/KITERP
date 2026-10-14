@@ -77,6 +77,7 @@ import { BusinessUnitScopePicker, type StoreScope } from '@/components/common/Bu
 import type { FormSectionDef } from '@/components/common/FormSectionNav'
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard'
 import { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo } from 'react'
+import { usePersistedPageSize } from '@/hooks/usePersistedPageSize'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { isAxiosError } from 'axios'
@@ -2689,7 +2690,7 @@ export default function ProductForm() {
   const [confirmDeleteVariant, setConfirmDeleteVariant] = useState<number | null>(null)
   const [scrollToVariantIndex, setScrollToVariantIndex] = useState<number | null>(null)
   const [variantsPage, setVariantsPage] = useState(1)
-  const [variantsPageSize, setVariantsPageSize] = useState(10)
+  const [variantsPageSize, setVariantsPageSize] = usePersistedPageSize('productForm.variants')
 
   // ── Merchandising state ──
   type MerchMapping = { target_type: 'product' | 'category'; target_product_id: string; target_category: string; relation_type: 'cross_sell' | 'upsell'; bundle_id?: string; trigger_stage: 'PDP' | 'CART' | 'CHECKOUT'; priority: number }
@@ -5237,7 +5238,7 @@ export default function ProductForm() {
                   onPageSizeChange={setVariantsPageSize}
                   itemLabel="variants"
                   rowsPerPageLabel="Variants per page"
-                  pageSizeOptions={[5, 10, 25, 50, 100]}
+                  pageSizeOptions={[5, 10, 25, 50, 100, 500, 1000]}
                   className="rounded-lg border bg-muted/20 px-3 py-2"
                 />
                 )}

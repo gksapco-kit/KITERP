@@ -105,7 +105,7 @@ async def delete_account(
 
 @router.get("/contacts", response_model=PaginatedResponse)
 async def list_contacts(
-    page: int = Query(1, ge=1), size: int = Query(20, ge=1, le=200),
+    page: int = Query(1, ge=1), size: int = Query(20, ge=1, le=1000),
     q: Optional[str] = None, account_id: Optional[UUID] = None,
     owner_id: Optional[UUID] = None, stage: Optional[str] = None,
     tag: Optional[str] = None, record_type: Optional[str] = None,
@@ -166,7 +166,7 @@ async def delete_contact(
 
 @router.get("/leads", response_model=PaginatedResponse)
 async def list_leads(
-    page: int = Query(1, ge=1), size: int = Query(20, ge=1, le=100),
+    page: int = Query(1, ge=1), size: int = Query(20, ge=1, le=1000),
     q: Optional[str] = None, status_: Optional[str] = Query(None, alias="status"),
     source: Optional[str] = None, assigned_to: Optional[UUID] = None,
     rating: Optional[str] = None,
@@ -455,7 +455,7 @@ async def delete_deal(
 
 @router.get("/activities", response_model=PaginatedResponse)
 async def list_activities(
-    page: int = Query(1, ge=1), size: int = Query(20, ge=1, le=100),
+    page: int = Query(1, ge=1), size: int = Query(20, ge=1, le=1000),
     owner_id: Optional[UUID] = None,
     status_: Optional[str] = Query(None, alias="status"),
     type_: Optional[str] = Query(None, alias="type"),

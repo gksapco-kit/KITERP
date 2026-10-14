@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { usePersistedPageSize } from '@/hooks/usePersistedPageSize'
 import { useQuery } from '@tanstack/react-query'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Card, CardContent } from '@/components/ui/card'
@@ -273,7 +274,7 @@ function FollowupForm({
 
 export default function PaymentFollowupsPage() {
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = usePersistedPageSize('crm.paymentFollowups')
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [status, setStatus] = useState('open')

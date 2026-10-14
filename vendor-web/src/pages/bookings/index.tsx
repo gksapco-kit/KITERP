@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { usePersistedPageSize } from '@/hooks/usePersistedPageSize'
 import { FieldLabel, TableColumnLabel } from '@/components/common/FieldLabel'
 import { SalesScopeFilters } from '@/components/common/SalesScopeFilters'
 import { SalesAreaSelect } from '@/components/common/SalesAreaSelect'
@@ -345,7 +346,7 @@ export default function BookingsPage() {
   const qc = useQueryClient()
   const navigate = useNavigate()
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = usePersistedPageSize('bookings')
   const [statusFilter, setStatusFilter] = useState('')
   const [listStoreFilter, setListStoreFilter] = useState('')
   const [listBranchFilter, setListBranchFilter] = useState('')

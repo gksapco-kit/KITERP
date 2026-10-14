@@ -120,9 +120,10 @@ class OrderRepository(BaseRepository[Order]):
             count_query = count_query.where(Order.sales_area_id == sales_area_id)
 
         if search:
-            like = f"%{search}%"
+            like = f"%{search.strip()}%"
             search_filter = or_(
                 Order.order_number.ilike(like),
+                cust.master_code.ilike(like),
                 cust.full_name.ilike(like),
                 cust.email.ilike(like),
                 cust.phone.ilike(like),

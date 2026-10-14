@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 
-export const TABLE_PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const
+export const TABLE_PAGE_SIZE_OPTIONS = [10, 25, 50, 100, 500, 1000] as const
 
 export type TablePaginationProps = {
   page: number

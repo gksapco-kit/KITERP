@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { usePersistedPageSize } from '@/hooks/usePersistedPageSize'
 import { Link } from 'react-router-dom'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Card, CardContent } from '@/components/ui/card'
@@ -470,7 +471,7 @@ function CampaignForm({
 export default function CampaignsPage() {
   const qc = useQueryClient()
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = usePersistedPageSize('crm.campaigns')
   const [showCreate, setShowCreate] = useState(false)
   const [edit, setEdit] = useState<Campaign | null>(null)
   const [fromTemplate, setFromTemplate] = useState<EmailTemplate | null>(null)

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { usePersistedPageSize } from '@/hooks/usePersistedPageSize'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -106,7 +107,7 @@ function KbForm({ article, onClose }: { article?: KbArticle; onClose: () => void
 
 export default function KnowledgeBasePage() {
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = usePersistedPageSize('crm.knowledgeBase')
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [edit, setEdit] = useState<KbArticle | null>(null)

@@ -27,6 +27,7 @@ from app.services.vendor_service import VendorService
 from app.repositories.customer_repo import CustomerRepository
 from app.repositories.order_repo import OrderRepository
 from app.utils.validators import validate_gstin
+from app.services.master_code import allocate_master_code
 
 router = APIRouter(dependencies=[Depends(require_permission("customers.view"))])
 _log = logging.getLogger(__name__)
@@ -217,6 +218,7 @@ def _customer_dict(customer: Customer) -> dict:
     return {
         "id": str(customer.id),
         "vendor_id": str(customer.vendor_id),
+        "master_code": getattr(customer, "master_code", None),
         "full_name": customer.full_name,
         "email": customer.email,
         "phone": customer.phone,
@@ -408,12 +410,14 @@ async def create_customer(
 
     raw_password = data.password or phone or "Welcome@123"
     password_hash = await asyncio.to_thread(get_password_hash, raw_password)
+    master_code = await allocate_master_code(db, vendor_id, Customer, "customer")
 
     customer = Customer(
         vendor_id=vendor_id,
         full_name=data.full_name.strip(),
         email=email,
         phone=phone,
+        master_code=master_code,
         linked_customer_id=linked_customer_id,
         password_hash=password_hash,
         shipping_addresses=data.shipping_addresses or [],

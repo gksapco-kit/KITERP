@@ -1,5 +1,9 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react'
+<<<<<<< Updated upstream
 import { useQueryClient } from '@tanstack/react-query'
+=======
+import { usePersistedPageSize } from '@/hooks/usePersistedPageSize'
+>>>>>>> Stashed changes
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
@@ -273,7 +277,7 @@ export default function Products() {
   const queryClient = useQueryClient()
   const selectedStore = useVendorStore(s => s.selectedStore)
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = usePersistedPageSize('products')
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [status, setStatus] = useState('')

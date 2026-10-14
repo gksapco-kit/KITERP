@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef, Fragment } from 'react'
+import { usePersistedPageSize } from '@/hooks/usePersistedPageSize'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useVendorStore } from '@/stores/vendorStore'
@@ -80,7 +81,7 @@ export default function Inventory() {
   const [tab, setTab] = useState<Tab>('summary')
   const [modal, setModal] = useState<ModalState>({ type: null })
   const [historyPage, setHistoryPage] = useState(1)
-  const [historyPageSize, setHistoryPageSize] = useState(10)
+  const [historyPageSize, setHistoryPageSize] = usePersistedPageSize('inventory.history')
   const [historyProductFilter, setHistoryProductFilter] = useState('')
   const [showBulkUpload, setShowBulkUpload] = useState(false)
   const [selectedStoreId, setSelectedStoreId] = useState<string>(selectedStore?.id ?? 'all')
@@ -482,7 +483,7 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
   const [sk, setSk] = useState('product_name')
   const [sd, setSd] = useState<SortDir>('asc')
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = usePersistedPageSize('inventory.summary')
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
   const [viewMode, setViewMode] = useState<'product' | 'variant'>(() => {
     try {
@@ -1582,7 +1583,7 @@ function HistoryTab({ data, loading, page, setPage, pageSize, setPageSize, produ
           onPageChange={setPage}
           onPageSizeChange={setPageSize}
           itemLabel="records"
-          pageSizeOptions={[10, 15, 25, 50, 100]}
+          pageSizeOptions={[10, 15, 25, 50, 100, 500, 1000]}
           className="rounded-lg border bg-card"
         />
       )}
@@ -1762,7 +1763,7 @@ function LowStockTab({ data, loading, selectedStoreId, onAction, onViewHistory, 
   const [sk, setSk] = useState('shortage')
   const [sd, setSd] = useState<SortDir>('desc')
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = usePersistedPageSize('inventory.lowStock')
 
   const rows = useMemo(() => {
     if (!data?.items?.length) return []
