@@ -22,6 +22,15 @@ from app.schemas.vendor_product import (
     ProductCreate, ProductUpdate, ProductResponse, ProductListResponse,
     PriceRuleCreate, PriceRuleUpdate, PriceRuleResponse,
 )
+from app.models.inventory import InventoryMovement
+from app.services.shared_stock import (
+    base_per_selling_unit,
+    reconcile_stock_mode,
+    resolved_base_kg,
+    sellable_units,
+    shared_pool_unit,
+    uses_shared_weight_stock,
+)
 from app.services.vendor_service import VendorService
 from app.repositories.product_repo import ProductRepository
 from app.services.media_upload import save_media_file, detect_media_type
@@ -122,6 +131,10 @@ def _shared_variant_limit(product, field: str):
 
 def _product_to_dict(p) -> dict:
     """Serialize a Product model to JSON-compatible dict."""
+    variant_models = list(getattr(p, "variants", None) or [])
+    shared = uses_shared_weight_stock(getattr(p, "shared_stock", None), variant_models)
+    base_kg = resolved_base_kg(p, variant_models) if shared else None
+    pool_unit = shared_pool_unit(variant_models, getattr(p, "stock_uom", None)) if shared else None
     return {
         "id": str(p.id),
         "vendor_id": str(p.vendor_id),
@@ -162,6 +175,15 @@ def _product_to_dict(p) -> dict:
         "barcode": p.barcode,
         "track_inventory": p.track_inventory if p.track_inventory is not None else True,
         "quantity": p.quantity or 0,
+        # Effective mode: True = one stock balance for the whole product,
+        # False = each variant keeps its own count.
+        "shared_stock": shared,
+        # Raw setting saved on the product (None = decided automatically).
+        "shared_stock_setting": getattr(p, "shared_stock", None),
+        # UOM chosen for the product-level balance (None = automatic: kg or units).
+        "stock_uom": getattr(p, "stock_uom", None),
+        "base_quantity": float(base_kg) if base_kg is not None else None,
+        "base_uom": pool_unit,
         "low_stock_threshold": p.low_stock_threshold or 5,
         "reorder_point": p.reorder_point,
         "reorder_quantity": p.reorder_quantity,
@@ -259,6 +281,13 @@ def _product_to_dict(p) -> dict:
                 "id": str(v.id), "name": v.name, "sku": v.sku, "barcode": v.barcode,
                 "uom": v.uom or "piece",
                 "uom_quantity": _num(v.uom_quantity),
+                "kg_per_unit": (
+                    float(base_per_selling_unit(pool_unit, v.uom, v.uom_quantity, v.weight_kg)) if shared else None
+                ),
+                "remaining_units": (
+                    sellable_units(base_kg, base_per_selling_unit(pool_unit, v.uom, v.uom_quantity, v.weight_kg))
+                    if shared and base_kg is not None else None
+                ),
                 "price_type": v.price_type or "per_unit",
                 "price": _num(v.price) or 0,
                 "compare_at_price": _num(v.compare_at_price),
@@ -289,6 +318,7 @@ def _product_to_dict(p) -> dict:
                 "reorder_quantity": v.reorder_quantity,
                 "allow_backorders": v.allow_backorders or False,
                 "track_inventory": v.track_inventory if v.track_inventory is not None else True,
+                "is_pos_only": bool(getattr(v, "is_pos_only", False)),
                 "max_quantity_per_order": v.max_quantity_per_order,
                 "min_quantity_per_order": v.min_quantity_per_order,
                 "weight_kg": _num(v.weight_kg),
@@ -373,6 +403,7 @@ def _build_variant(product_id, vc) -> ProductVariant:
         reorder_quantity=g("reorder_quantity"),
         allow_backorders=backorders,
         track_inventory=track,
+        is_pos_only=bool(g("is_pos_only") or False),
         max_quantity_per_order=g("max_quantity_per_order"),
         min_quantity_per_order=g("min_quantity_per_order"),
         weight_kg=g("weight_kg"),
@@ -524,6 +555,88 @@ async def _save_product_image(file: UploadFile) -> tuple[str, str]:
     return url, media
 
 
+async def _apply_stock_mode(
+    db: AsyncSession,
+    product: Product,
+    *,
+    prev_shared: bool,
+    prev_quantity: int,
+    payload_quantity: Optional[int],
+    user_id: UUID | None,
+    log_movement: bool,
+    prev_pool: str | None = None,
+) -> None:
+    """Make the product's stock follow its "stock at product level / variant level" setting.
+
+    Product level: product.base_quantity is the single balance every variant draws from,
+                   counted in product.stock_uom.
+    Variant level: each variant keeps its own quantity and the balance is cleared.
+    """
+    await db.flush()
+    variants = list((await db.execute(
+        select(ProductVariant).where(ProductVariant.product_id == product.id)
+    )).scalars().all())
+    now_shared = uses_shared_weight_stock(getattr(product, "shared_stock", None), variants)
+    pool = shared_pool_unit(variants, getattr(product, "stock_uom", None)) if now_shared else None
+    base, qty = reconcile_stock_mode(
+        prev_shared=prev_shared,
+        now_shared=now_shared,
+        prev_quantity=prev_quantity,
+        payload_quantity=payload_quantity,
+        stored_base=getattr(product, "base_quantity", None),
+        variants=variants,
+        prev_pool=prev_pool,
+        pool=pool,
+    )
+    if now_shared:
+        if base is None:
+            return
+        product.base_quantity = base
+    else:
+        product.base_quantity = None
+
+    if qty is None:
+        return
+    product.quantity = qty
+    product.stock_status = _effective_stock_status(
+        quantity=qty,
+        stock_status=product.stock_status,
+        track_inventory=product.track_inventory,
+        allow_backorders=product.allow_backorders,
+        low_stock_threshold=product.low_stock_threshold,
+    )
+
+    mode_changed = prev_shared != now_shared
+    uom_changed = bool(now_shared and prev_shared and prev_pool and pool and prev_pool != pool)
+    if log_movement and (mode_changed or uom_changed or qty != prev_quantity):
+        if mode_changed:
+            reason = (
+                f"Stock now maintained at product level in {pool}"
+                if now_shared else "Stock now maintained at variant level"
+            )
+        elif uom_changed:
+            reason = f"Product stock UOM changed from {prev_pool} to {pool}"
+        else:
+            reason = "Product stock updated"
+        db.add(InventoryMovement(
+            id=uuid_mod.uuid4(),
+            vendor_id=product.vendor_id,
+            product_id=product.id,
+            movement_type="adjustment",
+            quantity=qty - prev_quantity,
+            quantity_before=prev_quantity,
+            quantity_after=qty,
+            reason=reason,
+            reference_type="manual",
+            performed_by=user_id,
+            extra_data={
+                "stock_level": "product" if now_shared else "variant",
+                "shared_stock": now_shared,
+                "base_uom": pool,
+            },
+        ))
+
+
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_product(
     product_data: str = Form(...),
@@ -556,6 +669,9 @@ async def create_product(
         slug = f"{slug}-{str(uuid_mod.uuid4())[:8]}"
 
     fields = data.model_dump(exclude={"slug", "variants", "store_ids"})
+    fields["stock_uom"] = (fields.get("stock_uom") or "").strip() or None
+    if not fields.get("shared_stock"):
+        fields["stock_uom"] = None  # only meaningful for product-level stock
     store_scope = fields.pop("store_scope", "all") or "all"
     store_ids = data.store_ids or []
     fields["store_scope"] = store_scope
@@ -594,6 +710,15 @@ async def create_product(
         db.add(_build_variant(product.id, vc))
     if data.variants:
         await db.flush()
+        if data.shared_stock is not None:
+            await _apply_stock_mode(
+                db, product,
+                prev_shared=False,
+                prev_quantity=0,
+                payload_quantity=int(product.quantity or 0),
+                user_id=current_user.id,
+                log_movement=False,
+            )
 
     media_items: list[tuple[str, str]] = []
     for img_file in images:
@@ -714,6 +839,10 @@ async def update_product(
         )
 
     update_data = data.model_dump(exclude_unset=True)
+    if "stock_uom" in update_data:
+        update_data["stock_uom"] = (update_data.get("stock_uom") or "").strip() or None
+    if update_data.get("shared_stock") is False:
+        update_data["stock_uom"] = None  # variant-level stock has no product stock UOM
     variants_replaced = "variants" in update_data
     variants_payload = update_data.pop("variants", None)
     store_ids_payload = update_data.pop("store_ids", None)
@@ -842,6 +971,16 @@ async def update_product(
         existing_history.append(history_entry)
         product.change_history = existing_history
 
+    # Remember the stock mode before this save so a product/variant-level switch can be handled.
+    prev_shared = uses_shared_weight_stock(
+        getattr(product, "shared_stock", None), list(product.variants or []),
+    )
+    prev_quantity = int(product.quantity or 0)
+    prev_pool = (
+        shared_pool_unit(list(product.variants or []), getattr(product, "stock_uom", None))
+        if prev_shared else None
+    )
+
     for field, value in update_data.items():
         setattr(product, field, value)
 
@@ -882,6 +1021,20 @@ async def update_product(
                     setattr(ev, col.name, getattr(new_v, col.name))
             else:
                 db.add(_build_variant(product.id, vc))
+
+    if (
+        "shared_stock" in update_data or "stock_uom" in update_data
+        or "quantity" in update_data or variants_replaced
+    ):
+        await _apply_stock_mode(
+            db, product,
+            prev_shared=prev_shared,
+            prev_quantity=prev_quantity,
+            payload_quantity=update_data.get("quantity"),
+            user_id=current_user.id,
+            log_movement=True,
+            prev_pool=prev_pool,
+        )
 
     if store_ids_payload is not None or "store_scope" in update_data:
         scope = product.store_scope or "all"

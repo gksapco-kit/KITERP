@@ -1,3 +1,5 @@
+from decimal import Decimal, ROUND_HALF_UP
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, case, literal_column
 from sqlalchemy.orm import selectinload
@@ -8,6 +10,18 @@ import math
 from app.models.inventory import InventoryMovement
 from app.models.vendor_product import Product, ProductVariant
 from app.models.store import Store, StoreInventory
+from app.services.shared_stock import (
+    apply_kg_delta,
+    base_per_selling_unit,
+    format_base,
+    opening_base,
+    resolved_base_kg,
+    pool_label as shared_pool_label,
+    sellable_units,
+    shared_pool_unit,
+    uom_dimension,
+    uses_shared_weight_stock,
+)
 from app.services.catalog_store_scope import product_available_at_store
 from app.services.store_inventory_service import (
     apply_store_inventory_delta,
@@ -34,9 +48,143 @@ MOVEMENT_DOC_PREFIX: dict[str, str] = {
 }
 
 
+# Manual movements typed against the product row (not a variant) are counted in
+# the shared balance's own unit — kilograms, or units for non-weight products.
+MANUAL_STOCK_MOVEMENTS = frozenset({
+    "stock_in", "stock_out", "adjustment", "stock_count", "initial", "write_off",
+})
+
+
 class InventoryService:
     def __init__(self, db: AsyncSession):
         self.db = db
+
+    async def _load_product_variants(self, product_id: UUID) -> list[ProductVariant]:
+        result = await self.db.execute(
+            select(ProductVariant).where(ProductVariant.product_id == product_id)
+        )
+        return list(result.scalars().all())
+
+    async def _apply_shared_weight_movement(
+        self,
+        *,
+        vendor_id: UUID,
+        product_id: UUID,
+        selling_qty: int,
+        variant_id: UUID | None,
+        reference_id: UUID | None,
+        reference_type: str,
+        movement_type: str,
+        sign: int,
+        store_id: UUID | None = None,
+        performed_by: UUID | None = None,
+    ) -> InventoryMovement | None:
+        """Move the shared kilogram balance. None when variants keep their own counts.
+
+        sign is -1 for a sale and +1 for a purchase or return.
+        """
+        if selling_qty == 0:
+            return None
+        product = await self.db.get(Product, product_id)
+        if not product or product.vendor_id != vendor_id:
+            return None
+        variants = await self._load_product_variants(product_id)
+        if not uses_shared_weight_stock(getattr(product, "shared_stock", None), variants):
+            return None
+
+        locked = (await self.db.execute(
+            select(Product).where(Product.id == product_id).with_for_update()
+        )).scalar_one()
+        pool = shared_pool_unit(variants, getattr(locked, "stock_uom", None))
+        pool_label = shared_pool_label(pool)
+        variant = next((v for v in variants if variant_id and v.id == variant_id), None)
+        if variant is not None:
+            kg_each = base_per_selling_unit(pool, variant.uom, variant.uom_quantity, variant.weight_kg)
+            unit_name = variant.name
+        else:
+            unit_name = locked.name
+            if movement_type in MANUAL_STOCK_MOVEMENTS:
+                # Stock-in / stock-out / adjust on the product row: the quantity typed is
+                # already in the shared balance's own unit (its stock UOM).
+                kg_each = Decimal("1")
+            else:
+                kg_each = base_per_selling_unit(pool, locked.uom, locked.uom_quantity, getattr(locked, "weight_kg", None))
+                if kg_each <= 0 and uom_dimension(pool) != "count":
+                    kg_each = Decimal("1")
+        if kg_each <= 0:
+            if uom_dimension(pool) == "volume":
+                raise ValueError(
+                    f"Set Qty + UOM (litre / ml) on {unit_name} so stock can change the {pool_label} balance"
+                )
+            raise ValueError(
+                f"Set Weight (kg) on {unit_name} so stock can change the {pool_label} balance"
+            )
+
+        before = locked.base_quantity
+        before_kg = Decimal(str(before)) if before is not None else opening_base(variants, pool)
+        delta = apply_kg_delta(Decimal("0"), kg_each * Decimal(abs(selling_qty)) * Decimal(sign))
+        after_kg = apply_kg_delta(before_kg, delta)
+        if after_kg < 0 and not locked.allow_backorders:
+            raise ValueError(
+                f"Insufficient stock. Available: {format_base(before_kg, pool)} {pool_label}, "
+                f"requested: {format_base(abs(delta), pool)} {pool_label}"
+            )
+        if after_kg < 0:
+            after_kg = Decimal("0")
+
+        locked.base_quantity = after_kg
+        locked.quantity = int(after_kg.to_integral_value(rounding=ROUND_HALF_UP))
+        if locked.track_inventory:
+            threshold = locked.low_stock_threshold or 5
+            if after_kg <= 0:
+                locked.stock_status = "out_of_stock"
+            elif after_kg <= threshold:
+                locked.stock_status = "low_stock"
+            else:
+                locked.stock_status = "in_stock"
+
+        verb = "Removed" if sign < 0 else "Added"
+        reason = (
+            f"{verb} {format_base(abs(delta), pool)} {pool_label}"
+            f" ({abs(selling_qty)} × {unit_name}). "
+            f"Remaining {format_base(after_kg, pool)} {pool_label}"
+        )
+        prefix = MOVEMENT_DOC_PREFIX.get(movement_type, "MOV")
+        try:
+            document_number = await next_doc_number(self.db, vendor_id, prefix, width=8)
+        except Exception:
+            document_number = None
+
+        movement = InventoryMovement(
+            id=uuid_mod.uuid4(),
+            vendor_id=vendor_id,
+            store_id=store_id,
+            product_id=product_id,
+            variant_id=variant_id,
+            movement_type=movement_type,
+            quantity=int(sign * abs(selling_qty)),
+            quantity_before=int(before_kg.to_integral_value(rounding=ROUND_HALF_UP)),
+            quantity_after=int(after_kg.to_integral_value(rounding=ROUND_HALF_UP)),
+            reason=reason,
+            reference_type=reference_type or "manual",
+            reference_id=reference_id,
+            performed_by=performed_by,
+            document_number=document_number,
+            document_line_no=1,
+            extra_data={
+                "shared_stock": True,
+                "base_uom": pool,
+                "base_kg_before": format_base(before_kg, pool),
+                "base_kg_delta": format_base(delta, pool),
+                "base_kg_after": format_base(after_kg, pool),
+                "selling_qty": abs(selling_qty),
+                "kg_each": format_base(kg_each, pool),
+                "remaining_units": sellable_units(after_kg, kg_each),
+            },
+        )
+        self.db.add(movement)
+        await self.db.flush()
+        return movement
 
     async def record_movement(
         self,
@@ -64,6 +212,29 @@ class InventoryService:
           automatically using the DocumentSequence for this movement_type.
         document_line_no: 1-based line within the posting document.
         """
+        if quantity != 0:
+            shared = await self._apply_shared_weight_movement(
+                vendor_id=vendor_id,
+                product_id=product_id,
+                selling_qty=abs(quantity),
+                variant_id=variant_id,
+                reference_id=reference_id,
+                reference_type=reference_type or "manual",
+                movement_type=movement_type,
+                sign=1 if quantity > 0 else -1,
+                performed_by=performed_by,
+            )
+            if shared is not None:
+                if reason:
+                    shared.reason = reason
+                if metadata:
+                    shared.extra_data = {**(shared.extra_data or {}), **metadata}
+                if document_number:
+                    shared.document_number = document_number
+                    shared.document_line_no = document_line_no
+                if auto_commit:
+                    await self.db.commit()
+                return shared
         if variant_id:
             stmt = select(ProductVariant).where(
                 ProductVariant.id == variant_id,
@@ -153,6 +324,27 @@ class InventoryService:
         document_number: pass an already-generated number (for multi-line postings).
           When None a number is generated via next_doc_number (flush-only, no commit).
         """
+        if quantity != 0:
+            shared = await self._apply_shared_weight_movement(
+                vendor_id=vendor_id,
+                product_id=product_id,
+                selling_qty=abs(quantity),
+                variant_id=variant_id,
+                reference_id=reference_id,
+                reference_type=reference_type or "manual",
+                movement_type=movement_type,
+                sign=1 if quantity > 0 else -1,
+                performed_by=performed_by,
+            )
+            if shared is not None:
+                if reason:
+                    shared.reason = reason
+                if metadata:
+                    shared.extra_data = {**(shared.extra_data or {}), **metadata}
+                if document_number:
+                    shared.document_number = document_number
+                    shared.document_line_no = document_line_no
+                return shared
         if variant_id:
             stmt = select(ProductVariant).where(
                 ProductVariant.id == variant_id,
@@ -475,6 +667,20 @@ class InventoryService:
     ) -> InventoryMovement:
         """Deduct sold stock from a specific business unit's StoreInventory and
         re-derive the global product quantity. Never auto-commits (POS owns the txn)."""
+        shared = await self._apply_shared_weight_movement(
+            vendor_id=vendor_id,
+            product_id=product_id,
+            selling_qty=quantity,
+            variant_id=variant_id,
+            reference_id=reference_id,
+            reference_type=reference_type,
+            movement_type="sale",
+            sign=-1,
+            store_id=store_id,
+            performed_by=performed_by,
+        )
+        if shared is not None:
+            return shared
         await self._consume_pharma_lots_for_sale(
             vendor_id, product_id, quantity,
             reference_id=reference_id, reference_type=reference_type,
@@ -577,6 +783,20 @@ class InventoryService:
         performed_by: UUID | None = None,
     ) -> InventoryMovement:
         """Return stock to a specific business unit and re-derive global quantity."""
+        shared = await self._apply_shared_weight_movement(
+            vendor_id=vendor_id,
+            product_id=product_id,
+            selling_qty=quantity,
+            variant_id=variant_id,
+            reference_id=reference_id,
+            reference_type=reference_type,
+            movement_type="sale_return",
+            sign=1,
+            store_id=store_id,
+            performed_by=performed_by,
+        )
+        if shared is not None:
+            return shared
         await self._restore_pharma_lots_for_return(
             vendor_id, product_id, quantity,
             reference_id=reference_id,
@@ -720,18 +940,31 @@ class InventoryService:
 
         summaries = []
         for p in products:
-            qty = p.quantity or 0
             threshold = p.low_stock_threshold or 5
             t = totals_map.get(p.id, {"in": 0, "out": 0})
             lm = last_map.get(p.id)
 
             # Build variant breakdown
             active_variants = [v for v in (p.variants or []) if v.is_active]
+            shared = uses_shared_weight_stock(getattr(p, "shared_stock", None), active_variants)
+            base = resolved_base_kg(p, active_variants) if shared else None
+            base_f = float(base) if base is not None else None
+            qty = base_f if base_f is not None else (p.quantity or 0)
+            pool = shared_pool_unit(active_variants, getattr(p, "stock_uom", None)) if shared else None
             variant_rows = []
             for v in active_variants:
                 vqty = v.quantity or 0
                 vthreshold = v.low_stock_threshold or threshold
-                if vqty == 0:
+                kg_each = base_per_selling_unit(pool, v.uom, v.uom_quantity, v.weight_kg) if shared else None
+                units_left = sellable_units(base, kg_each) if shared and base is not None and kg_each is not None else None
+                if shared and base is not None:
+                    if base <= 0:
+                        vstatus = "out_of_stock"
+                    elif base <= threshold:
+                        vstatus = "low_stock"
+                    else:
+                        vstatus = "in_stock"
+                elif vqty == 0:
                     vstatus = "out_of_stock"
                 elif vqty <= vthreshold:
                     vstatus = "low_stock"
@@ -743,6 +976,8 @@ class InventoryService:
                     "sku": v.sku,
                     "barcode": v.barcode,
                     "quantity": vqty,
+                    "kg_per_unit": float(kg_each) if kg_each is not None else None,
+                    "remaining_units": units_left,
                     "cost_price": float(v.cost_price) if v.cost_price is not None else None,
                     "price": float(v.price) if v.price is not None else None,
                     "expiration_date": v.expiration_date.isoformat() if v.expiration_date else None,
@@ -764,8 +999,11 @@ class InventoryService:
                 "product_name": p.name,
                 "sku": p.sku,
                 "current_quantity": qty,
+                "shared_stock": shared,
+                "base_quantity": base_f,
+                "base_uom": pool,
                 "low_stock_threshold": threshold,
-                "is_low_stock": qty <= threshold,
+                "is_low_stock": (base <= threshold) if base is not None else qty <= threshold,
                 "total_stock_in": t["in"],
                 "total_stock_out": t["out"],
                 "last_movement_at": lm.isoformat() if lm else None,

@@ -414,6 +414,23 @@ async def ensure_user_platform_staff_role_column() -> None:
         )
 
 
+async def ensure_shared_stock_columns() -> None:
+    """Kilogram balance shared by a product's selling units."""
+    if "postgresql" not in settings.DATABASE_URL.lower():
+        return
+    async with engine.begin() as conn:
+        await conn.execute(text(
+            "ALTER TABLE product ADD COLUMN IF NOT EXISTS shared_stock BOOLEAN"
+        ))
+        await conn.execute(text(
+            "ALTER TABLE product ADD COLUMN IF NOT EXISTS base_quantity NUMERIC(14,4)"
+        ))
+        await conn.execute(text(
+            "ALTER TABLE product ADD COLUMN IF NOT EXISTS stock_uom VARCHAR(30)"
+        ))
+    logger.info("ensure_shared_stock_columns: product.shared_stock, stock_uom and base_quantity ready")
+
+
 async def ensure_product_uom_column() -> None:
     """Ensure product.uom column exists (ORM expects it)."""
     if "postgresql" not in settings.DATABASE_URL.lower():
@@ -485,6 +502,7 @@ async def ensure_variant_pricing_columns() -> None:
         "ALTER TABLE product_variant ADD COLUMN IF NOT EXISTS reorder_quantity INTEGER;",
         "ALTER TABLE product_variant ADD COLUMN IF NOT EXISTS allow_backorders BOOLEAN DEFAULT false;",
         "ALTER TABLE product_variant ADD COLUMN IF NOT EXISTS track_inventory BOOLEAN DEFAULT true;",
+        "ALTER TABLE product_variant ADD COLUMN IF NOT EXISTS is_pos_only BOOLEAN NOT NULL DEFAULT false;",
         "ALTER TABLE product_variant ADD COLUMN IF NOT EXISTS expiration_date DATE;",
         "ALTER TABLE product_variant ADD COLUMN IF NOT EXISTS manufacture_date DATE;",
         "ALTER TABLE product_variant ADD COLUMN IF NOT EXISTS best_before_date DATE;",

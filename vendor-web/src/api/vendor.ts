@@ -543,7 +543,7 @@ export type VariantPatchFields = Partial<{
   discount_percentage: number; discount_amount: number; offer_label: string; is_on_sale: boolean
   is_taxable: boolean; tax_rate: number; hsn_code: string; gst_rate: number
   quantity: number; low_stock_threshold: number; stock_status: string
-  track_inventory: boolean; allow_backorders: boolean
+  track_inventory: boolean; allow_backorders: boolean; is_pos_only: boolean
   reorder_point: number; reorder_quantity: number
   max_quantity_per_order: number; min_quantity_per_order: number
   weight_kg: number

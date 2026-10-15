@@ -58,6 +58,8 @@ export function bridgeProduct(p: StoreProduct): Product {
     track_inventory: (p as { track_inventory?: boolean }).track_inventory,
     allow_backorders: (p as { allow_backorders?: boolean }).allow_backorders,
     quantity: (p as { quantity?: number }).quantity,
+    shared_stock: (p as { shared_stock?: boolean }).shared_stock,
+    base_quantity: (p as { base_quantity?: number | null }).base_quantity,
     stock_status: (p as { stock_status?: string }).stock_status,
     max_quantity_per_order: (p as { max_quantity_per_order?: number | null }).max_quantity_per_order,
     min_quantity_per_order: (p as { min_quantity_per_order?: number | null }).min_quantity_per_order,
@@ -80,6 +82,8 @@ export function bridgeProduct(p: StoreProduct): Product {
       min_quantity_per_order: (v as { min_quantity_per_order?: number | null }).min_quantity_per_order,
       uom: (v as { uom?: string }).uom,
       uom_quantity: (v as { uom_quantity?: number | null }).uom_quantity,
+      kg_per_unit: (v as { kg_per_unit?: number | null }).kg_per_unit,
+      remaining_units: (v as { remaining_units?: number | null }).remaining_units,
     })),
   }
 }

@@ -34,6 +34,8 @@ export interface Product {
   track_inventory?: boolean;
   allow_backorders?: boolean;
   quantity?: number;
+  shared_stock?: boolean;
+  base_quantity?: number | null;
   stock_status?: string;
   max_quantity_per_order?: number | null;
   min_quantity_per_order?: number | null;
@@ -54,6 +56,8 @@ export interface Product {
     min_quantity_per_order?: number | null;
     uom?: string;
     uom_quantity?: number | null;
+    kg_per_unit?: number | null;
+    remaining_units?: number | null;
     media?: { url: string; media_type?: 'image' | 'video' | 'model3d'; is_primary?: boolean; alt_text?: string; position?: number }[];
   }[];
   /** When true, card price shows "From" using the lowest variant price. */

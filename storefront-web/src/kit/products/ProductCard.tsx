@@ -73,6 +73,8 @@ function toApiVariant(v: KitVariant): ApiVariant {
     min_quantity_per_order: v.min_quantity_per_order,
     uom: v.uom,
     uom_quantity: v.uom_quantity,
+    kg_per_unit: v.kg_per_unit,
+    remaining_units: v.remaining_units,
   };
 }
 

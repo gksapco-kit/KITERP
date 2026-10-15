@@ -7,6 +7,10 @@ export type StockEntity = {
   track_inventory?: boolean
   allow_backorders?: boolean
   quantity?: number
+  shared_stock?: boolean
+  base_quantity?: number | null
+  kg_per_unit?: number | null
+  remaining_units?: number | null
   stock_status?: string
   low_stock_threshold?: number | null
   max_quantity_per_order?: number | null
@@ -88,7 +92,17 @@ function variantMinimum(product: StockEntity, variant?: StockEntity): number | n
 function resolveStockContext(product: StockEntity, variant?: StockEntity) {
   const allowBackorders = variant?.allow_backorders ?? product.allow_backorders ?? false
   // Variant qty 0 stays 0 (that size is empty). Missing qty inherits product on-hand.
-  const quantity = Number(variant?.quantity ?? product.quantity ?? 0)
+  // Shared weight stock: remaining units come from the kilogram balance, not this variant's own count.
+  let quantity = Number(variant?.quantity ?? product.quantity ?? 0)
+  if (product.shared_stock && product.base_quantity != null) {
+    if (variant?.remaining_units != null) {
+      quantity = Number(variant.remaining_units)
+    } else {
+      const kgEach = Number(variant?.kg_per_unit ?? 0)
+      if (kgEach > 0) quantity = Math.floor((Number(product.base_quantity) + 1e-9) / kgEach)
+      else if (!variant) quantity = Number(product.base_quantity)
+    }
+  }
   const stockStatus = variant?.stock_status ?? product.stock_status ?? 'in_stock'
   const maxPerOrder = variant?.max_quantity_per_order ?? product.max_quantity_per_order ?? null
   const minPerOrder = variantMinimum(product, variant)

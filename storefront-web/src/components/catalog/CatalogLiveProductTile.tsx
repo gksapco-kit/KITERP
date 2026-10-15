@@ -35,6 +35,8 @@ function productStockFromItem(item: LiveItem): StockEntity {
   return {
     stock_status: String(meta.stock_status || 'in_stock'),
     quantity: meta.quantity != null ? Number(meta.quantity) : undefined,
+    shared_stock: meta.shared_stock === true,
+    base_quantity: meta.base_quantity != null ? Number(meta.base_quantity) : undefined,
     track_inventory: meta.track_inventory as boolean | undefined,
     allow_backorders: meta.allow_backorders as boolean | undefined,
     max_quantity_per_order: meta.max_quantity_per_order != null ? Number(meta.max_quantity_per_order) : undefined,

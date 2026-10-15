@@ -66,6 +66,7 @@ class VariantPatchRequest(BaseModel):
     stock_status: Optional[str] = None
     track_inventory: Optional[bool] = None
     allow_backorders: Optional[bool] = None
+    is_pos_only: Optional[bool] = None
     reorder_point: Optional[int] = None
     reorder_quantity: Optional[int] = None
     max_quantity_per_order: Optional[int] = None

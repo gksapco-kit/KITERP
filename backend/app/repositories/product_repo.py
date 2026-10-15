@@ -240,8 +240,12 @@ class ProductRepository(BaseRepository[Product]):
         pharma_managed: Optional[bool] = None,
         deleted_only: bool = False,
         sort: Optional[str] = None,
+        exclude_pos_only: bool = False,
     ) -> tuple[List[Product], int]:
-        """List products for a vendor with filters."""
+        """List products for a vendor with filters.
+
+        ``exclude_pos_only`` (storefront): hide products whose variants are all POS-only.
+        """
         query = select(Product).where(Product.vendor_id == vendor_id)
         count_query = select(func.count()).select_from(Product).where(
             Product.vendor_id == vendor_id
@@ -258,6 +262,19 @@ class ProductRepository(BaseRepository[Product]):
             store_filter = product_available_at_store(store_id)
             query = query.where(store_filter)
             count_query = count_query.where(store_filter)
+
+        if exclude_pos_only:
+            pos_filter = or_(
+                ~_has_variants(),
+                exists(
+                    select(ProductVariant.id).where(
+                        ProductVariant.product_id == Product.id,
+                        ProductVariant.is_pos_only.is_not(True),
+                    )
+                ),
+            )
+            query = query.where(pos_filter)
+            count_query = count_query.where(pos_filter)
 
         if is_visible is True or visible_only:
             vis_filter = or_(Product.is_visible.is_(None), Product.is_visible == True)

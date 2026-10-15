@@ -1476,6 +1476,19 @@ async def list_categories(
     })
 
 
+def _all_variants_pos_only(product) -> bool:
+    """True when the product has variants and every one is flagged POS-only."""
+    variants = list(getattr(product, "variants", None) or [])
+    return bool(variants) and all(getattr(v, "is_pos_only", False) for v in variants)
+
+
+def _storefront_product_dict(product) -> dict:
+    """Product payload for the e-commerce storefront: POS-only variants are removed."""
+    d = _product_to_dict(product)
+    d["variants"] = [v for v in (d.get("variants") or []) if not v.get("is_pos_only")]
+    return d
+
+
 @router.get("/products")
 async def list_products(
     page: int = Query(1, ge=1),
@@ -1511,6 +1524,7 @@ async def list_products(
         visible_only=True,
         store_id=sid,
         sort=catalog_sort,
+        exclude_pos_only=True,
     )
 
     if price_filtered:
@@ -1528,7 +1542,7 @@ async def list_products(
     empty_stats = {"avg_rating": 0.0, "review_count": 0}
     product_dicts = []
     for p in items:
-        d = _product_to_dict(p)
+        d = _storefront_product_dict(p)
         d.pop("change_history", None)
         stats = stats_by_id.get(p.id, empty_stats)
         d["avg_rating"] = stats["avg_rating"]
@@ -1554,14 +1568,14 @@ async def get_product(
     repo = ProductRepository(db)
     product = await repo.find_by_slug(vendor_id, slug)
 
-    if not product or product.status != "active" or not product.is_visible:
+    if not product or product.status != "active" or not product.is_visible or _all_variants_pos_only(product):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Product not found"
         )
 
     review_repo = ReviewRepository(db)
-    d = _product_to_dict(product)
+    d = _storefront_product_dict(product)
     d.pop("change_history", None)
     stats = await review_repo.get_avg_rating("product", product_id=product.id)
     d["avg_rating"] = stats["avg_rating"]

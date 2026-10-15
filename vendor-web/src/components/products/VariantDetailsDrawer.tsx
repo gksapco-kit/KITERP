@@ -218,6 +218,7 @@ function VariantDetailsBody({
           <Field label="Weight (kg)" type="number" defaultValue={variant.weight_kg ?? ''} onCommit={v => onSave({ weight_kg: v === '' ? undefined : Number(v) })} />
           <ToggleRow label="Track inventory" checked={variant.track_inventory} onChange={v => onSave({ track_inventory: v })} />
           <ToggleRow label="Allow backorders" checked={variant.allow_backorders} onChange={v => onSave({ allow_backorders: v })} />
+          <ToggleRow label="POS only (hide from e-commerce)" checked={!!variant.is_pos_only} onChange={v => onSave({ is_pos_only: v })} />
 
           <SectionLabel>Lifecycle</SectionLabel>
           <div className="grid grid-cols-3 gap-3">

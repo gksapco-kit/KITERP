@@ -397,6 +397,8 @@ export interface ProductVariant {
   reorder_quantity?: number
   allow_backorders: boolean
   track_inventory: boolean
+  /** Sold only at POS; hidden from the e-commerce storefront */
+  is_pos_only?: boolean
   max_quantity_per_order?: number
   min_quantity_per_order?: number
   weight_kg?: number

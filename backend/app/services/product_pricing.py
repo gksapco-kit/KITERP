@@ -17,7 +17,11 @@ def resolve_product_listing_price(product: Any) -> tuple[float | None, float | N
     from_variants = False
 
     variants = getattr(product, "variants", None) or []
-    active_variants = [v for v in variants if getattr(v, "is_active", True)]
+    # POS-only variants are never shown (or priced) on the e-commerce storefront.
+    active_variants = [
+        v for v in variants
+        if getattr(v, "is_active", True) and not getattr(v, "is_pos_only", False)
+    ]
 
     if (raw_price is None or raw_price <= 0) and active_variants:
         variant_prices = [

@@ -44,6 +44,7 @@ import { InlineEditCell } from '@/components/table/InlineEditCell'
 import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import { variantToUpdatePayload } from '@/lib/productVariantPresets'
 import { processRows, type SortDir } from '@/lib/tableList'
+import { UOM_OPTIONS, uomLabel } from '@/lib/uomOptions'
 import { BarcodeScannerModal } from '@/components/scanner/BarcodeScannerModal'
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner'
 import { toast } from 'sonner'
@@ -370,12 +371,62 @@ function StatCard({ label, value, loading, warn }: { label: string; value: strin
   )
 }
 
+function formatKg(value: number | null | undefined): string {
+  if (value == null || Number.isNaN(Number(value))) return '—'
+  const n = Number(value)
+  return `${n.toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} kg`
+}
+
+/** Remaining balance of a product-level stock pool: kilograms, or plain units for non-weight products. */
+function formatBase(value: number | null | undefined, baseUom?: string | null): string {
+  if (!baseUom || baseUom === 'kg') return formatKg(value)
+  if (value == null || Number.isNaN(Number(value))) return '—'
+  const label = baseUom === 'unit' ? 'units' : uomLabel(baseUom).replace(/\s*\(.*\)/, '').trim() || baseUom
+  return `${Number(value).toLocaleString('en-IN', { maximumFractionDigits: 3 })} ${label}`
+}
+
+/** Weight and volume pools show how much of the balance one sale uses; count pools do not. */
+function isMeasuredUom(baseUom?: string | null): boolean {
+  if (!baseUom || baseUom === 'kg') return true
+  const group = UOM_OPTIONS.find(u => u.value === baseUom)?.group
+  return group === 'Weight' || group === 'Volume'
+}
+
+function RemainingStock({
+  kg,
+  unitsLeft,
+  kgEach,
+  baseUom,
+}: {
+  kg?: number | null
+  unitsLeft?: number | null
+  kgEach?: number | null
+  baseUom?: string | null
+}) {
+  if (!isMeasuredUom(baseUom)) {
+    return <span className="font-semibold">{formatBase(unitsLeft ?? kg, baseUom)} left</span>
+  }
+  if (unitsLeft != null) {
+    return (
+      <span className="inline-flex flex-col items-end leading-tight">
+        <span className="font-semibold">{unitsLeft.toLocaleString('en-IN')} left</span>
+        <span className="text-[10px] font-normal text-muted-foreground">
+          {formatBase(kgEach, baseUom)} / sale · {formatBase(kg, baseUom)} left
+        </span>
+      </span>
+    )
+  }
+  return <span className="font-semibold">{formatBase(kg, baseUom)} left</span>
+}
+
 type VariantSummary = {
   id: string
   name: string
   sku?: string
   barcode?: string
   quantity: number
+  kg_per_unit?: number | null
+  remaining_units?: number | null
   cost_price?: number
   price?: number
   expiration_date?: string
@@ -392,6 +443,9 @@ type SummaryItem = {
   product_name: string
   sku?: string
   current_quantity: number
+  shared_stock?: boolean
+  base_quantity?: number | null
+  base_uom?: string | null
   low_stock_threshold: number
   is_low_stock: boolean
   variants?: VariantSummary[]
@@ -517,6 +571,11 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
     sku?: string
     barcode?: string
     quantity: number
+    shared_stock?: boolean
+    base_quantity?: number | null
+    base_uom?: string | null
+    kg_per_unit?: number | null
+    remaining_units?: number | null
     cost_price?: number
     low_stock_threshold: number
     stock_status: string
@@ -559,10 +618,17 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
             sku: v.sku,
             barcode: v.barcode,
             quantity: v.quantity,
+            shared_stock: item.shared_stock,
+            base_quantity: item.base_quantity,
+            base_uom: item.base_uom,
+            kg_per_unit: v.kg_per_unit,
+            remaining_units: v.remaining_units,
             cost_price: v.cost_price,
             low_stock_threshold: v.low_stock_threshold,
             stock_status: v.stock_status,
-            is_low_stock: v.stock_status === 'low_stock' || v.quantity <= (v.low_stock_threshold ?? 0),
+            is_low_stock: item.shared_stock
+              ? item.is_low_stock
+              : v.stock_status === 'low_stock' || v.quantity <= (v.low_stock_threshold ?? 0),
             store_quantities: item.store_quantities,
             expiration_date: v.expiration_date,
           })
@@ -576,6 +642,9 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
           sku: item.sku,
           barcode: getProduct(item.product_id)?.barcode,
           quantity: item.current_quantity,
+          shared_stock: item.shared_stock,
+          base_quantity: item.base_quantity,
+          base_uom: item.base_uom,
           cost_price: getProduct(item.product_id)?.cost_price,
           low_stock_threshold: item.low_stock_threshold,
           stock_status: item.is_low_stock ? 'low_stock' : 'in_stock',
@@ -745,6 +814,16 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                         {hasVariants && (
                           <span className="text-xs text-gray-400">({item.variants!.length} variants)</span>
                         )}
+                        {hasVariants && (
+                          <span
+                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${item.shared_stock ? 'bg-indigo-50 text-indigo-700' : 'bg-gray-100 text-gray-600'}`}
+                            title={item.shared_stock
+                              ? 'Stock is maintained at product level. Change it in the product form (Inventory section).'
+                              : 'Stock is maintained per variant. Change it in the product form (Inventory section).'}
+                          >
+                            {item.shared_stock ? 'Product-level stock' : 'Variant-level stock'}
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500">
@@ -787,8 +866,8 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                         type="number"
                         min={0}
                         value={item.current_quantity}
-                        readOnly={hasVariants}
-                        readOnlyMessage="Edit stock on variant rows"
+                        readOnly={hasVariants && !item.shared_stock}
+                        readOnlyMessage="Stock is maintained per variant — edit stock on the variant rows"
                         saving={isSaving(item.product_id, 'quantity')}
                         onSave={(v) => patchStockQuantity(
                           cellKey(item.product_id, 'quantity'),
@@ -798,7 +877,7 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                         )}
                         className="text-right font-medium"
                       >
-                        {item.current_quantity}
+                        {item.shared_stock ? <RemainingStock kg={item.base_quantity} baseUom={item.base_uom} /> : item.current_quantity}
                       </InlineEditCell>
                     </td>
                     {selectedStoreId === 'all' && stores.map(s => {
@@ -850,9 +929,17 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                         <Button variant="ghost" size="sm" className="text-gray-500 text-xs" onClick={() => onViewHistory(item.product_id)}>
                           <History className="w-3 h-3 mr-1" />History
                         </Button>
-                        <Button variant="ghost" size="sm" className="text-green-600 text-xs" onClick={() => onAction(item.product_id, item.product_name, 'stock-in')}>+ In</Button>
-                        <Button variant="ghost" size="sm" className="text-red-600 text-xs" onClick={() => onAction(item.product_id, item.product_name, 'stock-out')}>- Out</Button>
-                        <Button variant="ghost" size="sm" className="text-blue-600 text-xs" onClick={() => onAction(item.product_id, item.product_name, 'adjust')}>Adjust</Button>
+                        {(() => {
+                          const perVariant = hasVariants && !item.shared_stock
+                          const hint = perVariant ? 'Stock is maintained per variant — use the variant rows' : undefined
+                          return (
+                            <>
+                              <Button variant="ghost" size="sm" className="text-green-600 text-xs" disabled={perVariant} title={hint} onClick={() => onAction(item.product_id, item.product_name, 'stock-in')}>+ In</Button>
+                              <Button variant="ghost" size="sm" className="text-red-600 text-xs" disabled={perVariant} title={hint} onClick={() => onAction(item.product_id, item.product_name, 'stock-out')}>- Out</Button>
+                              <Button variant="ghost" size="sm" className="text-blue-600 text-xs" disabled={perVariant} title={hint} onClick={() => onAction(item.product_id, item.product_name, 'adjust')}>Adjust</Button>
+                            </>
+                          )
+                        })()}
                       </div>
                     </td>
                   </tr>
@@ -914,6 +1001,8 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                             type="number"
                             min={0}
                             value={v.quantity}
+                            readOnly={!!item.shared_stock}
+                            readOnlyMessage="Stock is maintained at product level. Remaining stock is shown here — adjust it on the product row."
                             saving={isSavingVariant(item.product_id, v.id, 'quantity')}
                             onSave={(val) => patchStockQuantity(
                               `${item.product_id}:variant:${v.id}:quantity`,
@@ -923,7 +1012,9 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                             )}
                             className="text-right font-medium"
                           >
-                            {v.quantity}
+                            {item.shared_stock ? (
+                              <RemainingStock kg={item.base_quantity} unitsLeft={v.remaining_units} kgEach={v.kg_per_unit} baseUom={item.base_uom} />
+                            ) : v.quantity}
                           </InlineEditCell>
                         </td>
                         {selectedStoreId === 'all' && stores.map(s => (
@@ -1073,9 +1164,15 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                         Number(val),
                         { variantId: row.variant_id, storeId: storeFilterId },
                       )}
+                      readOnly={!!row.shared_stock}
+                      readOnlyMessage="Remaining stock comes from the shared kilogram balance."
                       className="text-right font-medium"
                     >
-                      {row.quantity}
+                      {row.shared_stock ? (
+                        row.variant_id
+                          ? <RemainingStock kg={row.base_quantity} unitsLeft={row.remaining_units} kgEach={row.kg_per_unit} baseUom={row.base_uom} />
+                          : <RemainingStock kg={row.base_quantity} baseUom={row.base_uom} />
+                      ) : row.quantity}
                     </InlineEditCell>
                   </td>
                   {selectedStoreId === 'all' && stores.map(s => {
@@ -1318,22 +1415,45 @@ function MovementDetailDrawer({ movementId, onClose }: { movementId: string; onC
             <div className="bg-gray-50 rounded-xl p-4">
               <p className="text-xs font-medium text-gray-500 uppercase mb-3">Stock Movement</p>
               <div className="flex items-center gap-4">
-                <div className="text-center">
-                  <p className="text-xs text-gray-400">Before</p>
-                  <p className="text-xl font-semibold text-gray-700">{m.quantity_before}</p>
-                </div>
-                <ArrowRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
-                <div className="text-center">
-                  <p className="text-xs text-gray-400">Change</p>
-                  <p className={`text-xl font-semibold ${m.quantity >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {m.quantity >= 0 ? '+' : ''}{m.quantity}
-                  </p>
-                </div>
-                <ArrowRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
-                <div className="text-center">
-                  <p className="text-xs text-gray-400">After</p>
-                  <p className="text-xl font-semibold text-gray-900">{m.quantity_after}</p>
-                </div>
+                {m.extra_data?.base_kg_after != null ? (
+                  <>
+                    <div className="text-center">
+                      <p className="text-xs text-gray-400">Before</p>
+                      <p className="text-xl font-semibold text-gray-700">{m.extra_data.base_kg_before} kg</p>
+                    </div>
+                    <ArrowRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                    <div className="text-center">
+                      <p className="text-xs text-gray-400">Change</p>
+                      <p className={`text-xl font-semibold ${Number(m.extra_data.base_kg_delta) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {Number(m.extra_data.base_kg_delta) >= 0 ? '+' : ''}{m.extra_data.base_kg_delta} kg
+                      </p>
+                    </div>
+                    <ArrowRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                    <div className="text-center">
+                      <p className="text-xs text-gray-400">Remaining</p>
+                      <p className="text-xl font-semibold text-gray-900">{m.extra_data.base_kg_after} kg</p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-center">
+                      <p className="text-xs text-gray-400">Before</p>
+                      <p className="text-xl font-semibold text-gray-700">{m.quantity_before}</p>
+                    </div>
+                    <ArrowRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                    <div className="text-center">
+                      <p className="text-xs text-gray-400">Change</p>
+                      <p className={`text-xl font-semibold ${m.quantity >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {m.quantity >= 0 ? '+' : ''}{m.quantity}
+                      </p>
+                    </div>
+                    <ArrowRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                    <div className="text-center">
+                      <p className="text-xs text-gray-400">After</p>
+                      <p className="text-xl font-semibold text-gray-900">{m.quantity_after}</p>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 

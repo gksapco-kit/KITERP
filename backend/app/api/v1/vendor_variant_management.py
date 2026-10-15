@@ -76,6 +76,7 @@ def _detail_dict(v: ProductVariant) -> dict:
         "reorder_point": v.reorder_point,
         "reorder_quantity": v.reorder_quantity,
         "allow_backorders": v.allow_backorders or False,
+        "is_pos_only": bool(getattr(v, "is_pos_only", False)),
         "max_quantity_per_order": v.max_quantity_per_order,
         "min_quantity_per_order": v.min_quantity_per_order,
         "weight_kg": _num(v.weight_kg),

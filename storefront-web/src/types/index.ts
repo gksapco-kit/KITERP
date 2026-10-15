@@ -33,6 +33,8 @@ export interface ProductVariant {
   offer_label?: string; is_on_sale?: boolean
   is_taxable?: boolean; tax_rate?: number; hsn_code?: string; gst_rate?: number
   quantity?: number; low_stock_threshold?: number; stock_status?: string
+  kg_per_unit?: number | null
+  remaining_units?: number | null
   allow_backorders?: boolean; track_inventory?: boolean; weight_kg?: number
   max_quantity_per_order?: number
   min_quantity_per_order?: number
@@ -72,6 +74,9 @@ export interface Product {
   offer_label?: string; is_on_sale?: boolean
   is_taxable?: boolean; tax_rate?: number; hsn_code?: string; gst_rate?: number
   sku?: string; barcode?: string; stock_status?: string; quantity?: number
+  shared_stock?: boolean
+  base_quantity?: number | null
+  base_uom?: string | null
   low_stock_threshold?: number
   specifications?: Record<string, string>
   warranty_type?: string; warranty_period_days?: number

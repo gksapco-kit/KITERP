@@ -73,6 +73,14 @@ class Product(Base):
     barcode = Column(String(100))
     track_inventory = Column(Boolean, default=True)
     quantity = Column(Integer, default=0)
+    # NULL = auto (one kg balance when variants mix weight units).
+    # True / False force shared or per-variant stock.
+    shared_stock = Column(Boolean, nullable=True)
+    # UOM the product-level (shared) balance is counted in, e.g. kg, g, l, piece.
+    # NULL = kg when any variant is sold by weight, else plain units.
+    stock_uom = Column(String(30), nullable=True)
+    # Remaining balance in stock_uom (kilograms by default). NULL until the first sale or purchase posts.
+    base_quantity = Column(Numeric(14, 4), nullable=True)
     low_stock_threshold = Column(Integer, default=5)
     reorder_point = Column(Integer)
     reorder_quantity = Column(Integer)
@@ -239,6 +247,8 @@ class ProductVariant(Base):
     reorder_quantity = Column(Integer)
     allow_backorders = Column(Boolean, default=False)
     track_inventory = Column(Boolean, default=True)
+    # True = sold only at POS; hidden from the e-commerce storefront
+    is_pos_only = Column(Boolean, default=False, server_default="false", nullable=False)
     max_quantity_per_order = Column(Integer, nullable=True)
     min_quantity_per_order = Column(Integer, nullable=True)
     weight_kg = Column(Numeric(8, 3))

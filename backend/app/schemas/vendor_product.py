@@ -88,6 +88,7 @@ class ProductVariantCreate(BaseModel):
     reorder_quantity: Optional[int] = None
     allow_backorders: bool = False
     track_inventory: bool = True
+    is_pos_only: bool = False
     max_quantity_per_order: Optional[int] = Field(None, ge=1)
     min_quantity_per_order: Optional[int] = Field(None, ge=1)
     weight_kg: Optional[float] = None
@@ -148,6 +149,7 @@ class ProductVariantResponse(BaseModel):
     reorder_quantity: Optional[int] = None
     allow_backorders: bool = False
     track_inventory: bool = True
+    is_pos_only: bool = False
     max_quantity_per_order: Optional[int] = None
     min_quantity_per_order: Optional[int] = None
     weight_kg: Optional[float] = None
@@ -240,6 +242,11 @@ class ProductCreate(BaseModel):
     barcode: Optional[str] = None
     track_inventory: bool = True
     quantity: int = Field(default=0, ge=0)
+    # True = one stock balance at product level (variants draw from it);
+    # False = each variant keeps its own stock; None = decide automatically.
+    shared_stock: Optional[bool] = None
+    # UOM the product-level stock is counted in (kg, g, l, piece …). Used with shared_stock.
+    stock_uom: Optional[str] = Field(None, max_length=30)
     low_stock_threshold: int = 5
     reorder_point: Optional[int] = None
     reorder_quantity: Optional[int] = None
@@ -378,6 +385,8 @@ class ProductUpdate(BaseModel):
     barcode: Optional[str] = None
     track_inventory: Optional[bool] = None
     quantity: Optional[int] = None
+    shared_stock: Optional[bool] = None
+    stock_uom: Optional[str] = Field(None, max_length=30)
     low_stock_threshold: Optional[int] = None
     reorder_point: Optional[int] = None
     reorder_quantity: Optional[int] = None

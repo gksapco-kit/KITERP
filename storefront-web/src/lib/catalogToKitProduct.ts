@@ -40,6 +40,8 @@ export function catalogToKitProduct(item: Product): KitProduct {
           media: v.media,
           uom: v.uom,
           uom_quantity: v.uom_quantity,
+          kg_per_unit: v.kg_per_unit,
+          remaining_units: v.remaining_units,
           price: { amount: Math.round((v.price ?? 0) * 100), currency: v.currency || currency },
           compareAtPrice: v.compare_at_price
             ? { amount: Math.round(v.compare_at_price * 100), currency: v.currency || currency }
@@ -68,6 +70,8 @@ export function catalogToKitProduct(item: Product): KitProduct {
     track_inventory: item.track_inventory,
     allow_backorders: item.allow_backorders,
     quantity: item.quantity,
+    shared_stock: item.shared_stock,
+    base_quantity: item.base_quantity,
     stock_status: item.stock_status,
   } as any)
   kitProduct.viewCount = item.view_count ?? 0
