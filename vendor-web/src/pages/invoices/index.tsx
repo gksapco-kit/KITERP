@@ -16,6 +16,7 @@ import { PhoneInput } from '@/components/ui/PhoneInput'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useInvoiceSettings, useProducts, useServices, useUpdateInvoice } from '@/hooks/useVendor'
 import { formatCurrency, formatDate, cn } from '@/lib/utils'
+import { resolveServiceDisplayAmount } from '@/lib/servicePricing'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { toast } from 'sonner'
@@ -50,6 +51,7 @@ import {
   invoiceStatusBadge,
   invoiceTypeBadge,
 } from '@/lib/invoiceBadges'
+import { onAuthenticatedAnchorClick } from '@/lib/openAuthenticatedTab'
 
 const TABLE_ICON_BTN =
   'inline-flex shrink-0 items-center justify-center rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground dark:hover:bg-muted/70 dark:hover:text-foreground'
@@ -790,9 +792,32 @@ function ItemSearchRow({
                 </div>
 
                 {filtered.length === 0 ? (
-                  <p className="py-4 text-center text-xs text-gray-400">
-                    {item.name.trim() ? `No matches for "${item.name}"` : 'Start typing to search…'}
-                  </p>
+                  <div className="px-3 py-4 text-center text-xs text-gray-400">
+                    <p>{item.name.trim() ? `No matches for "${item.name}"` : 'Start typing to search…'}</p>
+                    <p className="mt-2">
+                      <a
+                        href="/products/new"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline"
+                        onMouseDown={e => e.preventDefault()}
+                        onClick={onAuthenticatedAnchorClick}
+                      >
+                        Add product
+                      </a>
+                      {' / '}
+                      <a
+                        href="/services/new"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline"
+                        onMouseDown={e => e.preventDefault()}
+                        onClick={onAuthenticatedAnchorClick}
+                      >
+                        service
+                      </a>
+                    </p>
+                  </div>
                 ) : (
                   <ul className="divide-y divide-gray-50 overflow-y-auto">
                     {filtered.map(c => {
@@ -895,11 +920,11 @@ function ItemSearchRow({
         <input className={fieldClass}
           placeholder="HSN" value={item.hsn_sac} onChange={e => onUpdate('hsn_sac', e.target.value)} />
       </div>
-      <div className="w-14 shrink-0">
+      <div className="w-36 shrink-0">
         <input type="number" min={1} className={cn(fieldClass, 'text-center')}
           value={item.qty} onChange={e => onUpdate('qty', Number(e.target.value))} />
       </div>
-      <div className="min-w-0 flex-1">
+      <div className="w-44 shrink-0">
         <input type="number" min={0} placeholder="Rate" className={fieldClass}
           value={item.rate} onChange={e => onUpdate('rate', Number(e.target.value))} />
       </div>
@@ -942,6 +967,8 @@ export function CreateInvoiceModal({
   useEscapeToClose(onClose)
   useModalScrollLock()
 
+  const todayIso = new Date().toISOString().slice(0, 10)
+
   const [form, setForm] = useState({
     invoice_type: defaultType,
     order_id: prefill?.order_id || '',
@@ -954,7 +981,10 @@ export function CreateInvoiceModal({
     place_of_supply: prefill?.place_of_supply || '',
     is_inter_state: prefill?.is_inter_state || false,
     notes: prefill?.notes || '',
+    invoice_date: todayIso,
+    posting_date: todayIso,
     due_date: '',
+    payment_terms: '',
     terms_and_conditions: prefill?.terms_and_conditions || (defaultType === 'estimate'
       ? 'This quotation is valid until the date shown above. Prices are subject to change after expiry.'
       : ''),
@@ -999,7 +1029,9 @@ export function CreateInvoiceModal({
     }))
     const svcs = (servicesData?.items ?? []).map((s: any) => ({
       id: s.id, name: s.name, kind: 'service' as const,
-      hsn_sac: s.sac_code || s.hsn_sac || '', price: s.price ?? s.base_price ?? 0,
+      hsn_sac: s.sac_code || s.hsn_sac || '',
+      // Match Services list: resolve from price / range / plans (not only top-level price)
+      price: resolveServiceDisplayAmount(s),
       tax_rate: s.tax_rate ?? s.gst_rate ?? 18,
     }))
     return [...prods, ...svcs]
@@ -1031,6 +1063,7 @@ export function CreateInvoiceModal({
     email?: string
     gstin?: string
     sales_area_id?: string | null
+    payment_terms_days?: number | null
   }> = custData ?? []
 
   const applyCustomer = (c: {
@@ -1040,17 +1073,33 @@ export function CreateInvoiceModal({
     email?: string
     gstin?: string
     sales_area_id?: string | null
+    payment_terms_days?: number | null
   }) => {
-    setForm(f => ({
-      ...f,
-      customer_id: c.id || f.customer_id,
-      customer_name: c.full_name,
-      customer_phone: c.phone || f.customer_phone,
-      customer_email: c.email || f.customer_email,
-      customer_gstin: c.gstin || f.customer_gstin,
-      // Prefill from customer master; leave the current pick if the customer has none.
-      sales_area_id: c.sales_area_id || f.sales_area_id,
-    }))
+    setForm(f => {
+      // Build payment terms label + auto-compute due date from customer master
+      let payment_terms = f.payment_terms
+      let due_date = f.due_date
+      if (c.payment_terms_days) {
+        payment_terms = `Net ${c.payment_terms_days} days`
+        // Base the due date on today's invoice date (or the one already in the form)
+        const base = f.invoice_date || new Date().toISOString().slice(0, 10)
+        const d = new Date(base)
+        d.setDate(d.getDate() + c.payment_terms_days)
+        due_date = d.toISOString().slice(0, 10)
+      }
+      return {
+        ...f,
+        customer_id: c.id || f.customer_id,
+        customer_name: c.full_name,
+        customer_phone: c.phone || f.customer_phone,
+        customer_email: c.email || f.customer_email,
+        customer_gstin: c.gstin || f.customer_gstin,
+        // Prefill from customer master; leave the current pick if the customer has none.
+        sales_area_id: c.sales_area_id || f.sales_area_id,
+        payment_terms,
+        due_date,
+      }
+    })
     setCustOpen(false)
     setCustSearch(c.full_name)
   }
@@ -1334,6 +1383,68 @@ export function CreateInvoiceModal({
 
               {!isQuotation && (
                 <div className="min-w-0">
+                  <Label className="text-xs">Invoice date</Label>
+                  <Input
+                    type="date"
+                    className="mt-0.5 h-8 w-full text-sm"
+                    value={form.invoice_date}
+                    onChange={e => {
+                      const invoice_date = e.target.value
+                      setForm(f => {
+                        // Re-compute due date when invoice date changes and we have payment terms
+                        let due_date = f.due_date
+                        const termMatch = f.payment_terms?.match(/(\d+)\s*days?/i)
+                        if (termMatch && invoice_date) {
+                          const d = new Date(invoice_date)
+                          d.setDate(d.getDate() + parseInt(termMatch[1]))
+                          due_date = d.toISOString().slice(0, 10)
+                        }
+                        return { ...f, invoice_date, due_date }
+                      })
+                    }}
+                  />
+                </div>
+              )}
+
+              {!isQuotation && (
+                <div className="min-w-0">
+                  <Label className="text-xs">Posting date</Label>
+                  <Input
+                    type="date"
+                    className="mt-0.5 h-8 w-full text-sm"
+                    value={form.posting_date}
+                    onChange={e => setForm({ ...form, posting_date: e.target.value })}
+                  />
+                </div>
+              )}
+
+              {!isQuotation && (
+                <div className="min-w-0">
+                  <Label className="text-xs">Payment terms</Label>
+                  <Input
+                    className="mt-0.5 h-8 w-full text-sm"
+                    placeholder="e.g. Net 30 days"
+                    value={form.payment_terms}
+                    onChange={e => {
+                      const payment_terms = e.target.value
+                      setForm(f => {
+                        // Re-compute due date on manual terms edit
+                        let due_date = f.due_date
+                        const termMatch = payment_terms.match(/(\d+)\s*days?/i)
+                        if (termMatch && f.invoice_date) {
+                          const d = new Date(f.invoice_date)
+                          d.setDate(d.getDate() + parseInt(termMatch[1]))
+                          due_date = d.toISOString().slice(0, 10)
+                        }
+                        return { ...f, payment_terms, due_date }
+                      })
+                    }}
+                  />
+                </div>
+              )}
+
+              {!isQuotation && (
+                <div className="min-w-0">
                   <Label className="text-xs">Due date</Label>
                   <Input
                     type="date"
@@ -1368,7 +1479,30 @@ export function CreateInvoiceModal({
 
           <div className="rounded-lg border border-border/80 bg-muted/20 px-2.5 py-2">
             <div className="mb-1.5 flex items-center justify-between gap-3">
-              <Label className="text-xs">Line items</Label>
+              <div className="flex min-w-0 items-center gap-2">
+                <Label className="text-xs">Line items</Label>
+                <span className="text-[11px] text-muted-foreground">
+                  <a
+                    href="/products/new"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline"
+                    onClick={onAuthenticatedAnchorClick}
+                  >
+                    Add product
+                  </a>
+                  {' / '}
+                  <a
+                    href="/services/new"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline"
+                    onClick={onAuthenticatedAnchorClick}
+                  >
+                    service
+                  </a>
+                </span>
+              </div>
               <Button variant="outline" size="sm" className="h-8 shrink-0 gap-1 px-2.5 text-xs" onClick={addLine}>
                 <Plus className="h-3.5 w-3.5" />Add line
               </Button>
@@ -1378,8 +1512,8 @@ export function CreateInvoiceModal({
               <FormColumnLabel className="min-w-0 flex-[2.4] text-[10px]">Item</FormColumnLabel>
               <FormColumnLabel className="min-w-0 flex-1 text-[10px]">Variant</FormColumnLabel>
               <FormColumnLabel className="min-w-0 flex-1 text-[10px]">HSN/SAC</FormColumnLabel>
-              <FormColumnLabel className="w-14 shrink-0 text-center text-[10px]">Qty</FormColumnLabel>
-              <FormColumnLabel className="min-w-0 flex-1 text-[10px]">Rate (₹)</FormColumnLabel>
+              <FormColumnLabel className="w-36 shrink-0 text-center text-[10px]">Qty</FormColumnLabel>
+              <FormColumnLabel className="w-44 shrink-0 text-[10px]">Rate (₹)</FormColumnLabel>
               <FormColumnLabel className="w-14 shrink-0 text-center text-[10px]">Tax %</FormColumnLabel>
               <div className="w-7 shrink-0" />
             </div>

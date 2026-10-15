@@ -60,6 +60,8 @@ class InvoiceCreate(BaseModel):
     discount_amount: float = 0
     place_of_supply: Optional[str] = None
     is_inter_state: bool = False
+    invoice_date: Optional[str] = None
+    posting_date: Optional[str] = None
     due_date: Optional[str] = None
     payment_terms: Optional[str] = None
     notes: Optional[str] = None
@@ -80,6 +82,8 @@ class InvoiceUpdate(BaseModel):
     discount_amount: Optional[float] = None
     place_of_supply: Optional[str] = None
     is_inter_state: Optional[bool] = None
+    invoice_date: Optional[str] = None
+    posting_date: Optional[str] = None
     due_date: Optional[str] = None
     payment_terms: Optional[str] = None
     notes: Optional[str] = None
@@ -133,6 +137,8 @@ class InvoiceResponse(BaseModel):
     balance_due: float
     financial_year: Optional[str] = None
     status: str
+    invoice_date: Optional[str] = None
+    posting_date: Optional[str] = None
     due_date: Optional[str] = None
     payment_terms: Optional[str] = None
     is_gst: bool

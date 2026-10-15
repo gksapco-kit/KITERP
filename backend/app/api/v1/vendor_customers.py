@@ -242,6 +242,7 @@ def _customer_dict(customer: Customer) -> dict:
         "shipping_addresses": customer.shipping_addresses or [],
         "notes": customer.notes,
         "opening_balance": float(customer.opening_balance or 0),
+        "payment_terms_days": getattr(customer, "payment_terms_days", None),
         "bank_name": customer.bank_name,
         "account_number": customer.account_number,
         "account_holder_name": customer.account_holder_name,

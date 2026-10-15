@@ -3,6 +3,7 @@ import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Button } from '@/components/ui/button'
 import { vendorApi } from '@/api/vendor'
 import { formatCurrency } from '@/lib/utils'
+import { onAuthenticatedAnchorClick } from '@/lib/openAuthenticatedTab'
 import { useQuery } from '@tanstack/react-query'
 import {
   X, Clock, AlertTriangle, Loader2, CheckCircle,
@@ -307,7 +308,8 @@ export function POSBookingPanel({
                     <p className="text-xs text-gray-500 truncate">{customer.phone || customer.email}</p>
                   </div>
                   <a href={`/customers/${customer.id}`} target="_blank" rel="noopener noreferrer"
-                    className="p-1 rounded hover:bg-primary/15 shrink-0" title="Open customer profile">
+                    className="p-1 rounded hover:bg-primary/15 shrink-0" title="Open customer profile"
+                    onClick={onAuthenticatedAnchorClick}>
                     <ExternalLink className="w-3 h-3 text-primary/70" />
                   </a>
                 </div>

@@ -619,6 +619,8 @@ export interface Customer {
     pincode?: string
   }
   opening_balance?: number
+  /** Default credit period in days (e.g. 30 → Net 30). Set on the customer master. */
+  payment_terms_days?: number | null
   is_active: boolean
   total_orders: number
   total_spent: number

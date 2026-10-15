@@ -246,6 +246,8 @@ class InvoiceService:
             is_gst=vendor_gst,
             place_of_supply=data.get("place_of_supply"),
             is_inter_state=is_inter_state,
+            invoice_date=_parse_optional_date(data.get("invoice_date")),
+            posting_date=_parse_optional_date(data.get("posting_date")),
             due_date=_parse_optional_date(data.get("due_date")),
             payment_terms=data.get("payment_terms"),
             notes=data.get("notes"),
@@ -285,6 +287,10 @@ class InvoiceService:
 
         if "due_date" in data:
             data = {**data, "due_date": _parse_optional_date(data.get("due_date"))}
+        if "invoice_date" in data:
+            data = {**data, "invoice_date": _parse_optional_date(data.get("invoice_date"))}
+        if "posting_date" in data:
+            data = {**data, "posting_date": _parse_optional_date(data.get("posting_date"))}
 
         if "sales_area_id" in data:
             invoice.sales_area_id = await parse_explicit_sales_area_id(

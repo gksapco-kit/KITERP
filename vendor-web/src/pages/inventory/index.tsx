@@ -7,6 +7,7 @@ import { ResizableTable } from '@/components/table/ResizableTable'
 import { TablePagination } from '@/components/table/TablePagination'
 import { Link, useNavigate } from 'react-router-dom'
 import { PR_FROM_INVENTORY_KEY, PO_FROM_INVENTORY_KEY, type InventoryAlertPrefill } from '@/lib/prToPoPrefill'
+import { openAuthenticatedTab } from '@/lib/openAuthenticatedTab'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { vendorApi } from '@/api/vendor'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -135,7 +136,7 @@ export default function Inventory() {
       toast.success(`Found: ${productName}`)
     } catch (err: any) {
       if (err?.response?.status === 404) {
-        showBarcodeNotFound(code, () => window.open(`/products/new?barcode=${encodeURIComponent(code)}`, '_blank'))
+        showBarcodeNotFound(code, () => openAuthenticatedTab(`/products/new?barcode=${encodeURIComponent(code)}`))
       } else {
         toast.error('Barcode scan error. Please try again.')
       }

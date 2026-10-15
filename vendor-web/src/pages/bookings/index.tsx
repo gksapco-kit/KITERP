@@ -37,6 +37,7 @@ import {
   ExternalLink, CalendarClock, RotateCcw, Grid3X3, Building2,
 } from 'lucide-react'
 import { extractApiError } from '@/lib/errorMessages'
+import { onAuthenticatedAnchorClick } from '@/lib/openAuthenticatedTab'
 import { bookingModalUi as bm } from './bookingModalUi'
 
 // ── Slot-picker helpers (mirrors POSBookingPanel logic) ──────────────────────
@@ -861,7 +862,8 @@ export default function BookingsPage() {
                         </div>
                         <div className="flex flex-col gap-0.5">
                           <a href={`/customers/${selectedCustomer.id}`} target="_blank" rel="noopener noreferrer"
-                            className="p-1 rounded hover:bg-primary/15 transition-colors" title="Open customer" onClick={e => e.stopPropagation()}>
+                            className="p-1 rounded hover:bg-primary/15 transition-colors" title="Open customer"
+                            onClick={e => { e.stopPropagation(); onAuthenticatedAnchorClick(e) }}>
                             <ExternalLink className="w-3 h-3 text-primary/80" />
                           </a>
                           <button type="button" aria-label="Close" onClick={() => { setSelectedCustomer(null); setCustSearch('') }}

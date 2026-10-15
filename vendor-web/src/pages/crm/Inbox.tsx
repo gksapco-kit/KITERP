@@ -20,6 +20,7 @@ import { format } from 'date-fns'
 import { formatDateTime } from '@/lib/utils'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
+import { onAuthenticatedAnchorClick } from '@/lib/openAuthenticatedTab'
 import { toast } from 'sonner'
 
 import { askConfirm } from '@/components/common/ConfirmProvider'
@@ -168,7 +169,7 @@ function SubmissionRow({
             <div className="flex items-center gap-3 text-xs text-gray-400">
               {sub.gdpr_consent && <span className="text-emerald-600 font-medium">✓ GDPR Consent</span>}
               {sub.crm_lead_id && (
-                <a href="/crm/leads" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-primary hover:underline">
+                <a href="/crm/leads" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-primary hover:underline" onClick={onAuthenticatedAnchorClick}>
                   View CRM Lead <ExternalLink className="w-3 h-3" />
                 </a>
               )}

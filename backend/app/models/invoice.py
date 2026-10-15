@@ -62,6 +62,11 @@ class Invoice(Base):
 
     # Status
     status = Column(String(20), default="draft")  # draft, sent, paid, partially_paid, overdue, cancelled
+    # Accounting dates — invoice_date is the document date; posting_date is the
+    # FI/GL posting date (can differ, e.g. back-dated billing).  Both default
+    # to creation date when not explicitly supplied.
+    invoice_date = Column(Date, nullable=True)
+    posting_date = Column(Date, nullable=True)
     due_date = Column(Date)
     payment_terms = Column(String(100))
 

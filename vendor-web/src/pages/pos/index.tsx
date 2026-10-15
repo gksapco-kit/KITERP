@@ -35,6 +35,7 @@ import {
   type PaperSize,
 } from '@/lib/invoiceTemplates'
 import { fetchAsDataUrl, downloadAsPdf, openPrintWindow, shareViaWhatsApp, shareViaSms, buildShareMessage, shareInvoiceViaWhatsApp } from '@/lib/printUtils'
+import { openAuthenticatedTab } from '@/lib/openAuthenticatedTab'
 import { escapeHtml, withNoScriptCsp, writeSafeHtml } from '@/lib/htmlSafety'
 import { buildPosOverrides, previewPosSettings, type PosModalValues } from '@/lib/posOverrides'
 import { cn } from '@/lib/utils'
@@ -1222,7 +1223,7 @@ export default function POS() {
                 {/* Create All */}
                 <button
                   onClick={() => {
-                    scanReport.forEach(e => window.open(`/products/new?barcode=${encodeURIComponent(e.barcode)}`, '_blank'))
+                    scanReport.forEach(e => openAuthenticatedTab(`/products/new?barcode=${encodeURIComponent(e.barcode)}`))
                   }}
                   className="flex items-center gap-1 text-xs font-medium text-blue-700 hover:underline"
                 >
@@ -1261,7 +1262,7 @@ export default function POS() {
                   {/* Row actions */}
                   <button
                     title="Create product with this barcode"
-                    onClick={() => window.open(`/products/new?barcode=${encodeURIComponent(entry.barcode)}`, '_blank')}
+                    onClick={() => openAuthenticatedTab(`/products/new?barcode=${encodeURIComponent(entry.barcode)}`)}
                     className="shrink-0 flex items-center gap-0.5 text-xs text-blue-600 hover:underline font-medium"
                   >
                     <PackagePlus className="w-3 h-3" /> Create

@@ -65,6 +65,8 @@ class Customer(Base):
 
     # Financial
     opening_balance = Column(Numeric(12, 2), default=0)
+    # Default credit / payment terms for this customer (days after invoice date)
+    payment_terms_days = Column(Integer, nullable=True, default=None)
 
     notification_preferences = Column(JSONB, default=dict)
 

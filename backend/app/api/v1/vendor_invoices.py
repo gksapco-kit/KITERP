@@ -108,6 +108,8 @@ def _inv_dict(inv) -> dict:
         "round_off": float(inv.round_off or 0), "total": float(inv.total or 0),
         "amount_paid": float(inv.amount_paid or 0), "balance_due": float(inv.balance_due or 0),
         "financial_year": inv.financial_year, "status": inv.status,
+        "invoice_date": str(getattr(inv, "invoice_date", None)) if getattr(inv, "invoice_date", None) else None,
+        "posting_date": str(getattr(inv, "posting_date", None)) if getattr(inv, "posting_date", None) else None,
         "due_date": str(inv.due_date) if inv.due_date else None,
         "payment_terms": inv.payment_terms,
         "is_gst": inv.is_gst, "place_of_supply": inv.place_of_supply,
