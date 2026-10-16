@@ -31,7 +31,10 @@ import {
   resolveStoreFrontTemplateId,
   resolveStorefrontTemplateMode,
 } from '@/lib/liveStorefrontUrl'
-import { resolveTemplateDisplay } from '@/lib/websiteAppliedTemplate'
+import {
+  formatBusinessFrontTemplateOptionLabel,
+  resolveBusinessFrontOptionIdentity,
+} from '@/lib/websiteAppliedTemplate'
 import { formatStoreCode, sortStoresByCode } from '@/lib/verification'
 
 const GLOBAL_TEMPLATE_ID = ''
@@ -163,42 +166,68 @@ export default function StorefrontDisplayPage() {
   const singleTemplateId = resolveSingleFrontTemplateId(vendor?.settings)
 
   const templateOptions = useMemo(() => {
-    const options: Array<{ id: string; label: string; assignedTo?: string[] }> = [
-      { id: GLOBAL_TEMPLATE_ID, label: 'Global default (fallback)' },
+    const options: Array<{ id: string; label: string; assignedTo: string[]; active: boolean; domain: string | null }> = [
+      { id: GLOBAL_TEMPLATE_ID, label: 'Global default (fallback)', assignedTo: [], active: false, domain: null },
     ]
     const seen = new Set<string>()
+    const externalDomain = vendor?.external_domain_name
 
-    const addOption = (id: string, label: string, assignedTo: string[] = []) => {
+    const assignedCodes = (templateId: string) => sortStoresByCode(stores)
+      .filter(s => resolveStoreFrontTemplateId(s.settings) === templateId)
+      .map(s => formatStoreCode(s))
+
+    const optionIsActive = (id: string, assignedTo: string[]) => {
+      if (!id) return false
+      if (templateMode === 'single') return Boolean(singleTemplateId) && id === singleTemplateId
+      return assignedTo.length > 0
+    }
+
+    const addOption = (id: string, fallbackName: string, assignedTo: string[] = []) => {
       if (!id || seen.has(id)) return
       seen.add(id)
-      options.push({ id, label, assignedTo })
+      const active = optionIsActive(id, assignedTo)
+      const identity = resolveBusinessFrontOptionIdentity({
+        optionId: id,
+        fallbackName,
+        sites,
+        businessName: vendor?.display_name,
+        otherBusinessNames: [vendor?.business_name],
+        externalDomain,
+        active,
+      })
+      options.push({
+        id,
+        label: formatBusinessFrontTemplateOptionLabel({
+          name: identity.name,
+          domain: identity.domain,
+          assignedTo,
+          active,
+        }),
+        assignedTo,
+        active,
+        domain: identity.domain,
+      })
     }
 
     for (const tpl of templates) {
-      const assigned = sortStoresByCode(stores)
-        .filter(s => resolveStoreFrontTemplateId(s.settings) === tpl.id)
-        .map(s => formatStoreCode(s))
-      addOption(tpl.id, tpl.name, assigned)
+      addOption(tpl.id, tpl.name, assignedCodes(tpl.id))
     }
 
     for (const site of sites) {
       if (!site.is_published) continue
-      const assigned = sortStoresByCode(stores)
-        .filter(s => resolveStoreFrontTemplateId(s.settings) === site.id)
-        .map(s => formatStoreCode(s))
-      const label = resolveTemplateDisplay(site.id, templates, [], sites)?.name ?? site.name
-      addOption(site.id, label, assigned)
+      addOption(site.id, site.name, assignedCodes(site.id))
     }
 
     if (singleTemplateId && !seen.has(singleTemplateId)) {
-      const label =
-        resolveTemplateDisplay(singleTemplateId, templates, [], sites)?.name
-        ?? 'Shared website template'
-      addOption(singleTemplateId, label, sortStoresByCode(stores).map(s => formatStoreCode(s)))
+      addOption(
+        singleTemplateId,
+        'Shared website template',
+        sortStoresByCode(stores).map(s => formatStoreCode(s)),
+      )
     }
 
     return options
-  }, [templates, sites, stores, singleTemplateId])
+  }, [templates, sites, stores, singleTemplateId, templateMode, vendor?.display_name, vendor?.business_name, vendor?.external_domain_name])
 
   useEffect(() => {
     if (!vendor || didAutoSelectTemplateRef.current) return
@@ -395,13 +424,18 @@ export default function StorefrontDisplayPage() {
             className="h-9 rounded-lg border border-input bg-background"
             options={templateOptions.map(opt => ({
               value: opt.id,
-              label: opt.assignedTo?.length
-                ? `${opt.label} · ${opt.assignedTo.join(', ')}`
-                : opt.label,
+              label: opt.label,
             }))}
             aria-label="Website template"
           />
-          {selectedOption?.assignedTo?.length ? (
+          {selectedOption?.active ? (
+            <p className="text-[11px] text-emerald-700">
+              Active{selectedOption.domain ? ` on ${selectedOption.domain}` : ''}
+              {selectedOption.assignedTo.length
+                ? ` · Assigned to: ${selectedOption.assignedTo.join(', ')}`
+                : ''}
+            </p>
+          ) : selectedOption?.assignedTo?.length ? (
             <p className="text-[11px] text-muted-foreground">
               Assigned to: {selectedOption.assignedTo.join(', ')}
             </p>

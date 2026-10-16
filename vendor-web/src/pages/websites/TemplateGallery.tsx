@@ -58,7 +58,7 @@ import {
   type StorefrontTemplateMode,
 } from '@/lib/liveStorefrontUrl'
 import { WebsiteSiteGlimpse } from '@/components/websites/WebsiteSiteGlimpse'
-import { resolveSiteAppliedTemplateLabel, resolveTemplateDisplay, type ResolvedTemplateDisplay } from '@/lib/websiteAppliedTemplate'
+import { coverageLiveTemplateLabel, resolveTemplateDisplay, type ResolvedTemplateDisplay } from '@/lib/websiteAppliedTemplate'
 import { resolveSiteStaticThumbnail } from '@/lib/websiteSitePreview'
 import {
   isLegacyPresetActive,
@@ -820,7 +820,7 @@ function resolveStoreCoverageState(
 
 function coverageStatusLabel(status: CoverageAssignmentStatus): string {
   if (status === 'live_builder') return 'Live on storefront'
-  if (status === 'catalog_assigned') return 'Template assigned'
+  if (status === 'catalog_assigned') return 'Active'
   return 'Nothing assigned'
 }
 
@@ -1005,8 +1005,8 @@ function CoverageStoreCard({
                 Live
               </span>
             ) : store.status === 'catalog_assigned' ? (
-              <span className={cn('ml-auto shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-bold leading-none', coverageStatusBadgeClass(store.status))}>
-                Assigned
+              <span className={cn('ml-auto shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-bold leading-none', coverageStatusBadgeClass('live_builder'))}>
+                Active
               </span>
             ) : null}
           </span>
@@ -1104,8 +1104,8 @@ function SharedTemplateCoverageCard({
                 Live
               </span>
             ) : isAssigned ? (
-              <span className={cn('shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold', coverageStatusBadgeClass('catalog_assigned'))}>
-                Assigned
+              <span className={cn('shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold', coverageStatusBadgeClass('live_builder'))}>
+                Active
               </span>
             ) : null}
             <span className="hidden text-xs text-gray-500 sm:inline">
@@ -1256,14 +1256,18 @@ function StorefrontCoverage({
                   <span className="font-bold text-gray-900">{activeStore.code}</span>
                   <span className="text-gray-400"> · </span>
                   <span className="font-medium text-gray-800">{activeStore.name}</span>
-                  {activeStore.template ? (
+                  {activeStore.template && activeStore.template.name.trim().localeCompare(activeStore.name.trim(), undefined, { sensitivity: 'accent' }) !== 0 ? (
                     <>
                       <span className="text-gray-400"> → </span>
                       <span className="font-semibold text-gray-900">{activeStore.template.name}</span>
-                      <span className={cn('ml-2 inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-semibold sm:text-xs', coverageStatusBadgeClass(activeStore.status))}>
-                        {activeStore.status === 'live_builder' ? 'Live on storefront' : 'Template assigned'}
+                      <span className={cn('ml-2 inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-semibold sm:text-xs', coverageStatusBadgeClass('live_builder'))}>
+                        {activeStore.status === 'live_builder' ? 'Live on storefront' : 'Active'}
                       </span>
                     </>
+                  ) : activeStore.template ? (
+                    <span className={cn('ml-2 inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-semibold sm:text-xs', coverageStatusBadgeClass('live_builder'))}>
+                      {activeStore.status === 'live_builder' ? 'Live on storefront' : 'Active'}
+                    </span>
                   ) : (
                     <span className="font-medium text-amber-700"> — no template yet</span>
                   )}
@@ -1772,7 +1776,19 @@ export default function WebsiteTemplateGalleryPage() {
           name: store.name,
           code: formatStoreCode(store),
           is_default: store.is_default,
-          template,
+          template: template
+            ? {
+                ...template,
+                name: coverageLiveTemplateLabel({
+                  templateName: template.name,
+                  templateId: template.id,
+                  sites: mainSites,
+                  storeName: store.name,
+                  businessNames: [vendor?.display_name, vendor?.business_name],
+                  externalDomain: vendor?.external_domain_name,
+                }),
+              }
+            : null,
           status,
           siteId,
           livePreviewUrl,
@@ -1787,7 +1803,7 @@ export default function WebsiteTemplateGalleryPage() {
               : null,
         }
       }),
-    [stores, mainSites, templates, legacyPresets, vendor?.settings, coveragePreviewContext],
+    [stores, mainSites, templates, legacyPresets, vendor?.settings, vendor?.display_name, vendor?.business_name, vendor?.external_domain_name, coveragePreviewContext],
   )
 
   const coverageAssignedTemplateIds = useMemo(() => {

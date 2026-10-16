@@ -48,7 +48,7 @@ export default function AboutPage() {
               </div>
             </div>
             <div className="text-right">
-              <p className="font-mono text-lg font-bold text-foreground">v{APP_VERSION}</p>
+              <p className="font-mono text-lg font-bold text-foreground">V{APP_VERSION}</p>
               <p className="text-xs text-muted-foreground">{LAST_UPDATED}</p>
             </div>
           </div>
@@ -112,7 +112,7 @@ export default function AboutPage() {
                 {CHANGELOG.map(e => (
                   <div key={e.version} className="p-3">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="font-mono text-xs font-semibold text-foreground">v{e.version}</span>
+                      <span className="font-mono text-xs font-semibold text-foreground">V{e.version}</span>
                       <span className="text-xs text-muted-foreground">{e.date}</span>
                     </div>
                     <p className="text-xs text-muted-foreground leading-relaxed">{e.notes}</p>
