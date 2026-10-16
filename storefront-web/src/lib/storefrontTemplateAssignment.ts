@@ -1,4 +1,5 @@
 import type { StoreLocation } from '@/api/store'
+import { branchCodeForStore, pickDefaultOpenBranch } from '@/lib/branchMatching'
 
 export const STOREFRONT_LINK_MODE_KEY = 'storefront_link_mode'
 export const STOREFRONT_TEMPLATE_MODE_KEY = 'storefront_template_mode'
@@ -84,6 +85,29 @@ export function resolveEffectiveStorefrontTemplateId(
   return resolveStoreFrontTemplateId(storeSettings) ?? resolveSingleFrontTemplateId(vendorSettings)
 }
 
+/** Unit whose template applies when the URL has no ?branch= (custom domain or platform). */
+function defaultBranchCode(stores: StoreLocation[]): string | null {
+  if (!stores.length) return null
+  const fallback = pickDefaultOpenBranch(stores) ?? stores.find(s => s.is_default) ?? stores[0]
+  if (!fallback) return null
+  return branchCodeForStore(fallback, stores)
+}
+
+function templateIdForBranch(
+  vendorSettings: Record<string, unknown> | null | undefined,
+  stores: StoreLocation[],
+  code: string | null | undefined,
+): string | null {
+  const branchStore = matchBranchStore(stores, code)
+  if (!branchStore) return null
+  const storeTemplate = resolveStoreFrontTemplateId(
+    branchStore.settings as Record<string, unknown>,
+  )
+  if (storeTemplate) return storeTemplate
+  // Branch has no override — use vendor-wide assignment instead of legacy Home.
+  return resolveSingleFrontTemplateId(vendorSettings)
+}
+
 export function resolveAssignedStorefrontTemplateId(
   vendorSettings: Record<string, unknown> | null | undefined,
   stores: StoreLocation[],
@@ -96,26 +120,18 @@ export function resolveAssignedStorefrontTemplateId(
     return resolveSingleFrontTemplateId(vendorSettings)
   }
 
-  const branchKeyValue = branchKey(branchCode)
-  if (branchKeyValue) {
-    if (options?.branchesLoading) {
-      return null
-    }
-    const branchStore = matchBranchStore(stores, branchCode)
-    if (!branchStore) {
-      return null
-    }
-    const storeTemplate = resolveStoreFrontTemplateId(
-      branchStore.settings as Record<string, unknown>,
-    )
-    if (storeTemplate) {
-      return storeTemplate
-    }
-    // Branch has no override — use vendor-wide assignment instead of legacy Home.
-    return resolveSingleFrontTemplateId(vendorSettings)
+  const explicit = branchKey(branchCode)
+  if (!explicit) {
+    // Custom-domain URLs omit ?branch=. Use the default unit so display
+    // fields saved against that unit's template apply on both hosts.
+    if (options?.branchesLoading) return null
+    const fallbackCode = defaultBranchCode(stores)
+    if (!fallbackCode) return resolveSingleFrontTemplateId(vendorSettings)
+    return templateIdForBranch(vendorSettings, stores, fallbackCode)
   }
 
-  return resolveSingleFrontTemplateId(vendorSettings)
+  if (options?.branchesLoading) return null
+  return templateIdForBranch(vendorSettings, stores, branchCode)
 }
 
 /**
@@ -148,11 +164,11 @@ export function resolveStoreSpecificAssignedTemplateId(
 /** True while the per-BU assigned template cannot be resolved yet (avoid wrong fallback UI). */
 export function isAssignedStorefrontTemplatePending(
   vendorSettings: Record<string, unknown> | null | undefined,
-  branchCode: string | null | undefined,
+  _branchCode: string | null | undefined,
   branchesLoading: boolean,
 ): boolean {
-  if (!branchCode?.trim()) return false
-  return resolveStorefrontTemplateMode(vendorSettings) === 'per_unit' && branchesLoading
+  if (!branchesLoading) return false
+  return resolveStorefrontTemplateMode(vendorSettings) === 'per_unit'
 }
 
 export function isBlockBasedStorefrontTemplateId(id: string | null | undefined): boolean {
