@@ -25,7 +25,7 @@ from app.models.coupon import Coupon, CouponUsage
 from app.models.customer import Customer
 from app.models.vendor import Vendor
 from app.models.vendor_product import Product
-from app.services.checkout_service import CheckoutService
+from app.services.checkout_service import CheckoutService, get_shipping_methods
 from app.services.coupon_service import CouponService
 
 
@@ -121,6 +121,26 @@ async def test_non_gst_vendor_no_tax(db_session, test_vendor, taxed_product):
     )
     assert preview["tax_amount"] == 0.0
     assert preview["total"] == 200.0
+
+
+@pytest.mark.asyncio
+async def test_free_delivery_option_off_by_default(db_session, test_vendor):
+    methods = get_shipping_methods(test_vendor)
+    assert all(m.get("id") != "free" for m in methods)
+
+    test_vendor.theme_config = {
+        "checkout": {
+            "free_delivery": {"enabled": True},
+        },
+    }
+    db_session.add(test_vendor)
+    await db_session.commit()
+    await db_session.refresh(test_vendor)
+
+    methods = get_shipping_methods(test_vendor)
+    free = next(m for m in methods if m.get("id") == "free")
+    assert free["amount"] == 0
+    assert free["label"] == "Free Delivery"
 
 
 @pytest.mark.asyncio

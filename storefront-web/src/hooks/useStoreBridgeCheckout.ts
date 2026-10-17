@@ -37,16 +37,6 @@ import { useGuestCartStore } from '@/stores/guestCartStore'
 import { useCartStore } from '@/stores/cartStore'
 import type { Address, Cart, Customer, PaymentSelection, PaymentProvider, ShippingMethod } from '@/checkout/types'
 
-const FALLBACK_SHIPPING: ShippingMethod[] = [
-  {
-    id: 'free',
-    label: 'Free Delivery',
-    description: '3–7 business days',
-    price: { amount: 0, currency: 'INR' },
-    estimatedDays: { min: 3, max: 7 },
-  },
-]
-
 function paymentToCheckout(method: 'cod' | 'upi' | 'card'): PaymentSelection {
   if (method === 'upi') return { kind: 'provider', provider: 'paypal' }
   if (method === 'cod') return { kind: 'tab', tab: 'bank_transfer' }
@@ -106,7 +96,7 @@ export function useStoreBridgeCheckout() {
   const [selectedSavedAddressId, setSelectedSavedAddressId] = useState<string | undefined>(
     savedAddresses.length > 0 ? String(customer?.default_address_index ?? 0) : undefined,
   )
-  const [shippingMethodId, setShippingMethodId] = useState<string>('free')
+  const [shippingMethodId, setShippingMethodId] = useState<string>('')
   const [payment, setPayment] = useState<PaymentSelection | undefined>(undefined)
   const [notes, setNotes] = useState('')
   const [giftMessage, setGiftMessage] = useState('')
@@ -263,8 +253,11 @@ export function useStoreBridgeCheckout() {
 
     const applyPreview = (data: Awaited<ReturnType<typeof storeApi.checkoutPreview>>) => {
       setServerPreview(data)
-      if (data.shipping_methods?.length && !data.shipping_methods.some(m => m.id === methodId)) {
-        setShippingMethodId(data.shipping_methods[0].id)
+      const offered = data.shipping_methods ?? []
+      if (offered.length && !offered.some(m => m.id === methodId)) {
+        setShippingMethodId(offered[0].id)
+      } else if (!offered.length && methodId) {
+        setShippingMethodId('')
       }
       const connected = data.connected_payments ?? []
       const codOk = (data.payment_methods ?? []).includes('cod')
@@ -323,7 +316,7 @@ export function useStoreBridgeCheckout() {
 
   const shippingMethods: ShippingMethod[] = useMemo(() => {
     const methods = serverPreview?.shipping_methods
-    if (!methods?.length) return FALLBACK_SHIPPING
+    if (!methods?.length) return []
     return methods.map(m => ({
       id: m.id,
       label: m.label,

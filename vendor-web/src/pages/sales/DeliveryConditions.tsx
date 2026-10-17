@@ -142,6 +142,30 @@ function MoneyInput({
   )
 }
 
+function readFreeDeliveryEnabled(vendor: Vendor | null): boolean {
+  const theme = (vendor?.theme_config ?? {}) as Record<string, unknown>
+  const checkout = (theme.checkout ?? {}) as Record<string, unknown>
+  const raw = checkout.free_delivery
+  if (!raw || typeof raw !== 'object') return false
+  return Boolean((raw as { enabled?: unknown }).enabled)
+}
+
+function withFreeDeliveryOffer(
+  theme: Record<string, unknown> | null,
+  enabled: boolean,
+): Record<string, unknown> | null {
+  if (!theme) return null
+  const checkout = { ...((theme.checkout ?? {}) as Record<string, unknown>) }
+  checkout.free_delivery = {
+    enabled,
+    label: 'Free Delivery',
+    description: '3–7 business days',
+    estimated_days_min: 3,
+    estimated_days_max: 7,
+  }
+  return { ...theme, checkout }
+}
+
 export default function DeliveryConditionsPage() {
   const { vendor } = useVendorStore()
   const updateVendor = useUpdateVendor()
@@ -152,6 +176,7 @@ export default function DeliveryConditionsPage() {
     calculate_gst: true,
   })
   const [express, setExpress] = useState<ExpressDeliveryForm>(readExpressDelivery(null))
+  const [offerFreeDelivery, setOfferFreeDelivery] = useState(false)
   const savingRef = useRef(false)
 
   const { markDirty, clearDirty } = useServerFormHydration(
@@ -159,6 +184,7 @@ export default function DeliveryConditionsPage() {
       if (!vendor) return
       setForm(readDeliveryConditions(vendor.settings as Record<string, unknown>))
       setExpress(readExpressDelivery(vendor))
+      setOfferFreeDelivery(readFreeDeliveryEnabled(vendor))
     },
     [vendor],
     {
@@ -180,7 +206,7 @@ export default function DeliveryConditionsPage() {
       }
     }
 
-    const theme = buildExpressDeliveryTheme(vendor, express)
+    const theme = withFreeDeliveryOffer(buildExpressDeliveryTheme(vendor, express), offerFreeDelivery)
     if (!theme) {
       toast.error('Enter a valid express delivery fee (0 or more).')
       return
@@ -335,8 +361,18 @@ export default function DeliveryConditionsPage() {
             <section className="flex flex-1 flex-col gap-4 p-5 lg:p-6">
               <SectionTitle
                 icon={Truck}
-                title="Express delivery at checkout"
-                hint="Optional paid express option alongside free delivery"
+                title="Checkout shipping options"
+                hint="Choose which delivery options customers can select"
+              />
+              <ToggleRow
+                id="offer-free-delivery"
+                label="Offer free delivery"
+                description="When off, checkout does not show a Free Delivery option."
+                checked={offerFreeDelivery}
+                onCheckedChange={enabled => {
+                  markDirty()
+                  setOfferFreeDelivery(enabled)
+                }}
               />
               <ExpressDeliverySettings
                 form={express}

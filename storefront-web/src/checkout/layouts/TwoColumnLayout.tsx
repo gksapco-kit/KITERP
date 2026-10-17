@@ -21,7 +21,7 @@ export function TwoColumnLayout({ state, actions }: Props) {
   const isSubscription = state.checkoutIntentKind === "subscription";
   const isBooking = state.checkoutIntentKind === "booking";
   const requiresShipping = state.requiresShipping !== false;
-  const showShippingStep = requiresShipping && showShippingMethods;
+  const showShippingStep = requiresShipping && showShippingMethods && state.shippingMethods.length > 0;
   const addressTitle = isSubscription || isBooking ? "Delivery / billing address" : "Shipping address";
 
   let nextStep = 1;

@@ -17,7 +17,8 @@ export function AccordionLayout({ state, actions }: { state: CheckoutState; acti
   const hasSaved = showSavedAddresses && (state.customer.savedAddresses?.length ?? 0) > 0;
   const selectedShippingLabel = state.shippingMethods.find((m) => m.id === state.shippingMethodId)?.label;
   const requiresShipping = state.requiresShipping !== false;
-  const showShippingStep = requiresShipping && showShippingMethods;
+  const showShippingStep = requiresShipping && showShippingMethods && state.shippingMethods.length > 0;
+  const paymentStepNo = 1 + (requiresShipping ? 1 : 0) + (showShippingStep ? 1 : 0) + 1;
 
   return (
     <div className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-3 py-6 sm:px-4 md:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(340px,460px)] lg:items-start lg:gap-8">
@@ -90,7 +91,7 @@ export function AccordionLayout({ state, actions }: { state: CheckoutState; acti
           )}
 
           <AccordionItem value="payment">
-            <AccordionTrigger>{requiresShipping ? "4. Payment" : "2. Payment"}</AccordionTrigger>
+            <AccordionTrigger>{paymentStepNo}. Payment</AccordionTrigger>
             <AccordionContent>
               <PaymentSection onChange={actions.setPayment} value={state.payment} total={state.cart.total} />
             </AccordionContent>

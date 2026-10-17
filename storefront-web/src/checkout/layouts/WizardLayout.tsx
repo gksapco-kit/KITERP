@@ -13,7 +13,7 @@ import { PlaceOrderBar } from "./TwoColumnLayout";
 export function WizardLayout({ state, actions }: { state: CheckoutState; actions: CheckoutActions }) {
   const { showSavedAddresses, showShippingMethods, locale } = useCheckoutConfig();
   const requiresShipping = state.requiresShipping !== false;
-  const showShippingStep = requiresShipping && showShippingMethods;
+  const showShippingStep = requiresShipping && showShippingMethods && state.shippingMethods.length > 0;
 
   const steps = useMemo(() => {
     const list: string[] = ["Information"];

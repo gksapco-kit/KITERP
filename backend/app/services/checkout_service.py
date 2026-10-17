@@ -13,24 +13,19 @@ from app.models.vendor_product import Product
 from app.models.store import Store
 from app.services.coupon_service import CouponService
 
-DEFAULT_SHIPPING_METHODS: list[dict[str, Any]] = [
-    {
-        "id": "free",
-        "label": "Free Delivery",
-        "description": "3–7 business days",
-        "amount": 0,
-        "estimated_days_min": 3,
-        "estimated_days_max": 7,
-    },
-    {
-        "id": "express",
-        "label": "Express Delivery",
-        "description": "1–2 business days",
-        "amount": 99,
-        "estimated_days_min": 1,
-        "estimated_days_max": 2,
-    },
-]
+
+def get_free_delivery_config(vendor: Vendor) -> dict[str, Any]:
+    """Checkout Free Delivery option. Off unless theme_config.checkout.free_delivery.enabled."""
+    raw = _checkout_config(vendor).get("free_delivery")
+    if not isinstance(raw, dict):
+        raw = {}
+    return {
+        "enabled": bool(raw.get("enabled")),
+        "label": str(raw.get("label") or "Free Delivery").strip() or "Free Delivery",
+        "description": str(raw.get("description") or "3–7 business days").strip() or "3–7 business days",
+        "estimated_days_min": int(raw.get("estimated_days_min") or 3),
+        "estimated_days_max": int(raw.get("estimated_days_max") or 7),
+    }
 
 
 def _checkout_config(vendor: Vendor) -> dict:
@@ -53,26 +48,38 @@ def get_express_delivery_config(vendor: Vendor) -> dict[str, Any]:
 
 def get_shipping_methods(vendor: Vendor) -> list[dict[str, Any]]:
     express_cfg = get_express_delivery_config(vendor)
+    free_cfg = get_free_delivery_config(vendor)
     custom = _checkout_config(vendor).get("shipping_methods")
 
     if isinstance(custom, list) and custom:
-        methods = [dict(m) for m in custom]
+        methods = [dict(m) for m in custom if m.get("id") not in ("free", "express")]
     else:
-        methods = [dict(DEFAULT_SHIPPING_METHODS[0])]
+        methods = []
+
+    if free_cfg.get("enabled"):
+        methods.insert(
+            0,
+            {
+                "id": "free",
+                "label": free_cfg["label"],
+                "description": free_cfg["description"],
+                "amount": 0,
+                "estimated_days_min": free_cfg["estimated_days_min"],
+                "estimated_days_max": free_cfg["estimated_days_max"],
+            },
+        )
 
     if express_cfg.get("enabled"):
-        express_method = {
-            "id": "express",
-            "label": express_cfg["label"],
-            "description": express_cfg["description"],
-            "amount": express_cfg["amount"],
-            "estimated_days_min": express_cfg["estimated_days_min"],
-            "estimated_days_max": express_cfg["estimated_days_max"],
-        }
-        methods = [m for m in methods if m.get("id") != "express"]
-        methods.append(express_method)
-    else:
-        methods = [m for m in methods if m.get("id") != "express"]
+        methods.append(
+            {
+                "id": "express",
+                "label": express_cfg["label"],
+                "description": express_cfg["description"],
+                "amount": express_cfg["amount"],
+                "estimated_days_min": express_cfg["estimated_days_min"],
+                "estimated_days_max": express_cfg["estimated_days_max"],
+            }
+        )
 
     return methods
 

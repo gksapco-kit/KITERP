@@ -129,7 +129,7 @@ export function OrderSummary({
               label={selectedShippingLabel ? `Shipping (${selectedShippingLabel})` : "Shipping"}
               value={
                 cart.shipping
-                  ? cart.shipping.amount === 0
+                  ? cart.shipping.amount === 0 && selectedShippingLabel
                     ? "Free"
                     : formatMoney(cart.shipping, locale)
                   : "Calculated next"
