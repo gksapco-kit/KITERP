@@ -9,7 +9,7 @@
  * - Accepts existing full-phone strings and splits them on mount
  */
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, type Ref } from 'react'
 import { ChevronDown, Search, CheckCircle2, X } from 'lucide-react'
 import { COUNTRIES, POPULAR_COUNTRIES, type CountryEntry } from '@/data/countries'
 import { cn, focusRingClassName, formFieldBorderClassName, formFieldFocusClassName, searchFieldInnerInputClassName } from '@/lib/utils'
@@ -229,6 +229,10 @@ export interface PhoneInputProps {
   compactCountry?: boolean
   /** Match compact form density (h-8 / sm:h-9) used in dense grids. */
   compact?: boolean
+  /** Focus the number field on mount. The country button is not focused. */
+  autoFocus?: boolean
+  /** Number field, so a parent can put the caret back after swapping widgets. */
+  inputRef?: Ref<HTMLInputElement>
 }
 
 export function PhoneInput({
@@ -249,6 +253,8 @@ export function PhoneInput({
   subtleFeedback = false,
   compactCountry = false,
   compact = false,
+  autoFocus = false,
+  inputRef,
 }: PhoneInputProps) {
   const defaultCountry =
     COUNTRIES.find(c => c.iso === defaultCountryIso) ??
@@ -446,9 +452,11 @@ export function PhoneInput({
         {/* Number input */}
         <div className="relative flex min-w-[7.5rem] flex-1">
           <input
+            ref={inputRef}
             id={id}
             name={name}
             autoComplete={autoComplete}
+            autoFocus={autoFocus}
             type="tel"
             inputMode="numeric"
             disabled={disabled}

@@ -3,7 +3,7 @@
  * a phone number and renders the appropriate input (PhoneInput or a plain
  * email input). Includes an explicit toggle link to switch modes.
  */
-import { useState, useMemo, useEffect, type MouseEvent } from 'react'
+import { useState, useMemo, useEffect, useLayoutEffect, useRef, type MouseEvent } from 'react'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -11,6 +11,17 @@ import { Mail, Phone } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { prefetchInferredPhoneCountry } from '@/lib/inferPhoneCountryIso'
 import { inferLoginUiPhoneMode } from '@/lib/loginIdentifier'
+
+function focusInputAtEnd(el: HTMLInputElement | null) {
+  if (!el) return
+  el.focus()
+  const end = el.value.length
+  try {
+    el.setSelectionRange(end, end)
+  } catch {
+    /* Some input types reject a selection range. Focus alone is enough. */
+  }
+}
 
 export interface SmartLoginInputProps {
   value: string
@@ -58,6 +69,9 @@ export function SmartLoginInput({
   hyperlinkClassName,
 }: SmartLoginInputProps) {
   const [modeOverride, setModeOverride] = useState<'phone' | 'email' | null>(null)
+  const phoneRef = useRef<HTMLInputElement>(null)
+  const emailRef = useRef<HTMLInputElement>(null)
+  const focusAfterSwitch = useRef<'phone' | 'email' | null>(null)
 
   // Warm country cache on load so the picker is correct as soon as the user switches to phone
   useEffect(() => {
@@ -70,8 +84,19 @@ export function SmartLoginInput({
     return inferLoginUiPhoneMode(value)
   }, [value, modeOverride])
 
+  // The email box and the phone box are different inputs. After a swap, move the
+  // caret into the new field before the next keystroke (layout, not after paint).
+  useLayoutEffect(() => {
+    const which = focusAfterSwitch.current
+    if (!which) return
+    focusAfterSwitch.current = null
+    focusInputAtEnd(which === 'phone' ? phoneRef.current : emailRef.current)
+  }, [isPhone])
+
   const handleToggle = (e: MouseEvent<HTMLButtonElement>) => {
-    setModeOverride(isPhone ? 'email' : 'phone')
+    const nextPhone = !isPhone
+    focusAfterSwitch.current = nextPhone ? 'phone' : 'email'
+    setModeOverride(nextPhone ? 'phone' : 'email')
     onChange('')
     // Drop focus chrome so the toggle does not keep a bordered/underlined look after click.
     e.currentTarget.blur()
@@ -138,6 +163,8 @@ export function SmartLoginInput({
           id={inputId}
           name={name}
           autoComplete={autoComplete}
+          inputRef={phoneRef}
+          autoFocus={autoFocus}
           value={value}
           onChange={onChange}
           error={error}
@@ -156,12 +183,21 @@ export function SmartLoginInput({
               )}
             />
             <Input
+              ref={emailRef}
               id={inputId}
               name={name}
               type="text"
               autoComplete={autoComplete}
               value={value}
-              onChange={e => onChange(e.target.value)}
+              onChange={e => {
+                const next = e.target.value
+                // First digit (or "+") swaps this field for PhoneInput. Ask for the caret
+                // there before the email input unmounts.
+                if (modeOverride !== 'email' && inferLoginUiPhoneMode(next)) {
+                  focusAfterSwitch.current = 'phone'
+                }
+                onChange(next)
+              }}
               placeholder="you@example.com or +919876543210"
               className={cn(
                 comfortable
