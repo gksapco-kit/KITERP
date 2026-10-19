@@ -402,6 +402,8 @@ export interface ProductVariant {
   max_quantity_per_order?: number
   min_quantity_per_order?: number
   weight_kg?: number
+  /** Manual stock rule: stock-UOM units one sale uses (product-level stock). Empty = automatic. */
+  stock_per_sale?: number | null
   expiration_date?: string
   manufacture_date?: string
   best_before_date?: string

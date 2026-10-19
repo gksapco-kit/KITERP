@@ -131,14 +131,33 @@ def shared_pool_unit(variants: Iterable[Any], stock_uom: str | None = None) -> s
     return "unit"
 
 
-def base_per_selling_unit(pool: str, uom: str | None, uom_quantity: Any, weight_kg: Any) -> Decimal:
+def manual_per_sale(stock_per_sale: Any) -> Decimal | None:
+    """The vendor's manual "1 sale = N stock units" rule, or None when it is not set."""
+    value = _dec(stock_per_sale, Decimal("0"))
+    if value <= 0:
+        return None
+    value = value.quantize(_Q, rounding=ROUND_HALF_UP)
+    return value if value > 0 else None
+
+
+def base_per_selling_unit(
+    pool: str,
+    uom: str | None,
+    uom_quantity: Any,
+    weight_kg: Any,
+    stock_per_sale: Any = None,
+) -> Decimal:
     """How much of the shared balance one sale or purchase of this selling unit moves.
 
+    Manual rule  : when the variant has a stock-per-sale value it wins, in the pool's own unit.
     Weight pool  : the variant's weight, converted into the pool's unit.
     Volume pool  : the variant's volume (Qty + UOM), converted into the pool's unit.
     Anything else: one per sale (pieces, packs, sizes …).
     A result of 0 means the variant cannot be converted (e.g. a piece variant with no weight).
     """
+    manual = manual_per_sale(stock_per_sale)
+    if manual is not None:
+        return manual
     key = normalize_uom(pool)
     dim = uom_dimension(key)
     if dim == "weight":
@@ -193,12 +212,17 @@ def opening_kg(variants: Iterable[Any]) -> Decimal:
 
 
 def opening_units(variants: Iterable[Any]) -> Decimal:
-    """Count pool opening balance: the on-hand of every active variant added together."""
+    """Count pool opening balance: the on-hand of every active variant added together.
+
+    A variant with a manual stock-per-sale rule counts each of its units as that many
+    stock units (5 boxes of 12 = 60 pieces).
+    """
     total = Decimal("0")
     for variant in variants:
         if getattr(variant, "is_active", True) is False:
             continue
-        total += _dec(getattr(variant, "quantity", 0))
+        per = manual_per_sale(getattr(variant, "stock_per_sale", None)) or Decimal("1")
+        total += _dec(getattr(variant, "quantity", 0)) * per
     return total.quantize(_Q, rounding=ROUND_HALF_UP)
 
 
@@ -221,6 +245,7 @@ def opening_base(variants: Iterable[Any], pool: str | None = None) -> Decimal:
             getattr(variant, "uom", None),
             getattr(variant, "uom_quantity", None),
             getattr(variant, "weight_kg", None),
+            getattr(variant, "stock_per_sale", None),
         )
         held = per * _dec(getattr(variant, "quantity", 0))
         if held > best:

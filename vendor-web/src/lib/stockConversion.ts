@@ -48,13 +48,44 @@ export type VariantConversionInput = {
   uom?: string | null
   uomQuantity?: number | string | null
   weightKg?: number | string | null
+  /**
+   * Manual rule: stock UOM units one sale uses. When it is a positive number it wins over
+   * the automatic UOM / Qty / Weight conversion.
+   */
+  stockPerSale?: number | string | null
+}
+
+/** The manual "1 sale = N stock units" value as a positive number, or null when not set. */
+export function manualStockPerSale(value: number | string | null | undefined): number | null {
+  if (value === '' || value == null) return null
+  const n = Number(value)
+  return Number.isFinite(n) && n > 0 ? round4(n) : null
+}
+
+/**
+ * Turn what the vendor typed ("[sales qty] sale = [stock qty] <stock UOM>") into the stored
+ * per-sale value. Sales qty defaults to 1. Returns null when no stock qty is typed (automatic),
+ * and NaN when the typed numbers cannot make a valid rule.
+ */
+export function manualRuleFromInputs(
+  salesQty: number | string | null | undefined,
+  stockQty: number | string | null | undefined,
+): number | null {
+  if (stockQty === '' || stockQty == null) return null
+  const stock = Number(stockQty)
+  const sales = salesQty === '' || salesQty == null ? 1 : Number(salesQty)
+  if (!Number.isFinite(stock) || !Number.isFinite(sales) || stock <= 0 || sales <= 0) return NaN
+  const per = round4(stock / sales)
+  return per > 0 ? per : NaN
 }
 
 /**
  * How much of the stock balance one sale of this variant uses, in the stock UOM.
  * 0 means the variant cannot be converted yet (e.g. a piece with no Weight (kg)).
  */
-export function stockUnitsPerSale({ stockUom, uom, uomQuantity, weightKg }: VariantConversionInput): number {
+export function stockUnitsPerSale({ stockUom, uom, uomQuantity, weightKg, stockPerSale }: VariantConversionInput): number {
+  const manual = manualStockPerSale(stockPerSale)
+  if (manual !== null) return manual
   const pool = normalizeUom(stockUom)
   const dim = uomDimension(pool)
   const variantUom = normalizeUom(uom) || 'piece'
@@ -77,7 +108,7 @@ export function stockUnitsPerSale({ stockUom, uom, uomQuantity, weightKg }: Vari
 export function conversionProblem(input: VariantConversionInput): string | null {
   if (stockUnitsPerSale(input) > 0) return null
   const dim = uomDimension(input.stockUom)
-  if (dim === 'volume') return 'Set the variant UOM to a volume unit (L, ml …) and its Qty'
+  if (dim === 'volume') return 'Set the variant UOM to a volume unit (L, ml …) and its Qty, or type how much stock one sale uses'
   return 'Set Weight (kg) so this variant converts to the stock UOM'
 }
 

@@ -114,6 +114,36 @@ def test_count_pool_moves_one_per_sale():
     assert base_per_selling_unit("unit", "piece", 1, None) == Decimal("1")
 
 
+def test_manual_stock_per_sale_overrides_the_automatic_conversion():
+    # Count pool: a box that uses 12 pieces, even though the automatic rule says 1.
+    assert base_per_selling_unit("piece", "box", 1, None, Decimal("12")) == Decimal("12.0000")
+    # Weight pool: a manual value wins over Qty + UOM (100 g would otherwise be 0.1 kg).
+    assert base_per_selling_unit("kg", "g", 100, None, Decimal("0.25")) == Decimal("0.2500")
+    # Volume pool, and a piece that has no weight (automatic result would be 0).
+    assert base_per_selling_unit("l", "piece", 1, None, Decimal("1.5")) == Decimal("1.5000")
+    # Fractions are allowed: 1 sale uses a third of a stock unit.
+    assert base_per_selling_unit("piece", "pack", 1, None, 0.3333) == Decimal("0.3333")
+
+
+def test_empty_or_invalid_manual_value_falls_back_to_automatic():
+    for blank in (None, "", 0, Decimal("0"), -2, "abc"):
+        assert base_per_selling_unit("kg", "g", 100, None, blank) == Decimal("0.1000")
+        assert base_per_selling_unit("piece", "pack", 6, None, blank) == Decimal("1")
+
+
+def test_manual_rule_drives_how_many_sales_are_left():
+    per = base_per_selling_unit("piece", "box", 1, None, Decimal("12"))
+    assert sellable_units(Decimal("100"), per) == 8
+
+
+def test_count_pool_opening_balance_uses_the_manual_rule():
+    boxes = _variant("Box of 12", "box", 1, 5)
+    boxes.stock_per_sale = Decimal("12")
+    singles = _variant("Single", "piece", 1, 4)
+    product = SimpleNamespace(shared_stock=True, base_quantity=None, stock_uom="piece")
+    assert resolved_base_kg(product, [boxes, singles]) == Decimal("64.0000")
+
+
 def test_changing_stock_uom_converts_the_stored_balance():
     assert convert_pool_quantity(Decimal("2.5"), "kg", "g") == Decimal("2500.0000")
     assert convert_pool_quantity(Decimal("1500"), "ml", "l") == Decimal("1.5000")

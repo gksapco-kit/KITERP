@@ -481,6 +481,7 @@ export function variantToUpdatePayload(v: {
   max_quantity_per_order?: number | null
   min_quantity_per_order?: number | null
   weight_kg?: number | null
+  stock_per_sale?: number | null
   expiration_date?: string | null
   manufacture_date?: string | null
   best_before_date?: string | null
@@ -531,6 +532,7 @@ export function variantToUpdatePayload(v: {
     max_quantity_per_order: v.max_quantity_per_order ?? undefined,
     min_quantity_per_order: v.min_quantity_per_order ?? undefined,
     weight_kg: v.weight_kg ?? undefined,
+    stock_per_sale: v.stock_per_sale ?? undefined,
     expiration_date: v.expiration_date || undefined,
     manufacture_date: v.manufacture_date || undefined,
     best_before_date: v.best_before_date || undefined,

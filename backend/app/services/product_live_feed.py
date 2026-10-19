@@ -84,7 +84,10 @@ def product_to_live_item(product: Product, norm_item: Callable[..., Dict[str, An
     pool_unit = shared_pool_unit(variant_models, getattr(product, "stock_uom", None)) if shared else None
     variants = []
     for v in variant_models:
-        per = base_per_selling_unit(pool_unit, v.uom, v.uom_quantity, v.weight_kg) if shared else None
+        per = (
+            base_per_selling_unit(pool_unit, v.uom, v.uom_quantity, v.weight_kg, getattr(v, "stock_per_sale", None))
+            if shared else None
+        )
         variants.append(serialize_live_variant(
             v,
             kg_per_unit=float(per) if per is not None else None,

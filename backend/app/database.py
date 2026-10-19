@@ -492,6 +492,7 @@ async def ensure_variant_pricing_columns() -> None:
         "ALTER TABLE product_variant ADD COLUMN IF NOT EXISTS offer_label VARCHAR(100);",
         "ALTER TABLE product_variant ADD COLUMN IF NOT EXISTS is_on_sale BOOLEAN DEFAULT false;",
         "ALTER TABLE product_variant ADD COLUMN IF NOT EXISTS weight_kg NUMERIC(8,3);",
+        "ALTER TABLE product_variant ADD COLUMN IF NOT EXISTS stock_per_sale NUMERIC(12,4);",
         "ALTER TABLE product_variant ADD COLUMN IF NOT EXISTS is_taxable BOOLEAN DEFAULT true;",
         "ALTER TABLE product_variant ADD COLUMN IF NOT EXISTS tax_rate NUMERIC(5,2);",
         "ALTER TABLE product_variant ADD COLUMN IF NOT EXISTS hsn_code VARCHAR(8);",

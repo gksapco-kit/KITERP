@@ -99,7 +99,10 @@ class InventoryService:
         pool_label = shared_pool_label(pool)
         variant = next((v for v in variants if variant_id and v.id == variant_id), None)
         if variant is not None:
-            kg_each = base_per_selling_unit(pool, variant.uom, variant.uom_quantity, variant.weight_kg)
+            kg_each = base_per_selling_unit(
+                pool, variant.uom, variant.uom_quantity, variant.weight_kg,
+                getattr(variant, "stock_per_sale", None),
+            )
             unit_name = variant.name
         else:
             unit_name = locked.name
@@ -955,7 +958,10 @@ class InventoryService:
             for v in active_variants:
                 vqty = v.quantity or 0
                 vthreshold = v.low_stock_threshold or threshold
-                kg_each = base_per_selling_unit(pool, v.uom, v.uom_quantity, v.weight_kg) if shared else None
+                kg_each = (
+                    base_per_selling_unit(pool, v.uom, v.uom_quantity, v.weight_kg, getattr(v, "stock_per_sale", None))
+                    if shared else None
+                )
                 units_left = sellable_units(base, kg_each) if shared and base is not None and kg_each is not None else None
                 if shared and base is not None:
                     if base <= 0:

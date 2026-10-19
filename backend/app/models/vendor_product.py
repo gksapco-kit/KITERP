@@ -252,6 +252,9 @@ class ProductVariant(Base):
     max_quantity_per_order = Column(Integer, nullable=True)
     min_quantity_per_order = Column(Integer, nullable=True)
     weight_kg = Column(Numeric(8, 3))
+    # Manual stock rule for product-level (shared) stock: how many units of the product's
+    # stock UOM one sale of this variant uses. NULL = work it out from UOM / Qty / Weight.
+    stock_per_sale = Column(Numeric(12, 4), nullable=True)
 
     # Lifecycle
     expiration_date = Column(Date)

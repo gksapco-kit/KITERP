@@ -825,6 +825,16 @@ export default function POS() {
     })
   }
 
+  // Absolute setter used by the typed quantity input. Allows 0 transiently so the
+  // field can be cleared while typing; the input's onBlur restores the minimum of 1.
+  const setQty = (idx: number, qty: number) => {
+    setCart(prev => {
+      const updated = [...prev]
+      updated[idx] = { ...updated[idx], qty: Number.isFinite(qty) ? Math.max(0, Math.floor(qty)) : 0 }
+      return updated
+    })
+  }
+
   const updateItemDiscount = (idx: number, val: number) => {
     setCart(prev => {
       const updated = [...prev]
@@ -1587,7 +1597,18 @@ export default function POS() {
                 </div>
                 <div className="flex items-center gap-1">
                   <button onClick={() => updateQty(idx, -1)} className="p-1 rounded hover:bg-gray-100"><Minus className="w-3 h-3" /></button>
-                  <span className="w-7 text-center text-sm font-medium">{item.qty}</span>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    value={item.qty === 0 ? '' : item.qty}
+                    onChange={e => setQty(idx, e.target.value === '' ? 0 : Number(e.target.value))}
+                    onBlur={() => { if (item.qty < 1) setQty(idx, 1) }}
+                    onFocus={e => e.target.select()}
+                    onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+                    aria-label={`Quantity for ${item.name}`}
+                    className="w-12 h-6 text-center text-sm font-medium border rounded px-1 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  />
                   <button onClick={() => updateQty(idx, 1)} className="p-1 rounded hover:bg-gray-100"><Plus className="w-3 h-3" /></button>
                 </div>
                 <p className="text-sm font-bold w-16 text-right">{formatCurrency(item.price * item.qty)}</p>

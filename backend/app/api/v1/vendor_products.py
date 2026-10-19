@@ -282,12 +282,17 @@ def _product_to_dict(p) -> dict:
                 "uom": v.uom or "piece",
                 "uom_quantity": _num(v.uom_quantity),
                 "kg_per_unit": (
-                    float(base_per_selling_unit(pool_unit, v.uom, v.uom_quantity, v.weight_kg)) if shared else None
+                    float(base_per_selling_unit(pool_unit, v.uom, v.uom_quantity, v.weight_kg, v.stock_per_sale))
+                    if shared else None
                 ),
                 "remaining_units": (
-                    sellable_units(base_kg, base_per_selling_unit(pool_unit, v.uom, v.uom_quantity, v.weight_kg))
+                    sellable_units(
+                        base_kg,
+                        base_per_selling_unit(pool_unit, v.uom, v.uom_quantity, v.weight_kg, v.stock_per_sale),
+                    )
                     if shared and base_kg is not None else None
                 ),
+                "stock_per_sale": _num(v.stock_per_sale),
                 "price_type": v.price_type or "per_unit",
                 "price": _num(v.price) or 0,
                 "compare_at_price": _num(v.compare_at_price),
@@ -407,6 +412,7 @@ def _build_variant(product_id, vc) -> ProductVariant:
         max_quantity_per_order=g("max_quantity_per_order"),
         min_quantity_per_order=g("min_quantity_per_order"),
         weight_kg=g("weight_kg"),
+        stock_per_sale=g("stock_per_sale") or None,
         expiration_date=_parse_date(g("expiration_date")) if g("expiration_date") else None,
         manufacture_date=_parse_date(g("manufacture_date")) if g("manufacture_date") else None,
         best_before_date=_parse_date(g("best_before_date")) if g("best_before_date") else None,
@@ -938,7 +944,7 @@ async def update_product(
             "discount_amount", "offer_label", "is_on_sale", "is_taxable", "tax_rate",
             "hsn_code", "gst_rate", "quantity", "low_stock_threshold", "stock_status",
             "reorder_point", "reorder_quantity", "allow_backorders", "track_inventory",
-            "is_active",
+            "stock_per_sale", "is_active",
         )
 
         def _vsig(item) -> tuple:

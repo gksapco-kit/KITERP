@@ -85,7 +85,9 @@ import { extractApiError } from '@/lib/errorMessages'
 import { CatalogItemLink } from '@/components/common/CatalogItemLink'
 import { normalizeCatalogAddons, serializeCatalogAddons, type CatalogAddon } from '@/lib/catalogAddons'
 import { UOM_OPTIONS, UOM_GROUPS, formatUomDisplay, uomLabel } from '@/lib/uomOptions'
-import { stockUnitsPerSale, conversionProblem, formatStockUnits, uomDimension } from '@/lib/stockConversion'
+import {
+  stockUnitsPerSale, conversionProblem, formatStockUnits, uomDimension, manualRuleFromInputs,
+} from '@/lib/stockConversion'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 
 import { askConfirm } from '@/components/common/ConfirmProvider'
@@ -156,6 +158,10 @@ const variantRowSchema = z.object({
   min_quantity_per_order: optOrderLimitInt,
   // Shipping (per variant)
   weight_kg: optNum,
+  // Manual stock rule (product-level stock): "[stock_sale_qty] sale = [stock_per_sale] stock UOM".
+  // stock_sale_qty is form-only (defaults to 1); the saved value is stock_per_sale / stock_sale_qty.
+  stock_per_sale: optNum,
+  stock_sale_qty: optNum,
   // Lifecycle
   show_lifecycle: z.boolean().default(false),
   expiration_date: optStr,
@@ -618,8 +624,8 @@ function Toggle({ label, checked, onChange, compact, disabled }: {
 }) {
   return (
     <label className={cn(
-      'flex select-none items-center',
-      compact ? 'gap-1.5' : 'gap-2',
+      'flex shrink-0 select-none items-center whitespace-nowrap',
+      compact ? 'gap-1.5' : 'gap-1.5 sm:gap-2',
       disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
     )}>
       <button
@@ -646,7 +652,7 @@ function Toggle({ label, checked, onChange, compact, disabled }: {
           )}
         />
       </button>
-      <span className={cn('text-foreground', compact ? 'text-[11px] leading-none' : 'text-xs sm:text-sm')}>{label}</span>
+      <span className={cn('text-foreground', compact ? 'text-[11px] leading-none' : 'text-xs leading-none sm:text-sm')}>{label}</span>
     </label>
   )
 }
@@ -2832,6 +2838,8 @@ export default function ProductForm() {
       reorder_quantity: s.reorder_quantity ? Number(s.reorder_quantity) : undefined,
       allow_backorders: !!s.allow_backorders,
       track_inventory: s.track_inventory !== false,
+      stock_per_sale: s.stock_per_sale ? Number(s.stock_per_sale) : undefined,
+      stock_sale_qty: s.stock_sale_qty ? Number(s.stock_sale_qty) : undefined,
       show_lifecycle: !!s.show_lifecycle,
       expiration_date: s.expiration_date || '',
       manufacture_date: s.manufacture_date || '',
@@ -2914,14 +2922,23 @@ export default function ProductForm() {
   const stockUom = String(watch('stock_uom') || '')
   const stockPoolUnitLabel = stockUom ? uomLabel(stockUom).replace(/\s*\(.*\)/, '').trim() || stockUom : (stockPoolIsKg ? 'kg' : 'units')
   const variantStockTotal = stockVariantRows.reduce((sum, v) => sum + (Number(v.quantity) || 0), 0)
-  // Product level: how one sale of a variant converts into the stock UOM (uses the variant's UOM, Qty and Weight).
+  // Product level: how one sale of a variant converts into the stock UOM. A manual rule typed in the
+  // variant ("[sales qty] sale = [stock qty] <stock UOM>") wins; otherwise it comes from the variant's
+  // UOM, Qty and Weight.
   const variantStockConversion = (index: number) => {
     if (!stockAtProduct || !stockUom) return null
     const wv = watchedVariants?.[index]
-    const input = { stockUom, uom: wv?.uom, uomQuantity: wv?.uom_quantity, weightKg: wv?.weight_kg }
+    const base = { stockUom, uom: wv?.uom, uomQuantity: wv?.uom_quantity, weightKg: wv?.weight_kg }
+    const typed = manualRuleFromInputs(wv?.stock_sale_qty, wv?.stock_per_sale)
+    const manualInvalid = typed !== null && Number.isNaN(typed)
+    const manual = typed !== null && !manualInvalid ? typed : null
+    const input = { ...base, stockPerSale: manual }
     return {
       per: stockUnitsPerSale(input),
-      problem: conversionProblem(input),
+      auto: stockUnitsPerSale(base),
+      manual,
+      manualInvalid,
+      problem: manualInvalid ? 'Enter a sales qty and a stock qty greater than 0' : conversionProblem(input),
       pack: Number(wv?.uom_quantity) > 0 ? Number(wv?.uom_quantity) : 1,
       uom: wv?.uom || 'piece',
     }
@@ -3188,6 +3205,8 @@ export default function ProductForm() {
         max_quantity_per_order: (v as { max_quantity_per_order?: number }).max_quantity_per_order ?? undefined,
         min_quantity_per_order: (v as { min_quantity_per_order?: number }).min_quantity_per_order ?? undefined,
         weight_kg: (v as any).weight_kg ?? undefined,
+        stock_per_sale: (v as any).stock_per_sale ?? undefined,
+        stock_sale_qty: undefined,
         show_lifecycle: !!(v.expiration_date || v.manufacture_date || v.best_before_date || v.warranty_period_days || v.warranty_type),
         expiration_date: v.expiration_date ?? '',
         manufacture_date: v.manufacture_date ?? '',
@@ -3418,11 +3437,18 @@ export default function ProductForm() {
       // Every selling unit must convert into the stock UOM (variant UOM + Qty, or Weight (kg)).
       for (const v of substantiveVariants) {
         if (v.is_active === false) continue
+        const typedRule = manualRuleFromInputs(v.stock_sale_qty, v.stock_per_sale)
+        if (typedRule !== null && Number.isNaN(typedRule)) {
+          toast.error(`${v.name.trim()}: enter a sales qty and a stock qty greater than 0`)
+          setActiveTab('variants')
+          return null
+        }
         const problem = conversionProblem({
           stockUom: String(raw.stock_uom),
           uom: v.uom,
           uomQuantity: v.uom_quantity,
           weightKg: v.weight_kg,
+          stockPerSale: typedRule,
         })
         if (problem) {
           toast.error(`${v.name.trim()}: ${problem}`)
@@ -3494,6 +3520,10 @@ export default function ProductForm() {
         max_quantity_per_order: v.max_quantity_per_order ?? undefined,
         min_quantity_per_order: v.min_quantity_per_order ?? undefined,
         weight_kg: v.weight_kg ?? undefined,
+        // Manual stock rule only applies to product-level stock; otherwise it is cleared (automatic).
+        stock_per_sale: stockAtProductLevel
+          ? manualRuleFromInputs(v.stock_sale_qty, v.stock_per_sale) ?? undefined
+          : undefined,
         expiration_date: v.expiration_date || undefined,
         manufacture_date: v.manufacture_date || undefined,
         best_before_date: v.best_before_date || undefined,
@@ -5192,7 +5222,10 @@ export default function ProductForm() {
                           const stockDim = uomDimension(stockUom)
                           const variantDim = uomDimension(conv.uom)
                           const stockUomFull = uomLabel(stockUom)
-                          const needsKgBridge = stockDim === 'weight' && variantDim === 'count'
+                          // Weight stock + a count variant (piece, box …) needs its weight in kg — unless a manual
+                          // "1 sale = N" rule is already set, in which case the editor below stays visible.
+                          const needsKgBridge =
+                            stockDim === 'weight' && variantDim === 'count' && conv.manual === null && !conv.manualInvalid
                           // Product-level stock: never label this as "Weight (kg)" alone — always show conversion UOM.
                           if (needsKgBridge) {
                             return (
@@ -5213,39 +5246,39 @@ export default function ProductForm() {
                               </FormField>
                             )
                           }
-                          // Count / volume stock, or weight variants: conversion comes from variant Qty + UOM.
+                          // Count / volume stock, or weight variants: "[sales qty] sale = [stock qty] <stock UOM>".
+                          // Left empty, the stock qty is worked out from the variant Qty + UOM; typing one overrides it.
+                          const variantUomName = uomLabel(conv.uom).replace(/\s*\(.*\)/, '')
                           return (
-                            <>
-                              <FormField
-                                label={`Conversion → ${stockPoolUnitLabel}`}
-                                className="min-w-[11rem] max-w-[15rem]"
-                              >
-                                <div
-                                  className={cn(
-                                    'flex h-10 items-center rounded-md border px-3 text-sm font-medium',
-                                    conv.problem
-                                      ? 'border-red-400 bg-red-50 text-red-700'
-                                      : 'border-indigo-200 bg-indigo-50/80 text-indigo-900',
-                                  )}
-                                  title={`Stock UOM: ${stockUomFull}`}
-                                >
-                                  {conv.problem
-                                    ? '—'
-                                    : `1 sale = ${formatStockUnits(conv.per, stockPoolUnitLabel)}`}
-                                </div>
-                                <p className="mt-0.5 text-[10px] leading-snug text-muted-foreground">
-                                  From variant Qty + UOM ({conv.pack} {uomLabel(conv.uom).replace(/\s*\(.*\)/, '')})
-                                  {' → '}stock UOM: {stockUomFull}
-                                </p>
-                              </FormField>
-                              <FormField label="Shipping weight (kg)" className="max-w-[8rem]">
+                            <FormField
+                              label={`Conversion → ${stockPoolUnitLabel}`}
+                              className="min-w-[17rem] max-w-[22rem]"
+                            >
+                              <div className="flex items-center gap-1.5">
                                 <Input
-                                  type="number" step="0.001" min="0" placeholder="optional"
-                                  title="Optional shipping weight — not used for stock conversion"
-                                  {...register(`variants.${index}.weight_kg`)}
+                                  type="number" step="any" min="0" placeholder="1"
+                                  aria-label="Sales quantity"
+                                  title="Sales quantity: how many of this variant are sold (leave empty for 1)"
+                                  className="!w-16 shrink-0 text-center"
+                                  {...register(`variants.${index}.stock_sale_qty`)}
                                 />
-                              </FormField>
-                            </>
+                                <span className="shrink-0 text-xs text-muted-foreground">sale =</span>
+                                <Input
+                                  type="number" step="any" min="0"
+                                  placeholder={conv.auto > 0 ? String(conv.auto) : '0'}
+                                  aria-label="Stock quantity"
+                                  title={`Stock quantity: how much ${stockPoolUnitLabel} those sales use. Leave empty to use the automatic value.`}
+                                  className={cn('min-w-0 flex-1', conv.problem && 'border-red-400')}
+                                  {...register(`variants.${index}.stock_per_sale`)}
+                                />
+                                <span className="shrink-0 text-xs text-muted-foreground">{stockPoolUnitLabel}</span>
+                              </div>
+                              <p className="mt-0.5 text-[10px] leading-snug text-muted-foreground">
+                                {conv.manual !== null
+                                  ? `Manual: 1 sale = ${formatStockUnits(conv.per, stockPoolUnitLabel)}. Clear the stock qty to go back to automatic.`
+                                  : `Automatic: 1 sale = ${conv.auto > 0 ? formatStockUnits(conv.auto, stockPoolUnitLabel) : '?'} (variant Qty + UOM: ${conv.pack} ${variantUomName}). Type a stock qty to override.`}
+                              </p>
+                            </FormField>
                           )
                         })()}
                       </div>
@@ -5259,7 +5292,8 @@ export default function ProductForm() {
                           </p>
                         ) : (
                           <p className="mt-1.5 rounded-md bg-indigo-50 px-2 py-1 text-xs text-indigo-800">
-                            <span className="font-medium">1 sale</span> ({conv.pack} {uomLabel(conv.uom).replace(/\s*\(.*\)/, '')}) uses{' '}
+                            <span className="font-medium">1 sale</span>
+                            {conv.manual === null && <> ({conv.pack} {uomLabel(conv.uom).replace(/\s*\(.*\)/, '')})</>} uses{' '}
                             <span className="font-semibold">{formatStockUnits(conv.per, stockPoolUnitLabel)}</span> of stock
                             {' · '}about <span className="font-semibold">{sellable.toLocaleString('en-IN')}</span> can be sold from the current total stock.
                           </p>
@@ -5703,136 +5737,174 @@ export default function ProductForm() {
         {/* 5c-ii. Inventory — product-level defaults; not applicable to digital or bundle */}
         {!isDigitalType && !isBundleType && (
           <Section title="Inventory" icon={Boxes} open={activeTab === 'variants'} onToggle={() => toggle('variants')} sectionId="inventory">
-            <div className={formEditLayout.sectionBody}>
-              <p className="text-xs text-gray-400">
-                Product-level defaults — each variant can override quantity, low stock and reorder settings above.
-              </p>
-              {stockAtProduct && (product as { shared_stock?: boolean; base_quantity?: number | null } | undefined)?.shared_stock && (
-                <p className="text-sm font-medium text-gray-800">
-                  Remaining stock: {Number((product as { base_quantity?: number | null }).base_quantity ?? 0).toLocaleString('en-IN', stockPoolIsKg ? { minimumFractionDigits: 3, maximumFractionDigits: 3 } : { maximumFractionDigits: 3 })} {stockPoolUnitLabel}
+            <div className="space-y-0.5 pt-0">
+              <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0">
+                <p className="text-[11px] leading-none text-muted-foreground">
+                  Product-level defaults — variants can override qty, low stock & reorder above.
                 </p>
-              )}
+                {stockAtProduct && (product as { shared_stock?: boolean; base_quantity?: number | null } | undefined)?.shared_stock && (
+                  <p className="text-[11px] font-semibold leading-none text-foreground tabular-nums">
+                    Remaining:{' '}
+                    {Number((product as { base_quantity?: number | null }).base_quantity ?? 0).toLocaleString(
+                      'en-IN',
+                      stockPoolIsKg
+                        ? { minimumFractionDigits: 3, maximumFractionDigits: 3 }
+                        : { maximumFractionDigits: 3 },
+                    )}{' '}
+                    {stockPoolUnitLabel}
+                  </p>
+                )}
+              </div>
+
               {/* Where is stock kept? Product level = one balance; variant level = a count per variant */}
-              <Controller name="shared_stock" control={control} render={({ field }) => (
-                <label
-                  className={cn(
-                    'flex items-start gap-3 rounded-lg border p-3 transition-colors',
-                    hasStockVariants ? 'cursor-pointer border-primary/30 bg-primary/5' : 'cursor-not-allowed border-gray-200 bg-gray-50 opacity-70',
-                  )}
-                >
-                  <input
-                    type="checkbox"
-                    className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 accent-primary"
-                    checked={!!field.value && hasStockVariants}
-                    disabled={!hasStockVariants}
-                    onChange={(e) => {
-                      field.onChange(e.target.checked)
-                      // Product-level stock needs a UOM — start from kg (weight variants) or the product UOM.
-                      if (e.target.checked && !String(getValues('stock_uom') || '').trim()) {
-                        setValue('stock_uom', stockPoolIsKg ? 'kg' : (getValues('uom') || 'piece'), { shouldDirty: true })
-                      }
-                    }}
-                  />
-                  <span className="space-y-0.5">
-                    <span className="block text-sm font-medium text-gray-800">
-                      Maintain stock at product level
-                    </span>
-                    <span className="block text-xs text-gray-500">
-                      {!hasStockVariants
-                        ? 'Add variants to choose where stock is kept. Until then, stock is kept on the product.'
-                        : stockAtProduct
-                          ? `Product level: one stock balance (in ${stockPoolUnitLabel}) is shared by every variant. Pick the Stock UOM and enter the total below — variant quantities are not used, and every sale or purchase of a variant moves this balance.`
-                          : 'Variant level: each variant keeps its own quantity and every sale or purchase moves only that variant. Product Quantity shows the total of all variants.'}
-                    </span>
-                  </span>
-                </label>
-              )} />
-              <div className="space-y-3">
-                <div className="flex flex-wrap gap-6">
-                  <Controller name="track_inventory" control={control} render={({ field }) => (
-                    <Toggle label="Track Inventory" checked={field.value} onChange={field.onChange} />
-                  )} />
-                  <Controller name="allow_backorders" control={control} render={({ field }) => (
-                    <Toggle label="Allow Backorders" checked={field.value} onChange={field.onChange} />
-                  )} />
-                  <Controller name="batch_managed" control={control} render={({ field }) => (
-                    <Toggle label="Batch managed" checked={!!field.value} onChange={field.onChange} />
-                  )} />
-                  <Controller name="serial_managed" control={control} render={({ field }) => (
-                    <Toggle label="Serial managed" checked={!!field.value} onChange={field.onChange} />
-                  )} />
-                  <Controller name="requires_cold_chain" control={control} render={({ field }) => (
-                    <Toggle label="Cold chain" checked={!!field.value} onChange={field.onChange} />
-                  )} />
-                  <Controller name="qc_required_on_receipt" control={control} render={({ field }) => (
-                    <Toggle label="QC on receipt" checked={!!field.value} onChange={field.onChange} />
-                  )} />
-                  <Controller name="qc_required_on_production" control={control} render={({ field }) => (
-                    <Toggle label="QC on production" checked={!!field.value} onChange={field.onChange} />
-                  )} />
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <FormField
-                    label={
-                      !hasStockVariants ? 'Quantity'
-                        : stockAtProduct ? `Total stock (${stockPoolUnitLabel})`
-                          : 'Quantity (total of variants)'
-                    }
+              <Controller name="shared_stock" control={control} render={({ field }) => {
+                const sharedHint = !hasStockVariants
+                  ? 'Add variants to choose product-level vs per-variant stock.'
+                  : stockAtProduct
+                    ? `One shared balance (${stockPoolUnitLabel}) for every variant. Pick Stock UOM and enter the total — variant quantities are not used.`
+                    : 'Each variant keeps its own qty; product quantity is the sum.'
+                return (
+                  <label
+                    className={cn(
+                      'flex items-center gap-2 rounded border px-2 py-1 transition-colors',
+                      hasStockVariants
+                        ? 'cursor-pointer border-primary/30 bg-primary/5'
+                        : 'cursor-not-allowed border-border bg-muted/40 opacity-70',
+                    )}
+                    title={sharedHint}
                   >
-                    <Input
-                      type="number"
-                      min="0"
-                      readOnly={hasStockVariants && !stockAtProduct}
-                      title={hasStockVariants && !stockAtProduct ? 'Edit quantity on each variant' : undefined}
-                      className={hasStockVariants && !stockAtProduct ? 'cursor-not-allowed bg-gray-50' : undefined}
-                      {...register('quantity', {
-                        onChange: (e) => {
-                          register('quantity').onChange(e)
-                          const qty = Number(e.target.value) || 0
-                          const next = deriveStockStatusFromQty({
-                            quantity: qty,
-                            currentStatus: getValues('stock_status'),
-                            trackInventory: getValues('track_inventory'),
-                            allowBackorders: getValues('allow_backorders'),
-                            lowStockThreshold: getValues('low_stock_threshold'),
-                          })
-                          if (next !== getValues('stock_status')) {
-                            setValue('stock_status', next, { shouldDirty: true })
-                          }
-                        },
-                      })}
-                      placeholder="0"
+                    <input
+                      type="checkbox"
+                      className="h-3.5 w-3.5 shrink-0 rounded border-input accent-primary"
+                      checked={!!field.value && hasStockVariants}
+                      disabled={!hasStockVariants}
+                      onChange={(e) => {
+                        field.onChange(e.target.checked)
+                        // Product-level stock needs a UOM — start from kg (weight variants) or the product UOM.
+                        if (e.target.checked && !String(getValues('stock_uom') || '').trim()) {
+                          setValue('stock_uom', stockPoolIsKg ? 'kg' : (getValues('uom') || 'piece'), { shouldDirty: true })
+                        }
+                      }}
                     />
-                  </FormField>
-                  {stockAtProduct && hasStockVariants && (
-                    <FormField label="Stock UOM *">
-                      <Controller
-                        name="stock_uom"
-                        control={control}
-                        render={({ field }) => (
+                    <span className="min-w-0 truncate text-xs font-medium leading-none text-foreground">
+                      Maintain stock at product level
+                      <span className="ml-1.5 font-normal text-muted-foreground">
+                        {!hasStockVariants
+                          ? '· add variants first'
+                          : stockAtProduct
+                            ? `· shared ${stockPoolUnitLabel} balance`
+                            : '· per-variant qty'}
+                      </span>
+                    </span>
+                  </label>
+                )
+              }} />
+
+              <div className="flex flex-nowrap items-center justify-between gap-x-2 overflow-x-auto py-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <Controller name="track_inventory" control={control} render={({ field }) => (
+                  <Toggle label="Track Inventory" checked={field.value} onChange={field.onChange} />
+                )} />
+                <Controller name="allow_backorders" control={control} render={({ field }) => (
+                  <Toggle label="Allow Backorders" checked={field.value} onChange={field.onChange} />
+                )} />
+                <Controller name="batch_managed" control={control} render={({ field }) => (
+                  <Toggle label="Batch managed" checked={!!field.value} onChange={field.onChange} />
+                )} />
+                <Controller name="serial_managed" control={control} render={({ field }) => (
+                  <Toggle label="Serial managed" checked={!!field.value} onChange={field.onChange} />
+                )} />
+                <Controller name="requires_cold_chain" control={control} render={({ field }) => (
+                  <Toggle label="Cold chain" checked={!!field.value} onChange={field.onChange} />
+                )} />
+                <Controller name="qc_required_on_receipt" control={control} render={({ field }) => (
+                  <Toggle label="QC on receipt" checked={!!field.value} onChange={field.onChange} />
+                )} />
+                <Controller name="qc_required_on_production" control={control} render={({ field }) => (
+                  <Toggle label="QC on production" checked={!!field.value} onChange={field.onChange} />
+                )} />
+              </div>
+
+              <div
+                className={cn(
+                  'grid grid-cols-2 gap-x-2 gap-y-0 sm:grid-cols-3 lg:grid-cols-4',
+                  // Inventory-only: collapse FormField label→control gap without changing the shared component
+                  '[&_[data-field]]:!space-y-0 [&_[data-field]>div:first-child]:mb-0 [&_[data-field]>div:first-child]:min-h-0',
+                )}
+              >
+                <FormField
+                  label={
+                    !hasStockVariants ? 'Quantity'
+                      : stockAtProduct ? `Total stock (${stockPoolUnitLabel})`
+                        : 'Quantity (total of variants)'
+                  }
+                >
+                  <Input
+                    type="number"
+                    min="0"
+                    readOnly={hasStockVariants && !stockAtProduct}
+                    title={hasStockVariants && !stockAtProduct ? 'Edit quantity on each variant' : undefined}
+                    className={hasStockVariants && !stockAtProduct ? 'cursor-not-allowed bg-gray-50' : undefined}
+                    {...register('quantity', {
+                      onChange: (e) => {
+                        register('quantity').onChange(e)
+                        const qty = Number(e.target.value) || 0
+                        const next = deriveStockStatusFromQty({
+                          quantity: qty,
+                          currentStatus: getValues('stock_status'),
+                          trackInventory: getValues('track_inventory'),
+                          allowBackorders: getValues('allow_backorders'),
+                          lowStockThreshold: getValues('low_stock_threshold'),
+                        })
+                        if (next !== getValues('stock_status')) {
+                          setValue('stock_status', next, { shouldDirty: true })
+                        }
+                      },
+                    })}
+                    placeholder="0"
+                  />
+                </FormField>
+                {stockAtProduct && hasStockVariants && (
+                  <FormField label="Stock UOM *">
+                    <Controller
+                      name="stock_uom"
+                      control={control}
+                      render={({ field }) => (
+                        <div
+                          title="Unit the shared stock is counted in. Variants sold in other units of the same kind (kg ↔ g, L ↔ ml) are converted automatically."
+                        >
                           <Select
                             value={String(field.value ?? '')}
-                            onChange={field.onChange}
+                            onChange={(next: string) => {
+                              const prev = String(field.value ?? '')
+                              field.onChange(next)
+                              // A manual "1 sale = N" rule is counted in the old stock UOM, so it no longer
+                              // fits once the unit changes — fall back to the automatic conversion.
+                              if (!prev || prev === next) return
+                              let cleared = false
+                              ;(getValues('variants') || []).forEach((row, i) => {
+                                if (row?.stock_per_sale === undefined || (row.stock_per_sale as unknown) === '') return
+                                setValue(`variants.${i}.stock_per_sale`, undefined, { shouldDirty: true })
+                                setValue(`variants.${i}.stock_sale_qty`, undefined, { shouldDirty: true })
+                                cleared = true
+                              })
+                              if (cleared) toast.info('Stock UOM changed: manual conversions were reset to automatic.')
+                            }}
                             options={UOM_SELECT_OPTIONS}
                             searchPlaceholder="Search UOM…"
                             className={selectCls}
                           />
-                        )}
-                      />
-                      <p className="mt-1 text-[11px] text-gray-400">
-                        Unit the shared stock is counted in. Variants sold in other units of the same kind
-                        (kg ↔ g, L ↔ ml) are converted automatically.
-                      </p>
-                    </FormField>
-                  )}
-                  <FormField label="Low Stock Alert (qty)"><Input type="number" min="0" {...register('low_stock_threshold')} placeholder="5" /></FormField>
-                  <FormField label="Reorder Point"><Input type="number" min="0" {...register('reorder_point')} placeholder="e.g. 10" /></FormField>
-                  <FormField label="Reorder Qty"><Input type="number" min="0" {...register('reorder_quantity')} placeholder="e.g. 50" /></FormField>
-                  <FormField label="Shelf life (days)"><Input type="number" min="0" {...register('shelf_life_days')} placeholder="e.g. 365" /></FormField>
-                  <FormField label="Retest (days)"><Input type="number" min="0" {...register('retest_days')} placeholder="e.g. 180" /></FormField>
-                  <FormField label="GTIN"><Input {...register('gtin')} placeholder="e.g. 00012345600012" /></FormField>
-                  <FormField label="NDC"><Input {...register('ndc')} placeholder="e.g. 0123-4567-89" /></FormField>
-                </div>
+                        </div>
+                      )}
+                    />
+                  </FormField>
+                )}
+                <FormField label="Low Stock Alert (qty)"><Input type="number" min="0" {...register('low_stock_threshold')} placeholder="5" /></FormField>
+                <FormField label="Reorder Point"><Input type="number" min="0" {...register('reorder_point')} placeholder="e.g. 10" /></FormField>
+                <FormField label="Reorder Qty"><Input type="number" min="0" {...register('reorder_quantity')} placeholder="e.g. 50" /></FormField>
+                <FormField label="Shelf life (days)"><Input type="number" min="0" {...register('shelf_life_days')} placeholder="e.g. 365" /></FormField>
+                <FormField label="Retest (days)"><Input type="number" min="0" {...register('retest_days')} placeholder="e.g. 180" /></FormField>
+                <FormField label="GTIN"><Input {...register('gtin')} placeholder="e.g. 00012345600012" /></FormField>
+                <FormField label="NDC"><Input {...register('ndc')} placeholder="e.g. 0123-4567-89" /></FormField>
                 <FormField label="Storage condition (pharma)">
                   <Controller
                     name="storage_condition"

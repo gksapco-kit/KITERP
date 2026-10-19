@@ -92,6 +92,8 @@ class ProductVariantCreate(BaseModel):
     max_quantity_per_order: Optional[int] = Field(None, ge=1)
     min_quantity_per_order: Optional[int] = Field(None, ge=1)
     weight_kg: Optional[float] = None
+    # Manual stock rule: stock-UOM units one sale uses (product-level stock). None = automatic.
+    stock_per_sale: Optional[float] = Field(None, gt=0)
     # Lifecycle
     expiration_date: Optional[str] = None
     manufacture_date: Optional[str] = None
@@ -153,6 +155,7 @@ class ProductVariantResponse(BaseModel):
     max_quantity_per_order: Optional[int] = None
     min_quantity_per_order: Optional[int] = None
     weight_kg: Optional[float] = None
+    stock_per_sale: Optional[float] = None
     # Lifecycle
     expiration_date: Optional[str] = None
     manufacture_date: Optional[str] = None
