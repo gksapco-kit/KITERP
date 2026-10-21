@@ -2340,6 +2340,25 @@ export function useInventoryAdjust() {
 }
 
 // ── Invoices ─────────────────────────────────────────────────────
+export function useGenerateEinvoice() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => vendorApi.generateEinvoice(id),
+    onSuccess: (data, id) => {
+      qc.invalidateQueries({ queryKey: ['vendor', 'invoices'] })
+      qc.invalidateQueries({ queryKey: vendorKeys.invoice(id) })
+      qc.invalidateQueries({ queryKey: ['invoice', id] })
+      const result = data as { einvoice_status?: string; einvoice_irn?: string; einvoice_error?: string } | undefined
+      if (result?.einvoice_status === 'generated' && result.einvoice_irn) {
+        toast.success(`e-Invoice generated · IRN ${result.einvoice_irn}`)
+        return
+      }
+      toast.error(result?.einvoice_error || 'e-Invoice was not generated')
+    },
+    onError: apiError('Could not generate the e-invoice'),
+  })
+}
+
 export function useUpdateInvoice() {
   const qc = useQueryClient()
   return useMutation({

@@ -87,6 +87,10 @@ class Invoice(Base):
     terms_and_conditions = Column(Text)
     # Quotation-only custom fields: [{id, label, type, value}] — type: text|email|phone|link|image
     extra_fields = Column(JSONB, default=list)
+    # GST e-invoice result from the IRP / GSP. None when the vendor leaves
+    # auto-generate off (existing invoice behaviour). Shape:
+    # {status, irn, ack_no, ack_dt, signed_qr, error}
+    einvoice = Column(JSONB, nullable=True)
 
     created_by = Column(UUID(as_uuid=True), ForeignKey("user.id"))
     created_at = Column(DateTime(timezone=True), server_default=func.now())

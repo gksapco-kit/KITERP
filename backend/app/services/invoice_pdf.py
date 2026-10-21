@@ -43,7 +43,15 @@ async def render_invoice_pdf(db, invoice) -> bytes:
         body = await load_document_image(settings.get("signature_url"))
         if body:
             images["signature"] = body
-    if settings.get("show_qr_code") is True:
+    einvoice = getattr(invoice, "einvoice", None) or {}
+    signed_qr = einvoice.get("signed_qr") if isinstance(einvoice, dict) else None
+    if signed_qr:
+        from app.services.einvoice_service import render_qr_png
+        qr_png = render_qr_png(str(signed_qr))
+        if qr_png:
+            images["qr"] = qr_png
+            settings = {**settings, "show_qr_code": True, "qr_code_label": "e-Invoice QR"}
+    elif settings.get("show_qr_code") is True:
         body = await load_document_image(settings.get("qr_code_url"))
         if body:
             images["qr"] = body

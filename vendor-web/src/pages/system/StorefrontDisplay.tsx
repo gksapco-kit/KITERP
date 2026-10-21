@@ -7,13 +7,19 @@ import { useStores } from '@/hooks/useVendor'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ThemeSelect } from '@/components/common/ThemeSelect'
-import { Save, Loader2, Package, Wrench, LayoutTemplate, ShieldCheck } from 'lucide-react'
+import { Save, Loader2, Package, Wrench, LayoutTemplate, ShieldCheck, QrCode } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Vendor } from '@/types'
 import {
   REQUIRE_DOMAIN_DEACTIVATION_OTP_KEY,
   requireDomainDeactivationOtp,
 } from '@/lib/domainDeactivationOtp'
+import {
+  AUTO_GENERATE_EINVOICE_KEY,
+  EINVOICE_CREDENTIALS_KEY,
+  autoGenerateEinvoice,
+  readEinvoiceCredentials,
+} from '@/lib/einvoiceSettings'
 import {
   DISPLAY_FIELDS_BY_TEMPLATE_KEY,
   PRODUCT_DISPLAY_FIELD_DEFS,
@@ -109,11 +115,18 @@ export default function StorefrontDisplayPage() {
   const [productFields, setProductFields] = useState<Record<string, boolean>>({})
   const [serviceFields, setServiceFields] = useState<Record<string, boolean>>({})
   const [requireDomainOtp, setRequireDomainOtp] = useState(false)
+  const [autoEinvoice, setAutoEinvoice] = useState(false)
+  const [einvoiceClientId, setEinvoiceClientId] = useState('')
+  const [einvoiceClientSecret, setEinvoiceClientSecret] = useState('')
+  const [einvoiceUsername, setEinvoiceUsername] = useState('')
+  const [einvoicePassword, setEinvoicePassword] = useState('')
+  const [einvoiceSandbox, setEinvoiceSandbox] = useState(true)
   const savingRef = useRef(false)
   const didAutoSelectTemplateRef = useRef(false)
   const touchedProductRef = useRef<Set<string>>(new Set())
   const touchedServiceRef = useRef<Set<string>>(new Set())
   const domainTouchedRef = useRef(false)
+  const einvoiceTouchedRef = useRef(false)
   // Vendor id only. Template changes must not look like a new record — that
   // was clearing in-progress unchecks when the assigned template loaded late.
   const displayScopeKey = vendor?.id ?? null
@@ -123,6 +136,9 @@ export default function StorefrontDisplayPage() {
   )
   const domainOtpSnapshotKey = vendor
     ? String(requireDomainDeactivationOtp(vendor.settings as Record<string, unknown>))
+    : null
+  const einvoiceSnapshotKey = vendor
+    ? `${autoGenerateEinvoice(vendor.settings as Record<string, unknown>)}|${JSON.stringify(readEinvoiceCredentials(vendor.settings as Record<string, unknown>))}`
     : null
 
   const { markDirty: markDisplayDirty, clearDirty: clearDisplayDirty, dirtyRef: displayDirtyRef } =
@@ -153,11 +169,21 @@ export default function StorefrontDisplayPage() {
         if (!keepEdits || !domainTouchedRef.current) {
           setRequireDomainOtp(requireDomainDeactivationOtp(vendor.settings as Record<string, unknown>))
         }
+        if (!keepEdits || !einvoiceTouchedRef.current) {
+          const settings = vendor.settings as Record<string, unknown>
+          const creds = readEinvoiceCredentials(settings)
+          setAutoEinvoice(autoGenerateEinvoice(settings))
+          setEinvoiceClientId(creds.client_id || '')
+          setEinvoiceClientSecret('')
+          setEinvoiceUsername(creds.username || '')
+          setEinvoicePassword('')
+          setEinvoiceSandbox(creds.sandbox !== false)
+        }
       },
-      [displaySnapshotKey, domainOtpSnapshotKey, selectedTemplateId],
+      [displaySnapshotKey, domainOtpSnapshotKey, einvoiceSnapshotKey, selectedTemplateId],
       {
         scopeKey: displayScopeKey,
-        snapshotKey: `${displaySnapshotKey}|otp:${domainOtpSnapshotKey}`,
+        snapshotKey: `${displaySnapshotKey}|otp:${domainOtpSnapshotKey}|einvoice:${einvoiceSnapshotKey}`,
         isSaving: () => savingRef.current,
       },
     )
@@ -266,6 +292,15 @@ export default function StorefrontDisplayPage() {
       }
     }
     payload[REQUIRE_DOMAIN_DEACTIVATION_OTP_KEY] = requireDomainOtp
+    payload[AUTO_GENERATE_EINVOICE_KEY] = autoEinvoice
+    const existingCreds = readEinvoiceCredentials(existingSettings)
+    payload[EINVOICE_CREDENTIALS_KEY] = {
+      client_id: einvoiceClientId.trim(),
+      client_secret: einvoiceClientSecret.trim() || existingCreds.client_secret || '',
+      username: einvoiceUsername.trim(),
+      password: einvoicePassword.trim() || existingCreds.password || '',
+      sandbox: einvoiceSandbox,
+    }
     delete payload.sign_in_mandatory
     if (payload.delivery_conditions && typeof payload.delivery_conditions === 'object') {
       const dc = { ...(payload.delivery_conditions as Record<string, unknown>) }
@@ -285,9 +320,12 @@ export default function StorefrontDisplayPage() {
           }
         }
         settings[REQUIRE_DOMAIN_DEACTIVATION_OTP_KEY] = requireDomainOtp
+        settings[AUTO_GENERATE_EINVOICE_KEY] = autoEinvoice
+        settings[EINVOICE_CREDENTIALS_KEY] = payload[EINVOICE_CREDENTIALS_KEY]
         touchedProductRef.current.clear()
         touchedServiceRef.current.clear()
         domainTouchedRef.current = false
+        einvoiceTouchedRef.current = false
         const resolved = resolveTemplateDisplayFieldsFromSettings(
           settings,
           selectedTemplateId || null,
@@ -295,6 +333,9 @@ export default function StorefrontDisplayPage() {
         setProductFields(resolved.product)
         setServiceFields(resolved.service)
         setRequireDomainOtp(requireDomainOtp)
+        setAutoEinvoice(autoEinvoice)
+        setEinvoiceClientSecret('')
+        setEinvoicePassword('')
         const current = useVendorStore.getState().vendor
         if (current) {
           useVendorStore.getState().setVendor({ ...current, ...updated, settings })
@@ -306,6 +347,11 @@ export default function StorefrontDisplayPage() {
         savingRef.current = false
       },
     })
+  }
+
+  const markEinvoiceDirty = () => {
+    einvoiceTouchedRef.current = true
+    markDisplayDirty()
   }
 
   const rememberProduct = (key: string) => {
@@ -395,6 +441,114 @@ export default function StorefrontDisplayPage() {
               </span>
             </span>
           </label>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="space-y-0 p-3 pb-2">
+          <div className="flex min-w-0 items-start gap-2.5">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/12 text-primary ring-1 ring-inset ring-primary/20">
+              <QrCode className="h-4 w-4" strokeWidth={2} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <CardTitle className="text-sm">e-Invoice</CardTitle>
+              <p className="text-[11px] leading-snug text-muted-foreground">
+                When on, a GST e-invoice (IRN and signed QR) is generated at the same time the sales invoice is created.
+                Unchecked keeps the current invoice only.
+              </p>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3 p-3 pt-0">
+          <label className="flex cursor-pointer items-start gap-2.5 rounded-md border border-border bg-muted/20 px-3 py-2.5 hover:bg-muted/40">
+            <input
+              type="checkbox"
+              checked={autoEinvoice}
+              onChange={e => {
+                markEinvoiceDirty()
+                setAutoEinvoice(e.target.checked)
+              }}
+              className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-input text-primary"
+            />
+            <span className="min-w-0">
+              <span className="block text-xs font-medium text-foreground">
+                Generate e-invoice when the invoice is created
+              </span>
+              <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">
+                Off by default. The order and tax invoice stay the same. Turn on to register that invoice on the GST portal.
+              </span>
+            </span>
+          </label>
+          {autoEinvoice ? (
+            <div className="grid gap-2 sm:grid-cols-2">
+              <label className="min-w-0 space-y-1">
+                <span className="block text-[11px] font-medium text-foreground">Client ID</span>
+                <input
+                  type="text"
+                  value={einvoiceClientId}
+                  onChange={e => {
+                    markEinvoiceDirty()
+                    setEinvoiceClientId(e.target.value)
+                  }}
+                  autoComplete="off"
+                  className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+                />
+              </label>
+              <label className="min-w-0 space-y-1">
+                <span className="block text-[11px] font-medium text-foreground">Client secret</span>
+                <input
+                  type="password"
+                  value={einvoiceClientSecret}
+                  onChange={e => {
+                    markEinvoiceDirty()
+                    setEinvoiceClientSecret(e.target.value)
+                  }}
+                  autoComplete="new-password"
+                  placeholder="Unchanged if left blank"
+                  className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+                />
+              </label>
+              <label className="min-w-0 space-y-1">
+                <span className="block text-[11px] font-medium text-foreground">API username</span>
+                <input
+                  type="text"
+                  value={einvoiceUsername}
+                  onChange={e => {
+                    markEinvoiceDirty()
+                    setEinvoiceUsername(e.target.value)
+                  }}
+                  autoComplete="off"
+                  className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+                />
+              </label>
+              <label className="min-w-0 space-y-1">
+                <span className="block text-[11px] font-medium text-foreground">API password</span>
+                <input
+                  type="password"
+                  value={einvoicePassword}
+                  onChange={e => {
+                    markEinvoiceDirty()
+                    setEinvoicePassword(e.target.value)
+                  }}
+                  autoComplete="new-password"
+                  placeholder="Unchanged if left blank"
+                  className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+                />
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 sm:col-span-2">
+                <input
+                  type="checkbox"
+                  checked={einvoiceSandbox}
+                  onChange={e => {
+                    markEinvoiceDirty()
+                    setEinvoiceSandbox(e.target.checked)
+                  }}
+                  className="h-3.5 w-3.5 shrink-0 rounded border-input text-primary"
+                />
+                <span className="text-xs text-foreground">Use GST sandbox (test IRN, not a live e-invoice)</span>
+              </label>
+            </div>
+          ) : null}
         </CardContent>
       </Card>
 

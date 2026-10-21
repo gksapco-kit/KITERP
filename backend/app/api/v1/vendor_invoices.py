@@ -17,6 +17,7 @@ from app.services.invoice_pdf import render_invoice_pdf
 from app.services.media_upload import delete_stored_file
 from app.services.document_assets import is_document_asset
 from app.utils.document_settings import IMAGE_KEYS, MAX_SETTINGS_BYTES, sanitize_document_settings
+from app.services.einvoice_service import flatten_einvoice, generate_einvoice, render_qr_data_url
 
 _SETTINGS_BLOB_KEYS = ("invoice_settings", "quotation_settings", "pos_receipt_settings")
 
@@ -84,8 +85,8 @@ async def _vendor_id(current_user: User = Depends(get_current_active_user), db: 
     return vendor.id
 
 
-def _inv_dict(inv) -> dict:
-    return {
+def _inv_dict(inv, include_qr: bool = False) -> dict:
+    data = {
         "id": str(inv.id), "vendor_id": str(inv.vendor_id),
         "store_id": str(inv.store_id) if getattr(inv, "store_id", None) else None,
         "customer_id": str(inv.customer_id) if inv.customer_id else None,
@@ -122,6 +123,10 @@ def _inv_dict(inv) -> dict:
         "created_at": inv.created_at.isoformat() if inv.created_at else None,
         "updated_at": inv.updated_at.isoformat() if inv.updated_at else None,
     }
+    data.update(flatten_einvoice(inv))
+    if include_qr and data.get("einvoice_signed_qr"):
+        data["einvoice_qr_image"] = render_qr_data_url(data["einvoice_signed_qr"])
+    return data
 
 
 @router.get("")
@@ -308,7 +313,35 @@ async def get_invoice(invoice_id: str, vid: UUID = Depends(_vendor_id), db: Asyn
         raise HTTPException(400, f"Invalid invoice ID: {invoice_id!r}")
     if not inv:
         raise HTTPException(404, "Invoice not found")
-    return JSONResponse(content=_inv_dict(inv))
+    return JSONResponse(content=_inv_dict(inv, include_qr=True))
+
+
+@router.post("/{invoice_id}/e-invoice", dependencies=[_require_manage])
+async def generate_invoice_einvoice(
+    invoice_id: str,
+    user: User = Depends(get_current_active_user),
+    vid: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Generate or retry a GST e-invoice (IRN) for an existing tax invoice."""
+    from sqlalchemy.orm.attributes import flag_modified
+    from app.models.vendor import Vendor
+
+    svc = InvoiceService(db)
+    try:
+        inv = await svc.get_invoice(UUID(invoice_id), vid)
+    except ValueError:
+        raise HTTPException(400, f"Invalid invoice ID: {invoice_id!r}")
+    if not inv:
+        raise HTTPException(404, "Invoice not found")
+    vendor = await db.get(Vendor, vid)
+    if not vendor:
+        raise HTTPException(404, "Vendor not found")
+    await generate_einvoice(inv, vendor, force=True)
+    flag_modified(inv, "einvoice")
+    await db.commit()
+    await db.refresh(inv)
+    return JSONResponse(content=_inv_dict(inv, include_qr=True))
 
 
 @router.put("/{invoice_id}")

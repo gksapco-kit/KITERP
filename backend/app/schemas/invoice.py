@@ -149,6 +149,13 @@ class InvoiceResponse(BaseModel):
     extra_fields: Optional[list] = None
     reference_invoice_id: Optional[str] = None
     converted_from_id: Optional[str] = None
+    einvoice_status: Optional[str] = None
+    einvoice_irn: Optional[str] = None
+    einvoice_ack_no: Optional[str] = None
+    einvoice_ack_dt: Optional[str] = None
+    einvoice_error: Optional[str] = None
+    einvoice_signed_qr: Optional[str] = None
+    einvoice_qr_image: Optional[str] = None
     created_by: Optional[str] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None

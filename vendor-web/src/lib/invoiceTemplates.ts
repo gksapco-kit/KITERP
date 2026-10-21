@@ -910,8 +910,17 @@ function commonFooter(inv: InvData, settings: InvoiceSettings, footerLogo?: Foot
   const rawPayTerms = (inv.payment_terms as string) || settings.default_payment_terms || ''
   const payTerms   = (settings.show_payment_terms ?? true) ? rawPayTerms : ''
   const showShipBlock = settings.show_shipping_address && addressHasContent(shipAddr)
+  const irn = String(inv.einvoice_irn || '')
+  const ack = String(inv.einvoice_ack_no || '')
+  const einvoiceHtml = irn ? `
+    <div style="margin-bottom:14px;padding:10px 12px;background:#ecfdf5;border-radius:6px;border:1px solid #a7f3d0;font-size:11px">
+      <div style="font-size:9px;text-transform:uppercase;letter-spacing:.12em;color:#047857;margin-bottom:4px">e-Invoice</div>
+      <div><span style="color:#374151;font-weight:500">IRN:</span> <span style="color:#6b7280;word-break:break-all">${irn}</span></div>
+      ${ack ? `<div style="margin-top:3px"><span style="color:#374151;font-weight:500">Ack No:</span> <span style="color:#6b7280">${ack}</span></div>` : ''}
+    </div>` : ''
 
-  const gstHtml = (showShipBlock) || (settings.show_place_of_supply && placeOfSupply) ? `
+  const gstHtml = (einvoiceHtml || showShipBlock || (settings.show_place_of_supply && placeOfSupply)) ? `
+    ${einvoiceHtml}
     <div style="margin-bottom:14px;display:grid;grid-template-columns:${showShipBlock && settings.show_place_of_supply && placeOfSupply ? '1fr 1fr' : '1fr'};gap:16px">
       ${showShipBlock && shipAddr ? `
       <div style="padding:10px 12px;background:#f8fafc;border-radius:6px;border-left:3px solid #e5e7eb;font-size:11px">
@@ -2797,6 +2806,14 @@ export function generateInvoiceHtml(
   // it is deliberate HTML, sanitised by the server on save and on read. See htmlSafety.ts.
   const inv = escapeDocData(rawInv)
   const s: InvoiceSettings = escapeDocData({ ...DEFAULT_INVOICE_SETTINGS, ...rawSettings })
+  const qrImage = typeof rawInv.einvoice_qr_image === 'string' && rawInv.einvoice_qr_image.startsWith('data:image/')
+    ? rawInv.einvoice_qr_image
+    : ''
+  if (qrImage || rawInv.einvoice_irn) {
+    s.show_qr_code = true
+    if (qrImage) s.qr_code_url = qrImage
+    s.qr_code_label = 'e-Invoice QR'
+  }
   s.template = normalizeInvoiceTemplateId(s.template)
   // Narrow paper sizes always use the thermal receipt template
   if (isNarrow(s.paper_size)) return thermalTemplate(inv, s, backendApiBase)

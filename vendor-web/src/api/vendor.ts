@@ -2631,6 +2631,10 @@ export const vendorApi = {
     const response = await apiClient.post(`/vendors/me/invoices/${id}/convert`)
     return response.data
   },
+  generateEinvoice: async (id: string) => {
+    const response = await apiClient.post(`/vendors/me/invoices/${id}/e-invoice`)
+    return response.data
+  },
 
   // ── Coupons ───────────────────────────────────────────────────
   listCoupons: async (params?: Record<string, unknown>) => {

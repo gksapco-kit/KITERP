@@ -434,6 +434,13 @@ def _generate_styled_pdf(invoice, s: dict, images: Dict[str, bytes], vendor: dic
 
         right: list = [P(f"<b>{title}</b>", 16, bold=True, color=BRAND, align=2),
                        P(f"<b>{_esc(inv_no)}</b>", 10, bold=True, align=2)]
+        einvoice = _attr(invoice, "einvoice", {}) or {}
+        irn = einvoice.get("irn") if isinstance(einvoice, dict) else None
+        if irn:
+            right.append(P(f"IRN: {_esc(str(irn))}", 7, color=GRAY, align=2))
+            ack = einvoice.get("ack_no")
+            if ack:
+                right.append(P(f"Ack: {_esc(str(ack))}", 7, color=GRAY, align=2))
         if _flag(s, "show_copy_label") and not is_quote:
             right.append(P("ORIGINAL FOR RECIPIENT", 7, color=GRAY, align=2))
         if s.get("qr_code_position") == "header":

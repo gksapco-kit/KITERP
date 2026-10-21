@@ -4,7 +4,7 @@ import { useStoreName } from '@/components/common/BusinessUnitSelect'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { vendorApi } from '@/api/vendor'
-import { useUpdateInvoice, useInvoiceSettings, useQuotationSettings, useSalesAreas, usePosReceiptSettings } from '@/hooks/useVendor'
+import { useUpdateInvoice, useGenerateEinvoice, useInvoiceSettings, useQuotationSettings, useSalesAreas, usePosReceiptSettings } from '@/hooks/useVendor'
 import { SalesAreaSelect } from '@/components/common/SalesAreaSelect'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -17,7 +17,7 @@ import {
   ArrowLeft, Loader2, Download, FileText, Printer,
   IndianRupee, Calendar, User, Phone, Mail, Building2,
   Hash, MapPin, Pencil, Save, X, Plus, Trash2, CalendarDays, ShoppingBag, Settings2,
-  MessageCircle, MessageSquare, Share2, Eye, CopyPlus,
+  MessageCircle, MessageSquare, Share2, Eye, CopyPlus, QrCode,
   Minimize2, Maximize2, PanelLeft, PanelRight,
 } from 'lucide-react'
 import { TableToolbar } from '@/components/table/TableToolbar'
@@ -32,6 +32,7 @@ import {
 } from '@/lib/invoiceBadges'
 import { fetchAsDataUrl, downloadAsPdf, shareViaWhatsApp, shareViaSms, buildShareMessage } from '@/lib/printUtils'
 import { withNoScriptCsp, writeSafeHtml } from '@/lib/htmlSafety'
+import { useHasPermission } from '@/hooks/usePermissions'
 import { SALES_DOC_COPY_FROM_KEY } from '@/lib/copyDocument'
 import { QuotationExtraFieldsEditor, QuotationExtraFieldsDisplay } from '@/components/quotations/QuotationExtraFieldsEditor'
 import {
@@ -522,6 +523,8 @@ export default function InvoiceDetail() {
   const location = useLocation()
   const isQuotationRoute = location.pathname.startsWith('/quotations/')
   const updateInvoice = useUpdateInvoice()
+  const generateEinvoice = useGenerateEinvoice()
+  const canManageInvoice = useHasPermission('invoices.manage')
   const { data: rawInvSettings, isLoading: invoiceSettingsLoading } = useInvoiceSettings()
   const { data: rawQuoteSettings, isLoading: quotationSettingsLoading } = useQuotationSettings()
   const { data: posReceiptSettings, isLoading: posSettingsLoading } = usePosReceiptSettings()
@@ -876,6 +879,22 @@ export default function InvoiceDetail() {
               <Pencil className="w-3.5 h-3.5 mr-1.5 text-green-600" /> Edit
             </Button>
           ) : null}
+          {!isQuotation && canManageInvoice && inv.status !== 'cancelled' && (inv as Record<string, unknown>).einvoice_status !== 'generated' ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 shrink-0 text-xs px-3"
+              disabled={generateEinvoice.isPending}
+              onClick={() => generateEinvoice.mutate(inv.id as string)}
+            >
+              {generateEinvoice.isPending ? (
+                <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+              ) : (
+                <QrCode className="w-3.5 h-3.5 mr-1.5 text-emerald-600" />
+              )}
+              {(inv as Record<string, unknown>).einvoice_status === 'failed' ? 'Retry e-Invoice' : 'Generate e-Invoice'}
+            </Button>
+          ) : null}
           <Button variant="outline" size="sm" className="h-8 shrink-0 text-xs px-3"
             disabled={settingsLoading}
             onClick={() => printWithTemplate(invRecord, docSettings)}>
@@ -1130,6 +1149,35 @@ export default function InvoiceDetail() {
           </div>
         </ContactMetaCard>
       </div>
+
+      {!isQuotation ? (
+        <ContactMetaCard title="e-Invoice" titleIcon={QrCode} titleIconClass="text-emerald-600">
+          {(inv as Record<string, unknown>).einvoice_status === 'generated' ? (
+            <div className="space-y-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-2">
+                <InfoRow compact icon={Hash} label="IRN" value={String((inv as Record<string, unknown>).einvoice_irn || '')} />
+                <InfoRow compact icon={Hash} label="Ack No" value={String((inv as Record<string, unknown>).einvoice_ack_no || '')} />
+                <InfoRow compact icon={Calendar} label="Ack Date" value={String((inv as Record<string, unknown>).einvoice_ack_dt || '')} />
+              </div>
+              {(inv as Record<string, unknown>).einvoice_qr_image ? (
+                <img
+                  src={String((inv as Record<string, unknown>).einvoice_qr_image)}
+                  alt="e-Invoice QR"
+                  className="h-28 w-28 rounded-md border border-gray-100 bg-white p-1"
+                />
+              ) : null}
+            </div>
+          ) : (inv as Record<string, unknown>).einvoice_status === 'failed' ? (
+            <p className="text-xs text-amber-700">
+              {String((inv as Record<string, unknown>).einvoice_error || 'e-Invoice generation failed')}
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              No e-invoice yet. Turn on “Generate e-invoice when the invoice is created” in Business Front Display, or generate it here.
+            </p>
+          )}
+        </ContactMetaCard>
+      ) : null}
 
       {/* Line Items */}
       {isEditing ? (

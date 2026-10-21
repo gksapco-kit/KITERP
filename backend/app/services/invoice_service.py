@@ -33,6 +33,15 @@ def _parse_optional_date(val) -> date | None:
         return date.fromisoformat(val[:10])
     return None
 
+async def _try_generate_einvoice(db, invoice, vendor=None):
+    """Best-effort GST e-invoice. Off by default; never blocks invoice creation."""
+    try:
+        from app.services.einvoice_service import maybe_generate_einvoice
+        await maybe_generate_einvoice(db, invoice, vendor)
+    except Exception:
+        log.exception("e-invoice auto-generate failed for invoice %s", getattr(invoice, "id", None))
+
+
 # Finance GL posting (non-blocking — failures logged but don't break invoice flow)
 async def _try_post_invoice(db, vendor_id, invoice):
     try:
@@ -263,6 +272,9 @@ class InvoiceService:
             ),
         )
         self.db.add(invoice)
+        await self.db.commit()
+        await self.db.refresh(invoice)
+        await _try_generate_einvoice(self.db, invoice, vendor)
         await self.db.commit()
         await self.db.refresh(invoice)
         return invoice
@@ -530,7 +542,7 @@ class InvoiceService:
             invoice_items.append({
                 "name": item.get("name", ""),
                 "description": None,
-                "hsn_sac": None,
+                "hsn_sac": item.get("hsn_sac") or item.get("hsn_code") or item.get("sac_code"),
                 "qty": qty,
                 "rate": rate,
                 "discount": 0,
@@ -584,6 +596,7 @@ class InvoiceService:
             customer_name=customer.full_name if customer else None,
             customer_email=customer.email if customer else None,
             customer_phone=customer.phone if customer else None,
+            customer_gstin=getattr(customer, "gstin", None) if customer else None,
             billing_address=order.shipping_address,
             shipping_address=order.shipping_address,
             vendor_name=vendor.business_name,
@@ -620,6 +633,10 @@ class InvoiceService:
             await self.db.refresh(invoice)
         else:
             await self.db.flush()
+        await _try_generate_einvoice(self.db, invoice, vendor)
+        if auto_commit:
+            await self.db.commit()
+            await self.db.refresh(invoice)
         return invoice
 
     async def create_from_pos_transaction(
@@ -702,6 +719,7 @@ class InvoiceService:
             customer_name=customer.full_name if customer else None,
             customer_email=customer.email if customer else None,
             customer_phone=customer.phone if customer else None,
+            customer_gstin=getattr(customer, "gstin", None) if customer else None,
             vendor_name=vendor.business_name,
             vendor_gstin=vendor.gstin,
             vendor_pan=vendor.pan_number,
@@ -737,6 +755,10 @@ class InvoiceService:
             await self.db.refresh(invoice)
         else:
             await self.db.flush()
+        await _try_generate_einvoice(self.db, invoice, vendor)
+        if auto_commit:
+            await self.db.commit()
+            await self.db.refresh(invoice)
         return invoice
 
     async def create_from_booking(
@@ -821,6 +843,7 @@ class InvoiceService:
             customer_name=booking.customer_name or (customer.full_name if customer else None),
             customer_email=booking.customer_email or (customer.email if customer else None),
             customer_phone=booking.customer_phone or (customer.phone if customer else None),
+            customer_gstin=getattr(customer, "gstin", None) if customer else None,
             vendor_name=vendor.business_name,
             vendor_gstin=vendor.gstin,
             vendor_pan=vendor.pan_number,
@@ -856,10 +879,12 @@ class InvoiceService:
             await self.db.refresh(invoice)
         else:
             await self.db.flush()
+        await _try_generate_einvoice(self.db, invoice, vendor)
 
         booking.invoice_id = invoice.id
         if auto_commit:
             await self.db.commit()
+            await self.db.refresh(invoice)
 
         return invoice
 

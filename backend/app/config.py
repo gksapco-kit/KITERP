@@ -72,6 +72,16 @@ class Settings(BaseSettings):
     RAZORPAY_KEY_SECRET: str = ""
     RAZORPAY_WEBHOOK_SECRET: str = ""
 
+    # GST e-invoice (IRP / GSP). Vendor settings can override these per GSTIN.
+    EINVOICE_API_BASE: str = ""
+    EINVOICE_AUTH_URL: str = ""
+    EINVOICE_GENERATE_URL: str = ""
+    EINVOICE_CLIENT_ID: str = ""
+    EINVOICE_CLIENT_SECRET: str = ""
+    EINVOICE_USERNAME: str = ""
+    EINVOICE_PASSWORD: str = ""
+    EINVOICE_SANDBOX: bool = True
+
     # Twilio — prefer Verify for OTP (works internationally); SMS fallback needs TWILIO_FROM_NUMBER
     TWILIO_ACCOUNT_SID: str = ""
     TWILIO_AUTH_TOKEN: str = ""

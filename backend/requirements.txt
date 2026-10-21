@@ -47,6 +47,7 @@ twilio>=8.13.0
 # PDF Generation
 reportlab==4.2.0
 pillow==12.2.0  # decodes/normalises logo, signature and QR images for the PDF
+qrcode==8.2  # GST e-invoice signed QR on the printed invoice
 
 # HTML sanitisation for vendor-authored document templates
 nh3==0.3.7
