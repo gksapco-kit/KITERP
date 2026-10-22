@@ -20,12 +20,15 @@ import { ResolveReturnModal } from '@/components/orders/ResolveReturnModal'
 import { InitiateReturnModal } from '@/components/orders/InitiateReturnModal'
 import {
   useOrder,
+  useOrders,
   useUpdateOrderStatus,
   useResolveReturn,
   useOrderInvoice,
   useRequestReturnExchange,
 } from '@/hooks/useVendor'
 import { vendorApi } from '@/api/vendor'
+import { payLaterApproveByCheckbox } from '@/lib/payLaterApprove'
+import { useVendorStore } from '@/stores/vendorStore'
 import type { OrderAttachmentRef } from '@/types'
 import { Loader2, CheckCircle, XCircle, RotateCcw, Repeat, MessageSquare, X, ZoomIn, ShieldCheck } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -41,9 +44,20 @@ interface OrderInvoiceRef {
 
 export default function OrderDetail() {
   const { id } = useParams<{ id: string }>()
+  if (!id) return <p className="text-center py-20 text-gray-500">Order not found</p>
+  return <OrderDetailView key={id} />
+}
+
+function OrderDetailView() {
+  const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const vendor = useVendorStore((s) => s.vendor)
+  const payLaterUsesCheckbox = payLaterApproveByCheckbox(
+    vendor?.settings as Record<string, unknown> | undefined,
+  )
   const { data: order, isLoading } = useOrder(id!)
+  const { data: orderList } = useOrders({ page: 1, size: 100 })
   const updateStatus = useUpdateOrderStatus()
   const resolveReturn = useResolveReturn()
   const requestReturnExchange = useRequestReturnExchange()
@@ -70,6 +84,7 @@ export default function OrderDetail() {
   const [approveConfirmText, setApproveConfirmText] = useState('')
   const [showPayLaterApproveConfirm, setShowPayLaterApproveConfirm] = useState(false)
   const [payLaterApproveText, setPayLaterApproveText] = useState('')
+  const [payLaterApproveChecked, setPayLaterApproveChecked] = useState(false)
   const [approvingPayLater, setApprovingPayLater] = useState(false)
 
   const pendingUpiProof =
@@ -118,6 +133,7 @@ export default function OrderDetail() {
         onSuccess: () => {
           setShowPayLaterApproveConfirm(false)
           setPayLaterApproveText('')
+          setPayLaterApproveChecked(false)
         },
         onSettled: () => setApprovingPayLater(false),
       },
@@ -142,6 +158,14 @@ export default function OrderDetail() {
   const bookingId = bookingItem?.booking_id
   const bookingNumber = bookingItem?.booking_number
   const bookingDate = bookingItem?.booking_date
+
+  const orderIds = (orderList?.items ?? []).map((row) => row.id)
+  const orderIndex = id ? orderIds.indexOf(id) : -1
+  const prevId = orderIndex > 0 ? orderIds[orderIndex - 1] : undefined
+  const nextId = orderIndex >= 0 && orderIndex < orderIds.length - 1 ? orderIds[orderIndex + 1] : undefined
+  const payLaterConfirmed = payLaterUsesCheckbox
+    ? payLaterApproveChecked
+    : payLaterApproveText.trim().toLowerCase() === 'approved'
 
   const assignDeliveryStaff = async () => {
     if (!selectedDeliveryStaff) return
@@ -179,6 +203,7 @@ export default function OrderDetail() {
         onConfirm={() => {
           if (pendingPayLater) {
             setPayLaterApproveText('')
+            setPayLaterApproveChecked(false)
             setShowPayLaterApproveConfirm(true)
             return
           }
@@ -188,8 +213,12 @@ export default function OrderDetail() {
         onDeliver={() => handleStatusUpdate('delivered')}
         onCancelClick={() => { setVendorCancelReason(''); setVendorCancelAttachments([]); setShowCancelConfirm(true) }}
         onViewInvoice={(invoiceId) => navigate(`/invoices/${invoiceId}`)}
-        onViewBooking={(id) => navigate(`/bookings/${id}`)}
+        onViewBooking={(bookingId) => navigate(`/bookings/${bookingId}`)}
         onViewAuditHistory={() => navigate(`/orders/${order.id}/audit`)}
+        hasPrevious={!!prevId}
+        hasNext={!!nextId}
+        onPrevious={() => prevId && navigate(`/orders/${prevId}`)}
+        onNext={() => nextId && navigate(`/orders/${nextId}`)}
       />
 
       {pendingPayLater && (
@@ -206,7 +235,7 @@ export default function OrderDetail() {
               size="sm"
               className="shrink-0 gap-1.5"
               disabled={approvingPayLater || updateStatus.isPending}
-              onClick={() => { setPayLaterApproveText(''); setShowPayLaterApproveConfirm(true) }}
+              onClick={() => { setPayLaterApproveText(''); setPayLaterApproveChecked(false); setShowPayLaterApproveConfirm(true) }}
             >
               <ShieldCheck className="h-4 w-4" />
               Approve
@@ -635,7 +664,7 @@ export default function OrderDetail() {
         </div>
       )}
 
-      {/* Pay later approval confirmation — requires typing "approved" */}
+      {/* Pay later approval — checkbox or typed "approved", from Business Front Display */}
       {showPayLaterApproveConfirm && (
         <div
           data-kiterp-modal
@@ -644,6 +673,7 @@ export default function OrderDetail() {
             if (!approvingPayLater) {
               setShowPayLaterApproveConfirm(false)
               setPayLaterApproveText('')
+              setPayLaterApproveChecked(false)
             }
           }}
         >
@@ -659,46 +689,71 @@ export default function OrderDetail() {
                 type="button"
                 aria-label="Close"
                 disabled={approvingPayLater}
-                onClick={() => { setShowPayLaterApproveConfirm(false); setPayLaterApproveText('') }}
+                onClick={() => {
+                  setShowPayLaterApproveConfirm(false)
+                  setPayLaterApproveText('')
+                  setPayLaterApproveChecked(false)
+                }}
                 className="rounded-lg p-1 hover:bg-gray-100 disabled:opacity-50"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
             <div className={cn(dialogBodyClass, 'space-y-4')}>
-              <p className="text-sm text-gray-600">
-                Approving will <strong>confirm order {order.order_number}</strong>. Payment is still due later.
-                This action cannot be undone. To continue, type <strong>approved</strong> below.
-              </p>
-              <input
-                autoFocus
-                value={payLaterApproveText}
-                onChange={(e) => setPayLaterApproveText(e.target.value)}
-                placeholder="Type approved"
-                className="w-full rounded border px-3 py-2 text-sm"
-                onKeyDown={(e) => {
-                  if (
-                    e.key === 'Enter'
-                    && payLaterApproveText.trim().toLowerCase() === 'approved'
-                    && !approvingPayLater
-                  ) {
-                    approvePayLaterOrder()
-                  }
-                }}
-              />
+              {payLaterUsesCheckbox ? (
+                <>
+                  <p className="text-sm text-gray-600">
+                    Approving will <strong>confirm order {order.order_number}</strong>. Payment is still due later.
+                    This action cannot be undone. Select the checkbox, then click <strong>Approve order</strong>.
+                  </p>
+                  <label className="flex cursor-pointer items-center gap-2">
+                    <input
+                      type="checkbox"
+                      autoFocus
+                      checked={payLaterApproveChecked}
+                      onChange={(e) => setPayLaterApproveChecked(e.target.checked)}
+                      className="h-4 w-4 shrink-0 rounded border-gray-300 text-primary"
+                    />
+                    <span className="text-sm text-gray-700">I confirm this pay later order</span>
+                  </label>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-gray-600">
+                    Approving will <strong>confirm order {order.order_number}</strong>. Payment is still due later.
+                    This action cannot be undone. To continue, type <strong>approved</strong> below.
+                  </p>
+                  <input
+                    autoFocus
+                    value={payLaterApproveText}
+                    onChange={(e) => setPayLaterApproveText(e.target.value)}
+                    placeholder="Type approved"
+                    className="w-full rounded border px-3 py-2 text-sm"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && payLaterConfirmed && !approvingPayLater) {
+                        approvePayLaterOrder()
+                      }
+                    }}
+                  />
+                </>
+              )}
             </div>
             <div className={dialogFooterClass}>
               <Button
                 variant="cancel"
                 className="flex-1"
                 disabled={approvingPayLater}
-                onClick={() => { setShowPayLaterApproveConfirm(false); setPayLaterApproveText('') }}
+                onClick={() => {
+                  setShowPayLaterApproveConfirm(false)
+                  setPayLaterApproveText('')
+                  setPayLaterApproveChecked(false)
+                }}
               >
                 Cancel
               </Button>
               <Button
                 className="flex-1 gap-2"
-                disabled={approvingPayLater || payLaterApproveText.trim().toLowerCase() !== 'approved'}
+                disabled={approvingPayLater || !payLaterConfirmed}
                 onClick={approvePayLaterOrder}
               >
                 {approvingPayLater && <Loader2 className="h-4 w-4 animate-spin" />}

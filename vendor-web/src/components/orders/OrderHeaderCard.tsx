@@ -1,6 +1,6 @@
 import {
   ArrowLeft, Package, Truck, CheckCircle, User, XCircle, Clock, FileText,
-  MessageSquare, CalendarDays, Globe, Monitor, FileDown,
+  MessageSquare, CalendarDays, Globe, Monitor, FileDown, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatCurrency, formatDateTime, formatDate, mediaUrl } from '@/lib/utils'
@@ -95,6 +95,10 @@ interface OrderHeaderCardProps {
   onViewInvoice: (invoiceId: string) => void
   onViewBooking: (bookingId: string) => void
   onViewAuditHistory: () => void
+  hasPrevious?: boolean
+  hasNext?: boolean
+  onPrevious?: () => void
+  onNext?: () => void
 }
 
 /** Header card: title, quick actions, key metrics, and fulfillment timeline. */
@@ -102,6 +106,7 @@ export function OrderHeaderCard({
   order, invoice, isBooking, isQuote, isTerminal, isCancelled,
   bookingId, bookingNumber, bookingDate, updateStatusPending,
   onBack, onConfirm, onShip, onDeliver, onCancelClick, onViewInvoice, onViewBooking, onViewAuditHistory,
+  hasPrevious, hasNext, onPrevious, onNext,
 }: OrderHeaderCardProps) {
   const activeTimeline = isBooking ? bookingTimeline : statusTimeline
   const currentStepIdx = activeTimeline.findIndex((s) => s.key === order.status)
@@ -158,6 +163,12 @@ export function OrderHeaderCard({
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap shrink-0">
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={onPrevious} disabled={!hasPrevious}>
+            <ChevronLeft className="w-4 h-4" /> Previous
+          </Button>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={onNext} disabled={!hasNext}>
+            Next <ChevronRight className="w-4 h-4" />
+          </Button>
           {!isTerminal && order.status === 'pending' && (
             <Button size="sm" className="gap-1.5" onClick={onConfirm} disabled={updateStatusPending}>
               <Package className="w-4 h-4" /> Confirm Order

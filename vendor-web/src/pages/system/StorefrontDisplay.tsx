@@ -7,7 +7,7 @@ import { useStores } from '@/hooks/useVendor'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ThemeSelect } from '@/components/common/ThemeSelect'
-import { Save, Loader2, Package, Wrench, LayoutTemplate, ShieldCheck, QrCode } from 'lucide-react'
+import { Save, Loader2, Package, Wrench, LayoutTemplate, ShieldCheck, QrCode, ClipboardCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Vendor } from '@/types'
 import {
@@ -20,6 +20,10 @@ import {
   autoGenerateEinvoice,
   readEinvoiceCredentials,
 } from '@/lib/einvoiceSettings'
+import {
+  PAY_LATER_APPROVE_BY_CHECKBOX_KEY,
+  payLaterApproveByCheckbox,
+} from '@/lib/payLaterApprove'
 import {
   DISPLAY_FIELDS_BY_TEMPLATE_KEY,
   PRODUCT_DISPLAY_FIELD_DEFS,
@@ -115,6 +119,7 @@ export default function StorefrontDisplayPage() {
   const [productFields, setProductFields] = useState<Record<string, boolean>>({})
   const [serviceFields, setServiceFields] = useState<Record<string, boolean>>({})
   const [requireDomainOtp, setRequireDomainOtp] = useState(false)
+  const [payLaterCheckboxApprove, setPayLaterCheckboxApprove] = useState(false)
   const [autoEinvoice, setAutoEinvoice] = useState(false)
   const [einvoiceClientId, setEinvoiceClientId] = useState('')
   const [einvoiceClientSecret, setEinvoiceClientSecret] = useState('')
@@ -126,6 +131,7 @@ export default function StorefrontDisplayPage() {
   const touchedProductRef = useRef<Set<string>>(new Set())
   const touchedServiceRef = useRef<Set<string>>(new Set())
   const domainTouchedRef = useRef(false)
+  const payLaterTouchedRef = useRef(false)
   const einvoiceTouchedRef = useRef(false)
   // Vendor id only. Template changes must not look like a new record — that
   // was clearing in-progress unchecks when the assigned template loaded late.
@@ -136,6 +142,9 @@ export default function StorefrontDisplayPage() {
   )
   const domainOtpSnapshotKey = vendor
     ? String(requireDomainDeactivationOtp(vendor.settings as Record<string, unknown>))
+    : null
+  const payLaterSnapshotKey = vendor
+    ? String(payLaterApproveByCheckbox(vendor.settings as Record<string, unknown>))
     : null
   const einvoiceSnapshotKey = vendor
     ? `${autoGenerateEinvoice(vendor.settings as Record<string, unknown>)}|${JSON.stringify(readEinvoiceCredentials(vendor.settings as Record<string, unknown>))}`
@@ -169,6 +178,9 @@ export default function StorefrontDisplayPage() {
         if (!keepEdits || !domainTouchedRef.current) {
           setRequireDomainOtp(requireDomainDeactivationOtp(vendor.settings as Record<string, unknown>))
         }
+        if (!keepEdits || !payLaterTouchedRef.current) {
+          setPayLaterCheckboxApprove(payLaterApproveByCheckbox(vendor.settings as Record<string, unknown>))
+        }
         if (!keepEdits || !einvoiceTouchedRef.current) {
           const settings = vendor.settings as Record<string, unknown>
           const creds = readEinvoiceCredentials(settings)
@@ -180,10 +192,10 @@ export default function StorefrontDisplayPage() {
           setEinvoiceSandbox(creds.sandbox !== false)
         }
       },
-      [displaySnapshotKey, domainOtpSnapshotKey, einvoiceSnapshotKey, selectedTemplateId],
+      [displaySnapshotKey, domainOtpSnapshotKey, payLaterSnapshotKey, einvoiceSnapshotKey, selectedTemplateId],
       {
         scopeKey: displayScopeKey,
-        snapshotKey: `${displaySnapshotKey}|otp:${domainOtpSnapshotKey}|einvoice:${einvoiceSnapshotKey}`,
+        snapshotKey: `${displaySnapshotKey}|otp:${domainOtpSnapshotKey}|payLater:${payLaterSnapshotKey}|einvoice:${einvoiceSnapshotKey}`,
         isSaving: () => savingRef.current,
       },
     )
@@ -292,6 +304,7 @@ export default function StorefrontDisplayPage() {
       }
     }
     payload[REQUIRE_DOMAIN_DEACTIVATION_OTP_KEY] = requireDomainOtp
+    payload[PAY_LATER_APPROVE_BY_CHECKBOX_KEY] = payLaterCheckboxApprove
     payload[AUTO_GENERATE_EINVOICE_KEY] = autoEinvoice
     const existingCreds = readEinvoiceCredentials(existingSettings)
     payload[EINVOICE_CREDENTIALS_KEY] = {
@@ -320,11 +333,13 @@ export default function StorefrontDisplayPage() {
           }
         }
         settings[REQUIRE_DOMAIN_DEACTIVATION_OTP_KEY] = requireDomainOtp
+        settings[PAY_LATER_APPROVE_BY_CHECKBOX_KEY] = payLaterCheckboxApprove
         settings[AUTO_GENERATE_EINVOICE_KEY] = autoEinvoice
         settings[EINVOICE_CREDENTIALS_KEY] = payload[EINVOICE_CREDENTIALS_KEY]
         touchedProductRef.current.clear()
         touchedServiceRef.current.clear()
         domainTouchedRef.current = false
+        payLaterTouchedRef.current = false
         einvoiceTouchedRef.current = false
         const resolved = resolveTemplateDisplayFieldsFromSettings(
           settings,
@@ -333,6 +348,7 @@ export default function StorefrontDisplayPage() {
         setProductFields(resolved.product)
         setServiceFields(resolved.service)
         setRequireDomainOtp(requireDomainOtp)
+        setPayLaterCheckboxApprove(payLaterCheckboxApprove)
         setAutoEinvoice(autoEinvoice)
         setEinvoiceClientSecret('')
         setEinvoicePassword('')
@@ -438,6 +454,44 @@ export default function StorefrontDisplayPage() {
               </span>
               <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">
                 Off by default — deactivate in one click. Turn on to require a 6-digit code before turning off a live domain.
+              </span>
+            </span>
+          </label>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="space-y-0 p-3 pb-2">
+          <div className="flex min-w-0 items-start gap-2.5">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/12 text-primary ring-1 ring-inset ring-primary/20">
+              <ClipboardCheck className="h-4 w-4" strokeWidth={2} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <CardTitle className="text-sm">Pay later approval</CardTitle>
+              <p className="text-[11px] leading-snug text-muted-foreground">
+                Controls how a pay later order is confirmed from the order details page.
+              </p>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-3 pt-0">
+          <label className="flex cursor-pointer items-start gap-2.5 rounded-md border border-border bg-muted/20 px-3 py-2.5 hover:bg-muted/40">
+            <input
+              type="checkbox"
+              checked={payLaterCheckboxApprove}
+              onChange={e => {
+                payLaterTouchedRef.current = true
+                markDisplayDirty()
+                setPayLaterCheckboxApprove(e.target.checked)
+              }}
+              className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-input text-primary"
+            />
+            <span className="min-w-0">
+              <span className="block text-xs font-medium text-foreground">
+                Approve pay later orders with a checkbox
+              </span>
+              <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">
+                On: the approve popup shows a checkbox. Off: the user must type approved, then click Approve order.
               </span>
             </span>
           </label>
