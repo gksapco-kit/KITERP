@@ -129,6 +129,8 @@ const LOADERS: Record<string, () => Promise<unknown>> = {
   "/inventory/reservations": () => import("@/pages/inventory/Reservations"),
   "/inventory/settings": () => import("@/pages/inventory/InventorySettings"),
   "/inventory/stock-counts": () => import("@/pages/inventory/StockCount"),
+  "/inventory/yield-profiles": () => import("@/pages/yield/YieldProfiles"),
+  "/inventory/day-close": () => import("@/pages/yield/YieldDayClose"),
   "/inventory/transfer-orders": () => import("@/pages/inventory/TransferOrders"),
   "/invoices": () => import("@/pages/invoices/index"),
   "/invoices/:id": () => import("@/pages/invoices/InvoiceDetail"),

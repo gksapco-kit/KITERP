@@ -42,7 +42,7 @@ import {
   Layers, Link2, Plus, Trash2, Copy, ShoppingBag, Pencil, Clock,
   FileDown, Film, Box, Star, Calculator, DollarSign, MapPin,
   Calendar, Hash, Radio, Users, Globe, Tag, MessageSquare, ToggleRight,
-  Factory, Store, Zap,
+  Factory, Store, Zap, Scissors,
 } from 'lucide-react'
 import {
   variantToUpdatePayload,
@@ -74,6 +74,7 @@ import { CatalogEditStickyBar } from '@/components/common/CatalogEditStickyBar'
 import { UnsavedChangesDialog } from '@/components/common/UnsavedChangesDialog'
 import { PRODUCT_TYPE_FILTER_OPTIONS, productTypeLabel } from '@/components/catalog/CatalogListFilters'
 import { BusinessUnitScopePicker, type StoreScope } from '@/components/common/BusinessUnitScopePicker'
+import { YieldCuttingSection } from '@/components/products/YieldCuttingSection'
 import type { FormSectionDef } from '@/components/common/FormSectionNav'
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard'
 import { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo } from 'react'
@@ -162,6 +163,9 @@ const variantRowSchema = z.object({
   // stock_sale_qty is form-only (defaults to 1); the saved value is stock_per_sale / stock_sale_qty.
   stock_per_sale: optNum,
   stock_sale_qty: optNum,
+  // Cutting yield: raw input per 1 unit of output (used when the product is sold after cutting).
+  yield_factor: optNum,
+  yield_cut: optStr,
   // Lifecycle
   show_lifecycle: z.boolean().default(false),
   expiration_date: optStr,
@@ -245,6 +249,9 @@ const schema = z.object({
   shared_stock: z.boolean().default(false),
   // UOM the shared (product-level) balance is counted in, e.g. kg, g, l, piece
   stock_uom: optStr,
+  // Sold after cutting / processing: variants carry yield_factor
+  yield_enabled: z.boolean().default(false),
+  yield_profile_id: optStr,
   // Lifecycle
   expiration_date: optStr,
   manufacture_date: optStr,
@@ -2943,6 +2950,46 @@ export default function ProductForm() {
       uom: wv?.uom || 'piece',
     }
   }
+  // Cutting yield: a cut's factor sets its stock rule (1 sale = output × factor raw stock).
+  const yieldEnabled = !!watch('yield_enabled')
+  const setVariantYield = useCallback((index: number, factor: number | undefined, cut: string | undefined) => {
+    setValue(`variants.${index}.yield_factor`, factor, { shouldDirty: true })
+    setValue(`variants.${index}.yield_cut`, cut ?? '', { shouldDirty: true })
+    const v = getValues(`variants.${index}`)
+    const output = stockUnitsPerSale({
+      stockUom: String(getValues('stock_uom') || '') || 'kg',
+      uom: v?.uom, uomQuantity: v?.uom_quantity, weightKg: v?.weight_kg, stockPerSale: null,
+    })
+    setValue(`variants.${index}.stock_sale_qty`, undefined, { shouldDirty: true })
+    setValue(
+      `variants.${index}.stock_per_sale`,
+      factor && output > 0 ? Math.round(output * factor * 10000) / 10000 : undefined,
+      { shouldDirty: true },
+    )
+  }, [getValues, setValue])
+  const reapplyVariantYields = useCallback((on: boolean) => {
+    ;(getValues('variants') || []).forEach((v, i) => {
+      if (!(Number(v?.yield_factor) > 0)) return
+      if (on) {
+        setVariantYield(i, Number(v.yield_factor), v.yield_cut || undefined)
+      } else {
+        setValue(`variants.${i}.stock_per_sale`, undefined, { shouldDirty: true })
+        setValue(`variants.${i}.stock_sale_qty`, undefined, { shouldDirty: true })
+      }
+    })
+  }, [getValues, setValue, setVariantYield])
+  const toggleYield = useCallback((on: boolean) => {
+    setValue('yield_enabled', on, { shouldDirty: true })
+    reapplyVariantYields(on)
+  }, [setValue, reapplyVariantYields])
+  const enableYieldProductStock = useCallback(() => {
+    setValue('shared_stock', true, { shouldDirty: true })
+    setValue('stock_uom', 'kg', { shouldDirty: true })
+    reapplyVariantYields(true)
+  }, [setValue, reapplyVariantYields])
+  const setYieldProfile = useCallback((id: string) => {
+    setValue('yield_profile_id', id, { shouldDirty: true })
+  }, [setValue])
   // Variant level: the product quantity is always the total of its variants.
   useEffect(() => {
     if (stockAtProduct || !hasStockVariants) return
@@ -3119,6 +3166,8 @@ export default function ProductForm() {
         || ((product as any).shared_stock
           ? ((product as any).base_uom && (product as any).base_uom !== 'unit' ? (product as any).base_uom : (product.uom || 'piece'))
           : ''),
+      yield_enabled: !!(product as any).yield_enabled,
+      yield_profile_id: (product as any).yield_profile_id || '',
       batch_managed: !!(product as any).batch_managed,
       serial_managed: !!(product as any).serial_managed,
       requires_cold_chain: !!(product as any).requires_cold_chain,
@@ -3207,6 +3256,8 @@ export default function ProductForm() {
         weight_kg: (v as any).weight_kg ?? undefined,
         stock_per_sale: (v as any).stock_per_sale ?? undefined,
         stock_sale_qty: undefined,
+        yield_factor: (v as any).yield_factor ?? undefined,
+        yield_cut: (v as any).yield_cut ?? '',
         show_lifecycle: !!(v.expiration_date || v.manufacture_date || v.best_before_date || v.warranty_period_days || v.warranty_type),
         expiration_date: v.expiration_date ?? '',
         manufacture_date: v.manufacture_date ?? '',
@@ -3458,6 +3509,8 @@ export default function ProductForm() {
       }
     }
     data.stock_uom = stockAtProductLevel ? String(raw.stock_uom).trim() : ''
+    data.yield_enabled = !!raw.yield_enabled
+    data.yield_profile_id = raw.yield_enabled && raw.yield_profile_id ? raw.yield_profile_id : null
 
     // Promote the lowest active variant price to product-level so list cards
     // and POS lookups always have a canonical price when variants are present.
@@ -3524,6 +3577,8 @@ export default function ProductForm() {
         stock_per_sale: stockAtProductLevel
           ? manualRuleFromInputs(v.stock_sale_qty, v.stock_per_sale) ?? undefined
           : undefined,
+        yield_factor: Number(v.yield_factor) > 0 ? Number(v.yield_factor) : undefined,
+        yield_cut: v.yield_cut?.trim() || undefined,
         expiration_date: v.expiration_date || undefined,
         manufacture_date: v.manufacture_date || undefined,
         best_before_date: v.best_before_date || undefined,
@@ -4086,6 +4141,7 @@ export default function ProductForm() {
     { key: 'basic',            label: 'Basic',             icon: Package, hint: 'Name, type, category, descriptions, and media.' },
     { key: 'variants',         label: isBundleType ? 'Bundle' : isSubscriptionType ? 'Price & Plans' : 'Price & Variants', icon: Layers, visible: !isBundleType },
     { key: 'tax',              label: 'Tax',               icon: Receipt, hint: 'GST, tax rates, and HSN/SAC codes per product or variant.' },
+    { key: 'yield',            label: 'Yield & Cutting',   icon: Scissors, visible: !isBundleType && !isDigitalType && !isSubscriptionType, hint: 'Raw stock each cut needs (meat, poultry, seafood …).' },
     { key: 'bundle',           label: 'Bundle Items',      icon: Layers, visible: isBundleType, hint: 'Products included in this bundle.' },
     { key: 'visibility',       label: 'Visibility',        icon: Eye, hint: 'Status, visibility toggle, and marketing flags.' },
     { key: 'returns',          label: 'Returns',           icon: RotateCcw, visible: !isDigitalType && !isBundleType, hint: 'Return window, warranty, and refund policy.' },
@@ -6390,6 +6446,25 @@ export default function ProductForm() {
               onScopeChange={setCatalogStoreScope}
               onSelectedChange={setCatalogStoreIds}
               hideHeader
+            />
+          </div>
+        </Section>
+
+        <Section title="Yield & Cutting" icon={Scissors} open={activeTab === 'yield'} onToggle={() => toggle('yield')} sectionId="yield">
+          <div className={formEditLayout.sectionBody}>
+            <YieldCuttingSection
+              enabled={yieldEnabled}
+              profileId={String(watch('yield_profile_id') || '')}
+              category={String(watchedCategory || '')}
+              stockAtProduct={stockAtProduct}
+              stockUom={stockUom}
+              variants={watchedVariants || []}
+              rawCost={Number(watch('cost_price')) || null}
+              readOnly={isViewMode}
+              onToggle={toggleYield}
+              onProfileChange={setYieldProfile}
+              onVariantYield={setVariantYield}
+              onEnableProductStock={enableYieldProductStock}
             />
           </div>
         </Section>

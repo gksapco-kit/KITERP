@@ -431,6 +431,71 @@ async def ensure_shared_stock_columns() -> None:
     logger.info("ensure_shared_stock_columns: product.shared_stock, stock_uom and base_quantity ready")
 
 
+async def ensure_yield_schema() -> None:
+    """Cutting-yield profiles, product/variant yield columns and the daily yield close."""
+    if "postgresql" not in settings.DATABASE_URL.lower():
+        return
+    stmts = [
+        """CREATE TABLE IF NOT EXISTS yield_profile (
+            id UUID PRIMARY KEY,
+            vendor_id UUID NOT NULL REFERENCES vendor(id) ON DELETE CASCADE,
+            name VARCHAR(150) NOT NULL,
+            category VARCHAR(100),
+            input_uom VARCHAR(30) NOT NULL DEFAULT 'kg',
+            description TEXT,
+            is_active BOOLEAN NOT NULL DEFAULT true,
+            created_at TIMESTAMPTZ DEFAULT now(),
+            updated_at TIMESTAMPTZ DEFAULT now()
+        );""",
+        "CREATE INDEX IF NOT EXISTS idx_yield_profile_vendor ON yield_profile(vendor_id);",
+        """CREATE TABLE IF NOT EXISTS yield_profile_line (
+            id UUID PRIMARY KEY,
+            profile_id UUID NOT NULL REFERENCES yield_profile(id) ON DELETE CASCADE,
+            cut_name VARCHAR(100) NOT NULL,
+            input_per_output NUMERIC(8,4) NOT NULL,
+            rounding_step NUMERIC(8,3),
+            byproduct VARCHAR(150),
+            sort_order INTEGER NOT NULL DEFAULT 0
+        );""",
+        "CREATE INDEX IF NOT EXISTS idx_yield_profile_line_profile ON yield_profile_line(profile_id);",
+        "ALTER TABLE product ADD COLUMN IF NOT EXISTS yield_enabled BOOLEAN NOT NULL DEFAULT false;",
+        "ALTER TABLE product ADD COLUMN IF NOT EXISTS yield_profile_id UUID REFERENCES yield_profile(id) ON DELETE SET NULL;",
+        "ALTER TABLE product_variant ADD COLUMN IF NOT EXISTS yield_factor NUMERIC(8,4);",
+        "ALTER TABLE product_variant ADD COLUMN IF NOT EXISTS yield_cut VARCHAR(100);",
+        """CREATE TABLE IF NOT EXISTS yield_day_close (
+            id UUID PRIMARY KEY,
+            vendor_id UUID NOT NULL REFERENCES vendor(id) ON DELETE CASCADE,
+            product_id UUID NOT NULL REFERENCES product(id) ON DELETE CASCADE,
+            business_date DATE NOT NULL,
+            pool_uom VARCHAR(30) NOT NULL DEFAULT 'kg',
+            opening_qty NUMERIC(14,4) NOT NULL DEFAULT 0,
+            purchased_qty NUMERIC(14,4) NOT NULL DEFAULT 0,
+            raw_cut_qty NUMERIC(14,4) NOT NULL DEFAULT 0,
+            returned_qty NUMERIC(14,4) NOT NULL DEFAULT 0,
+            wastage_qty NUMERIC(14,4) NOT NULL DEFAULT 0,
+            other_qty NUMERIC(14,4) NOT NULL DEFAULT 0,
+            closing_system_qty NUMERIC(14,4) NOT NULL DEFAULT 0,
+            closing_physical_qty NUMERIC(14,4) NOT NULL DEFAULT 0,
+            variance_qty NUMERIC(14,4) NOT NULL DEFAULT 0,
+            output_sold_qty NUMERIC(14,4) NOT NULL DEFAULT 0,
+            cutting_loss_qty NUMERIC(14,4) NOT NULL DEFAULT 0,
+            sales_amount NUMERIC(14,2) NOT NULL DEFAULT 0,
+            raw_cost_per_unit NUMERIC(12,4),
+            cogs_amount NUMERIC(14,2) NOT NULL DEFAULT 0,
+            cuts JSONB NOT NULL DEFAULT '[]'::jsonb,
+            notes TEXT,
+            closed_by UUID REFERENCES "user"(id) ON DELETE SET NULL,
+            closed_at TIMESTAMPTZ DEFAULT now(),
+            CONSTRAINT uq_yield_day_close UNIQUE (vendor_id, product_id, business_date)
+        );""",
+        "CREATE INDEX IF NOT EXISTS idx_yield_day_close_vendor_date ON yield_day_close(vendor_id, business_date);",
+    ]
+    async with engine.begin() as conn:
+        for s in stmts:
+            await conn.execute(text(s))
+    logger.info("ensure_yield_schema: yield profiles, product yield columns and day close ready")
+
+
 async def ensure_product_uom_column() -> None:
     """Ensure product.uom column exists (ORM expects it)."""
     if "postgresql" not in settings.DATABASE_URL.lower():

@@ -64,6 +64,7 @@ from app.api.v1 import (
     vendor_pharma,
     vendor_pharma_reports,
     vendor_product_groups,
+    vendor_yield,
 )
 
 api_router = APIRouter()
@@ -108,6 +109,7 @@ api_router.include_router(vendor_variant_management.router, prefix="/vendors/me/
 api_router.include_router(vendor_services.router, prefix="/vendors/me/services", tags=["Vendor Services"])
 api_router.include_router(vendor_categories.router, prefix="/vendors/me/categories", tags=["Vendor Categories"])
 api_router.include_router(vendor_product_groups.router, prefix="/vendors/me/product-groups", tags=["Product Groups"])
+api_router.include_router(vendor_yield.router, prefix="/vendors/me/yield", tags=["Cutting Yield"])
 api_router.include_router(vendor_orders.router, prefix="/vendors/me/orders", tags=["Vendor Orders"])
 api_router.include_router(vendor_customers.router, prefix="/vendors/me/customers", tags=["Vendor Customers"])
 api_router.include_router(vendor_reviews.router, prefix="/vendors/me/reviews", tags=["Vendor Reviews"])

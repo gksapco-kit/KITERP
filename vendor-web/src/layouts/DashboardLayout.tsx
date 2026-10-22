@@ -23,6 +23,7 @@ import {
   PanelLeftClose, PanelLeft, Settings2, Hash, QrCode, Pill, FlaskConical, Microscope,
   ArrowLeft, ArrowRight, MoreHorizontal, Keyboard, Plus, Star, Save, MapPin, Quote, X,
   ThermometerSnowflake, Network, CalendarCheck2, CalendarDays, RotateCcw, CalendarClock,
+  Scissors, CalendarCheck,
 } from 'lucide-react'
 import { APP_SAVE_REQUEST_EVENT, dispatchAppSaveRequest } from '@/lib/appSave'
 import { isVendorAdminEmbed } from '@/lib/adminEmbed'
@@ -687,6 +688,8 @@ const allSections: NavSection[] = [
       { to: '/product-groups', icon: Layers, label: 'Product Groups' },
       { to: '/inventory', icon: Warehouse, label: 'Inventory', requiresOffering: ['products', 'both'], requiresPermission: 'inventory.view' },
       { to: '/inventory/stock-counts', icon: ClipboardList, label: 'Stock Count & Audit', requiresOffering: ['products', 'both'], requiresPermission: 'inventory.view' },
+      { to: '/inventory/yield-profiles', icon: Scissors, label: 'Cutting Yield Profiles', requiresOffering: ['products', 'both'], requiresPermission: 'products.view' },
+      { to: '/inventory/day-close', icon: CalendarCheck, label: 'Day Close (Yield)', requiresOffering: ['products', 'both'], requiresPermission: 'inventory.view' },
       { to: '/inventory/expiry', icon: CalendarDays, label: 'Expiry Dashboard', requiresOffering: ['products', 'both'], requiresPermission: 'inventory.view' },
       { to: '/inventory/reservations', icon: Lock, label: 'Reservations', requiresOffering: ['products', 'both'], requiresPermission: 'inventory.view' },
       { to: '/inventory/transfer-orders', icon: ArrowRightLeft, label: 'Transfer Orders', requiresOffering: ['products', 'both'], requiresPermission: 'inventory.view' },
@@ -1302,6 +1305,8 @@ const pageTitles: Record<string, string> = {
   '/production/analytics': 'Production Analytics',
   '/inventory': 'Inventory',
   '/inventory/stock-counts': 'Stock Count & Audit',
+  '/inventory/yield-profiles': 'Cutting Yield Profiles',
+  '/inventory/day-close': 'Day Close — Cutting Yield',
   '/inventory/expiry': 'Expiry Dashboard',
   '/inventory/reservations': 'Reservations',
   '/inventory/transfer-orders': 'Transfer Orders',

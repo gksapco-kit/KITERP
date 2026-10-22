@@ -37,6 +37,7 @@ from app.services.media_upload import save_media_file, detect_media_type
 from app.services.catalog_store_scope import sync_product_stores
 from app.services.material_code import generate_product_material_code
 from app.services.product_import_export import export_product_zip, import_product_sheet
+from app.services.yield_service import apply_yield_rules
 
 from datetime import date as date_type, datetime
 
@@ -184,6 +185,8 @@ def _product_to_dict(p) -> dict:
         "stock_uom": getattr(p, "stock_uom", None),
         "base_quantity": float(base_kg) if base_kg is not None else None,
         "base_uom": pool_unit,
+        "yield_enabled": bool(getattr(p, "yield_enabled", False)),
+        "yield_profile_id": str(p.yield_profile_id) if getattr(p, "yield_profile_id", None) else None,
         "low_stock_threshold": p.low_stock_threshold or 5,
         "reorder_point": p.reorder_point,
         "reorder_quantity": p.reorder_quantity,
@@ -293,6 +296,8 @@ def _product_to_dict(p) -> dict:
                     if shared and base_kg is not None else None
                 ),
                 "stock_per_sale": _num(v.stock_per_sale),
+                "yield_factor": _num(getattr(v, "yield_factor", None)),
+                "yield_cut": getattr(v, "yield_cut", None),
                 "price_type": v.price_type or "per_unit",
                 "price": _num(v.price) or 0,
                 "compare_at_price": _num(v.compare_at_price),
@@ -366,6 +371,15 @@ def _product_to_dict(p) -> dict:
         "deleted_at": _dt(getattr(p, "deleted_at", None)),
     }
 
+def _uuid_or_none(value) -> UUID | None:
+    if not value:
+        return None
+    try:
+        return UUID(str(value))
+    except (ValueError, TypeError):
+        return None
+
+
 def _build_variant(product_id, vc) -> ProductVariant:
     """Construct a ProductVariant from a dict or Pydantic schema."""
     g = vc.get if isinstance(vc, dict) else lambda k, d=None: getattr(vc, k, d)
@@ -413,6 +427,8 @@ def _build_variant(product_id, vc) -> ProductVariant:
         min_quantity_per_order=g("min_quantity_per_order"),
         weight_kg=g("weight_kg"),
         stock_per_sale=g("stock_per_sale") or None,
+        yield_factor=g("yield_factor") or None,
+        yield_cut=(g("yield_cut") or "").strip() or None,
         expiration_date=_parse_date(g("expiration_date")) if g("expiration_date") else None,
         manufacture_date=_parse_date(g("manufacture_date")) if g("manufacture_date") else None,
         best_before_date=_parse_date(g("best_before_date")) if g("best_before_date") else None,
@@ -689,6 +705,7 @@ async def create_product(
             fields["division_id"] = _UUID(str(fields["division_id"]))
         except (ValueError, TypeError):
             fields.pop("division_id", None)
+    fields["yield_profile_id"] = _uuid_or_none(fields.get("yield_profile_id"))
     material_code = (data.material_code or "").strip()
     if not material_code:
         material_code = await generate_product_material_code(db, vendor_id)
@@ -716,6 +733,7 @@ async def create_product(
         db.add(_build_variant(product.id, vc))
     if data.variants:
         await db.flush()
+        await apply_yield_rules(db, product)
         if data.shared_stock is not None:
             await _apply_stock_mode(
                 db, product,
@@ -863,6 +881,8 @@ async def update_product(
             except (ValueError, TypeError):
                 update_data.pop("division_id", None)
         # None means "clear the division" — leave as-is (setattr will set NULL)
+    if "yield_profile_id" in update_data:
+        update_data["yield_profile_id"] = _uuid_or_none(update_data.get("yield_profile_id"))
 
     if "name" in update_data and await repo.name_exists(
         vendor_id, str(update_data["name"]), exclude_id=product_id
@@ -944,7 +964,7 @@ async def update_product(
             "discount_amount", "offer_label", "is_on_sale", "is_taxable", "tax_rate",
             "hsn_code", "gst_rate", "quantity", "low_stock_threshold", "stock_status",
             "reorder_point", "reorder_quantity", "allow_backorders", "track_inventory",
-            "stock_per_sale", "is_active",
+            "stock_per_sale", "yield_factor", "yield_cut", "is_active",
         )
 
         def _vsig(item) -> tuple:
@@ -1027,6 +1047,9 @@ async def update_product(
                     setattr(ev, col.name, getattr(new_v, col.name))
             else:
                 db.add(_build_variant(product.id, vc))
+
+    if variants_replaced or "yield_enabled" in update_data or "stock_uom" in update_data:
+        await apply_yield_rules(db, product)
 
     if (
         "shared_stock" in update_data or "stock_uom" in update_data

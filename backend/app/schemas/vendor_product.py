@@ -94,6 +94,9 @@ class ProductVariantCreate(BaseModel):
     weight_kg: Optional[float] = None
     # Manual stock rule: stock-UOM units one sale uses (product-level stock). None = automatic.
     stock_per_sale: Optional[float] = Field(None, gt=0)
+    # Cutting yield: raw input per 1 unit of output. Used when the product has yield_enabled.
+    yield_factor: Optional[float] = Field(None, gt=0, le=100)
+    yield_cut: Optional[str] = Field(None, max_length=100)
     # Lifecycle
     expiration_date: Optional[str] = None
     manufacture_date: Optional[str] = None
@@ -156,6 +159,8 @@ class ProductVariantResponse(BaseModel):
     min_quantity_per_order: Optional[int] = None
     weight_kg: Optional[float] = None
     stock_per_sale: Optional[float] = None
+    yield_factor: Optional[float] = None
+    yield_cut: Optional[str] = None
     # Lifecycle
     expiration_date: Optional[str] = None
     manufacture_date: Optional[str] = None
@@ -250,6 +255,9 @@ class ProductCreate(BaseModel):
     shared_stock: Optional[bool] = None
     # UOM the product-level stock is counted in (kg, g, l, piece …). Used with shared_stock.
     stock_uom: Optional[str] = Field(None, max_length=30)
+    # Sold after cutting / processing (variants carry yield_factor).
+    yield_enabled: bool = False
+    yield_profile_id: Optional[str] = None
     low_stock_threshold: int = 5
     reorder_point: Optional[int] = None
     reorder_quantity: Optional[int] = None
@@ -390,6 +398,8 @@ class ProductUpdate(BaseModel):
     quantity: Optional[int] = None
     shared_stock: Optional[bool] = None
     stock_uom: Optional[str] = Field(None, max_length=30)
+    yield_enabled: Optional[bool] = None
+    yield_profile_id: Optional[str] = None
     low_stock_threshold: Optional[int] = None
     reorder_point: Optional[int] = None
     reorder_quantity: Optional[int] = None
@@ -533,6 +543,8 @@ class ProductResponse(BaseModel):
     reorder_quantity: Optional[int] = None
     stock_status: str = "in_stock"
     allow_backorders: bool = False
+    yield_enabled: bool = False
+    yield_profile_id: Optional[str] = None
 
     # Lifecycle
     expiration_date: Optional[str] = None

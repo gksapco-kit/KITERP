@@ -22,6 +22,7 @@ from app.services.shared_stock import (
     uom_dimension,
     uses_shared_weight_stock,
 )
+from app.services.yield_service import yield_snapshot
 from app.services.catalog_store_scope import product_available_at_store
 from app.services.store_inventory_service import (
     apply_store_inventory_delta,
@@ -183,6 +184,7 @@ class InventoryService:
                 "selling_qty": abs(selling_qty),
                 "kg_each": format_base(kg_each, pool),
                 "remaining_units": sellable_units(after_kg, kg_each),
+                **yield_snapshot(locked, variant, pool, abs(selling_qty)),
             },
         )
         self.db.add(movement)

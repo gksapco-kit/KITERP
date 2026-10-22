@@ -41,6 +41,8 @@ const ProductGroupsPage = lazy(() => import('@/pages/productGroups/index'))
 const ProductGroupDetailPage = lazy(() => import('@/pages/productGroups/ProductGroupDetail'))
 const Inventory = lazy(() => import('@/pages/inventory/index'))
 const StockCountPage = lazy(() => import('@/pages/inventory/StockCount'))
+const YieldProfilesPage = lazy(() => import('@/pages/yield/YieldProfiles'))
+const YieldDayClosePage = lazy(() => import('@/pages/yield/YieldDayClose'))
 const ExpiryDashboardPage = lazy(() => import('@/pages/inventory/ExpiryDashboard'))
 const ReservationsPage = lazy(() => import('@/pages/inventory/Reservations'))
 const TransferOrdersPage = lazy(() => import('@/pages/inventory/TransferOrders'))
@@ -449,6 +451,8 @@ const appRoutes: RouteObject[] = [
       { path: 'pharma/reports', element: <PharmaReportingManagerPage /> },
       { path: 'inventory', element: <Inventory /> },
       { path: 'inventory/stock-counts', element: <StockCountPage /> },
+      { path: 'inventory/yield-profiles', element: <YieldProfilesPage /> },
+      { path: 'inventory/day-close', element: <YieldDayClosePage /> },
       { path: 'inventory/expiry', element: <ExpiryDashboardPage /> },
       { path: 'inventory/reservations', element: <ReservationsPage /> },
       { path: 'inventory/transfer-orders', element: <TransferOrdersPage /> },

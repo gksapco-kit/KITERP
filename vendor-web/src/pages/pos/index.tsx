@@ -50,9 +50,12 @@ import {
   Tag, Star, Gift, Award, ImageIcon, ScanLine,
   AlertTriangle, ChevronDown, ChevronUp, PackagePlus, RefreshCw,
   LayoutGrid, LayoutList, XCircle, UserX, Info, CalendarDays, Pencil,
-  UtensilsCrossed, Users,
+  UtensilsCrossed, Users, Scissors,
 } from 'lucide-react'
 import { POSBookingPanel } from './POSBookingPanel'
+import { CuttingSheet } from '@/components/yield/CuttingSheet'
+import { useYieldProducts } from '@/hooks/useYield'
+import { ModalOverlay, ModalPanel, ModalHeader, ModalBody } from '@/components/ui/Modal'
 import { CreateBookingModal } from '@/pages/bookings/CreateBookingModal'
 import { QuickCreateCustomerModal } from '@/components/customers/QuickCreateCustomerModal'
 import { extractApiError } from '@/lib/errorMessages'
@@ -210,6 +213,8 @@ export default function POS() {
     return merged
   }, [rawInvSettings])
   const [showPosSettings, setShowPosSettings] = useState(false)
+  const [showCuttingSheet, setShowCuttingSheet] = useState(false)
+  const { data: yieldProducts = [] } = useYieldProducts()
   // POS-specific template overrides — merged on top of the vendor invoice settings.
   // Stored per vendor on the server so every terminal (and invoice reprint) uses the same template.
   const { data: serverPosSettings } = usePosReceiptSettings()
@@ -983,6 +988,11 @@ export default function POS() {
               <div className="flex items-center gap-1 px-2 py-1 bg-amber-50 border border-amber-200 rounded text-xs text-amber-700 font-medium">
                 <Award className="w-3 h-3" /> Loyalty Active
               </div>
+            )}
+            {yieldProducts.length > 0 && (
+              <Button variant="outline" size="sm" onClick={() => setShowCuttingSheet(true)} className="gap-1" title="Raw stock to cut for a customer's order">
+                <Scissors className="w-4 h-4" />Cutting sheet
+              </Button>
             )}
             <Button variant="outline" size="sm" onClick={() => setShowPosSettings(true)} className="gap-1" title="Invoice Settings">
               <Settings className="w-4 h-4" />
@@ -1958,6 +1968,15 @@ export default function POS() {
           }}
           onClose={() => setFullBookingPreFill(null)}
         />
+      )}
+
+      {showCuttingSheet && (
+        <ModalOverlay onClose={() => setShowCuttingSheet(false)}>
+          <ModalPanel className="max-w-2xl w-full">
+            <ModalHeader title="Cutting sheet" onClose={() => setShowCuttingSheet(false)} />
+            <ModalBody><CuttingSheet compact /></ModalBody>
+          </ModalPanel>
+        </ModalOverlay>
       )}
 
       {/* POS Settings Modal */}

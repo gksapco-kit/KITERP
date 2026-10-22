@@ -81,6 +81,10 @@ class Product(Base):
     stock_uom = Column(String(30), nullable=True)
     # Remaining balance in stock_uom (kilograms by default). NULL until the first sale or purchase posts.
     base_quantity = Column(Numeric(14, 4), nullable=True)
+    # Sold after cutting / processing: each cut variant's yield_factor sets how much
+    # raw stock one sale removes (see app.models.yield_management).
+    yield_enabled = Column(Boolean, nullable=False, default=False, server_default="false")
+    yield_profile_id = Column(UUID(as_uuid=True), ForeignKey("yield_profile.id", ondelete="SET NULL"), nullable=True)
     low_stock_threshold = Column(Integer, default=5)
     reorder_point = Column(Integer)
     reorder_quantity = Column(Integer)
@@ -255,6 +259,10 @@ class ProductVariant(Base):
     # Manual stock rule for product-level (shared) stock: how many units of the product's
     # stock UOM one sale of this variant uses. NULL = work it out from UOM / Qty / Weight.
     stock_per_sale = Column(Numeric(12, 4), nullable=True)
+    # Cutting yield: raw input per 1 unit of output (1.30 = 1.30 kg raw for 1 kg boneless).
+    # When the product has yield_enabled this drives stock_per_sale.
+    yield_factor = Column(Numeric(8, 4), nullable=True)
+    yield_cut = Column(String(100), nullable=True)
 
     # Lifecycle
     expiration_date = Column(Date)

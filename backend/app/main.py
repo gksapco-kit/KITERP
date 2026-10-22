@@ -22,6 +22,7 @@ from app.database import (
     ensure_vendor_saas_billing_schema,
     ensure_product_uom_column,
     ensure_shared_stock_columns,
+    ensure_yield_schema,
     ensure_service_booking_label_column,
     ensure_service_storefront_label_columns,
     ensure_variant_pricing_columns,
@@ -91,6 +92,7 @@ async def lifespan(app: FastAPI):
         await ensure_vendor_saas_billing_schema()
         await ensure_product_uom_column()
         await ensure_shared_stock_columns()
+        await ensure_yield_schema()
         await ensure_service_booking_label_column()
         await ensure_service_storefront_label_columns()
         await ensure_variant_pricing_columns()

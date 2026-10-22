@@ -45,6 +45,7 @@ from app.models.project import Project, ProjectTask
 from app.models.notification import Notification
 from app.models.vendor_category import VendorCategory
 from app.models.product_group import ProductGroup, ProductGroupItem
+from app.models.yield_management import YieldProfile, YieldProfileLine, YieldDayClose
 from app.models.procurement import (
     Supplier, PurchaseOrder, PurchaseOrderItem, PurchaseOrderReceipt,
     PurchaseOrderDeliverySchedule, PurchaseOrderApproval,
