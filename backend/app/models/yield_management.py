@@ -51,8 +51,13 @@ class YieldProfileLine(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     profile_id = Column(UUID(as_uuid=True), ForeignKey("yield_profile.id", ondelete="CASCADE"), nullable=False)
     cut_name = Column(String(100), nullable=False)
-    # Raw input needed for 1 unit of output (1.30 = 1.30 kg raw gives 1 kg).
-    input_per_output = Column(Numeric(8, 4), nullable=False)
+    # Unit of input_per_output for this cut (kg, g, …). Stock math converts it to the profile unit.
+    input_uom = Column(String(30), nullable=False, default="kg")
+    # Raw input needed for 1 unit of output, in input_uom (1.30 kg, or 500 g, gives 1 kg).
+    input_per_output = Column(Numeric(14, 4), nullable=False)
+    # How much of this cut one kg of raw chicken yields (0.25 kg boneless, 1 leg piece).
+    part_per_raw = Column(Numeric(14, 4), nullable=True)
+    part_uom = Column(String(30), nullable=True)
     # Weigh-out step for the cutter, in input_uom (0.05 = round to 50 g).
     rounding_step = Column(Numeric(8, 3), nullable=True)
     byproduct = Column(String(150), nullable=True)

@@ -22,14 +22,22 @@ export function normalizeUom(uom: string | null | undefined): string {
   return String(uom ?? '').toLowerCase().trim().replace(/\s+/g, '_')
 }
 
+const round4 = (n: number) => Math.round(n * 10000) / 10000
+
+/** Convert a weight quantity between units that share the kilogram scale. Null when either unit is not a weight. */
+export function convertWeight(qty: number, fromUom: string, toUom: string): number | null {
+  const from = WEIGHT_PER_KG[normalizeUom(fromUom)]
+  const to = WEIGHT_PER_KG[normalizeUom(toUom)]
+  if (from === undefined || to === undefined || !(qty > 0)) return null
+  return round4((qty * from) / to)
+}
+
 export function uomDimension(uom: string | null | undefined): UomDimension {
   const key = normalizeUom(uom)
   if (key in WEIGHT_PER_KG) return 'weight'
   if (key in VOLUME_PER_L) return 'volume'
   return 'count'
 }
-
-const round4 = (n: number) => Math.round(n * 10000) / 10000
 
 /** Kilograms one sale of the variant moves: Qty × UOM for weight units, else the Weight (kg) field. */
 function kgPerSale(uom: string, uomQuantity: number | null | undefined, weightKg: number | null | undefined): number {

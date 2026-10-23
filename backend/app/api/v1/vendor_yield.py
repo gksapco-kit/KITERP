@@ -42,8 +42,9 @@ PROFILE_TEMPLATES = [
         "lines": [
             {"cut_name": "Whole with skin", "input_per_output": 1.0},
             {"cut_name": "Skinless curry cut", "input_per_output": 1.5, "byproduct": "Skin"},
-            {"cut_name": "Boneless", "input_per_output": 1.3, "byproduct": "Bones"},
-            {"cut_name": "Leg pieces", "input_per_output": 1.25},
+            {"cut_name": "Boneless", "input_per_output": 1.3, "byproduct": "Bones", "part_per_raw": 0.25, "part_uom": "kg"},
+            {"cut_name": "Bone", "input_per_output": 2, "part_per_raw": 0.5, "part_uom": "kg"},
+            {"cut_name": "Leg pieces", "input_per_output": 1.25, "part_per_raw": 1, "part_uom": "piece"},
             {"cut_name": "Breast", "input_per_output": 1.35},
             {"cut_name": "Wings", "input_per_output": 1.15},
         ],
@@ -79,7 +80,10 @@ PROFILE_TEMPLATES = [
 
 class YieldLineIn(BaseModel):
     cut_name: str = Field(..., min_length=1, max_length=100)
-    input_per_output: float = Field(..., gt=0, le=100)
+    input_per_output: float = Field(..., gt=0, le=1_000_000)
+    input_uom: Optional[str] = Field(None, max_length=30)
+    part_per_raw: Optional[float] = Field(None, gt=0, le=1_000_000)
+    part_uom: Optional[str] = Field(None, max_length=30)
     rounding_step: Optional[float] = Field(None, gt=0)
     byproduct: Optional[str] = Field(None, max_length=150)
 
@@ -117,7 +121,10 @@ def _profile_to_dict(p: YieldProfile) -> dict:
             {
                 "id": str(l.id),
                 "cut_name": l.cut_name,
+                "input_uom": l.input_uom or p.input_uom or "kg",
                 "input_per_output": float(l.input_per_output),
+                "part_per_raw": float(l.part_per_raw) if l.part_per_raw is not None else None,
+                "part_uom": l.part_uom,
                 "yield_pct": round(100 / float(l.input_per_output), 1) if l.input_per_output else None,
                 "rounding_step": float(l.rounding_step) if l.rounding_step is not None else None,
                 "byproduct": l.byproduct,
@@ -134,7 +141,10 @@ def _set_lines(profile: YieldProfile, lines: List[YieldLineIn]) -> None:
     profile.lines = [
         YieldProfileLine(
             cut_name=l.cut_name.strip(),
+            input_uom=(l.input_uom or "kg").strip() or "kg",
             input_per_output=Decimal(str(l.input_per_output)),
+            part_per_raw=Decimal(str(l.part_per_raw)) if l.part_per_raw else None,
+            part_uom=(l.part_uom or "").strip() or None,
             rounding_step=Decimal(str(l.rounding_step)) if l.rounding_step else None,
             byproduct=(l.byproduct or "").strip() or None,
             sort_order=i,

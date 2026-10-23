@@ -458,6 +458,10 @@ async def ensure_yield_schema() -> None:
             sort_order INTEGER NOT NULL DEFAULT 0
         );""",
         "CREATE INDEX IF NOT EXISTS idx_yield_profile_line_profile ON yield_profile_line(profile_id);",
+        "ALTER TABLE yield_profile_line ADD COLUMN IF NOT EXISTS input_uom VARCHAR(30) NOT NULL DEFAULT 'kg';",
+        "ALTER TABLE yield_profile_line ALTER COLUMN input_per_output TYPE NUMERIC(14,4);",
+        "ALTER TABLE yield_profile_line ADD COLUMN IF NOT EXISTS part_per_raw NUMERIC(14,4);",
+        "ALTER TABLE yield_profile_line ADD COLUMN IF NOT EXISTS part_uom VARCHAR(30);",
         "ALTER TABLE product ADD COLUMN IF NOT EXISTS yield_enabled BOOLEAN NOT NULL DEFAULT false;",
         "ALTER TABLE product ADD COLUMN IF NOT EXISTS yield_profile_id UUID REFERENCES yield_profile(id) ON DELETE SET NULL;",
         "ALTER TABLE product_variant ADD COLUMN IF NOT EXISTS yield_factor NUMERIC(8,4);",

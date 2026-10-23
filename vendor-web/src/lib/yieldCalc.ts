@@ -26,6 +26,39 @@ export function yieldPercent(factor: number | null | undefined): number | null {
   return Math.round((100 / factor) * 10) / 10
 }
 
+export type CarcassOrderLine = {
+  cut: string
+  /** Amount of this cut that 1 kg of raw chicken yields. */
+  perRaw: number
+  perRawUom: string
+  orderQty: number
+}
+
+export type CarcassOrderResult = {
+  /** Raw chicken required so every ordered cut is covered by the same birds. */
+  rawKg: number
+  limitingCut: string | null
+  lines: Array<CarcassOrderLine & { rawKg: number; produced: number; leftover: number }>
+}
+
+/**
+ * One carcass supplies every cut. Raw chicken is the largest line
+ * (order ÷ yield from 1 kg raw), and the other cuts are leftover from that bird.
+ */
+export function carcassRaw(lines: CarcassOrderLine[]): CarcassOrderResult {
+  const detailed = lines.map((line) => {
+    const rawKg = line.orderQty > 0 && line.perRaw > 0 ? round4(line.orderQty / line.perRaw) : 0
+    return { ...line, rawKg, produced: 0, leftover: 0 }
+  })
+  const rawKg = detailed.reduce((max, line) => Math.max(max, line.rawKg), 0)
+  const limiting = detailed.find((line) => line.rawKg > 0 && Math.abs(line.rawKg - rawKg) < 0.0001)
+  for (const line of detailed) {
+    line.produced = line.perRaw > 0 ? round4(rawKg * line.perRaw) : 0
+    line.leftover = round4(Math.max(0, line.produced - line.orderQty))
+  }
+  return { rawKg, limitingCut: limiting?.cut ?? null, lines: detailed }
+}
+
 /** Effective cost of 1 unit of output: raw cost × factor. */
 export function costPerOutput(rawCost: number | null | undefined, factor: number | null | undefined): number | null {
   if (!rawCost || rawCost <= 0 || !factor || factor <= 0) return null

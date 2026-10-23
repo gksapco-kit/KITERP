@@ -3,8 +3,14 @@ import apiClient from './client'
 export interface YieldProfileLine {
   id?: string
   cut_name: string
-  /** Raw input needed for 1 unit of output (1.30 kg raw → 1 kg boneless). */
+  /** Unit of input_per_output (kg, g, …). */
+  input_uom?: string | null
+  /** Raw input needed for 1 unit of output, in input_uom (1.30 kg or 500 g → 1 kg). */
   input_per_output: number
+  /** How much of this cut comes out of 1 kg of raw chicken. */
+  part_per_raw?: number | null
+  /** Unit of part_per_raw (kg, g, piece). */
+  part_uom?: string | null
   yield_pct?: number | null
   /** Weigh-out step in the input unit (0.05 = round to 50 g). */
   rounding_step?: number | null
