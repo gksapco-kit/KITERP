@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { usePersistedPageSize } from '@/hooks/usePersistedPageSize'
-import { SectionLabel } from '@/components/common/FieldLabel'
 import { FormColumnLabel } from '@/components/common/FieldLabel'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
@@ -38,6 +37,7 @@ import { fetchAsDataUrl, downloadAsPdf, openPrintWindow, shareViaWhatsApp, share
 import { openAuthenticatedTab } from '@/lib/openAuthenticatedTab'
 import { escapeHtml, withNoScriptCsp, writeSafeHtml } from '@/lib/htmlSafety'
 import { buildPosOverrides, previewPosSettings, type PosModalValues } from '@/lib/posOverrides'
+import { posCatalogProduct, posSellableVariants, gramSaleUnit } from '@/lib/posSellableVariants'
 import { cn } from '@/lib/utils'
 import {
   Search, Plus, Minus, Trash2, ShoppingCart, Receipt,
@@ -85,6 +85,8 @@ interface CartItem {
   booking_time?: string
   duration_minutes?: number
   booking_notes?: string
+  /** Sale unit, such as g. Quantity is counted in this unit. */
+  unit?: string
   modifiers?: Array<{ group_id: string; group_name: string; option_id: string; option_name: string; price_delta: number }>
 }
 
@@ -114,10 +116,10 @@ function computeCartLineAmounts(
 
 // Renders a catalog thumbnail with automatic fallback when the URL is broken/missing.
 function CatalogImage({ url, type, size = 'sm' }: {
-  url?: string | null; type: 'product' | 'service'; size?: 'sm' | 'md'
+  url?: string | null; type: 'product' | 'service'; size?: 'sm' | 'md' | 'tile'
 }) {
   const [failed, setFailed] = useState(false)
-  const dim = size === 'sm' ? 'w-9 h-9' : 'w-10 h-10'
+  const dim = size === 'tile' ? 'aspect-[4/3] w-full' : size === 'sm' ? 'w-9 h-9' : 'w-10 h-10'
   const safeUrl = url && url !== 'null' && url !== 'undefined' ? url : null
   if (!safeUrl || failed) {
     return (
@@ -418,7 +420,9 @@ export default function POS() {
   const { data: servicesData } = useServices({ size: 500, status: 'active', search: search || undefined, store_id: lockedStoreId || undefined })
   // Explicitly stamp item_type so POSSearchGrid and addToCart work correctly
   const products = useMemo(
-    () => (productsData?.items || []).map((p: any) => ({ ...p, item_type: 'product' as const })),
+    () => (productsData?.items || [])
+      .map((p: any) => posCatalogProduct({ ...p, item_type: 'product' as const }))
+      .filter((p: any) => p != null),
     [productsData],
   )
   const services = useMemo(
@@ -430,7 +434,9 @@ export default function POS() {
   const { data: allProductsData } = useProducts({ size: 500, status: 'active', store_id: lockedStoreId || undefined })
   const { data: allServicesData } = useServices({ size: 500, status: 'active', store_id: lockedStoreId || undefined })
   const allCatalogItems = useMemo(() => {
-    const prods = (allProductsData?.items || []).map((p: any) => ({ ...p, item_type: 'product' as const }))
+    const prods = (allProductsData?.items || [])
+      .map((p: any) => posCatalogProduct({ ...p, item_type: 'product' as const }))
+      .filter((p: any) => p != null)
     const svcs  = (allServicesData?.items  || []).map((s: any) => ({ ...s, item_type: 'service' as const }))
     return [...prods, ...svcs]
   }, [allProductsData, allServicesData])
@@ -588,7 +594,7 @@ export default function POS() {
   const addToCart = useCallback((item: {
     id: string; variant_id?: string; name: string; sku?: string; price: number;
     tax_rate?: number; hsn_code?: string; sac_code?: string;
-    item_type: 'product' | 'service'; duration_minutes?: number; image_url?: string
+    item_type: 'product' | 'service'; duration_minutes?: number; image_url?: string; unit?: string
     modifiers?: Array<{ group_id: string; group_name: string; option_id: string; option_name: string; price_delta: number }>
   }) => {
     setCart(prev => {
@@ -608,6 +614,7 @@ export default function POS() {
           discount: 0,
           item_type: item.item_type,
           image_url: item.image_url,
+          unit: item.unit,
           duration_minutes: item.duration_minutes,
           booking_date: isService ? todayStr : undefined,
           booking_time: isService ? getNextSlotTime() : undefined,
@@ -631,6 +638,7 @@ export default function POS() {
         sku: item.sku,
         price: item.price,
         qty: 1,
+        unit: item.unit,
         tax_rate: item.tax_rate || 0,
         hsn_code: item.hsn_code || item.sac_code,
         discount: 0,
@@ -646,7 +654,7 @@ export default function POS() {
   /** Checks modifier groups before adding a product to cart — shows picker if any exist. */
   const handleProductAdd = useCallback(async (item: {
     id: string; variant_id?: string; name: string; sku?: string; price: number;
-    tax_rate?: number; hsn_code?: string; sac_code?: string; item_type: 'product' | 'service'; image_url?: string; duration_minutes?: number
+    tax_rate?: number; hsn_code?: string; sac_code?: string; item_type: 'product' | 'service'; image_url?: string; duration_minutes?: number; unit?: string
   }) => {
     if (item.item_type === 'service') { addToCart(item); return }
     try {
@@ -671,14 +679,33 @@ export default function POS() {
       try {
         const result = await vendorApi.barcodeLookup(code)
         const p = result.product
-        const v = result.variant
+        const listed = posSellableVariants((p as { variants?: Array<{ id?: string; is_active?: boolean; is_pos_only?: boolean; name?: string; price?: number; sku?: string; tax_rate?: number; hsn_code?: string; uom?: string; uom_quantity?: number }> }).variants)
+        const scanned = result.variant
+        const onCounter = !scanned || listed.some((item) => item.id === scanned.id)
+        const v = (onCounter ? scanned : (listed.length === 1 ? listed[0] : null)) as typeof scanned
+        if (scanned && !onCounter && !v) {
+          addScanReport(code, 'not_found')
+          toast.error(`${p.name} — ${scanned.name} is not sold at POS`, { duration: 4000 })
+          continue
+        }
         const price = v?.price ?? p.price ?? 0
-        const name = v ? `${p.name} — ${v.name}` : p.name
+        const name = p.name
         const sku = v?.sku ?? p.sku
         const taxRate = v?.tax_rate ?? (p as any).tax_rate ?? (p as any).gst_rate ?? 0
         const hsnCode = v?.hsn_code ?? (p as any).hsn_code
         const imgUrl = (p as any).images?.[0]?.url || (p as any).images?.[0]?.file_url
-        addToCart({ id: p.id, variant_id: v?.id, name, sku, price, tax_rate: taxRate, hsn_code: hsnCode, item_type: 'product', image_url: imgUrl })
+        addToCart({
+          id: p.id,
+          variant_id: v?.id,
+          name,
+          sku,
+          price,
+          tax_rate: taxRate,
+          hsn_code: hsnCode,
+          item_type: 'product',
+          image_url: imgUrl,
+          unit: gramSaleUnit(v),
+        })
         toast.success(`Added: ${name}`, { duration: 2000 })
       } catch (err: any) {
         if (err?.response?.status === 404) {
@@ -951,7 +978,7 @@ export default function POS() {
   )
 
   return (
-    <div className="flex flex-col gap-2 h-[calc(100dvh-6rem)] max-lg:h-auto max-lg:min-h-[calc(100dvh-7rem)]">
+    <div className="flex h-[calc(100dvh-5.25rem)] max-lg:h-auto max-lg:min-h-[calc(100dvh-7rem)] flex-col gap-3">
       {tableFromUrl && restaurantTableLabel && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm shrink-0">
           <span className="flex items-center gap-2 text-amber-950 font-medium">
@@ -973,7 +1000,7 @@ export default function POS() {
       )}
       <div className="flex flex-col lg:flex-row gap-3 flex-1 min-h-0">
       {/* ── Left: Catalog ── */}
-      <div className="flex-[6] min-w-0 flex flex-col space-y-2 overflow-hidden max-lg:min-h-[min(55vh,28rem)]">
+      <div className="flex min-h-0 min-w-0 flex-[6] flex-col gap-2 overflow-hidden rounded-2xl border bg-card p-3 shadow-sm max-lg:min-h-[min(55vh,28rem)]">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-lg font-bold flex flex-wrap items-center gap-2">
             <ShoppingCart className="w-5 h-5 text-blue-600" /> POS Billing
@@ -1326,6 +1353,7 @@ export default function POS() {
                 item_type: item.item_type,
                 image_url: item.image_url,
                 duration_minutes: item.duration_minutes,
+                unit: item.unit,
               })}
               onVariantPick={(p: any) => setVariantPickerProduct(p)}
             />
@@ -1340,7 +1368,7 @@ export default function POS() {
               <button onClick={() => setFilter('products')}
                 className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md text-xs font-medium transition-colors ${filter === 'products' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
               ><Package className="w-3.5 h-3.5" /> Products ({products.reduce((n: number, p: any) => {
-                  const av = (p.variants || []).filter((v: any) => v.is_active !== false)
+                  const av = posSellableVariants(p.variants)
                   return n + (av.length > 0 ? av.length : 1)
                 }, 0)})</button>
               <button onClick={() => setFilter('services')}
@@ -1348,65 +1376,69 @@ export default function POS() {
               ><Wrench className="w-3.5 h-3.5" /> Services ({services.length})</button>
             </div>
 
-            {/* Catalog list — card view */}
-            <div className="flex-1 overflow-y-auto space-y-1 pr-1">
+            {/* Catalog — tiles fill the open area */}
+            <div className="min-h-0 flex-1 overflow-y-auto rounded-xl bg-muted/40 p-2">
+              <div className="grid content-start grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
               {(filter === 'all' || filter === 'products') && products.length > 0 && (
                 <>
                   {filter === 'all' && (
-                    <div className="flex items-center gap-1.5 px-2 py-1 sticky top-0 bg-muted/90 backdrop-blur-sm rounded text-xs font-medium text-muted-foreground uppercase tracking-wide z-10">
+                    <div className="col-span-full flex items-center gap-1.5 px-1 py-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                       <Package className="w-3 h-3 text-blue-500" /> Products
                     </div>
                   )}
                   {products.flatMap((p: any) => {
                     const imgUrl = p.images?.[0]?.url || p.images?.[0]?.file_url || p.image_url
-                    const activeVariants = (p.variants || []).filter((v: any) => v.is_active !== false)
+                    const activeVariants = posSellableVariants(p.variants)
                     const hasVariants = activeVariants.length > 0
 
                     if (hasVariants) {
-                      return activeVariants.map((v: any) => (
-                        <div key={`p-${p.id}-v-${v.id}`}
-                          className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg border hover:bg-accent hover:border-primary/30 transition-colors text-left group">
-                          <button
-                            className="flex items-center gap-2.5 min-w-0 flex-1 text-left"
-                            onClick={() => addToCart({ id: p.id, variant_id: v.id, name: `${p.name}${v.name ? ` — ${v.name}` : ''}`, sku: v.sku || p.sku, price: v.price || p.price || 0, tax_rate: v.tax_rate ?? p.tax_rate ?? p.gst_rate ?? 0, hsn_code: v.hsn_code || p.hsn_code, item_type: 'product', image_url: imgUrl })}>
-                            <CatalogImage url={imgUrl} type="product" />
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium truncate">{p.name}</p>
-                              <p className="text-xs text-blue-600 font-semibold truncate">{v.name}</p>
-                              <p className="text-xs text-gray-400 font-mono">{v.sku || p.sku || 'No SKU'} · Stock: {v.quantity ?? '—'}</p>
-                            </div>
-                          </button>
-                          <div className="flex flex-col items-end gap-1 ml-3 shrink-0">
-                            <p className="text-sm font-bold">{formatCurrency(v.price || p.price || 0)}</p>
-                            <div className="flex items-center gap-1.5">
-                              <button onClick={e => { e.stopPropagation(); setVariantPickerProduct(p) }}
-                                className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors whitespace-nowrap">
-                                {activeVariants.length} variants
-                              </button>
-                              <button onClick={() => addToCart({ id: p.id, variant_id: v.id, name: `${p.name}${v.name ? ` — ${v.name}` : ''}`, sku: v.sku || p.sku, price: v.price || p.price || 0, tax_rate: v.tax_rate ?? p.tax_rate ?? p.gst_rate ?? 0, hsn_code: v.hsn_code || p.hsn_code, item_type: 'product', image_url: imgUrl })}
-                                className="p-0.5 hover:bg-blue-100 rounded transition-colors">
-                                <Plus className="w-4 h-4 text-blue-500" />
-                              </button>
-                            </div>
+                      return activeVariants.map((v: any) => {
+                        const unit = gramSaleUnit(v)
+                        const price = v.price || p.price || 0
+                        const line = {
+                          id: p.id,
+                          variant_id: v.id,
+                          name: p.name,
+                          sku: v.sku || p.sku,
+                          price,
+                          tax_rate: v.tax_rate ?? p.tax_rate ?? p.gst_rate ?? 0,
+                          hsn_code: v.hsn_code || p.hsn_code,
+                          item_type: 'product' as const,
+                          image_url: imgUrl,
+                          unit,
+                        }
+                        return (
+                        <button key={`p-${p.id}-v-${v.id}`}
+                          type="button"
+                          onClick={() => addToCart(line)}
+                          className="group flex flex-col rounded-xl border bg-card p-2 text-left shadow-sm transition hover:border-primary/40 hover:shadow-md">
+                          <CatalogImage url={imgUrl} type="product" size="tile" />
+                          <p className="mt-2 line-clamp-2 text-sm font-medium leading-snug">{p.name}</p>
+                          <p className="mt-0.5 truncate text-[11px] text-muted-foreground">Stock {v.quantity ?? '—'}{unit ? ` · per ${unit}` : ''}</p>
+                          <div className="mt-auto flex items-center justify-between gap-2 pt-2">
+                            <p className="text-sm font-bold">{formatCurrency(price)}{unit ? ` / ${unit}` : ''}</p>
+                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                              <Plus className="h-3.5 w-3.5" />
+                            </span>
                           </div>
-                        </div>
-                      ))
+                        </button>
+                        )
+                      })
                     }
 
                     return [(
                       <button key={`p-${p.id}`}
+                        type="button"
                         onClick={() => handleProductAdd({ id: p.id, name: p.name, sku: p.sku, price: p.price || 0, tax_rate: p.tax_rate || p.gst_rate || 0, hsn_code: p.hsn_code, item_type: 'product', image_url: imgUrl })}
-                        className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg border hover:bg-accent hover:border-primary/30 transition-colors text-left">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <CatalogImage url={imgUrl} type="product" />
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium truncate">{p.name}</p>
-                            <p className="text-xs text-gray-500">{p.sku || 'No SKU'} · Stock: {p.quantity ?? '—'}</p>
-                          </div>
-                        </div>
-                        <div className="text-right ml-3 shrink-0">
+                        className="group flex flex-col rounded-xl border bg-card p-2 text-left shadow-sm transition hover:border-primary/40 hover:shadow-md">
+                        <CatalogImage url={imgUrl} type="product" size="tile" />
+                        <p className="mt-2 line-clamp-2 text-sm font-medium leading-snug">{p.name}</p>
+                        <p className="mt-0.5 truncate text-[11px] text-muted-foreground">Stock {p.quantity ?? '—'}</p>
+                        <div className="mt-auto flex items-center justify-between gap-2 pt-2">
                           <p className="text-sm font-bold">{formatCurrency(p.price || 0)}</p>
-                          <Plus className="w-4 h-4 text-blue-500 ml-auto" />
+                          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                            <Plus className="h-3.5 w-3.5" />
+                          </span>
                         </div>
                       </button>
                     )]
@@ -1417,36 +1449,27 @@ export default function POS() {
               {(filter === 'all' || filter === 'services') && services.length > 0 && (
                 <>
                   {filter === 'all' && (
-                    <div className="flex items-center gap-1.5 px-2 py-1 sticky top-0 bg-muted/90 backdrop-blur-sm rounded text-xs font-medium text-muted-foreground uppercase tracking-wide z-10">
+                    <div className="col-span-full flex items-center gap-1.5 px-1 py-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                       <Wrench className="w-3 h-3 text-primary/80" /> Services
                     </div>
                   )}
                   {services.map((s: any) => {
                     const sImgUrl = s.media?.[0]?.url || s.media?.[0]?.file_url || s.image_url
+                    const servicePrice = s.sale_price ?? s.price ?? 0
                     return (
-                      <button key={`s-${s.id}`} onClick={() => addToCart({ id: s.id, name: s.name, price: s.sale_price ?? s.price ?? 0, tax_rate: s.tax_rate || s.gst_rate || 0, sac_code: s.sac_code, item_type: 'service', duration_minutes: s.duration_minutes, image_url: sImgUrl })}
-                        className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg border hover:bg-accent hover:border-primary/30 transition-colors text-left">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <CatalogImage url={sImgUrl} type="service" />
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium truncate">{s.name}</p>
-                            <p className="text-xs text-gray-500">
-                              {s.service_type || 'Service'}
-                              {s.duration_minutes ? ` · ${s.duration_minutes}min` : ''}
-                              {s.sac_code ? ` · ${s.sac_code}` : ''}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="text-right ml-3 shrink-0">
-                          {s.sale_price != null && s.sale_price !== s.price ? (
-                            <>
-                              <p className="text-sm font-bold text-primary">{formatCurrency(s.sale_price)}</p>
-                              <p className="text-xs text-gray-400 line-through">{formatCurrency(s.price || 0)}</p>
-                            </>
-                          ) : (
-                            <p className="text-sm font-bold">{formatCurrency(s.sale_price ?? s.price ?? 0)}</p>
-                          )}
-                          <Plus className="w-4 h-4 text-primary/80 ml-auto mt-0.5" />
+                      <button key={`s-${s.id}`} type="button" onClick={() => addToCart({ id: s.id, name: s.name, price: servicePrice, tax_rate: s.tax_rate || s.gst_rate || 0, sac_code: s.sac_code, item_type: 'service', duration_minutes: s.duration_minutes, image_url: sImgUrl })}
+                        className="group flex flex-col rounded-xl border bg-card p-2 text-left shadow-sm transition hover:border-primary/40 hover:shadow-md">
+                        <CatalogImage url={sImgUrl} type="service" size="tile" />
+                        <p className="mt-2 line-clamp-2 text-sm font-medium leading-snug">{s.name}</p>
+                        <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                          {s.service_type || 'Service'}
+                          {s.duration_minutes ? ` · ${s.duration_minutes} min` : ''}
+                        </p>
+                        <div className="mt-auto flex items-center justify-between gap-2 pt-2">
+                          <p className="text-sm font-bold">{formatCurrency(servicePrice)}</p>
+                          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                            <Plus className="h-3.5 w-3.5" />
+                          </span>
                         </div>
                       </button>
                     )
@@ -1457,18 +1480,19 @@ export default function POS() {
               {((filter === 'all' && products.length === 0 && services.length === 0) ||
                 (filter === 'products' && products.length === 0) ||
                 (filter === 'services' && services.length === 0)) && (
-                <div className="text-center py-8">
-                  <Search className="w-8 h-8 text-gray-200 mx-auto mb-2" />
-                  <p className="text-sm text-gray-400">{search ? `No results for "${search}"` : `No active ${filter === 'all' ? 'items' : filter} found`}</p>
+                <div className="col-span-full py-16 text-center">
+                  <Search className="mx-auto mb-2 h-8 w-8 text-gray-200" />
+                  <p className="text-sm text-gray-400">{search ? `No results for "${search}"` : (filter !== 'services' && (productsData?.items?.length || 0) > 0 && products.length === 0) ? 'No sizes are marked POS only. Turn on POS only for the variant you sell at the counter.' : `No active ${filter === 'all' ? 'items' : filter} found`}</p>
                 </div>
               )}
+              </div>
             </div>
           </>
         )}
       </div>
 
       {/* ── Right: Cart ── */}
-      <div className="flex-[4] min-w-0 lg:min-w-[340px] flex flex-col bg-white rounded-xl border overflow-hidden max-lg:min-h-[min(50vh,26rem)]">
+      <div className="flex min-h-0 min-w-0 flex-[4] flex-col overflow-hidden rounded-2xl border bg-card shadow-sm max-lg:min-h-[min(50vh,26rem)] lg:min-w-[340px]">
         <div className={`px-4 py-2.5 border-b flex items-center gap-2 ${
           txnMode === 'return' ? 'bg-red-50' : 'bg-gray-50'
         }`}>
@@ -1479,9 +1503,10 @@ export default function POS() {
           </span>
         </div>
 
-        {/* Customer + salesperson (side by side on desktop; stacked on phones) */}
-        <div className="px-3 py-2 border-b bg-gray-50/50 flex flex-col sm:flex-row gap-3 items-stretch sm:items-start">
-          <div className="flex-1 min-w-0 space-y-1.5">
+        {/* Customer and salesperson on one line; recent names use the full width */}
+        <div className="space-y-2 border-b px-3 py-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="min-w-0 flex-1">
             {selectedCustomer ? (
               <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
                 <div className="flex items-center gap-2 text-sm min-w-0">
@@ -1552,27 +1577,26 @@ export default function POS() {
                     </div>
                   )}
                 </div>
-                {/* Recent customers scrollable */}
-                {!customerSearch && recentCustomers.length > 0 && (
-                  <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-thin">
-                    {recentCustomers.map(cust => (
-                      <button key={cust.id} onClick={() => selectCustomer(cust)}
-                        className="shrink-0 flex items-center gap-1.5 px-2.5 py-1 bg-white border border-gray-200 rounded-full text-xs hover:bg-accent hover:border-primary/30 transition-colors"
-                      >
-                        <User className="w-3 h-3 text-gray-400" />
-                        <span className="font-medium text-gray-700 truncate max-w-[80px]">{cust.full_name}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
               </>
             )}
           </div>
 
           {txnMode === 'sale' && (
-            <div className="flex-1 min-w-0 space-y-1">
-              <SectionLabel>Salesperson (commission)</SectionLabel>
+            <div className="min-w-0 flex-1">
               <StaffPicker selected={selectedSalesPerson} onSelect={setSelectedSalesPerson} />
+            </div>
+          )}
+          </div>
+          {!selectedCustomer && !customerSearch && recentCustomers.length > 0 && (
+            <div className="flex gap-1.5 overflow-x-auto scrollbar-thin">
+              {recentCustomers.map(cust => (
+                <button key={cust.id} onClick={() => selectCustomer(cust)}
+                  className="flex shrink-0 items-center gap-1.5 rounded-full border bg-background px-2.5 py-1 text-xs transition-colors hover:border-primary/30 hover:bg-accent"
+                >
+                  <User className="h-3 w-3 text-muted-foreground" />
+                  <span className="max-w-[7rem] truncate font-medium">{cust.full_name}</span>
+                </button>
+              ))}
             </div>
           )}
         </div>
@@ -1586,22 +1610,22 @@ export default function POS() {
           />
         )}
 
-        {/* Cart items */}
-        <div className="flex-1 overflow-y-auto divide-y">
+        {/* Cart items sit at the top; the open area below shows the amount */}
+        <div className={`min-h-0 space-y-2 overflow-y-auto p-2 ${cart.length ? 'max-h-[46%] shrink-0' : 'flex flex-1 flex-col items-center justify-center'}`}>
           {!cart.length ? (
-            <div className="flex flex-col items-center justify-center py-12 text-gray-400">
-              <ShoppingCart className="w-10 h-10 mb-2" />
+            <div className="flex flex-col items-center justify-center text-muted-foreground">
+              <ShoppingCart className="mb-2 h-10 w-10 opacity-40" />
               <p className="text-sm">Add products or services</p>
-              <p className="text-xs text-gray-300 mt-1">Search or click items from catalog</p>
+              <p className="mt-1 text-xs opacity-70">Search or click items from the catalog</p>
             </div>
           ) : cart.map((item, idx) => (
-            <div key={idx} className="px-3 py-2.5 space-y-1.5">
+            <div key={idx} className="space-y-1.5 rounded-xl border bg-background px-3 py-2.5 shadow-sm">
               <div className="flex items-center gap-2">
                 <CatalogImage url={item.image_url} type={item.item_type} />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{item.name}</p>
                   <p className="text-xs text-gray-500">
-                    {formatCurrency(item.price)} x {item.qty}
+                    {formatCurrency(item.price)}{item.unit ? ` / ${item.unit}` : ''} x {item.qty}{item.unit ? ` ${item.unit}` : ''}
                     {item.tax_rate > 0 && <span className="ml-1 text-amber-600">({item.tax_rate}%)</span>}
                   </p>
                 </div>
@@ -1616,7 +1640,7 @@ export default function POS() {
                     onBlur={() => { if (item.qty < 1) setQty(idx, 1) }}
                     onFocus={e => e.target.select()}
                     onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
-                    aria-label={`Quantity for ${item.name}`}
+                    aria-label={item.unit === 'g' ? `Grams for ${item.name}` : `Quantity for ${item.name}`}
                     className="w-12 h-6 text-center text-sm font-medium border rounded px-1 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                   />
                   <button onClick={() => updateQty(idx, 1)} className="p-1 rounded hover:bg-gray-100"><Plus className="w-3 h-3" /></button>
@@ -1679,118 +1703,120 @@ export default function POS() {
           ))}
         </div>
 
-        {/* Coupon code */}
-        {txnMode === 'sale' && (
-          <div className="px-3 py-2 border-t bg-gray-50/50">
-            {couponApplied ? (
-              <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-3 py-1.5">
-                <div className="flex items-center gap-2 text-xs">
-                  <Tag className="w-3.5 h-3.5 text-green-600" />
-                  <span className="font-semibold text-green-700">{couponApplied.code}</span>
-                  <span className="text-green-600">-{formatCurrency(couponApplied.discount)}</span>
+        {/* Open area: the amount due fills the space under the items */}
+        {cart.length > 0 && (
+          <div className={`flex min-h-0 flex-1 flex-col items-center justify-center px-4 py-3 text-center ${txnMode === 'return' ? 'text-red-600' : ''}`}>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              {txnMode === 'return' ? 'Refund' : 'To pay'}
+            </p>
+            <p className="mt-1 text-4xl font-bold tracking-tight">{txnMode === 'return' ? '-' : ''}{formatCurrency(grandTotal)}</p>
+            <div className="mt-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+              <span>Subtotal {formatCurrency(subtotal)}</span>
+              {manualDiscount > 0 && <span className="text-green-600">Discount -{formatCurrency(manualDiscount)}</span>}
+              {couponDiscountAmt > 0 && <span className="text-green-600">{couponApplied?.code} -{formatCurrency(couponDiscountAmt)}</span>}
+              {loyaltyDiscountValue > 0 && <span className="text-amber-600">{loyaltyRedeem} pts -{formatCurrency(loyaltyDiscountValue)}</span>}
+              <span>Tax {formatCurrency(totalTax)}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Coupon, discount, and note stay in one short bar above Charge */}
+        <div className="space-y-2 border-t bg-card px-3 py-2.5">
+          <div className="grid grid-cols-2 gap-2">
+            {txnMode === 'sale' && (
+              couponApplied ? (
+                <div className="flex h-8 items-center justify-between rounded-lg border border-green-200 bg-green-50 px-2">
+                  <span className="flex min-w-0 items-center gap-1 text-xs">
+                    <Tag className="h-3 w-3 shrink-0 text-green-600" />
+                    <span className="truncate font-semibold text-green-700">{couponApplied.code}</span>
+                  </span>
+                  <button type="button" aria-label="Remove coupon" onClick={removeCoupon} className="text-green-500 hover:text-red-500">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
                 </div>
-                <button type="button" aria-label="Close" onClick={removeCoupon} className="text-green-400 hover:text-red-500">
-                <X className="w-3.5 h-3.5" /></button>
-              </div>
-            ) : (
-              <div className="flex gap-1.5">
-                <div className="relative flex-1">
-                  <Tag className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400" />
+              ) : (
+                <div className="flex gap-1">
                   <input
                     type="text" value={couponCode} onChange={e => setCouponCode(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && handleApplyCoupon()}
-                    placeholder="Enter coupon code..."
-                    className="w-full h-7 pl-7 pr-2 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    placeholder="Coupon"
+                    aria-label="Coupon code"
+                    className="h-8 min-w-0 flex-1 rounded-lg border border-input bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
                   />
+                  <Button size="sm" variant="outline" onClick={handleApplyCoupon} disabled={couponLoading || !couponCode.trim()} className="h-8 px-2 text-xs">
+                    {couponLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Apply'}
+                  </Button>
                 </div>
-                <Button size="sm" variant="outline" onClick={handleApplyCoupon} disabled={couponLoading || !couponCode.trim()} className="h-7 px-2 text-xs">
-                  {couponLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Apply'}
-                </Button>
-              </div>
+              )
             )}
-          </div>
-        )}
-
-        {/* Loyalty points */}
-        {loyaltyProgram?.is_active && loyaltyAccount && selectedCustomer && txnMode === 'sale' && (
-          <div className="px-3 py-2 border-t bg-amber-50/50">
-            <div className="flex items-center justify-between mb-1">
-              <div className="flex items-center gap-1.5 text-xs">
-                <Star className="w-3.5 h-3.5 text-amber-500" />
-                <span className="font-medium text-amber-700">Loyalty Points</span>
-              </div>
-              <span className="text-xs font-bold text-amber-700">{loyaltyAccount.points_balance} pts</span>
+            <div className={`flex gap-1 ${txnMode !== 'sale' ? 'col-span-2' : ''}`}>
+              <Select
+                value={discountType}
+                onChange={v => setDiscountType(v as 'flat' | 'percentage')}
+                options={[
+                  { value: 'flat', label: '₹ off' },
+                  { value: 'percentage', label: '% off' },
+                ]}
+                className="h-8 w-[4.75rem] shrink-0 text-xs"
+              />
+              <Input
+                type="number"
+                min={0}
+                value={cartDiscount}
+                onChange={(e) => setCartDiscount(Number(e.target.value))}
+                aria-label={discountType === 'percentage' ? 'Discount percent' : 'Discount amount'}
+                className="h-8 text-xs"
+              />
             </div>
-            {loyaltyAccount.points_balance >= (loyaltyProgram.min_redeem_points || 0) && (
-              <div className="flex items-center gap-2">
-                <input
-                  type="range" min={0}
-                  max={Math.min(
-                    loyaltyAccount.points_balance,
-                    Math.floor(grandTotal * (loyaltyProgram.max_redeem_percent / 100) / (loyaltyProgram.currency_per_point || 1))
-                  )}
-                  value={loyaltyRedeem}
-                  onChange={e => setLoyaltyRedeem(Number(e.target.value))}
-                  className="flex-1 h-1.5 accent-amber-500"
-                />
-                <span className="text-xs font-medium text-amber-700 w-20 text-right">
-                  {loyaltyRedeem > 0 ? `${loyaltyRedeem} pts = -${formatCurrency(loyaltyDiscountValue)}` : '0 pts'}
-                </span>
+          </div>
+          <input
+            type="text"
+            value={cartNotes}
+            onChange={e => setCartNotes(e.target.value)}
+            placeholder="Note for the receipt"
+            aria-label="Note"
+            className="h-8 w-full rounded-lg border border-input bg-background px-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+
+          {loyaltyProgram?.is_active && loyaltyAccount && selectedCustomer && txnMode === 'sale' && (
+            <div className="rounded-lg bg-amber-50 px-2.5 py-1.5">
+              <div className="mb-1 flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs">
+                  <Star className="h-3.5 w-3.5 text-amber-500" />
+                  <span className="font-medium text-amber-700">Loyalty</span>
+                </div>
+                <span className="text-xs font-bold text-amber-700">{loyaltyAccount.points_balance} pts</span>
               </div>
-            )}
-            {loyaltyAccount.points_balance < (loyaltyProgram.min_redeem_points || 0) && (
-              <p className="text-xs text-amber-600">Min {loyaltyProgram.min_redeem_points} pts to redeem</p>
-            )}
-          </div>
-        )}
+              {loyaltyAccount.points_balance >= (loyaltyProgram.min_redeem_points || 0) ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="range" min={0}
+                    max={Math.min(
+                      loyaltyAccount.points_balance,
+                      Math.floor(grandTotal * (loyaltyProgram.max_redeem_percent / 100) / (loyaltyProgram.currency_per_point || 1))
+                    )}
+                    value={loyaltyRedeem}
+                    onChange={e => setLoyaltyRedeem(Number(e.target.value))}
+                    className="h-1.5 flex-1 accent-amber-500"
+                  />
+                  <span className="w-20 text-right text-xs font-medium text-amber-700">
+                    {loyaltyRedeem > 0 ? `${loyaltyRedeem} pts` : '0 pts'}
+                  </span>
+                </div>
+              ) : (
+                <p className="text-xs text-amber-600">Min {loyaltyProgram.min_redeem_points} pts to redeem</p>
+              )}
+            </div>
+          )}
 
-        {/* Cart discount + notes */}
-        <div className="px-3 py-2 border-t bg-gray-50 space-y-1.5">
-          <div className="flex items-center gap-2">
-            <Label className="text-xs shrink-0">Discount:</Label>
-            <Select
-              value={discountType}
-              onChange={v => setDiscountType(v as 'flat' | 'percentage')}
-              options={[
-                { value: 'flat', label: 'Flat' },
-                { value: 'percentage', label: '%' },
-              ]}
-              className="text-xs"
-            />
-            <Input type="number" min={0} value={cartDiscount} onChange={(e) => setCartDiscount(Number(e.target.value))} className="h-7 text-sm w-20" />
-          </div>
-          <div className="flex items-center gap-2">
-            <Label className="text-xs shrink-0">Notes:</Label>
-            <input type="text" value={cartNotes} onChange={e => setCartNotes(e.target.value)} placeholder="Optional notes..."
-              className="flex-1 h-7 text-xs border rounded px-2" />
-          </div>
-        </div>
-
-        {/* Totals */}
-        <div className="px-4 py-2.5 border-t space-y-0.5">
-          <div className="flex justify-between text-sm"><span className="text-gray-500">Subtotal</span><span>{formatCurrency(subtotal)}</span></div>
-          {manualDiscount > 0 && <div className="flex justify-between text-sm text-green-600"><span>Discount</span><span>-{formatCurrency(manualDiscount)}</span></div>}
-          {couponDiscountAmt > 0 && <div className="flex justify-between text-sm text-green-600"><span className="flex items-center gap-1"><Tag className="w-3 h-3" />{couponApplied?.code}</span><span>-{formatCurrency(couponDiscountAmt)}</span></div>}
-          {loyaltyDiscountValue > 0 && <div className="flex justify-between text-sm text-amber-600"><span className="flex items-center gap-1"><Star className="w-3 h-3" />{loyaltyRedeem} pts</span><span>-{formatCurrency(loyaltyDiscountValue)}</span></div>}
-          <div className="flex justify-between text-sm"><span className="text-gray-500">Tax</span><span>{formatCurrency(totalTax)}</span></div>
-          <div className={`flex justify-between text-lg font-bold border-t pt-1.5 mt-1 ${
-            txnMode === 'return' ? 'text-red-600' : ''
-          }`}>
-            <span>{txnMode === 'return' ? 'Refund' : 'Total'}</span>
-            <span>{txnMode === 'return' ? '-' : ''}{formatCurrency(grandTotal)}</span>
-          </div>
-        </div>
-
-        {/* Pay button */}
-        <div className="px-4 py-3 border-t">
           <Button
-            className={`w-full gap-2 ${txnMode === 'return' ? 'bg-red-600 hover:bg-red-700' : ''}`}
+            className={`h-11 w-full gap-2 text-base ${txnMode === 'return' ? 'bg-red-600 hover:bg-red-700' : ''}`}
             size="lg" disabled={!cart.length}
             onClick={() => setPaymentModal(true)}
           >
             {txnMode === 'return'
-              ? <><RotateCcw className="w-5 h-5" />Refund {formatCurrency(grandTotal)}</>
-              : <><IndianRupee className="w-5 h-5" />Charge {formatCurrency(grandTotal)}</>}
+              ? <><RotateCcw className="h-5 w-5" />Refund {formatCurrency(grandTotal)}</>
+              : <><IndianRupee className="h-5 w-5" />Charge {formatCurrency(grandTotal)}</>}
           </Button>
         </div>
       </div>
@@ -1882,8 +1908,7 @@ export default function POS() {
               </button>
             </div>
             <div className="p-3 space-y-1 max-h-72 overflow-y-auto">
-              {(variantPickerProduct.variants || [])
-                .filter((v: any) => v.is_active !== false)
+              {posSellableVariants(variantPickerProduct.variants)
                 .map((v: any) => {
                   const imgUrl = variantPickerProduct.images?.[0]?.url || variantPickerProduct.images?.[0]?.file_url
                   return (
@@ -1893,13 +1918,14 @@ export default function POS() {
                         addToCart({
                           id: variantPickerProduct.id,
                           variant_id: v.id,
-                          name: `${variantPickerProduct.name}${v.name ? ` — ${v.name}` : ''}`,
+                          name: variantPickerProduct.name,
                           sku: v.sku || variantPickerProduct.sku,
                           price: v.price || variantPickerProduct.price || 0,
                           tax_rate: v.tax_rate ?? variantPickerProduct.tax_rate ?? variantPickerProduct.gst_rate ?? 0,
                           hsn_code: v.hsn_code || variantPickerProduct.hsn_code,
                           item_type: 'product',
                           image_url: imgUrl,
+                          unit: gramSaleUnit(v),
                         })
                         setVariantPickerProduct(null)
                       }}
@@ -1910,7 +1936,7 @@ export default function POS() {
                         <p className="text-xs text-gray-400">{v.sku || '—'} · Stock: {v.quantity ?? '—'}</p>
                       </div>
                       <div className="text-right ml-3 shrink-0">
-                        <p className="text-sm font-bold text-blue-600">{formatCurrency(v.price || 0)}</p>
+                        <p className="text-sm font-bold text-blue-600">{formatCurrency(v.price || 0)}{gramSaleUnit(v) ? ` / ${gramSaleUnit(v)}` : ''}</p>
                         <Plus className="w-3.5 h-3.5 text-blue-400 ml-auto mt-0.5" />
                       </div>
                     </button>
@@ -2241,7 +2267,13 @@ function PaymentModal({
           {method === 'cash' && !isRefund && (
             <div className="space-y-2">
               <Label>Cash Received</Label>
-              <Input type="number" min={total} value={cashReceived} onChange={e => setCashReceived(Number(e.target.value))} />
+              <Input
+                type="number"
+                min={0}
+                value={cashReceived || ''}
+                placeholder="Enter amount"
+                onChange={e => setCashReceived(e.target.value === '' ? 0 : Number(e.target.value))}
+              />
               {changeDue > 0 && (
                 <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center justify-between">
                   <span className="text-sm font-medium text-green-700">Change</span>
@@ -3859,38 +3891,38 @@ function POSInvoiceSettingsModal({
   const previewWidth = isNarrow ? (localPaper === '2inch' ? 220 : localPaper === '3inch' ? 302 : 394) : 500
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center overflow-y-auto" onClick={onClose}>
-      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl w-full max-w-5xl mx-4 max-h-[92vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-3.5 border-b bg-gray-50">
-          <div>
-            <h2 className="font-semibold text-gray-900 flex items-center gap-2">
-              <Settings className="w-5 h-5 text-blue-600" /> POS Settings
+    <ModalOverlay onClose={onClose} className="p-4 sm:p-6">
+      <div className="flex max-h-full w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-border bg-card text-foreground shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between gap-3 border-b bg-card px-5 py-3">
+          <div className="min-w-0">
+            <h2 className="flex items-center gap-2 text-base font-semibold">
+              <Settings className="h-4 w-4 shrink-0 text-blue-600" /> POS Settings
             </h2>
-            <p className="text-xs text-gray-400 mt-0.5">Configure receipt template, default customer & loyalty program.</p>
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">Receipt template, default customer, and loyalty.</p>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => window.open('/invoices/templates', '_blank')} className="gap-1.5 text-xs">
-              <ExternalLink className="w-3.5 h-3.5" /> Full Template Editor
-            </Button>
-            <button type="button" aria-label="Close" onClick={onClose} className="p-1 rounded hover:bg-gray-100">
-                <X className="w-4 h-4" /></button>
-          </div>
+          <button type="button" aria-label="Close" onClick={onClose} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground">
+            <X className="h-4 w-4" />
+          </button>
         </div>
 
-        {/* Tab bar */}
-        <div className="flex border-b bg-gray-50 px-6">
-          {([
-            { key: 'template', label: 'Receipt Template', icon: FileText },
-            { key: 'prints',   label: 'Print Forms',      icon: Printer },
-            { key: 'setup',    label: 'POS Setup',         icon: Settings },
-          ] as const).map(tab => (
-            <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === tab.key ? 'border-blue-500 text-blue-600' : 'border-transparent text-muted-foreground hover:text-foreground'
-              }`}>
-              <tab.icon className="w-3.5 h-3.5" />{tab.label}
-            </button>
-          ))}
+        <div className="flex items-center gap-2 border-b bg-muted/40 px-3">
+          <div className="flex min-w-0 flex-1 overflow-x-auto">
+            {([
+              { key: 'template', label: 'Receipt Template', icon: FileText },
+              { key: 'prints',   label: 'Print Forms',      icon: Printer },
+              { key: 'setup',    label: 'POS Setup',         icon: Settings },
+            ] as const).map(tab => (
+              <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+                className={`flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors ${
+                  activeTab === tab.key ? 'border-blue-500 text-blue-600' : 'border-transparent text-muted-foreground hover:text-foreground'
+                }`}>
+                <tab.icon className="h-3.5 w-3.5" />{tab.label}
+              </button>
+            ))}
+          </div>
+          <Button variant="outline" size="sm" onClick={() => window.open('/invoices/templates', '_blank')} className="my-1.5 shrink-0 gap-1.5 text-xs">
+            <ExternalLink className="h-3.5 w-3.5" /> Full Template Editor
+          </Button>
         </div>
 
         {activeTab === 'prints' ? (
@@ -4307,21 +4339,21 @@ function POSInvoiceSettingsModal({
           </div>
         )}
 
-        <div className="flex items-center justify-between px-6 py-3 border-t bg-gray-50">
-          <p className="text-xs text-gray-500">
+        <div className="flex items-center justify-between gap-3 border-t bg-card px-5 py-3">
+          <p className="text-xs text-muted-foreground">
             {activeTab === 'template' ? 'Template settings saved to this device.' : 'POS Setup settings are saved to your account.'}
           </p>
-          <div className="flex gap-2">
+          <div className="flex shrink-0 gap-2">
             <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
             {activeTab === 'template' && (
               <Button size="sm" onClick={handleApply} className="gap-1.5 bg-primary hover:bg-primary/90">
-                <Check className="w-3.5 h-3.5" /> Save & Apply
+                <Check className="h-3.5 w-3.5" /> Save & Apply
               </Button>
             )}
           </div>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   )
 }
 

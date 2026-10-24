@@ -10,6 +10,7 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { formatCurrency } from '@/lib/utils'
+import { posSellableVariants, gramSaleUnit } from '@/lib/posSellableVariants'
 import { Input } from '@/components/ui/input'
 import {
   Settings2, X, Package, Wrench, Plus, Check,
@@ -58,6 +59,9 @@ export interface POSGridVariant {
   expiry_date?: string
   mrp?: number
   is_active?: boolean
+  is_pos_only?: boolean
+  uom?: string
+  uom_quantity?: number | null
 }
 
 export interface AddToCartItem {
@@ -71,6 +75,7 @@ export interface AddToCartItem {
   item_type: 'product' | 'service'
   image_url?: string
   duration_minutes?: number
+  unit?: string
 }
 
 // ─── Config definitions ───────────────────────────────────────────────────────
@@ -289,7 +294,6 @@ function CellContent({
       return (
         <div className="min-w-0">
           <div className="text-xs font-medium text-gray-900 truncate leading-tight">{item.name}</div>
-          {variant?.name && <div className="text-xs text-blue-600 font-semibold truncate">{variant.name}</div>}
           {item.item_type === 'service' && item.service_type && (
             <div className="text-xs text-primary/80 truncate">{item.service_type}</div>
           )}
@@ -311,7 +315,10 @@ function CellContent({
       </span>
     )
     case 'mrp':     return <span className="text-xs text-gray-500">{item.mrp != null ? formatCurrency(item.mrp) : '—'}</span>
-    case 'price':   return <span className="text-xs font-bold text-gray-900">{formatCurrency(price)}</span>
+    case 'price': {
+      const unit = gramSaleUnit(variant)
+      return <span className="text-xs font-bold text-gray-900">{formatCurrency(price)}{unit ? ` / ${unit}` : ''}</span>
+    }
     case 'gst':     return <span className="text-xs text-gray-600">{gst}%</span>
     case 'hsn':     return <span className="font-mono text-xs text-gray-500">{hsn || '—'}</span>
     case 'rack':    return <span className="text-xs text-gray-500">{item.rack_no || '—'}</span>
@@ -389,7 +396,7 @@ export function POSSearchGrid({ products, services, onAddToCart, onVariantPick, 
     const rows: Array<{ item: POSGridProduct; variant?: POSGridVariant }> = []
     if (typeFilter !== 'service') {
       for (const p of products) {
-        const activeVariants = (p.variants || []).filter((v: POSGridVariant) => v.is_active !== false)
+        const activeVariants = posSellableVariants(p.variants)
         if (activeVariants.length > 0) {
           for (const v of activeVariants) rows.push({ item: p, variant: v })
         } else {
@@ -480,19 +487,20 @@ export function POSSearchGrid({ products, services, onAddToCart, onVariantPick, 
 
   const makeAddFn = (item: POSGridProduct, variant?: POSGridVariant) => () => {
     // If product has variants and none selected, open picker
-    const activeVariants = (item.variants || []).filter((v: POSGridVariant) => v.is_active !== false)
+    const activeVariants = posSellableVariants(item.variants)
     if (item.item_type === 'product' && activeVariants.length > 1 && !variant) {
       onVariantPick(item)
       return
     }
     const price = variant?.price ?? item.price ?? 0
+    const unit = gramSaleUnit(variant)
     const tax_rate = variant?.tax_rate ?? item.tax_rate ?? item.gst_rate ?? 0
     const hsn_code = variant?.hsn_code ?? item.hsn_code ?? item.sac_code
     const imgUrl = item.images?.[0]?.url || item.images?.[0]?.file_url || item.image_url
     onAddToCart({
       id: item.id,
       variant_id: variant?.id,
-      name: variant?.name ? `${item.name} — ${variant.name}` : item.name,
+      name: item.name,
       sku: variant?.sku ?? item.sku,
       price,
       tax_rate,
@@ -500,6 +508,7 @@ export function POSSearchGrid({ products, services, onAddToCart, onVariantPick, 
       item_type: item.item_type,
       image_url: imgUrl,
       duration_minutes: item.duration_minutes,
+      unit,
     })
   }
 
@@ -511,7 +520,7 @@ export function POSSearchGrid({ products, services, onAddToCart, onVariantPick, 
         <div className="flex gap-1 bg-gray-100 rounded-lg p-1 flex-1">
           {([
             { id: 'all',     label: `All (${products.length + services.length})` },
-            { id: 'product', label: `Products (${products.reduce((n, p) => n + Math.max((p.variants || []).filter((v: any) => v.is_active !== false).length, 1), 0)})`, icon: Package },
+            { id: 'product', label: `Products (${products.reduce((n, p) => n + Math.max(posSellableVariants(p.variants).length, 1), 0)})`, icon: Package },
             { id: 'service', label: `Services (${services.length})`, icon: Wrench },
           ] as const).map(t => (
             <button key={t.id} onClick={() => setTypeFilter(t.id)}
@@ -612,7 +621,7 @@ export function POSSearchGrid({ products, services, onAddToCart, onVariantPick, 
                 </td>
               </tr>
             ) : sorted.map(({ item, variant }, idx) => {
-              const activeVariants = (item.variants || []).filter((v: POSGridVariant) => v.is_active !== false)
+              const activeVariants = posSellableVariants(item.variants)
               const hasMultipleVariants = activeVariants.length > 1 && !variant
 
               return (
