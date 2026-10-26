@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { useProducts, useServices, useAddToCart } from '@/hooks/useStore'
 import { useVendor } from '@/contexts/VendorContext'
@@ -813,13 +813,12 @@ function StoreLocatorSection({
 // ─────────────────────────────────────────────────────────────────────────────
 export default function Home() {
   const vendor = useEffectiveVendor()
-  const { storePath } = useBranch()
+  const { storePath, branchCode } = useBranch()
   const theme = useTheme()
   const { isAuthenticated } = useAuthStore()
   const { data: products, isLoading: productsLoading } = useProducts({ page: 1, size: 8 })
   const { data: services } = useServices({ page: 1, size: 6 })
-  const [searchParams] = useSearchParams()
-  const branchParam = searchParams.get('branch') ?? undefined
+  const branchParam = branchCode ?? undefined
 
   const c = theme.colors
   const templateId = theme.template

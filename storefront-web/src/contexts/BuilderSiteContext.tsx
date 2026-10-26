@@ -19,6 +19,7 @@ import { publicSitesApi } from '@/api/publicSites'
 import { useVendor } from '@/contexts/VendorContext'
 import type { PublicSite } from '@/blocks/registry'
 import { recallDraftEmbedPreviewToken } from '@/lib/draftEmbedPreview'
+import { noteStickyBranch, readStickyBranch } from '@/lib/stickyBranch'
 
 interface BuilderSiteContextType {
   builderSite: PublicSite | null
@@ -33,7 +34,9 @@ const BuilderSiteContext = createContext<BuilderSiteContextType>({
 export function BuilderSiteProvider({ children }: { children: ReactNode }) {
   const { vendor, vendorSlug } = useVendor()
   const [searchParams] = useSearchParams()
-  const branchCode = searchParams.get('branch')?.trim() || null
+  const urlBranch = searchParams.get('branch')?.trim() || null
+  if (urlBranch) noteStickyBranch(urlBranch)
+  const branchCode = urlBranch || readStickyBranch()
   const draftEmbed = searchParams.get('draft_embed') === '1'
   const previewToken =
     searchParams.get('preview_token')?.trim() || (draftEmbed ? recallDraftEmbedPreviewToken() : null)

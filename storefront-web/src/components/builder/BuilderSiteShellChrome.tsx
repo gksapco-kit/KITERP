@@ -2,9 +2,9 @@
  * Renders the homepage nav/footer shell on catalog routes (products, services, …)
  * so the header matches builder pages instead of the legacy UnifiedNav.
  */
-import { useSearchParams } from 'react-router-dom'
 import BlockRenderer from '@/components/builder/BlockRenderer'
 import { useBuilderSite } from '@/contexts/BuilderSiteContext'
+import { useBranch } from '@/contexts/BranchContext'
 import {
   builderSiteHomePage,
   siteFooterShellBlock,
@@ -13,8 +13,7 @@ import {
 
 export function BuilderSiteShellChrome({ part }: { part: 'header' | 'footer' }) {
   const { builderSite } = useBuilderSite()
-  const [searchParams] = useSearchParams()
-  const branchCode = searchParams.get('branch')
+  const { branchCode } = useBranch()
 
   if (!builderSite) return null
 

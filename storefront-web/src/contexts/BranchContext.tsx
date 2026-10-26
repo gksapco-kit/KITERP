@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -18,6 +19,12 @@ import {
   matchBranch,
   pickDefaultOpenBranch,
 } from '@/lib/branchMatching'
+import { noteStickyBranch, readStickyBranch } from '@/lib/stickyBranch'
+
+/** Employee HR links keep ?branch= so outlet-pinned login still matches the unit. */
+function keepsBranchInAddressBar(pathname: string): boolean {
+  return /(^|\/)hr(\/|$)/.test(pathname)
+}
 
 export type BranchContextValue = {
   branches: StoreLocation[]
@@ -26,7 +33,7 @@ export type BranchContextValue = {
   /** True when the resolved business unit exists and is marked is_open=false. */
   isBranchClosed: boolean
   setBranchCode: (code: string | null) => void
-  /** Same as vendor storePath but keeps the active ?branch= on internal links. */
+  /** Store path without putting the active unit back into the address bar. */
   storePath: (path: string) => string
   loading: boolean
 }
@@ -78,7 +85,24 @@ export function BranchProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [branchesLoaded, setBranchesLoaded] = useState(false)
 
-  const branchCode = searchParams.get('branch')?.trim() || null
+  const urlBranch = searchParams.get('branch')?.trim() || null
+  const draftEmbed = searchParams.get('draft_embed') === '1'
+  const [heldBranch, setHeldBranch] = useState<string | null>(null)
+  const branchCode = urlBranch || heldBranch || readStickyBranch()
+
+  // Remember ?branch= and drop it from customer URLs so the address bar stays
+  // /vendor-slug (and /about, /products, …) while this unit stays selected.
+  useLayoutEffect(() => {
+    if (!urlBranch) return
+    setHeldBranch(urlBranch)
+    noteStickyBranch(urlBranch)
+    if (vendorSlug) writeSavedBranch(vendorSlug, urlBranch)
+    if (draftEmbed || keepsBranchInAddressBar(location.pathname)) return
+    const next = new URLSearchParams(searchParams)
+    next.delete('branch')
+    const qs = next.toString()
+    navigate(`${location.pathname}${qs ? `?${qs}` : ''}${location.hash}`, { replace: true })
+  }, [urlBranch, draftEmbed, vendorSlug, location.pathname, location.hash, navigate, searchParams])
 
   useEffect(() => {
     void qc.invalidateQueries({
@@ -126,34 +150,32 @@ export function BranchProvider({ children }: { children: ReactNode }) {
     setBranchQueryParam(branchCode)
   }, [branchCode])
 
-  // Remember the selected unit across internal navigation (cart, checkout, etc.).
+  // Remember the selected unit in this tab. Do not write it back into the URL.
   useEffect(() => {
     if (!vendorSlug || !branchCode || loading || !branchesLoaded) return
     const match = matchBranch(branches, branchCode)
     if (match && match.is_open !== false) {
       writeSavedBranch(vendorSlug, branchCode)
+      noteStickyBranch(branchCode)
     }
   }, [vendorSlug, branchCode, loading, branchesLoaded, branches])
 
   useEffect(() => {
-    if (!vendorSlug || branchCode || loading) return
+    if (!vendorSlug || urlBranch || heldBranch || loading) return
     const saved = readSavedBranch(vendorSlug)
     if (!saved) return
     const match = matchBranch(branches, saved)
     if (!match || match.is_open === false) return
-    const next = new URLSearchParams(searchParams)
-    next.set('branch', saved)
-    const qs = next.toString()
-    navigate(`${location.pathname}${qs ? `?${qs}` : ''}`, { replace: true })
-  }, [vendorSlug, branchCode, loading, branches, location.pathname, navigate, searchParams])
+    setHeldBranch(saved)
+    noteStickyBranch(saved)
+  }, [vendorSlug, urlBranch, heldBranch, loading, branches])
 
   const selectedBranch = useMemo(
     () => matchBranch(branches, branchCode),
     [branches, branchCode],
   )
 
-  // Replace stale ?branch= values with the default open unit once stores are loaded.
-  // Also rewrite duplicate branch codes to a unique store id so catalog APIs don't 409.
+  // Resolve a stale or duplicate code to the real unit without putting it in the URL.
   useEffect(() => {
     if (!vendorSlug || loading || !branchesLoaded || !branchCode) return
 
@@ -162,20 +184,17 @@ export function BranchProvider({ children }: { children: ReactNode }) {
       if (!fallback) return
       const resolved = branchCodeForStore(fallback, branches)
       if (!resolved || branchKey(resolved) === branchKey(branchCode)) return
-      const next = new URLSearchParams(searchParams)
-      next.set('branch', resolved)
-      const qs = next.toString()
-      navigate(`${location.pathname}${qs ? `?${qs}` : ''}`, { replace: true })
+      setHeldBranch(resolved)
+      noteStickyBranch(resolved)
+      writeSavedBranch(vendorSlug, resolved)
       return
     }
 
     const canonical = branchCodeForStore(selectedBranch, branches)
     if (!canonical || branchKey(canonical) === branchKey(branchCode)) return
-    const next = new URLSearchParams(searchParams)
-    next.set('branch', canonical)
+    setHeldBranch(canonical)
+    noteStickyBranch(canonical)
     writeSavedBranch(vendorSlug, canonical)
-    const qs = next.toString()
-    navigate(`${location.pathname}${qs ? `?${qs}` : ''}`, { replace: true })
   }, [
     vendorSlug,
     loading,
@@ -183,9 +202,6 @@ export function BranchProvider({ children }: { children: ReactNode }) {
     branchCode,
     selectedBranch,
     branches,
-    location.pathname,
-    navigate,
-    searchParams,
   ])
 
   // Only block checkout when the resolved unit is explicitly marked closed.
@@ -196,25 +212,22 @@ export function BranchProvider({ children }: { children: ReactNode }) {
 
   const setBranchCode = useCallback(
     (code: string | null) => {
+      const trimmed = branchKey(code) || null
+      setHeldBranch(trimmed)
+      noteStickyBranch(trimmed)
+      if (vendorSlug) writeSavedBranch(vendorSlug, trimmed)
+      if (!searchParams.get('branch') || keepsBranchInAddressBar(location.pathname)) return
       const next = new URLSearchParams(searchParams)
-      const trimmed = branchKey(code)
-      if (trimmed) next.set('branch', trimmed)
-      else next.delete('branch')
-      if (vendorSlug) writeSavedBranch(vendorSlug, trimmed || null)
+      next.delete('branch')
       const qs = next.toString()
-      navigate(`${location.pathname}${qs ? `?${qs}` : ''}`, { replace: true })
+      navigate(`${location.pathname}${qs ? `?${qs}` : ''}${location.hash}`, { replace: true })
     },
-    [location.pathname, navigate, searchParams, vendorSlug],
+    [location.hash, location.pathname, navigate, searchParams, vendorSlug],
   )
 
   const storePath = useCallback(
-    (path: string) => {
-      const href = vendorStorePath(path)
-      if (!branchCode) return href
-      const sep = href.includes('?') ? '&' : '?'
-      return `${href}${sep}branch=${encodeURIComponent(branchCode)}`
-    },
-    [vendorStorePath, branchCode],
+    (path: string) => vendorStorePath(path),
+    [vendorStorePath],
   )
 
   const value = useMemo<BranchContextValue>(

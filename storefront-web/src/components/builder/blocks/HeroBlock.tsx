@@ -28,7 +28,6 @@ import {
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
 import { previewBelowMd } from '@/lib/previewBreakpoint'
 import { useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
 import { storeApi, type StoreLocation } from '@/api/store'
 import { branchWelcomeHeadline } from '@/lib/branchStorefrontIdentity'
 import { useEffectiveVendor } from '@/hooks/useEffectiveVendor'
@@ -60,8 +59,7 @@ export default function HeroBlock({ site, style, props: rawProps, blockType, blo
   const isEditorCanvas = canvas?.isEditorCanvas && !!blockId
   const stackBelowMd = Boolean(isEditorCanvas && previewBelowMd(canvas?.previewBreakpoint))
   const effectiveVendor = useEffectiveVendor()
-  const [searchParams] = useSearchParams()
-  const { selectedBranch: branchFromContext } = useBranch()
+  const { selectedBranch: branchFromContext, branchCode: branchFromContextCode } = useBranch()
   const [branches, setBranches] = useState<StoreLocation[]>([])
 
   useEffect(() => {
@@ -72,7 +70,7 @@ export default function HeroBlock({ site, style, props: rawProps, blockType, blo
     return () => { cancelled = true }
   }, [])
 
-  const effectiveBranchKey = searchParams.get('branch') || branchFromBlocks || null
+  const effectiveBranchKey = branchFromContextCode || branchFromBlocks || null
 
   const selectedBranch = useMemo(() => {
     if (branchFromContext && effectiveBranchKey) {

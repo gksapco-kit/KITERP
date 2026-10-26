@@ -35,6 +35,7 @@ import AnalyticsInjector from '@/components/builder/AnalyticsInjector'
 import { getWbCatalogTemplateId } from '@/storefront/catalogTemplateIds'
 import { useAssignedStorefrontTemplateId } from '@/hooks/useAssignedStorefrontTemplateId'
 import { useStorePath } from '@/hooks/useStorePath'
+import { useBranch } from '@/contexts/BranchContext'
 import { withSharedShellBlocks, stripSharedShellBlocksFromPage } from '@/lib/storefrontLayoutChrome'
 import { useLayoutOwnsShell } from '@/contexts/LayoutOwnsShellContext'
 import {
@@ -199,11 +200,10 @@ export default function BuilderPage({ slug: forcedSlug, isHome }: BuilderPagePro
   const params = useParams<{ '*': string; vendorSlug?: string }>()
   const navigate = useNavigate()
   const storePath = useStorePath()
+  const { branchCode } = useBranch()
 
   const draftEmbed = searchParams.get('draft_embed') === '1'
   const draftPreviewToken = searchParams.get('preview_token')?.trim() || recallDraftEmbedPreviewToken()
-
-  const branchCode = searchParams.get('branch')
   const slug = forcedSlug ?? params['*'] ?? ''
   const normalizedSlug = slug.replace(/^\/+|\/+$/g, '')
   const isHomePath = isHome || normalizedSlug === '' || normalizedSlug === 'home'
