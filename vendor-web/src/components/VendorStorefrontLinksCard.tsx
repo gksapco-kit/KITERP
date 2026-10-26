@@ -76,6 +76,7 @@ function LinkActions({
 
 function LinkRow({
   href,
+  openHref: openHrefProp,
   icon: Icon,
   label,
   hint,
@@ -84,7 +85,10 @@ function LinkRow({
   copied,
   onCopy,
 }: {
+  /** Text shown in the row and copied to the clipboard. */
   href: string
+  /** Address opened by the link and the external-link button. Defaults to `href`. */
+  openHref?: string
   icon: typeof Store
   label: string
   hint?: string
@@ -93,6 +97,7 @@ function LinkRow({
   copied: CopyKey | null
   onCopy: (key: CopyKey, text: string) => void
 }) {
+  const openHref = openHrefProp ?? href
   return (
     <div className="flex items-start gap-2 px-2.5 py-2">
       <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10">
@@ -106,7 +111,7 @@ function LinkRow({
           ) : null}
         </p>
         <a
-          href={href}
+          href={openHref}
           target="_blank"
           rel="noopener noreferrer"
           className="mt-0.5 block truncate font-mono text-xs text-blue-600 underline-offset-2 hover:text-blue-700 hover:underline"
@@ -119,7 +124,7 @@ function LinkRow({
         copyKey={copyKey}
         copied={copied}
         copyValue={href}
-        openHref={href}
+        openHref={openHref}
         onCopy={onCopy}
         copyLabel={`Copy ${label} link`}
         openLabel={`Open ${label}`}
@@ -239,6 +244,7 @@ export default function VendorStorefrontLinksCard({
       <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-background divide-y divide-border">
         <LinkRow
           href={storeUrl}
+          openHref={storeBase}
           icon={Store}
           label="Customer store"
           hint={storeHint}

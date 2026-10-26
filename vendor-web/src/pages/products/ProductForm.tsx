@@ -4141,7 +4141,7 @@ export default function ProductForm() {
     { key: 'basic',            label: 'Basic',             icon: Package, hint: 'Name, type, category, descriptions, and media.' },
     { key: 'variants',         label: isBundleType ? 'Bundle' : isSubscriptionType ? 'Price & Plans' : 'Price & Variants', icon: Layers, visible: !isBundleType },
     { key: 'tax',              label: 'Tax',               icon: Receipt, hint: 'GST, tax rates, and HSN/SAC codes per product or variant.' },
-    { key: 'yield',            label: 'Yield & Cutting',   icon: Scissors, visible: !isBundleType && !isDigitalType && !isSubscriptionType, hint: 'Raw stock each cut needs (meat, poultry, seafood …).' },
+    { key: 'yield',            label: 'Yield',   icon: Scissors, visible: !isBundleType && !isDigitalType && !isSubscriptionType, hint: 'Raw stock each cut needs (meat, poultry, seafood …).' },
     { key: 'bundle',           label: 'Bundle Items',      icon: Layers, visible: isBundleType, hint: 'Products included in this bundle.' },
     { key: 'visibility',       label: 'Visibility',        icon: Eye, hint: 'Status, visibility toggle, and marketing flags.' },
     { key: 'returns',          label: 'Returns',           icon: RotateCcw, visible: !isDigitalType && !isBundleType, hint: 'Return window, warranty, and refund policy.' },
@@ -6450,7 +6450,7 @@ export default function ProductForm() {
           </div>
         </Section>
 
-        <Section title="Yield & Cutting" icon={Scissors} open={activeTab === 'yield'} onToggle={() => toggle('yield')} sectionId="yield">
+        <Section title="Yield" icon={Scissors} open={activeTab === 'yield'} onToggle={() => toggle('yield')} sectionId="yield">
           <div className={formEditLayout.sectionBody}>
             <YieldCuttingSection
               enabled={yieldEnabled}
