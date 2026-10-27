@@ -50,7 +50,7 @@ import {
   Tag, Star, Gift, Award, ImageIcon, ScanLine,
   AlertTriangle, ChevronDown, ChevronUp, PackagePlus, RefreshCw,
   LayoutGrid, LayoutList, XCircle, UserX, Info, CalendarDays, Pencil,
-  UtensilsCrossed, Users, Scissors,
+  UtensilsCrossed, Users, Scissors, Table2,
 } from 'lucide-react'
 import { POSBookingPanel } from './POSBookingPanel'
 import { CuttingSheet } from '@/components/yield/CuttingSheet'
@@ -116,10 +116,10 @@ function computeCartLineAmounts(
 
 // Renders a catalog thumbnail with automatic fallback when the URL is broken/missing.
 function CatalogImage({ url, type, size = 'sm' }: {
-  url?: string | null; type: 'product' | 'service'; size?: 'sm' | 'md' | 'tile'
+  url?: string | null; type: 'product' | 'service'; size?: 'sm' | 'md' | 'row' | 'tile'
 }) {
   const [failed, setFailed] = useState(false)
-  const dim = size === 'tile' ? 'aspect-[4/3] w-full' : size === 'sm' ? 'w-9 h-9' : 'w-10 h-10'
+  const dim = size === 'tile' ? 'aspect-[4/3] w-full' : size === 'row' ? 'w-14 h-14' : size === 'sm' ? 'w-9 h-9' : 'w-10 h-10'
   const safeUrl = url && url !== 'null' && url !== 'undefined' ? url : null
   if (!safeUrl || failed) {
     return (
@@ -172,8 +172,43 @@ export default function POS() {
   const [session, setSession] = useState<Record<string, unknown> | null>(null)
   const [cart, setCart] = useState<CartItem[]>([])
   const [search, setSearch] = useState('')
-  const [catalogView, setCatalogView] = useState<'cards' | 'grid'>(() =>
-    (localStorage.getItem('pos_catalog_view') as 'cards' | 'grid' | null) ?? 'cards'
+  const [catalogView, setCatalogViewState] = useState<'list' | 'grid' | 'table'>(() => {
+    const saved = localStorage.getItem('pos_catalog_view_v2')
+    return saved === 'list' || saved === 'grid' || saved === 'table' ? saved : 'grid'
+  })
+  const setCatalogView = (v: 'list' | 'grid' | 'table') => {
+    setCatalogViewState(v)
+    localStorage.setItem('pos_catalog_view_v2', v)
+  }
+  const renderCatalogItem = ({ key, onClick, imgUrl, type, name, sub, priceLabel }: {
+    key: string; onClick: () => void; imgUrl?: string; type: 'product' | 'service'
+    name: string; sub: string; priceLabel: string
+  }) => catalogView === 'list' ? (
+    <button key={key} type="button" onClick={onClick}
+      className="group flex w-full items-center gap-3 rounded-xl border bg-card p-2 text-left shadow-sm transition hover:border-primary/40 hover:shadow-md">
+      <CatalogImage url={imgUrl} type={type} size="row" />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium">{name}</p>
+        <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{sub}</p>
+      </div>
+      <p className="shrink-0 text-sm font-bold">{priceLabel}</p>
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+        <Plus className="h-4 w-4" />
+      </span>
+    </button>
+  ) : (
+    <button key={key} type="button" onClick={onClick}
+      className="group flex flex-col rounded-xl border bg-card p-2 text-left shadow-sm transition hover:border-primary/40 hover:shadow-md">
+      <CatalogImage url={imgUrl} type={type} size="tile" />
+      <p className="mt-2 line-clamp-2 text-sm font-medium leading-snug">{name}</p>
+      <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{sub}</p>
+      <div className="mt-auto flex items-center justify-between gap-2 pt-2">
+        <p className="text-sm font-bold">{priceLabel}</p>
+        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground">
+          <Plus className="h-3.5 w-3.5" />
+        </span>
+      </div>
+    </button>
   )
   const [cartDiscount, setCartDiscount] = useState(0)
   const [discountType, setDiscountType] = useState<'flat' | 'percentage'>('flat')
@@ -1225,17 +1260,22 @@ export default function POS() {
             {scanLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ScanLine className="w-4 h-4" />}
             {scanLoading ? 'Looking up…' : 'Camera'}
           </button>
-          {/* View toggle: card / grid */}
+          {/* View toggle: list / grid / table */}
           <div className="flex border rounded-lg overflow-hidden shrink-0">
-            <button title="Card view"
-              onClick={() => { setCatalogView('cards'); localStorage.setItem('pos_catalog_view', 'cards') }}
-              className={`px-2 h-9 flex items-center transition-colors ${catalogView === 'cards' ? 'bg-primary text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>
+            <button title="List view"
+              onClick={() => setCatalogView('list')}
+              className={`px-2 h-9 flex items-center transition-colors ${catalogView === 'list' ? 'bg-primary text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>
               <LayoutList className="w-4 h-4" />
             </button>
-            <button title="Grid / table view with configurable filters"
-              onClick={() => { setCatalogView('grid'); localStorage.setItem('pos_catalog_view', 'grid') }}
+            <button title="Grid view"
+              onClick={() => setCatalogView('grid')}
               className={`px-2 h-9 flex items-center border-l transition-colors ${catalogView === 'grid' ? 'bg-primary text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>
               <LayoutGrid className="w-4 h-4" />
+            </button>
+            <button title="Table view with configurable filters"
+              onClick={() => setCatalogView('table')}
+              className={`px-2 h-9 flex items-center border-l transition-colors ${catalogView === 'table' ? 'bg-primary text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>
+              <Table2 className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -1334,8 +1374,8 @@ export default function POS() {
           </div>
         )}
 
-        {/* ── Grid view (configurable filters + table) ── */}
-        {catalogView === 'grid' ? (
+        {/* ── Table view (configurable filters + table) ── */}
+        {catalogView === 'table' ? (
           <div className="flex-1 overflow-hidden flex flex-col min-h-0">
             <POSSearchGrid
               products={products}
@@ -1376,9 +1416,11 @@ export default function POS() {
               ><Wrench className="w-3.5 h-3.5" /> Services ({services.length})</button>
             </div>
 
-            {/* Catalog — tiles fill the open area */}
+            {/* Catalog — tiles (grid) or one item per row (list) */}
             <div className="min-h-0 flex-1 overflow-y-auto rounded-xl bg-muted/40 p-2">
-              <div className="grid content-start grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
+              <div className={catalogView === 'list'
+                ? 'flex flex-col gap-1.5'
+                : 'grid content-start grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4'}>
               {(filter === 'all' || filter === 'products') && products.length > 0 && (
                 <>
                   {filter === 'all' && (
@@ -1407,41 +1449,27 @@ export default function POS() {
                           image_url: imgUrl,
                           unit,
                         }
-                        return (
-                        <button key={`p-${p.id}-v-${v.id}`}
-                          type="button"
-                          onClick={() => addToCart(line)}
-                          className="group flex flex-col rounded-xl border bg-card p-2 text-left shadow-sm transition hover:border-primary/40 hover:shadow-md">
-                          <CatalogImage url={imgUrl} type="product" size="tile" />
-                          <p className="mt-2 line-clamp-2 text-sm font-medium leading-snug">{p.name}</p>
-                          <p className="mt-0.5 truncate text-[11px] text-muted-foreground">Stock {v.quantity ?? '—'}{unit ? ` · per ${unit}` : ''}</p>
-                          <div className="mt-auto flex items-center justify-between gap-2 pt-2">
-                            <p className="text-sm font-bold">{formatCurrency(price)}{unit ? ` / ${unit}` : ''}</p>
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                              <Plus className="h-3.5 w-3.5" />
-                            </span>
-                          </div>
-                        </button>
-                        )
+                        return renderCatalogItem({
+                          key: `p-${p.id}-v-${v.id}`,
+                          onClick: () => addToCart(line),
+                          imgUrl,
+                          type: 'product',
+                          name: p.name,
+                          sub: `Stock ${v.quantity ?? '—'}${unit ? ` · per ${unit}` : ''}`,
+                          priceLabel: `${formatCurrency(price)}${unit ? ` / ${unit}` : ''}`,
+                        })
                       })
                     }
 
-                    return [(
-                      <button key={`p-${p.id}`}
-                        type="button"
-                        onClick={() => handleProductAdd({ id: p.id, name: p.name, sku: p.sku, price: p.price || 0, tax_rate: p.tax_rate || p.gst_rate || 0, hsn_code: p.hsn_code, item_type: 'product', image_url: imgUrl })}
-                        className="group flex flex-col rounded-xl border bg-card p-2 text-left shadow-sm transition hover:border-primary/40 hover:shadow-md">
-                        <CatalogImage url={imgUrl} type="product" size="tile" />
-                        <p className="mt-2 line-clamp-2 text-sm font-medium leading-snug">{p.name}</p>
-                        <p className="mt-0.5 truncate text-[11px] text-muted-foreground">Stock {p.quantity ?? '—'}</p>
-                        <div className="mt-auto flex items-center justify-between gap-2 pt-2">
-                          <p className="text-sm font-bold">{formatCurrency(p.price || 0)}</p>
-                          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                            <Plus className="h-3.5 w-3.5" />
-                          </span>
-                        </div>
-                      </button>
-                    )]
+                    return [renderCatalogItem({
+                      key: `p-${p.id}`,
+                      onClick: () => handleProductAdd({ id: p.id, name: p.name, sku: p.sku, price: p.price || 0, tax_rate: p.tax_rate || p.gst_rate || 0, hsn_code: p.hsn_code, item_type: 'product', image_url: imgUrl }),
+                      imgUrl,
+                      type: 'product',
+                      name: p.name,
+                      sub: `Stock ${p.quantity ?? '—'}`,
+                      priceLabel: formatCurrency(p.price || 0),
+                    })]
                   })}
                 </>
               )}
@@ -1456,23 +1484,15 @@ export default function POS() {
                   {services.map((s: any) => {
                     const sImgUrl = s.media?.[0]?.url || s.media?.[0]?.file_url || s.image_url
                     const servicePrice = s.sale_price ?? s.price ?? 0
-                    return (
-                      <button key={`s-${s.id}`} type="button" onClick={() => addToCart({ id: s.id, name: s.name, price: servicePrice, tax_rate: s.tax_rate || s.gst_rate || 0, sac_code: s.sac_code, item_type: 'service', duration_minutes: s.duration_minutes, image_url: sImgUrl })}
-                        className="group flex flex-col rounded-xl border bg-card p-2 text-left shadow-sm transition hover:border-primary/40 hover:shadow-md">
-                        <CatalogImage url={sImgUrl} type="service" size="tile" />
-                        <p className="mt-2 line-clamp-2 text-sm font-medium leading-snug">{s.name}</p>
-                        <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                          {s.service_type || 'Service'}
-                          {s.duration_minutes ? ` · ${s.duration_minutes} min` : ''}
-                        </p>
-                        <div className="mt-auto flex items-center justify-between gap-2 pt-2">
-                          <p className="text-sm font-bold">{formatCurrency(servicePrice)}</p>
-                          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                            <Plus className="h-3.5 w-3.5" />
-                          </span>
-                        </div>
-                      </button>
-                    )
+                    return renderCatalogItem({
+                      key: `s-${s.id}`,
+                      onClick: () => addToCart({ id: s.id, name: s.name, price: servicePrice, tax_rate: s.tax_rate || s.gst_rate || 0, sac_code: s.sac_code, item_type: 'service', duration_minutes: s.duration_minutes, image_url: sImgUrl }),
+                      imgUrl: sImgUrl,
+                      type: 'service',
+                      name: s.name,
+                      sub: `${s.service_type || 'Service'}${s.duration_minutes ? ` · ${s.duration_minutes} min` : ''}`,
+                      priceLabel: formatCurrency(servicePrice),
+                    })
                   })}
                 </>
               )}
@@ -1762,8 +1782,9 @@ export default function POS() {
               <Input
                 type="number"
                 min={0}
-                value={cartDiscount}
+                value={cartDiscount || ''}
                 onChange={(e) => setCartDiscount(Number(e.target.value))}
+                placeholder={discountType === 'percentage' ? 'Discount %' : 'Discount'}
                 aria-label={discountType === 'percentage' ? 'Discount percent' : 'Discount amount'}
                 className="h-8 text-xs"
               />

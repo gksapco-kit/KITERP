@@ -440,3 +440,47 @@ export function readCatalogCardLayout(
     addButtonStyle: parseCatalogAddButtonStyle(props.add_button_style),
   }
 }
+
+type SitePageWithBlocks = {
+  is_homepage?: boolean
+  sort_order?: number
+  blocks?: Array<{
+    block_type?: string
+    visible?: boolean
+    sort_order?: number
+    props?: Record<string, unknown>
+  }>
+}
+
+/**
+ * Product-grid block the storefront catalog should mirror.
+ * Homepage grids win. A block that actually sets image aspect wins over a default grid,
+ * so /products follows the builder "Full image" (and other aspect) choice.
+ */
+export function findStorefrontProductGridProps(
+  site: { pages?: SitePageWithBlocks[] } | null | undefined,
+): Record<string, unknown> | null {
+  const pages = [...(site?.pages || [])].sort((a, b) => {
+    if (a.is_homepage && !b.is_homepage) return -1
+    if (!a.is_homepage && b.is_homepage) return 1
+    return (a.sort_order ?? 0) - (b.sort_order ?? 0)
+  })
+  const grids: { homepage: boolean; props: Record<string, unknown> }[] = []
+  for (const page of pages) {
+    const blocks = [...(page.blocks || [])]
+      .filter((block) => block.visible !== false && block.block_type === 'product_grid' && block.props)
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    for (const block of blocks) {
+      grids.push({ homepage: !!page.is_homepage, props: block.props as Record<string, unknown> })
+    }
+  }
+  const hasAspect = (props: Record<string, unknown>) =>
+    props.image_aspect != null && String(props.image_aspect) !== ''
+  return (
+    grids.find((grid) => grid.homepage && hasAspect(grid.props))?.props
+    || grids.find((grid) => hasAspect(grid.props))?.props
+    || grids.find((grid) => grid.homepage)?.props
+    || grids[0]?.props
+    || null
+  )
+}

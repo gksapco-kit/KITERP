@@ -19,6 +19,13 @@ import { useEffectiveVendor } from '@/hooks/useEffectiveVendor'
 import { catalogSearchPlaceholder, resolveStorefrontOfferingType } from '@/lib/catalogNavCapabilities'
 import { useAuthStore } from '@/stores/authStore'
 import { useTheme } from '@/contexts/ThemeContext'
+import { useBuilderSite } from '@/contexts/BuilderSiteContext'
+import {
+  catalogGridResponsiveColClass,
+  findStorefrontProductGridProps,
+  readCatalogCardLayout,
+} from '@/lib/catalogCardLayout'
+import { imageShapeFromProps } from '@/lib/sectionItemLayout'
 import StarRating from '@/components/StarRating'
 import { themeUi } from '@/lib/themeColors'
 import { ProductCard } from '@/kit/products/ProductCard'
@@ -210,6 +217,20 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
   const allowServices = offering !== 'products'
   const { isAuthenticated } = useAuthStore()
   const theme = useTheme()
+  const { builderSite } = useBuilderSite()
+  const productSectionProps = useMemo(
+    () => findStorefrontProductGridProps(builderSite),
+    [builderSite],
+  )
+  const productCardLayout = useMemo(
+    () => (productSectionProps ? readCatalogCardLayout(productSectionProps, 'product_grid') : null),
+    [productSectionProps],
+  )
+  const productImageShape = productSectionProps ? imageShapeFromProps(productSectionProps) : undefined
+  /** Builder image aspect (Full image, square, …) drives the catalog cards, not only the homepage block. */
+  const useSectionImageFrame = Boolean(
+    productCardLayout && productSectionProps && productSectionProps.image_aspect != null && String(productSectionProps.image_aspect) !== '',
+  )
   const addToCart = useAddToCart()
   useCart()
   const cartQtyByProduct = useCartProductQtyMap()
@@ -760,11 +781,18 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
           ) : viewMode === 'grid' ? (
             <div
               className={cn(
-                'grid gap-2.5 sm:gap-2.5',
-                defaultFilterType === 'services'
-                  ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
-                  : 'grid-cols-2 sm:grid-cols-3 xl:grid-cols-4',
+                'grid',
+                useSectionImageFrame && productCardLayout
+                  ? catalogGridResponsiveColClass(productCardLayout.columns, 'product_grid')
+                  : defaultFilterType === 'services'
+                    ? 'grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-2.5 lg:grid-cols-3 xl:grid-cols-4'
+                    : 'grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-2.5 xl:grid-cols-4',
               )}
+              style={
+                useSectionImageFrame && productCardLayout
+                  ? { gap: productCardLayout.itemGap }
+                  : undefined
+              }
             >
               {combinedItems.map((item: any) => {
                 const isProduct = item.type === 'product'
@@ -780,7 +808,7 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
                 const showFrom = isProduct && !(Number(item.price) > 0) && effectivePrice != null && variants.some((v: any) => Number(v.price) > 0)
                 const hasPrice = effectivePrice != null
 
-                if (cardStyle === 'modern') {
+                if (cardStyle === 'modern' && !(isProduct && useSectionImageFrame)) {
                   // Dark overlay card: image fills the card, gradient overlay at bottom, text over image
                   return (
                     <Link key={`${item.type}-${item.id}`} to={cardLinkTo}
@@ -827,7 +855,7 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
                   )
                 }
 
-                if (cardStyle === 'minimal') {
+                if (cardStyle === 'minimal' && !(isProduct && useSectionImageFrame)) {
                   if (!isProduct) {
                     return (
                       <ServiceCard
@@ -937,6 +965,8 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
                     linkTo={storePath(`/products/${item.slug}`)}
                     showRating
                     showTags
+                    cardLayout={useSectionImageFrame ? productCardLayout ?? undefined : undefined}
+                    imageShape={useSectionImageFrame ? productImageShape : undefined}
                     addToCartPending={addToCart.isPending}
                     onAddToCart={async (p, variant) => {
                       await addCatalogProductToCart({

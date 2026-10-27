@@ -185,12 +185,12 @@ export function YieldCuttingSection({
 
           {category && choices.length === 0 && (
             <p className="text-xs text-amber-700 dark:text-amber-300">
-              No cutting profile matches category “{category}”. On Cutting Yield Profiles, set Product category to {category} and add the cuts.
+              No cutting profile matches category “{category}”. On Yield Profiles, set Product category to {category} and add the cuts.
             </p>
           )}
           {!category && choices.length === 0 && (
             <p className="text-xs text-muted-foreground">
-              Add cuts on Cutting Yield Profiles. They show in the Cut list here.
+              Add cuts on Yield Profiles. They show in the Cut list here.
             </p>
           )}
 

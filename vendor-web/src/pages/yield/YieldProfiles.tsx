@@ -470,7 +470,7 @@ export default function YieldProfilesPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Scissors className="h-6 w-6" /> Cutting Yield Profiles
+            <Scissors className="h-6 w-6" /> Yield Profiles
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             Raw stock each cut needs per 1 kg sold. Products in the matching category use these factors on their Yield &amp; Cutting tab.
