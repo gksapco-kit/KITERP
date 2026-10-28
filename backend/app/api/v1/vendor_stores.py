@@ -18,6 +18,7 @@ from app.models.vendor_product import Product
 from app.models.inventory import InventoryMovement
 from app.api.deps import get_current_vendor_id, get_current_active_user, require_permission
 from app.models.user import User
+from app.services.integration_credential_otp import read_integration_otp_grant
 from app.services.store_inventory_service import sync_product_quantity_from_stores
 from app.utils.store_codes import (
     allocate_default_business_store_code,
@@ -325,8 +326,19 @@ async def update_store(
     data: StoreUpdate,
     vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
+    otp_grant: Optional[str] = Depends(read_integration_otp_grant),
 ):
+    from app.services.integration_credential_otp import (
+        assert_integration_otp_grant,
+        consume_integration_otp_grant,
+    )
+    from app.services.upi_checkout_otp import store_update_needs_upi_otp
+
     store = await _get_store_or_404(store_id, vendor_id, db)
+    incoming = data.model_dump(exclude_unset=True)
+    if store_update_needs_upi_otp(store, incoming.get("settings")):
+        await assert_integration_otp_grant(db, vendor_id, otp_grant)
+        await consume_integration_otp_grant(db, vendor_id)
 
     if data.is_default:
         # Scope uniqueness to siblings — other business units, or other branches

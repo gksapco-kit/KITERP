@@ -149,6 +149,19 @@ async def ensure_vendor_show_in_community_column() -> None:
     logger.info("ensure_vendor_show_in_community_column: vendor.show_in_community ready")
 
 
+async def ensure_vendor_integration_otp_column() -> None:
+    """OTP state for integration credential changes. Not exposed on vendor API responses."""
+    if "postgresql" not in settings.DATABASE_URL.lower():
+        return
+    async with engine.begin() as conn:
+        await conn.execute(
+            text(
+                "ALTER TABLE vendor ADD COLUMN IF NOT EXISTS integration_otp_state JSONB"
+            )
+        )
+    logger.info("ensure_vendor_integration_otp_column: vendor.integration_otp_state ready")
+
+
 async def ensure_vendor_saas_billing_schema() -> None:
     """
     Platform SaaS billing: max_apps on vendor_plan, billing columns on vendor,

@@ -3,6 +3,13 @@ import { clampPageSize } from '@/lib/pageSize'
 
 const BASE = '/vendors/me/crm'
 
+function integrationOtpConfig(otpGrant: string, params?: Record<string, unknown>) {
+  return {
+    headers: { 'X-Integration-Otp-Grant': otpGrant },
+    params: { ...(params ?? {}), otp_grant: otpGrant },
+  }
+}
+
 export type Paginated<T> = {
   items: T[]
   total: number
@@ -766,7 +773,16 @@ export const crmApi = {
 
   // Integrations
   listIntegrations: () => apiClient.get<Integration[]>(`${BASE}/integrations`).then(r => r.data),
-  getIntegrationForm: (id: string) =>
+  sendIntegrationOtp: () =>
+    apiClient.post<{ sent: boolean; to: string; expires_at: string; channel: string; dev_hint?: string }>(
+      `${BASE}/integrations/otp/send`,
+    ).then(r => r.data),
+  verifyIntegrationOtp: (code: string) =>
+    apiClient.post<{ grant: string; expires_at: string }>(
+      `${BASE}/integrations/otp/verify`,
+      { code },
+    ).then(r => r.data),
+  getIntegrationForm: (id: string, otpGrant: string) =>
     apiClient.get<{
       id: string
       provider: string
@@ -776,8 +792,8 @@ export const crmApi = {
       credentials: Record<string, string>
       stored_secrets: string[]
       webhook_url?: string | null
-    }>(`${BASE}/integrations/${id}/form`).then(r => r.data),
-  getIntegrationDefaults: (provider: string) =>
+    }>(`${BASE}/integrations/${id}/form`, integrationOtpConfig(otpGrant)).then(r => r.data),
+  getIntegrationDefaults: (provider: string, otpGrant: string) =>
     apiClient.get<{
       provider: string
       configured: boolean
@@ -786,12 +802,13 @@ export const crmApi = {
       key_source?: string | null
       webhook_url?: string | null
       webhook_events?: string[] | null
-    }>(`${BASE}/integrations/defaults`, { params: { provider } }).then(r => r.data),
-  upsertIntegration: (data: { provider: string; label?: string; settings?: Record<string, unknown>; credentials?: Record<string, unknown> }) =>
-    apiClient.post<Integration>(`${BASE}/integrations`, data).then(r => r.data),
-  updateIntegration: (id: string, data: Partial<Integration> & { credentials?: Record<string, unknown> }) =>
-    apiClient.put<Integration>(`${BASE}/integrations/${id}`, data).then(r => r.data),
-  deleteIntegration: (id: string) => apiClient.delete(`${BASE}/integrations/${id}`),
+    }>(`${BASE}/integrations/defaults`, integrationOtpConfig(otpGrant, { provider })).then(r => r.data),
+  upsertIntegration: (data: { provider: string; label?: string; settings?: Record<string, unknown>; credentials?: Record<string, unknown> }, otpGrant: string) =>
+    apiClient.post<Integration>(`${BASE}/integrations`, data, integrationOtpConfig(otpGrant)).then(r => r.data),
+  updateIntegration: (id: string, data: Partial<Integration> & { credentials?: Record<string, unknown> }, otpGrant: string) =>
+    apiClient.put<Integration>(`${BASE}/integrations/${id}`, data, integrationOtpConfig(otpGrant)).then(r => r.data),
+  deleteIntegration: (id: string, otpGrant: string) =>
+    apiClient.delete(`${BASE}/integrations/${id}`, integrationOtpConfig(otpGrant)),
   setIntegrationCheckoutActive: (id: string, checkout_active: boolean) =>
     apiClient.patch<Integration>(`${BASE}/integrations/${id}/checkout-active`, { checkout_active }).then(r => r.data),
   testIntegration: (data: {
@@ -801,7 +818,7 @@ export const crmApi = {
     test_email?: string
     test_phone?: string
     integration_id?: string
-  }) => apiClient.post<{ ok: boolean; message: string }>(`${BASE}/integrations/test`, data, { timeout: 60000 }).then(r => r.data),
+  }, otpGrant: string) => apiClient.post<{ ok: boolean; message: string }>(`${BASE}/integrations/test`, data, { timeout: 60000, ...integrationOtpConfig(otpGrant) }).then(r => r.data),
 
   // Reports
   reportOverview: (params: { range?: string } = {}) =>

@@ -25,6 +25,7 @@ from app.schemas.vendor import (
 from app.schemas.vendor_document import DocumentType, DocumentResponse
 from app.schemas.bank_account import BankAccountCreate, BankAccountResponse
 from app.config import settings
+from app.services.integration_credential_otp import read_integration_otp_grant
 from app.services.vendor_service import VendorService
 from app.services.file_service import FileService
 
@@ -106,10 +107,21 @@ async def update_my_vendor(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
     service: VendorService = Depends(get_vendor_service),
+    otp_grant: Optional[str] = Depends(read_integration_otp_grant),
 ):
     """Update the vendor the dashboard is currently showing (honors X-Vendor-Id)."""
+    from app.services.integration_credential_otp import (
+        assert_integration_otp_grant,
+        consume_integration_otp_grant,
+    )
+    from app.services.upi_checkout_otp import vendor_update_needs_upi_otp
+
     pref = preferred_vendor_id_from_request(request)
     vendor = await resolve_dashboard_vendor(db, current_user, preferred_vendor_id=pref)
+    update = data.model_dump(exclude_unset=True)
+    if vendor_update_needs_upi_otp(vendor, update):
+        await assert_integration_otp_grant(db, vendor.id, otp_grant)
+        await consume_integration_otp_grant(db, vendor.id)
     return await service.update(vendor.id, data)
 
 

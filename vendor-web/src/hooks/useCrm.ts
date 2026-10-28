@@ -354,8 +354,8 @@ export const useIntegrations = () =>
 export const useUpsertIntegration = () => {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: { provider: string; label?: string; settings?: Record<string, unknown>; credentials?: Record<string, unknown> }) =>
-      crmApi.upsertIntegration(data),
+    mutationFn: ({ otpGrant, ...data }: { provider: string; label?: string; settings?: Record<string, unknown>; credentials?: Record<string, unknown>; otpGrant: string }) =>
+      crmApi.upsertIntegration(data, otpGrant),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['crm', 'integrations'] }),
   })
 }

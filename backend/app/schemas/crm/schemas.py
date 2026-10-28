@@ -816,6 +816,23 @@ class IntegrationFormResponse(BaseModel):
     webhook_url: Optional[str] = None
 
 
+class IntegrationOtpSendResponse(BaseModel):
+    sent: bool = True
+    to: str
+    expires_at: str
+    channel: str = "phone"
+    dev_hint: Optional[str] = None
+
+
+class IntegrationOtpVerifyRequest(BaseModel):
+    code: str = Field(..., min_length=6, max_length=6)
+
+
+class IntegrationOtpVerifyResponse(BaseModel):
+    grant: str
+    expires_at: str
+
+
 # ── AI insights / Audit / Chat / Journey ─────────────────────────────────────
 
 class AiInsightResponse(BaseModel):

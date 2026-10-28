@@ -883,8 +883,10 @@ export const vendorApi = {
     return response.data
   },
 
-  updateMyVendor: async (data: Partial<Vendor>): Promise<Vendor> => {
-    const response = await apiClient.put('/vendors/me', data)
+  updateMyVendor: async (data: Partial<Vendor>, otpGrant?: string): Promise<Vendor> => {
+    const response = await apiClient.put('/vendors/me', data, otpGrant
+      ? { headers: { 'X-Integration-Otp-Grant': otpGrant }, params: { otp_grant: otpGrant } }
+      : undefined)
     return response.data
   },
 
@@ -4438,8 +4440,10 @@ export const vendorApi = {
     const r = await apiClient.get(`/vendors/me/stores/${id}`)
     return r.data as { store: StoreRecord }
   },
-  updateStore: async (id: string, data: Record<string, unknown>) => {
-    const r = await apiClient.put(`/vendors/me/stores/${id}`, data)
+  updateStore: async (id: string, data: Record<string, unknown>, otpGrant?: string) => {
+    const r = await apiClient.put(`/vendors/me/stores/${id}`, data, otpGrant
+      ? { headers: { 'X-Integration-Otp-Grant': otpGrant }, params: { otp_grant: otpGrant } }
+      : undefined)
     return r.data as { store: StoreRecord; message: string }
   },
   deleteStore: async (id: string) => {

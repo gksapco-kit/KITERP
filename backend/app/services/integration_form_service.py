@@ -33,6 +33,22 @@ def _is_secret_credential_key(key: str) -> bool:
     return False
 
 
+def redact_integration_settings(settings: dict[str, Any] | None) -> dict[str, Any]:
+    """Hide saved phone numbers and emails on the integrations list until OTP is confirmed."""
+    out = dict(settings or {})
+    for key, value in list(out.items()):
+        lower = (key or "").lower()
+        sensitive = (
+            lower in {"from_number", "whatsapp_from", "voice_caller_id", "from_email", "phone", "email"}
+            or "phone" in lower
+            or lower.endswith("_number")
+            or lower.endswith("_email")
+        )
+        if sensitive and value not in (None, ""):
+            out[key] = ""
+    return out
+
+
 def build_integration_form_payload(integration: CrmIntegration) -> dict[str, Any]:
     """Return settings, all saved credentials, and which fields are secrets."""
     creds = decrypt_json(integration.encrypted_credentials) or {}

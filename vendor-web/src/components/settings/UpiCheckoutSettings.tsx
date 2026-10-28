@@ -19,6 +19,8 @@ import {
 } from '@/lib/upiCheckoutMode'
 import type { Vendor } from '@/types'
 import { toast } from 'sonner'
+import { BusinessAccountOtpPanel } from '@/components/settings/BusinessAccountOtpPanel'
+import { clearIntegrationOtpGrant, isIntegrationOtpRequired } from '@/lib/integrationOtpGrant'
 
 import { askConfirm } from '@/components/common/ConfirmProvider'
 export function UpiCheckoutSettings({ vendor }: { vendor: Vendor | null }) {
@@ -33,6 +35,9 @@ export function UpiCheckoutSettings({ vendor }: { vendor: Vendor | null }) {
   const mode = resolveUpiCheckoutMode(vendor?.settings as Record<string, unknown> | undefined)
   const [selectedStoreId, setSelectedStoreId] = useState('')
   const [form, setForm] = useState<ManualUpiSettings>({ ...EMPTY_MANUAL_UPI })
+  const [otpPrompt, setOtpPrompt] = useState(0)
+  const [pendingAction, setPendingAction] = useState<'save' | 'clear' | null>(null)
+  const [pendingMode, setPendingMode] = useState<UpiCheckoutMode | null>(null)
   const savingRef = useRef(false)
   const formDirtyRef = useRef(false)
 
@@ -71,14 +76,35 @@ export function UpiCheckoutSettings({ vendor }: { vendor: Vendor | null }) {
     reader.readAsDataURL(file)
   }
 
+  const onOtpRejected = (err: unknown) => {
+    if (!isIntegrationOtpRequired(err)) return
+    clearIntegrationOtpGrant()
+    setOtpPrompt((n) => n + 1)
+  }
+
+  const askOtp = (action: 'save' | 'clear') => {
+    setPendingMode(null)
+    setPendingAction(action)
+    setOtpPrompt((n) => n + 1)
+  }
+
   const handleSetMode = (next: UpiCheckoutMode) => {
     const current = vendor
     if (!current) return
     if (resolveUpiCheckoutMode(current.settings as Record<string, unknown> | undefined) === next) return
+    setPendingAction(null)
+    setPendingMode(next)
+    setOtpPrompt((n) => n + 1)
+  }
+
+  const applyMode = (next: UpiCheckoutMode, grant: string) => {
+    const current = vendor
+    if (!current) return
     formDirtyRef.current = false
     updateVendor.mutate({
       settings: { ...(current.settings ?? {}), [UPI_CHECKOUT_MODE_KEY]: next },
-    })
+      otpGrant: grant,
+    }, { onError: onOtpRejected })
   }
 
   const handleStoreChange = async (storeId: string) => {
@@ -92,7 +118,10 @@ export function UpiCheckoutSettings({ vendor }: { vendor: Vendor | null }) {
       toast.error('Add a UPI ID or upload a QR code to enable UPI checkout.')
       return
     }
+    askOtp('save')
+  }
 
+  const commitSave = (grant: string) => {
     const payload = toManualUpiPayload(form)
     savingRef.current = true
     formDirtyRef.current = false
@@ -102,8 +131,9 @@ export function UpiCheckoutSettings({ vendor }: { vendor: Vendor | null }) {
       const checkout = { ...((theme.checkout ?? {}) as Record<string, unknown>) }
       checkout.manual_upi = payload
       theme.checkout = checkout
-      updateVendor.mutate({ theme_config: theme } as Partial<Vendor>, {
+      updateVendor.mutate({ theme_config: theme, otpGrant: grant } as Partial<Vendor> & { otpGrant?: string }, {
         onSuccess: () => toast.success('Shared UPI checkout settings saved'),
+        onError: onOtpRejected,
         onSettled: () => { savingRef.current = false },
       })
       return
@@ -120,9 +150,10 @@ export function UpiCheckoutSettings({ vendor }: { vendor: Vendor | null }) {
       manual_upi: payload,
     }
     updateStore.mutate(
-      { id: activeStore.id, data: { settings } },
+      { id: activeStore.id, data: { settings }, otpGrant: grant },
       {
         onSuccess: () => toast.success(`${activeStore.name} UPI settings saved`),
+        onError: onOtpRejected,
         onSettled: () => { savingRef.current = false },
       },
     )
@@ -131,13 +162,18 @@ export function UpiCheckoutSettings({ vendor }: { vendor: Vendor | null }) {
   const handleClearOverride = async () => {
     if (!activeStore || mode !== 'per_unit') return
     if (!await askConfirm(`Clear ${activeStore.name} UPI override and use the shared UPI instead?`)) return
+    askOtp('clear')
+  }
+
+  const commitClear = (grant: string) => {
+    if (!activeStore) return
     savingRef.current = true
     formDirtyRef.current = false
-    const settings = { ...(activeStore.settings ?? {}) }
-    delete settings.manual_upi
+    const settings = { ...(activeStore.settings ?? {}), manual_upi: null }
     updateStore.mutate(
-      { id: activeStore.id, data: { settings } },
+      { id: activeStore.id, data: { settings }, otpGrant: grant },
       {
+        onError: onOtpRejected,
         onSuccess: () => {
           toast.success(`${activeStore.name} now uses shared UPI`)
           setForm(
@@ -163,8 +199,40 @@ export function UpiCheckoutSettings({ vendor }: { vendor: Vendor | null }) {
           : `No override yet for ${activeStore.name} — showing shared UPI. Save to create a unit-specific override.`
         : 'Select a business unit to edit its UPI.'
 
+  const otpOpen = pendingAction !== null || pendingMode !== null
+
+  const onOtpConfirmed = (grant: string) => {
+    const action = pendingAction
+    const nextMode = pendingMode
+    setPendingAction(null)
+    setPendingMode(null)
+    clearIntegrationOtpGrant()
+    if (nextMode) applyMode(nextMode, grant)
+    else if (action === 'clear') commitClear(grant)
+    else if (action === 'save') commitSave(grant)
+  }
+
   return (
     <div className="space-y-3">
+      {otpOpen && (
+        <div className="space-y-2">
+          <BusinessAccountOtpPanel
+            key={otpPrompt}
+              rememberGrant={false}
+              autoSend
+            message="A code was requested for this save. It goes to the mobile number on this business account. The change is stored only after you confirm it."
+            onGranted={onOtpConfirmed}
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => { setPendingAction(null); setPendingMode(null) }}
+          >
+            Cancel
+          </Button>
+        </div>
+      )}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <p className="text-xs text-muted-foreground sm:max-w-md">{editingHint}</p>
         <UpiCheckoutModeToggle
@@ -270,7 +338,7 @@ export function UpiCheckoutSettings({ vendor }: { vendor: Vendor | null }) {
         )}
 
         <div className="flex justify-end">
-          <Button type="button" size="sm" onClick={handleSave} disabled={isSaving} className="gap-1.5">
+          <Button type="button" size="sm" onClick={handleSave} disabled={isSaving || otpOpen} className="gap-1.5">
             {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
             Save UPI settings
           </Button>

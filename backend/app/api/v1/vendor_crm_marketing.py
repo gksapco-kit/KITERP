@@ -18,6 +18,7 @@ from app.schemas.crm.schemas import (
     CampaignCreate, CampaignResponse, CampaignStepResponse, CampaignUpdate,
     ContactResponse,     EmailTemplateCreate, EmailTemplateResponse,
     IntegrationCreate, IntegrationCheckoutActiveRequest, IntegrationDefaultsResponse, IntegrationFormResponse,
+    IntegrationOtpSendResponse, IntegrationOtpVerifyRequest, IntegrationOtpVerifyResponse,
     IntegrationResponse, IntegrationTestRequest, IntegrationTestResponse, IntegrationUpdate,
     PaginatedResponse, SegmentCreate, SegmentResponse,
     TemplateTestRequest, TemplateTestResponse,
@@ -27,8 +28,17 @@ from app.services.crm.services import (
     CampaignService, EmailTemplateService, IntegrationService,
     SegmentService, WorkflowService,
 )
+from app.services.integration_credential_otp import (
+    assert_integration_otp_grant,
+    read_integration_otp_grant,
+    send_integration_credential_otp,
+    verify_integration_credential_otp,
+)
 from app.services.integration_defaults_service import get_platform_integration_defaults
-from app.services.integration_form_service import build_integration_form_payload
+from app.services.integration_form_service import (
+    build_integration_form_payload,
+    redact_integration_settings,
+)
 from app.services.integration_test_service import test_integration_connection
 
 router = APIRouter()
@@ -361,7 +371,31 @@ async def list_integrations(
     db: AsyncSession = Depends(get_db),
 ):
     items = await IntegrationService(db).list(vu.vendor_id)
-    return [IntegrationResponse.model_validate(i) for i in items]
+    responses = []
+    for item in items:
+        payload = IntegrationResponse.model_validate(item).model_dump()
+        payload["settings"] = redact_integration_settings(payload.get("settings"))
+        responses.append(payload)
+    return responses
+
+
+@router.post("/integrations/otp/send", response_model=IntegrationOtpSendResponse)
+async def send_integration_otp(
+    vu: VendorUser = Depends(require_permission("crm.integrations.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Text a code to the mobile already on this business account."""
+    return await send_integration_credential_otp(db, vu.vendor_id)
+
+
+@router.post("/integrations/otp/verify", response_model=IntegrationOtpVerifyResponse)
+async def verify_integration_otp(
+    body: IntegrationOtpVerifyRequest,
+    vu: VendorUser = Depends(require_permission("crm.integrations.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Confirm the business-account code and return a short-lived save grant."""
+    return await verify_integration_credential_otp(db, vu.vendor_id, body.code)
 
 
 @router.get("/integrations/{integration_id}/form", response_model=IntegrationFormResponse)
@@ -369,7 +403,9 @@ async def get_integration_form(
     integration_id: UUID,
     vu: VendorUser = Depends(require_permission("crm.integrations.manage")),
     db: AsyncSession = Depends(get_db),
+    grant: Optional[str] = Depends(read_integration_otp_grant),
 ):
+    await assert_integration_otp_grant(db, vu.vendor_id, grant)
     obj = await IntegrationService(db).get(vu.vendor_id, integration_id)
     return IntegrationFormResponse(**build_integration_form_payload(obj))
 
@@ -378,7 +414,10 @@ async def get_integration_form(
 async def integration_platform_defaults(
     provider: str = Query(..., min_length=1),
     vu: VendorUser = Depends(require_permission("crm.integrations.manage")),
+    db: AsyncSession = Depends(get_db),
+    grant: Optional[str] = Depends(read_integration_otp_grant),
 ):
+    await assert_integration_otp_grant(db, vu.vendor_id, grant)
     return IntegrationDefaultsResponse(**get_platform_integration_defaults(provider))
 
 
@@ -387,7 +426,9 @@ async def test_integration(
     data: IntegrationTestRequest,
     vu: VendorUser = Depends(require_permission("crm.integrations.manage")),
     db: AsyncSession = Depends(get_db),
+    grant: Optional[str] = Depends(read_integration_otp_grant),
 ):
+    await assert_integration_otp_grant(db, vu.vendor_id, grant)
     result = await test_integration_connection(
         db,
         vu.vendor_id,
@@ -407,7 +448,9 @@ async def upsert_integration(
     data: IntegrationCreate,
     vu: VendorUser = Depends(require_permission("crm.integrations.manage")),
     db: AsyncSession = Depends(get_db),
+    grant: Optional[str] = Depends(read_integration_otp_grant),
 ):
+    await assert_integration_otp_grant(db, vu.vendor_id, grant)
     return await IntegrationService(db).upsert(vu.vendor_id, data)
 
 
@@ -416,7 +459,9 @@ async def update_integration(
     integration_id: UUID, data: IntegrationUpdate,
     vu: VendorUser = Depends(require_permission("crm.integrations.manage")),
     db: AsyncSession = Depends(get_db),
+    grant: Optional[str] = Depends(read_integration_otp_grant),
 ):
+    await assert_integration_otp_grant(db, vu.vendor_id, grant)
     return await IntegrationService(db).update(vu.vendor_id, integration_id, data)
 
 
@@ -437,6 +482,8 @@ async def delete_integration(
     integration_id: UUID,
     vu: VendorUser = Depends(require_permission("crm.integrations.manage")),
     db: AsyncSession = Depends(get_db),
+    grant: Optional[str] = Depends(read_integration_otp_grant),
 ):
+    await assert_integration_otp_grant(db, vu.vendor_id, grant)
     await IntegrationService(db).delete(vu.vendor_id, integration_id)
     return None

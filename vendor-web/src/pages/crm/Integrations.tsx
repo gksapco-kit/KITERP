@@ -23,6 +23,12 @@ import { Select } from '@/components/ui/select'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { extractApiError } from '@/lib/errorMessages'
+import { BusinessAccountOtpPanel } from '@/components/settings/BusinessAccountOtpPanel'
+import {
+  clearIntegrationOtpGrant,
+  isIntegrationOtpRequired,
+  readIntegrationOtpGrant,
+} from '@/lib/integrationOtpGrant'
 
 const PROVIDERS = [
   { id: 'sendgrid', label: 'SendGrid (Email)', credentials: ['api_key'], settings: ['from_email', 'from_name'] },
@@ -116,6 +122,13 @@ function CredentialInput({
   )
 }
 
+function dropExpiredIntegrationGrant(err: unknown, clear: () => void): boolean {
+  if (!isIntegrationOtpRequired(err)) return false
+  clearIntegrationOtpGrant()
+  clear()
+  return true
+}
+
 function IntegrationForm({
   providerId,
   existing,
@@ -136,19 +149,26 @@ function IntegrationForm({
   const [testPhone, setTestPhone] = useState('')
   const [testing, setTesting] = useState(false)
   const [testOk, setTestOk] = useState(false)
-  const [loadingDefaults, setLoadingDefaults] = useState(true)
+  const [loadingDefaults, setLoadingDefaults] = useState(() => Boolean(readIntegrationOtpGrant()))
   const [envKeySource, setEnvKeySource] = useState<string | null>(null)
   const [webhookUrl, setWebhookUrl] = useState<string | null>(null)
   const [webhookEvents, setWebhookEvents] = useState<string[]>([])
+  const [otpGrant, setOtpGrant] = useState<string | null>(() => readIntegrationOtpGrant())
+
+  const clearOtp = () => setOtpGrant(null)
 
   useEffect(() => {
+    if (!otpGrant) {
+      setLoadingDefaults(false)
+      return
+    }
     let cancelled = false
     setLoadingDefaults(true)
 
     const load = async () => {
       try {
         if (existing?.id) {
-          const form = await crmApi.getIntegrationForm(existing.id)
+          const form = await crmApi.getIntegrationForm(existing.id, otpGrant)
           if (cancelled) return
           setLabel(form.label || provider.label)
           setSettings(settingsToForm(form.settings))
@@ -157,7 +177,7 @@ function IntegrationForm({
           return
         }
 
-        const defaults = await crmApi.getIntegrationDefaults(provider.id)
+        const defaults = await crmApi.getIntegrationDefaults(provider.id, otpGrant)
         if (cancelled) return
         if (defaults.key_source) setEnvKeySource(defaults.key_source)
         if (defaults.webhook_url) setWebhookUrl(defaults.webhook_url)
@@ -168,10 +188,10 @@ function IntegrationForm({
         if (defaults.settings && Object.keys(defaults.settings).length > 0) {
           setSettings(prev => ({ ...defaults.settings, ...prev }))
         }
-      } catch {
-        if (!cancelled && existing?.settings) {
-          setSettings(settingsToForm(existing.settings))
-        }
+      } catch (err) {
+        if (cancelled) return
+        if (dropExpiredIntegrationGrant(err, clearOtp)) return
+        if (existing?.settings) setSettings(settingsToForm(existing.settings))
       } finally {
         if (!cancelled) setLoadingDefaults(false)
       }
@@ -179,7 +199,7 @@ function IntegrationForm({
 
     void load()
     return () => { cancelled = true }
-  }, [existing, provider.id, provider.label])
+  }, [existing, otpGrant, provider.id, provider.label])
 
   const markDirty = () => setTestOk(false)
 
@@ -194,19 +214,22 @@ function IntegrationForm({
   }
 
   const reloadFromEnv = async () => {
+    if (!otpGrant) return
     try {
-      const defaults = await crmApi.getIntegrationDefaults(provider.id)
+      const defaults = await crmApi.getIntegrationDefaults(provider.id, otpGrant)
       if (defaults.credentials) setCreds(defaults.credentials)
       if (defaults.settings) setSettings(prev => ({ ...prev, ...defaults.settings }))
       if (defaults.key_source) setEnvKeySource(defaults.key_source)
       setTestOk(false)
       toast.success('Loaded credentials from backend/.env')
-    } catch {
+    } catch (err) {
+      if (dropExpiredIntegrationGrant(err, clearOtp)) return
       toast.error('Could not load .env defaults — check backend/.env and restart the API')
     }
   }
 
   const runTest = async () => {
+    if (!otpGrant) return
     setTesting(true)
     try {
       const result = await crmApi.testIntegration({
@@ -221,11 +244,12 @@ function IntegrationForm({
         test_email: testEmail || undefined,
         test_phone: testPhone || undefined,
         integration_id: existing?.id,
-      })
+      }, otpGrant)
       setTestOk(true)
       toast.success(result.message || 'Connection verified')
     } catch (err) {
       setTestOk(false)
+      if (dropExpiredIntegrationGrant(err, clearOtp)) return
       toast.error(extractApiError(err, 'Connection test failed'))
     } finally {
       setTesting(false)
@@ -238,14 +262,18 @@ function IntegrationForm({
     if (provider.settings.includes('mode')) {
       payloadSettings.mode = normalizePaymentMode(settings.mode)
     }
+    if (!otpGrant) return
     upsert.mutate(
-      { provider: provider.id, label, credentials: credentialsForApi(), settings: payloadSettings },
+      { provider: provider.id, label, credentials: credentialsForApi(), settings: payloadSettings, otpGrant },
       {
         onSuccess: () => {
           toast.success(existing ? 'Integration updated' : 'Integration connected')
           onClose()
         },
-        onError: err => toast.error(extractApiError(err, 'Could not save integration')),
+        onError: err => {
+          if (dropExpiredIntegrationGrant(err, clearOtp)) return
+          toast.error(extractApiError(err, 'Could not save integration'))
+        },
       },
     )
   }
@@ -255,7 +283,12 @@ function IntegrationForm({
 
   return (
     <CrmModal title={`Connect ${provider.label}`} onClose={onClose}>
-      {loadingDefaults ? (
+      {!otpGrant ? (
+        <BusinessAccountOtpPanel
+          message="Provider keys and phone numbers stay hidden until you confirm a code sent to the mobile number already on this business account."
+          onGranted={grant => setOtpGrant(grant)}
+        />
+      ) : loadingDefaults ? (
         <div className="flex justify-center py-10">
           <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
         </div>
@@ -461,17 +494,19 @@ function DeleteIntegrationModal({
 }) {
   const [confirmText, setConfirmText] = useState('')
   const [deleting, setDeleting] = useState(false)
-  const canDelete = confirmText.trim().toUpperCase() === DELETE_CONFIRM_PHRASE && !deleting
+  const [otpGrant, setOtpGrant] = useState<string | null>(() => readIntegrationOtpGrant())
+  const canDelete = confirmText.trim().toUpperCase() === DELETE_CONFIRM_PHRASE && !deleting && Boolean(otpGrant)
 
   const handleDelete = async () => {
-    if (!canDelete) return
+    if (!canDelete || !otpGrant) return
     setDeleting(true)
     try {
-      await crmApi.deleteIntegration(integration.id)
+      await crmApi.deleteIntegration(integration.id, otpGrant)
       toast.success('Integration disconnected')
       onDeleted()
       onClose()
     } catch (err) {
+      if (dropExpiredIntegrationGrant(err, () => setOtpGrant(null))) return
       toast.error(extractApiError(err, 'Could not disconnect integration'))
     } finally {
       setDeleting(false)
@@ -480,6 +515,12 @@ function DeleteIntegrationModal({
 
   return (
     <CrmModal title="Disconnect integration?" onClose={onClose} maxW="max-w-md">
+      {!otpGrant ? (
+        <BusinessAccountOtpPanel
+          message="Provider keys and phone numbers stay hidden until you confirm a code sent to the mobile number already on this business account."
+          onGranted={grant => setOtpGrant(grant)}
+        />
+      ) : (
       <div className="space-y-4">
         <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50/80 px-3 py-2.5 dark:border-red-900 dark:bg-red-950/30">
           <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
@@ -523,6 +564,7 @@ function DeleteIntegrationModal({
           </Button>
         </div>
       </div>
+      )}
     </CrmModal>
   )
 }
@@ -630,6 +672,7 @@ export default function IntegrationsPage() {
             <h1 className="text-lg font-semibold tracking-tight text-foreground">Connect your providers</h1>
             <p className="text-xs text-muted-foreground">
               Email, SMS, WhatsApp, AI, calendars, CRM, and checkout payments in one place.
+              Saving a key or number asks for a code sent to this business account’s mobile.
             </p>
           </div>
         </div>

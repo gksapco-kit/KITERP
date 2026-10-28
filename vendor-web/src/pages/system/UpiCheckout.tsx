@@ -15,6 +15,7 @@ export default function UpiCheckoutPage() {
           <h1 className="text-xl font-bold text-foreground">UPI Checkout</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
             Configure shared or per–business-unit UPI QR payments for checkout.
+            Saving the UPI ID or QR asks for a code sent to this business account’s mobile.
           </p>
         </div>
       </div>

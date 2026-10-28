@@ -92,7 +92,10 @@ class Vendor(Base):
         "notifications": {"email": True, "sms": True, "push": True},
         "features": {"products": True, "services": True, "appointments": False, "blog": True}
     })
-    
+    # Server-only OTP challenge for viewing or saving integration secrets.
+    # Not included on VendorResponse.
+    integration_otp_state = Column(JSONB, nullable=True)
+
     # Business Hours
     business_hours = Column(JSONB, default={})
     store_holidays = Column(JSONB, default=list)  # [{date, label, closed?}]

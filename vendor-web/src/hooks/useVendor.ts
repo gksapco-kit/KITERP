@@ -175,7 +175,8 @@ export function useUpdateVendor() {
   const qc = useQueryClient()
   const { setVendor } = useVendorStore()
   return useMutation({
-    mutationFn: (data: Partial<import('@/types').Vendor>) => vendorApi.updateMyVendor(data),
+    mutationFn: ({ otpGrant, ...data }: Partial<import('@/types').Vendor> & { otpGrant?: string }) =>
+      vendorApi.updateMyVendor(data, otpGrant),
     onSuccess: (vendor) => {
       setVendor(vendor)
       qc.invalidateQueries({ queryKey: ['vendor', 'me'] })
@@ -2796,8 +2797,8 @@ export function useBranches(businessUnitId?: string | null) {
 export function useUpdateStore() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
-      vendorApi.updateStore(id, data),
+    mutationFn: ({ id, data, otpGrant }: { id: string; data: Record<string, unknown>; otpGrant?: string }) =>
+      vendorApi.updateStore(id, data, otpGrant),
     onSuccess: (result) => {
       const updated = result.store
       qc.setQueriesData<{ stores: import('@/api/vendor').StoreRecord[]; total: number }>(
