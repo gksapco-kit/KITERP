@@ -10,7 +10,8 @@ from datetime import datetime
 import math
 
 from app.database import get_db
-from app.api.deps import get_current_active_user, require_permission
+from app.api.deps import get_current_active_user, require_permission, resolve_dashboard_vendor
+from app.middleware.vendor_dashboard_context import get_preferred_vendor_id_from_context
 from app.models.user import User
 from app.models.order import Order, OrderLine, OrderDelivery, DeliveryLine, OrderLineSchedule, OrderLineHistory
 from app.models.store import Store
@@ -339,13 +340,18 @@ async def _enrich_order_dict(db: AsyncSession, order: Order, d: dict) -> dict:
 
 
 async def _get_vendor_id(user: User, db: AsyncSession) -> UUID:
-    service = VendorService(db)
-    vendor = await service.get_by_user_id(user.id)
-    if not vendor:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Vendor not found",
-        )
+    # Honor X-Vendor-Id (vendor selected in the dashboard switcher) and allow platform
+    # staff / super-admins to act on a vendor they are not a member of.
+    pref = get_preferred_vendor_id_from_context()
+    try:
+        vendor = await resolve_dashboard_vendor(db, user, preferred_vendor_id=pref)
+    except HTTPException as exc:
+        if exc.status_code == status.HTTP_404_NOT_FOUND:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Vendor not found",
+            )
+        raise
     return vendor.id
 
 
