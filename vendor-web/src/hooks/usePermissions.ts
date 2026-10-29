@@ -49,5 +49,5 @@ export function useIsVendorAdmin(): boolean {
   const { user } = useAuthStore()
   const role = user?.vendor_role?.role
   const roleName = user?.vendor_role?.role_name?.toLowerCase()
-  return role === 'owner' || role === 'admin' || roleName === 'owner' || roleName === 'admin'
+  return role === 'owner' || role === 'admin' || role === 'platform_staff' || roleName === 'owner' || roleName === 'admin'
 }

@@ -459,7 +459,16 @@ class VendorService:
     async def get_by_user_id(
         self, user_id: UUID, preferred_vendor_id: Optional[UUID] = None
     ) -> Optional[Vendor]:
-        """Get vendor for this user (owner or team); optional preferred tenant."""
+        """Get vendor for this user (owner or team); optional preferred tenant.
+
+        When the caller does not pass a tenant, use ``X-Vendor-Id`` from the
+        current request so platform handoff and the business switcher stay on
+        the vendor shown in the header.
+        """
+        if preferred_vendor_id is None:
+            from app.middleware.vendor_dashboard_context import get_preferred_vendor_id_from_context
+
+            preferred_vendor_id = get_preferred_vendor_id_from_context()
         return await self.repo.get_by_user_id(user_id, preferred_vendor_id)
     
     async def update(self, vendor_id: UUID, data: VendorUpdate) -> Vendor:

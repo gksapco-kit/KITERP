@@ -44,6 +44,14 @@ export default function VendorHandoff() {
     let existing = redeemInFlight.get(token)
     if (!existing) {
       existing = (async () => {
+        if (!useVendorStore.persist.hasHydrated()) {
+          await new Promise<void>((resolve) => {
+            const unsub = useVendorStore.persist.onFinishHydration(() => {
+              unsub()
+              resolve()
+            })
+          })
+        }
         useAuthStore.getState().logout()
         useVendorStore.getState().clearVendor()
         qc.removeQueries({ queryKey: vendorKeys.all })
@@ -53,6 +61,8 @@ export default function VendorHandoff() {
         const { vendor, ...tok } = res
         useAuthStore.getState().setTokens(tok)
         useVendorStore.getState().setVendor(vendor)
+        useVendorStore.getState().setSelectedStore(null)
+        useVendorStore.getState().setFavouriteStoreId(null)
         setVendorAdminEmbed(embed)
 
         const user = await authApi.getMe()

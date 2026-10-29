@@ -33,7 +33,7 @@ export default function Dashboard() {
   const storeId = selectedStore?.id
   const { heading: scopeHeading, mode: scopeMode } = useBusinessUnitScopeLabel()
   const { user } = useAuthStore()
-  const isHRAdmin = ['owner', 'admin', 'manager'].includes(user?.vendor_role?.role ?? '')
+  const isHRAdmin = ['owner', 'admin', 'manager', 'platform_staff'].includes(user?.vendor_role?.role ?? '')
   const salesAppInstalled = useSidebarAppInstalled('sales')
   const vendorSettings = vendor?.settings as Record<string, unknown> | undefined
   const posVisible = salesAppInstalled && isPosNavVisible(vendorSettings, vendor?.offering_type)
@@ -44,24 +44,24 @@ export default function Dashboard() {
   const { data: hrToday } = useHRMyToday()
 
   const { data: dashboard, isLoading: dashLoading } = useQuery({
-    queryKey: ['reports', 'dashboard', storeId],
+    queryKey: ['reports', 'dashboard', vendor?.id, storeId],
     queryFn: () => vendorApi.getDashboardStats(storeId),
     staleTime: 0,
     refetchOnMount: 'always',
   })
-  const { data: revenue } = useQuery({ queryKey: ['reports', 'revenue', storeId], queryFn: () => vendorApi.getRevenueSummary(storeId) })
-  const { data: topProducts } = useQuery({ queryKey: ['reports', 'top-products', storeId], queryFn: () => vendorApi.getTopProducts(10, storeId) })
-  const { data: topCustomers } = useQuery({ queryKey: ['reports', 'top-customers', storeId], queryFn: () => vendorApi.getTopCustomers(10, storeId) })
-  const { data: salesByDay } = useQuery({ queryKey: ['reports', 'sales-30', storeId], queryFn: () => vendorApi.getSalesByDay(30, storeId) })
-  const { data: ordersByStatus } = useQuery({ queryKey: ['reports', 'orders-status', storeId], queryFn: () => vendorApi.getOrdersByStatus(storeId) })
+  const { data: revenue } = useQuery({ queryKey: ['reports', 'revenue', vendor?.id, storeId], queryFn: () => vendorApi.getRevenueSummary(storeId) })
+  const { data: topProducts } = useQuery({ queryKey: ['reports', 'top-products', vendor?.id, storeId], queryFn: () => vendorApi.getTopProducts(10, storeId) })
+  const { data: topCustomers } = useQuery({ queryKey: ['reports', 'top-customers', vendor?.id, storeId], queryFn: () => vendorApi.getTopCustomers(10, storeId) })
+  const { data: salesByDay } = useQuery({ queryKey: ['reports', 'sales-30', vendor?.id, storeId], queryFn: () => vendorApi.getSalesByDay(30, storeId) })
+  const { data: ordersByStatus } = useQuery({ queryKey: ['reports', 'orders-status', vendor?.id, storeId], queryFn: () => vendorApi.getOrdersByStatus(storeId) })
   const { data: posOrdersData }     = useQuery({
-    queryKey: ['reports', 'pos-orders', storeId],
+    queryKey: ['reports', 'pos-orders', vendor?.id, storeId],
     queryFn: () => vendorApi.listOrders({ source: 'pos', size: 100, store_id: storeId || undefined }),
     enabled: posVisible,
   })
-  const { data: onlineOrdersData }  = useQuery({ queryKey: ['reports', 'online-orders', storeId],  queryFn: () => vendorApi.listOrders({ size: 100, store_id: storeId || undefined }) })
+  const { data: onlineOrdersData }  = useQuery({ queryKey: ['reports', 'online-orders', vendor?.id, storeId],  queryFn: () => vendorApi.listOrders({ size: 100, store_id: storeId || undefined }) })
   const { data: bookingsData }      = useQuery({
-    queryKey: ['reports', 'bookings', storeId],
+    queryKey: ['reports', 'bookings', vendor?.id, storeId],
     queryFn: () => vendorApi.listBookings({ size: 100 }),
     enabled: bookingsVisible,
   })

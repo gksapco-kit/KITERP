@@ -15,7 +15,7 @@ import re
 
 from app.database import get_db
 from app.config import settings
-from app.api.deps import get_current_active_user
+from app.api.deps import get_current_active_user, preferred_vendor_id_from_request
 from app.models.user import User
 from app.models.vendor import Vendor
 from app.models.vendor_user import VendorUser
@@ -444,7 +444,11 @@ async def refresh_token(
     }
 
 
-async def _build_me_payload(user: User, db: AsyncSession) -> dict:
+async def _build_me_payload(
+    user: User,
+    db: AsyncSession,
+    preferred_vendor_id: Optional[UUID] = None,
+) -> dict:
     """Build the same /me response payload (user dict + vendor_role) used by GET and PATCH."""
     data = user_to_dict(user)
 
@@ -471,7 +475,12 @@ async def _build_me_payload(user: User, db: AsyncSession) -> dict:
     )
 
     vu_repo = VendorUserRepository(db)
-    vu = await vu_repo.get_by_user_id(user.id)
+    # X-Vendor-Id (platform handoff / business switcher) must win over the oldest membership.
+    vu = None
+    if preferred_vendor_id is not None:
+        vu = await vu_repo.get_user_with_role(preferred_vendor_id, user.id)
+    if not vu:
+        vu = await vu_repo.get_by_user_id(user.id)
 
     if not vu:
         vendor_repo = VendorRepository(db)
@@ -513,17 +522,21 @@ async def _build_me_payload(user: User, db: AsyncSession) -> dict:
 
 @router.get("/me")
 async def get_me(
+    request: Request,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Get current logged-in user profile with vendor role information."""
-    data = await _build_me_payload(current_user, db)
+    data = await _build_me_payload(
+        current_user, db, preferred_vendor_id_from_request(request)
+    )
     return JSONResponse(content=data)
 
 
 @router.patch("/me")
 async def update_me(
     payload: MeUpdateRequest,
+    request: Request,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -573,7 +586,9 @@ async def update_me(
         await db.commit()
         await db.refresh(current_user)
 
-    data = await _build_me_payload(current_user, db)
+    data = await _build_me_payload(
+        current_user, db, preferred_vendor_id_from_request(request)
+    )
     return JSONResponse(content=data)
 
 

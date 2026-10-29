@@ -1686,12 +1686,16 @@ export default function DashboardLayout() {
   /** "All business units" only when there are multiple outlets to filter between. */
   const showAllLocationsOption = stores.length > 1
 
-  // Auto-select favourite store on login when no store is currently selected
+  const isPlatformSession = user?.vendor_role?.role === 'platform_staff'
+
+  // Auto-select favourite store on login when no store is currently selected.
+  // Platform handoff starts with no favourite, so it opens on all units.
   useEffect(() => {
+    if (isPlatformSession) return
     if (!favouriteStoreId || selectedStore || stores.length === 0) return
     const fav = stores.find(s => s.id === favouriteStoreId)
     if (fav) setSelectedStore({ id: fav.id, name: fav.name, code: fav.code, description: fav.description })
-  }, [favouriteStoreId, stores.length])
+  }, [favouriteStoreId, stores.length, isPlatformSession])
 
   const setStoreDefaultMutation = useMutation({
     mutationFn: (id: string) => vendorApi.updateStore(id, { is_default: true }),
@@ -2112,7 +2116,8 @@ export default function DashboardLayout() {
 
   const vendorRole = user?.vendor_role
   const permissions = vendorRole?.permissions || []
-  const isOwnerOrAdmin = vendorRole?.role === 'owner' || vendorRole?.role === 'admin' || vendorRole?.role_name?.toLowerCase() === 'owner' || vendorRole?.role_name?.toLowerCase() === 'admin'
+  const isPlatformStaff = vendorRole?.role === 'platform_staff'
+  const isOwnerOrAdmin = isPlatformStaff || vendorRole?.role === 'owner' || vendorRole?.role === 'admin' || vendorRole?.role_name?.toLowerCase() === 'owner' || vendorRole?.role_name?.toLowerCase() === 'admin'
 
   const showRmSupportAudit =
     location.pathname === '/relationship-manager' &&
