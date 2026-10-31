@@ -1502,7 +1502,7 @@ export default function POS() {
                 (filter === 'services' && services.length === 0)) && (
                 <div className="col-span-full py-16 text-center">
                   <Search className="mx-auto mb-2 h-8 w-8 text-gray-200" />
-                  <p className="text-sm text-gray-400">{search ? `No results for "${search}"` : (filter !== 'services' && (productsData?.items?.length || 0) > 0 && products.length === 0) ? 'No sizes are marked POS only. Turn on POS only for the variant you sell at the counter.' : `No active ${filter === 'all' ? 'items' : filter} found`}</p>
+                  <p className="text-sm text-gray-400">{search ? `No results for "${search}"` : `No active ${filter === 'all' ? 'items' : filter} found`}</p>
                 </div>
               )}
               </div>

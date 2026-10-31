@@ -189,7 +189,7 @@ export function replyToLandingQuestion(
   return (
     'I can help with basic questions about:\n' +
     '• Contact info\n' +
-    '• Pricing (₹0/month for all apps)\n' +
+    `• Pricing (plans from ${(plans[0] ?? SAAS_PLANS[0]).priceLabel}/month)\n` +
     '• Products / modules\n' +
     '• Signup & login\n\n' +
     'Try asking e.g. “What is the price?” or “How do I contact you?”'

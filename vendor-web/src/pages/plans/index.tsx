@@ -115,9 +115,12 @@ function PlanCard({
 
   const featureRows = Object.entries(FEATURE_LABELS)
   const storageLabel =
-    plan.max_storage_mb >= 1000
-      ? `${plan.max_storage_mb / 1000} GB`
-      : `${plan.max_storage_mb} MB`
+    plan.max_storage_mb < 0
+      ? '∞'
+      : plan.max_storage_mb >= 1000
+        ? `${plan.max_storage_mb / 1000} GB`
+        : `${plan.max_storage_mb} MB`
+  const teamLabel = plan.max_team_members < 0 ? '∞' : String(plan.max_team_members)
 
   return (
     <article
@@ -225,7 +228,7 @@ function PlanCard({
           <div className="grid grid-cols-3 divide-x divide-slate-200 rounded-lg border border-slate-200 bg-slate-50">
             {[
               { icon: Package, value: plan.max_products === -1 ? '∞' : String(plan.max_products), label: 'Products' },
-              { icon: Users, value: String(plan.max_team_members), label: 'Team' },
+              { icon: Users, value: teamLabel, label: 'Team' },
               { icon: HardDrive, value: storageLabel, label: 'Storage' },
             ].map((stat) => (
               <div key={stat.label} className="flex items-center justify-center gap-1.5 px-1 py-1.5">

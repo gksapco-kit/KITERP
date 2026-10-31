@@ -1,5 +1,5 @@
-import { Check, HardDrive, Package, Users, X } from 'lucide-react'
-import { PLAN_FEATURES, saasSignupHref } from '@/components/landing/saasPlans'
+import { Check } from 'lucide-react'
+import { saasSignupHref } from '@/components/landing/saasPlans'
 import { usePublicSaasPlans } from '@/components/landing/usePublicSaasPlans'
 
 function SparkleBurst() {
@@ -48,86 +48,68 @@ export function GrowthCtaSection() {
           upgrade anytime when you need more modules.
         </p>
 
-        <div className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-3 md:gap-6 text-left">
-          {plans.map((plan) => (
-            <article
-              key={plan.slug}
-              className={`relative flex h-full flex-col rounded-2xl border bg-white/90 p-6 shadow-sm backdrop-blur-sm ${
-                plan.featured
-                  ? 'border-[#64C3A0] ring-2 ring-[#64C3A0]/35 shadow-md'
-                  : 'border-[#1e3d34]/10'
-              }`}
-            >
-              {plan.featured ? (
-                <span className="absolute -top-3 left-5 rounded-full bg-[#64C3A0] px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-white">
-                  Popular
-                </span>
-              ) : null}
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="text-lg font-semibold text-[#1e3d34]">{plan.name}</h3>
-                  <p className="mt-0.5 text-sm font-medium text-[#3d8f72]">{plan.appsLabel}</p>
-                </div>
-                <div className="text-right">
-                  <div className="text-3xl font-bold text-[#1e3d34]">{plan.priceLabel}</div>
-                  <div className="text-xs text-[#1e3d34]/50">/ month</div>
-                </div>
-              </div>
-              <p className="mt-3 text-sm text-[#1e3d34]/65 leading-relaxed">{plan.blurb}</p>
-              <p className="mt-4 text-[11px] font-semibold uppercase tracking-wider text-[#1e3d34]/40">
-                Plan details
-              </p>
-              <ul className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5">
-                {PLAN_FEATURES.map(([key, label]) => {
-                  const enabled = Boolean(plan.features[key])
-                  return (
-                    <li
-                      key={key}
-                      className={`flex min-w-0 items-center gap-1.5 text-[13px] leading-none ${
-                        enabled ? 'font-medium text-[#1e3d34]' : 'text-[#1e3d34]/35'
-                      }`}
-                    >
-                      {enabled ? (
-                        <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#64C3A0]/20">
-                          <Check className="h-2.5 w-2.5 text-[#1e7a5c]" aria-hidden />
-                        </span>
-                      ) : (
-                        <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#1e3d34]/10">
-                          <X className="h-2.5 w-2.5 text-[#1e3d34]/35" aria-hidden />
-                        </span>
-                      )}
-                      <span className="truncate">{label}</span>
-                    </li>
-                  )
-                })}
-              </ul>
-              <div className="mt-4 grid grid-cols-3 divide-x divide-[#1e3d34]/10 rounded-xl border border-[#1e3d34]/10 bg-[#f7fbf9]">
-                {[
-                  { icon: Package, value: plan.productsLabel, label: 'Products' },
-                  { icon: Users, value: plan.teamLabel, label: 'Team' },
-                  { icon: HardDrive, value: plan.storageLabel, label: 'Storage' },
-                ].map((stat) => (
-                  <div key={stat.label} className="flex items-center justify-center gap-1.5 px-1 py-2">
-                    <stat.icon className="h-3.5 w-3.5 shrink-0 text-[#1e3d34]/40" aria-hidden />
-                    <div className="min-w-0 leading-none">
-                      <p className="truncate text-xs font-semibold text-[#1e3d34]">{stat.value}</p>
-                      <p className="mt-0.5 text-[10px] text-[#1e3d34]/50">{stat.label}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <a
-                href={saasSignupHref(plan.slug)}
-                className={`kiterp-btn-primary mt-6 inline-flex w-full items-center justify-center px-5 py-3 text-sm sm:text-base ${
-                  plan.featured ? '' : 'opacity-95'
+        <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-3 md:items-stretch text-left">
+          {plans.map((plan) => {
+            const appsText = plan.appsLabel.replace(/^My Kit \+ /, '')
+            const highlights = [
+              'My Kit workspace always included',
+              appsText.toLowerCase() === 'all apps' ? 'Access to all apps' : `Install ${appsText}`,
+              'Upgrade or cancel anytime',
+            ]
+            return (
+              <article
+                key={plan.slug}
+                className={`group relative flex h-full flex-col overflow-hidden rounded-3xl border bg-white p-7 transition-all duration-300 hover:-translate-y-1 ${
+                  plan.featured
+                    ? 'border-[#64C3A0] shadow-[0_18px_50px_-18px_rgba(100,195,160,0.55)] ring-2 ring-[#64C3A0]/40 md:scale-[1.03]'
+                    : 'border-[#1e3d34]/10 shadow-sm hover:shadow-lg'
                 }`}
               >
-                {plan.cta}
-              </a>
-            </article>
-          ))}
-        </div>
+                {plan.featured ? (
+                  <>
+                    <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-[#64C3A0]/15 to-transparent" />
+                    <span className="absolute right-5 top-5 rounded-full bg-[#64C3A0] px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-white shadow-sm">
+                      Most popular
+                    </span>
+                  </>
+                ) : null}
 
+                <div className="relative">
+                  <h3 className="text-xl font-semibold text-[#1e3d34]">{plan.name}</h3>
+                  <span className="mt-2 inline-flex items-center rounded-full bg-[#64C3A0]/15 px-3 py-1 text-xs font-semibold text-[#2f7d5f]">
+                    {plan.appsLabel}
+                  </span>
+
+                  <div className="mt-6 flex items-baseline gap-1.5">
+                    <span className="text-5xl font-bold tracking-tight text-[#1e3d34]">{plan.priceLabel}</span>
+                    <span className="text-sm font-medium text-[#1e3d34]/50">/ month</span>
+                  </div>
+                  <p className="mt-3 min-h-[2.75rem] text-sm leading-relaxed text-[#1e3d34]/65">{plan.blurb}</p>
+                </div>
+
+                <ul className="relative mb-8 mt-5 space-y-3 border-t border-[#1e3d34]/10 pt-5">
+                  {highlights.map((item) => (
+                    <li key={item} className="flex items-start gap-2.5 text-sm text-[#1e3d34]/80">
+                      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#64C3A0]/20">
+                        <Check className="h-3 w-3 text-[#1e7a5c]" aria-hidden />
+                      </span>
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <a
+                  href={saasSignupHref(plan.slug)}
+                  className={`kiterp-btn-primary relative mt-auto inline-flex w-full items-center justify-center px-5 py-3 text-sm sm:text-base ${
+                    plan.featured ? '' : 'opacity-95'
+                  }`}
+                >
+                  {plan.cta}
+                </a>
+              </article>
+            )
+          })}
+        </div>
         <p className="mt-8 text-xs sm:text-sm text-[#1e3d34]/55 font-medium">
           Secure checkout with Razorpay · Cancel or upgrade anytime from Billing &amp; Plans
         </p>

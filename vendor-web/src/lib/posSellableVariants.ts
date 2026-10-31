@@ -1,27 +1,23 @@
-function isPosOnlyFlag(value: unknown): boolean {
-  return value === true || value === 1 || value === 'true' || value === '1'
-}
+﻿type PosVariant = { is_active?: boolean; is_pos_only?: boolean }
 
-type PosVariant = { is_active?: boolean; is_pos_only?: boolean }
-
-/** Variants the POS counter should sell: only sizes with POS only turned on. */
+/**
+ * Variants the POS counter can sell: every active variant.
+ * The "POS only" flag only hides a variant from e-commerce; it must not gate the counter.
+ */
 export function posSellableVariants<T extends PosVariant>(
   variants: T[] | null | undefined,
 ): T[] {
-  return (variants || []).filter((variant) => variant.is_active !== false && isPosOnlyFlag(variant.is_pos_only))
+  return (variants || []).filter((variant) => variant.is_active !== false)
 }
 
 /**
  * Product row for the billing list.
- * A product with sizes stays off the counter until at least one size has POS only on.
- * A product with no sizes is unchanged.
+ * Every product is listed at the counter, with its active variants.
  */
 export function posCatalogProduct<T extends { variants?: PosVariant[] | null }>(product: T): T | null {
   const variants = product.variants || []
-  const active = variants.filter((variant) => variant.is_active !== false)
-  if (active.length === 0) return product
   const sellable = posSellableVariants(variants)
-  if (sellable.length === 0) return null
+  if (sellable.length === 0) return product
   return { ...product, variants: sellable }
 }
 

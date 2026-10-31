@@ -61,8 +61,13 @@ export function usePublicSaasPlans() {
   const plans: SaasPlan[] = SAAS_PLANS.map((fallback) => {
     const live = query.data?.find((row) => row.slug === fallback.slug)
     if (!live) return fallback
-    const price = Number(live.price_monthly)
-    if (!Number.isFinite(price)) return fallback
+    const rawPrice = live.price_monthly
+    const parsed =
+      rawPrice == null || (typeof rawPrice === 'string' && rawPrice.trim() === '')
+        ? NaN
+        : Number(rawPrice)
+    // A missing or zero live price must never replace the listed plan price (e.g. ₹199 -> ₹0).
+    const price = Number.isFinite(parsed) && parsed > 0 ? parsed : fallback.priceMonthly
     return {
       ...fallback,
       name: live.name?.trim() || fallback.name,
