@@ -157,7 +157,7 @@ export default function Inventory() {
   ]
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Inventory</h1>
@@ -213,7 +213,7 @@ export default function Inventory() {
             {storeInvLoading ? (
               <div className="flex items-center justify-center h-24"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
             ) : !storeInventory?.items?.length ? (
-              <p className="text-sm text-muted-foreground text-center py-8">No inventory set for this store yet. Use the <a href="/stores" className="text-primary underline">Stores page</a> to manage stock levels.</p>
+              <p className="text-sm text-muted-foreground text-center py-3">No inventory set for this store yet. Use the <a href="/stores" className="text-primary underline">Stores page</a> to manage stock levels.</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -252,7 +252,7 @@ export default function Inventory() {
       )}
 
       {/* Stat cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <StatCard label="Total Products Tracked" value={summary?.total ?? '-'} loading={summaryLoading} />
         <StatCard label="Low Stock Items" value={summary?.low_stock_count ?? '-'} loading={summaryLoading} warn={(summary?.low_stock_count ?? 0) > 0} />
         <StatCard label="Movement Records" value={history?.total ?? '-'} loading={historyLoading} />
@@ -269,7 +269,7 @@ export default function Inventory() {
                 if (t.key === 'history') setHistoryPage(1)
                 if (t.key !== 'history') setHistoryProductFilter('')
               }}
-              className={`flex items-center gap-2 px-1 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`flex items-center gap-2 px-1 py-2 text-sm font-medium border-b-2 transition-colors ${
                 tab === t.key ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
@@ -362,9 +362,9 @@ export default function Inventory() {
 
 function StatCard({ label, value, loading, warn }: { label: string; value: string | number; loading: boolean; warn?: boolean }) {
   return (
-    <div className="bg-card rounded-xl border p-5" onClick={e => e.stopPropagation()}>
+    <div className="bg-card rounded-xl border px-4 py-3" onClick={e => e.stopPropagation()}>
       <p className="text-sm font-medium text-gray-500">{label}</p>
-      <p className={`text-2xl font-bold mt-1 ${warn ? 'text-amber-600' : 'text-gray-900'}`}>
+      <p className={`text-2xl font-bold leading-tight ${warn ? 'text-amber-600' : 'text-gray-900'}`}>
         {loading ? <Loader2 className="w-5 h-5 animate-spin text-gray-400" /> : value}
       </p>
     </div>
@@ -754,30 +754,30 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
           }
         />
         <div className="overflow-x-auto">
-        <ResizableTable tableId={viewMode === 'variant' ? 'inventory-stock-variant-v1' : 'inventory-stock-v3'} defaultWidths={viewMode === 'variant' ? [200, 160, 110, 110, 110, 110, ...stores.map(() => 90), 140, 300] : [240, 110, 110, 110, 110, ...stores.map(() => 90), 140, 300]}>
+        <ResizableTable tableId={viewMode === 'variant' ? 'inventory-stock-variant-v2' : 'inventory-stock-v4'} defaultWidths={viewMode === 'variant' ? [220, 160, 110, 110, 100, 110, ...stores.map(() => 80), 100, 240] : [320, 110, 110, 100, 120, ...stores.map(() => 80), 100, 260]}>
           <thead>
             <tr className="border-b bg-gray-50">
               {viewMode === 'variant' ? (
                 <>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Product</TableColumnLabel></th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Variant</TableColumnLabel></th>
+                  <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Product</TableColumnLabel></th>
+                  <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Variant</TableColumnLabel></th>
                 </>
               ) : (
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Product / Variant</TableColumnLabel></th>
+                <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Product / Variant</TableColumnLabel></th>
               )}
-              <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>SKU</TableColumnLabel></th>
-              <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Barcode</TableColumnLabel></th>
-              <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Cost Price</TableColumnLabel></th>
-              <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase">
+              <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>SKU</TableColumnLabel></th>
+              <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Barcode</TableColumnLabel></th>
+              <th className="text-right px-3 py-2 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Cost Price</TableColumnLabel></th>
+              <th className="text-right px-3 py-2 text-xs font-medium text-gray-500 uppercase">
                 {selectedStoreId !== 'all' ? (stores.find(s => s.id === selectedStoreId)?.name ?? 'Store') + ' Stock' : 'Total Stock'}
               </th>
               {selectedStoreId === 'all' && stores.map(s => (
-                <th key={s.id} className="text-right px-4 py-3 text-xs font-medium text-indigo-500 uppercase whitespace-nowrap">
+                <th key={s.id} className="text-right px-3 py-2 text-xs font-medium text-indigo-500 uppercase whitespace-nowrap">
                   {s.code || s.name}
                 </th>
               ))}
-              <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Status</TableColumnLabel></th>
-              <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Actions</TableColumnLabel></th>
+              <th className="text-center px-3 py-2 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Status</TableColumnLabel></th>
+              <th className="text-right px-3 py-2 text-xs font-medium text-gray-500 uppercase"><TableColumnLabel>Actions</TableColumnLabel></th>
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -794,7 +794,7 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
               return (
                 <Fragment key={item.product_id}>
                   <tr className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm font-medium">
+                    <td className="px-3 py-2.5 text-sm font-medium">
                       <div className="flex items-center gap-2">
                         {hasVariants && (
                           <button onClick={() => toggleExpanded(item.product_id)} className="p-0.5 rounded hover:bg-gray-200 text-gray-400">
@@ -812,21 +812,21 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                           </Link>
                         </InlineEditCell>
                         {hasVariants && (
-                          <span className="text-xs text-gray-400">({item.variants!.length} variants)</span>
+                          <span className="whitespace-nowrap text-xs text-gray-400">({item.variants!.length} {item.variants!.length === 1 ? 'variant' : 'variants'})</span>
                         )}
                         {hasVariants && (
                           <span
-                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${item.shared_stock ? 'bg-indigo-50 text-indigo-700' : 'bg-gray-100 text-gray-600'}`}
+                            className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-medium ${item.shared_stock ? 'bg-indigo-50 text-indigo-700' : 'bg-gray-100 text-gray-600'}`}
                             title={item.shared_stock
                               ? 'Stock is maintained at product level. Change it in the product form (Inventory section).'
                               : 'Stock is maintained per variant. Change it in the product form (Inventory section).'}
                           >
-                            {item.shared_stock ? 'Product-level stock' : 'Variant-level stock'}
+                            {item.shared_stock ? 'Shared stock' : 'Per variant'}
                           </span>
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
+                    <td className="px-3 py-2.5 text-sm text-gray-500">
                       <InlineEditCell
                         value={item.sku || ''}
                         saving={isSaving(item.product_id, 'sku')}
@@ -835,7 +835,7 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                         {item.sku || '-'}
                       </InlineEditCell>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-400 font-mono text-xs">
+                    <td className="px-3 py-2.5 text-sm text-gray-400 font-mono text-xs">
                       <InlineEditCell
                         value={fullProduct?.barcode || ''}
                         readOnly={hasVariants}
@@ -846,7 +846,7 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                         {hasVariants ? '-' : (fullProduct?.barcode || '-')}
                       </InlineEditCell>
                     </td>
-                    <td className="px-6 py-4 text-sm text-right text-gray-500">
+                    <td className="px-3 py-2.5 text-sm text-right text-gray-500">
                       <InlineEditCell
                         type="number"
                         min={0}
@@ -861,7 +861,7 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                         {hasVariants ? '-' : (fullProduct?.cost_price != null ? `₹${fullProduct.cost_price.toFixed(2)}` : '-')}
                       </InlineEditCell>
                     </td>
-                    <td className="px-6 py-4 text-sm text-right font-medium whitespace-nowrap">
+                    <td className="px-3 py-2.5 text-sm text-right font-medium whitespace-nowrap">
                       <InlineEditCell
                         type="number"
                         min={0}
@@ -884,7 +884,7 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                       const sq = item.store_quantities?.find(q => q.store_id === s.id)
                       const qty = sq?.quantity ?? 0
                       return (
-                        <td key={s.id} className="px-4 py-4 text-sm text-right text-indigo-600 font-medium">
+                        <td key={s.id} className="px-3 py-2.5 text-sm text-right text-indigo-600 font-medium">
                           <InlineEditCell
                             type="number"
                             min={0}
@@ -905,7 +905,7 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                         </td>
                       )
                     })}
-                    <td className="px-6 py-4 text-center whitespace-nowrap">
+                    <td className="px-3 py-2.5 text-center whitespace-nowrap">
                       <InlineEditCell
                         type="number"
                         min={0}
@@ -924,7 +924,7 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                         )}
                       </InlineEditCell>
                     </td>
-                    <td className="px-6 py-4 text-right whitespace-nowrap">
+                    <td className="px-3 py-2.5 text-right whitespace-nowrap">
                       <div className="inline-flex flex-nowrap items-center justify-end gap-1">
                         <Button variant="ghost" size="sm" className="text-gray-500 text-xs" onClick={() => onViewHistory(item.product_id)}>
                           <History className="w-3 h-3 mr-1" />History
@@ -952,7 +952,7 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                     const statusLabel = v.stock_status === 'in_stock' ? 'In Stock' : v.stock_status === 'low_stock' ? 'Low' : 'Out'
                     return (
                       <tr key={v.id} className="bg-gray-50/60 border-l-2 border-l-blue-200">
-                        <td className="px-6 py-3 text-sm text-gray-700 pl-12">
+                        <td className="px-3 py-2 text-sm text-gray-700 pl-10">
                           <span className="text-gray-400 mr-1">└</span>
                           <InlineEditCell
                             value={v.name}
@@ -965,7 +965,7 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                             <span className="ml-2 text-xs text-gray-400">Exp: {v.expiration_date}</span>
                           )}
                         </td>
-                        <td className="px-6 py-3 text-sm text-gray-500">
+                        <td className="px-3 py-2 text-sm text-gray-500">
                           <InlineEditCell
                             value={v.sku || ''}
                             saving={isSavingVariant(item.product_id, v.id, 'sku')}
@@ -974,7 +974,7 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                             {v.sku || '-'}
                           </InlineEditCell>
                         </td>
-                        <td className="px-6 py-3 text-xs text-gray-400 font-mono">
+                        <td className="px-3 py-2 text-xs text-gray-400 font-mono">
                           <InlineEditCell
                             value={v.barcode || ''}
                             saving={isSavingVariant(item.product_id, v.id, 'barcode')}
@@ -983,7 +983,7 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                             {v.barcode || '-'}
                           </InlineEditCell>
                         </td>
-                        <td className="px-6 py-3 text-sm text-right text-gray-600">
+                        <td className="px-3 py-2 text-sm text-right text-gray-600">
                           <InlineEditCell
                             type="number"
                             min={0}
@@ -996,7 +996,7 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                             {v.cost_price != null ? `₹${v.cost_price.toFixed(2)}` : '-'}
                           </InlineEditCell>
                         </td>
-                        <td className="px-6 py-3 text-sm text-right font-medium">
+                        <td className="px-3 py-2 text-sm text-right font-medium">
                           <InlineEditCell
                             type="number"
                             min={0}
@@ -1018,7 +1018,7 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                           </InlineEditCell>
                         </td>
                         {selectedStoreId === 'all' && stores.map(s => (
-                          <td key={s.id} className="px-4 py-3 text-sm text-right text-gray-300">
+                          <td key={s.id} className="px-3 py-2 text-sm text-right text-gray-300">
                             <InlineEditCell
                               readOnly
                               readOnlyMessage="Per-store stock is tracked at product level"
@@ -1029,7 +1029,7 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                             </InlineEditCell>
                           </td>
                         ))}
-                        <td className="px-6 py-3 text-center whitespace-nowrap">
+                        <td className="px-3 py-2 text-center whitespace-nowrap">
                           <InlineEditCell
                             type="number"
                             min={0}
@@ -1042,7 +1042,7 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusColor}`}>{statusLabel}</span>
                           </InlineEditCell>
                         </td>
-                        <td className="px-6 py-3 text-right whitespace-nowrap">
+                        <td className="px-3 py-2 text-right whitespace-nowrap">
                           <Button variant="ghost" size="sm" className="text-green-600 text-xs" onClick={() => onAction(item.product_id, `${item.product_name} — ${v.name}`, 'stock-in', v.id)}>+ In</Button>
                         </td>
                       </tr>
@@ -1062,12 +1062,12 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
               const isVariant = Boolean(row.variant_id)
               return (
                 <tr key={row.key} className="hover:bg-gray-50">
-                  <td className="px-6 py-3 text-sm font-medium">
+                  <td className="px-3 py-2 text-sm font-medium">
                     <Link to={`/products/${row.product_id}`} className="text-blue-600 hover:text-blue-800 hover:underline">
                       {row.product_name}
                     </Link>
                   </td>
-                  <td className="px-6 py-3 text-sm text-gray-700">
+                  <td className="px-3 py-2 text-sm text-gray-700">
                     {isVariant ? (
                       <InlineEditCell
                         value={row.name}
@@ -1083,7 +1083,7 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                       <span className="ml-2 text-xs text-gray-400">Exp: {row.expiration_date}</span>
                     )}
                   </td>
-                  <td className="px-6 py-3 text-sm text-gray-500">
+                  <td className="px-3 py-2 text-sm text-gray-500">
                     {isVariant ? (
                       <InlineEditCell
                         value={row.sku || ''}
@@ -1102,7 +1102,7 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                       </InlineEditCell>
                     )}
                   </td>
-                  <td className="px-6 py-3 text-xs text-gray-400 font-mono">
+                  <td className="px-3 py-2 text-xs text-gray-400 font-mono">
                     {isVariant ? (
                       <InlineEditCell
                         value={row.barcode || ''}
@@ -1121,7 +1121,7 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                       </InlineEditCell>
                     )}
                   </td>
-                  <td className="px-6 py-3 text-sm text-right text-gray-600">
+                  <td className="px-3 py-2 text-sm text-right text-gray-600">
                     {isVariant ? (
                       <InlineEditCell
                         type="number"
@@ -1148,7 +1148,7 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                       </InlineEditCell>
                     )}
                   </td>
-                  <td className="px-6 py-3 text-sm text-right font-medium">
+                  <td className="px-3 py-2 text-sm text-right font-medium">
                     <InlineEditCell
                       type="number"
                       min={0}
@@ -1178,7 +1178,7 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                   {selectedStoreId === 'all' && stores.map(s => {
                     if (isVariant) {
                       return (
-                        <td key={s.id} className="px-4 py-3 text-sm text-right text-gray-300">
+                        <td key={s.id} className="px-3 py-2 text-sm text-right text-gray-300">
                           <span title="Per-store stock is tracked at product level">—</span>
                         </td>
                       )
@@ -1186,7 +1186,7 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                     const sq = row.store_quantities?.find(q => q.store_id === s.id)
                     const qty = sq?.quantity ?? 0
                     return (
-                      <td key={s.id} className="px-4 py-3 text-sm text-right text-indigo-600 font-medium">
+                      <td key={s.id} className="px-3 py-2 text-sm text-right text-indigo-600 font-medium">
                         <InlineEditCell
                           type="number"
                           min={0}
@@ -1205,7 +1205,7 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                       </td>
                     )
                   })}
-                  <td className="px-6 py-3 text-center whitespace-nowrap">
+                  <td className="px-3 py-2 text-center whitespace-nowrap">
                     {isVariant ? (
                       <InlineEditCell
                         type="number"
@@ -1238,7 +1238,7 @@ function SummaryTab({ data, loading, stores, selectedStoreId, onAction, onViewHi
                       </InlineEditCell>
                     )}
                   </td>
-                  <td className="px-6 py-3 text-right whitespace-nowrap">
+                  <td className="px-3 py-2 text-right whitespace-nowrap">
                     <div className="inline-flex flex-nowrap items-center justify-end gap-1">
                       <Button variant="ghost" size="sm" className="text-gray-500 text-xs" onClick={() => onViewHistory(row.product_id)}>
                         <History className="w-3 h-3 mr-1" />History
