@@ -32,7 +32,7 @@ export default function SearchBarBlock({ style, props, blockId }: Props) {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
-    if (query.trim()) navigate(storePath(`/products?q=${encodeURIComponent(query.trim())}`))
+    if (query.trim()) navigate(storePath(`/products?search=${encodeURIComponent(query.trim())}`))
   }
 
   return (

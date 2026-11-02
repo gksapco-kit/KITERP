@@ -11,7 +11,7 @@ export function mergePageStyle(site: Partial<StyleConfig>, pageId?: string | nul
   return mergeStyle(site, pageOverrides || {})
 }
 
-const SHELL_BLOCK_TYPES = new Set(['nav', 'announcement_bar'])
+const SHELL_BLOCK_TYPES = new Set(['nav', 'announcement_bar', 'silk_atelier_mega_nav'])
 
 /** Leading announcement/nav blocks stay outside overflow-x-clip so sticky headers work. */
 export function splitLeadingShellBlocks(blocks: PublicBlock[]) {

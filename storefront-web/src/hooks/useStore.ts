@@ -137,13 +137,42 @@ export function useStoreCategories(params?: Record<string, unknown>) {
   })
 }
 
-export function useProducts(params?: Record<string, unknown> | null) {
+type UseProductsOptions = {
+  /** Show the previous page of results while filters change (catalog only). */
+  keepPrevious?: boolean
+  staleTimeMs?: number
+}
+
+export function prefetchStoreProducts(
+  client: QueryClient,
+  vendorSlug: string,
+  params: Record<string, unknown>,
+  staleTimeMs = 30_000,
+) {
+  if (!vendorSlug) return Promise.resolve()
+  return client.prefetchQuery({
+    queryKey: [...storeKeys.products(params), vendorSlug],
+    queryFn: () => storeApi.listProducts(params),
+    staleTime: staleTimeMs,
+  })
+}
+
+export function useProducts(params?: Record<string, unknown> | null, options?: UseProductsOptions) {
   const { vendorSlug } = useVendor()
+  const keepPrevious = options?.keepPrevious === true
+  const staleTimeMs = options?.staleTimeMs ?? (keepPrevious ? 30_000 : 0)
   return useQuery({
     queryKey: [...storeKeys.products(params ?? undefined), vendorSlug],
     queryFn: () => storeApi.listProducts(params ?? undefined),
     enabled: !!vendorSlug && params !== null,
-    // Do not keep previous vendor's products while switching /store/:slug in the same tab.
+    staleTime: staleTimeMs,
+    placeholderData: keepPrevious
+      ? (previousData, previousQuery) => {
+          const prevVendor = previousQuery?.queryKey?.[previousQuery.queryKey.length - 1]
+          if (prevVendor !== vendorSlug) return undefined
+          return previousData
+        }
+      : undefined,
   })
 }
 

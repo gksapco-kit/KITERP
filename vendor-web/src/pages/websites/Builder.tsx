@@ -307,6 +307,8 @@ import {
   type ThemeColors,
 } from '@/lib/blockColorOverrides'
 import { getSectionLayoutOptions, findActiveSectionLayoutOption, findBestSectionLayoutOption, findActiveLayoutIndex, getCycledSectionLayoutOption } from '@/lib/sectionLayoutPresets'
+import { PremiumBlockEditor } from '@/components/websites/PremiumBlockEditor'
+import { PREMIUM_BLOCK_SCHEMAS, PREMIUM_STOCK_EXTRA_FIELDS, getPremiumSchema } from '@/lib/premiumBlockSchemas'
 import {
   BLOCK_AUTO_SOURCE,
   DATA_SOURCES,
@@ -752,6 +754,18 @@ const COMMERCE_LIBRARY_BLOCKS: BlockDef[] = [
 
 BLOCK_CATALOG.push(...COMMERCE_LIBRARY_BLOCKS)
 
+// Premium Silk Atelier sections (editable through <PremiumBlockEditor>)
+BLOCK_CATALOG.push(
+  ...PREMIUM_BLOCK_SCHEMAS.map((s): BlockDef => ({
+    type: s.type,
+    label: s.label,
+    icon: Sparkles,
+    desc: s.desc,
+    category: s.type === 'silk_atelier_mega_nav' ? 'structure' : 'premium',
+    defaultProps: JSON.parse(JSON.stringify(s.defaultProps)) as unknown as BlockProps,
+  })),
+)
+
 
 // ?? Block mini-preview thumbnails (emoji shorthand) ???????????????????????????
 const BLOCK_THUMBNAILS: Record<string, string> = {
@@ -791,6 +805,7 @@ function getBlockCatalogDef(blockType: string): BlockDef | undefined {
 const BLOCK_CATEGORIES = [
   { id: 'all', label: 'All Sections' },
   { id: 'structure', label: 'Structure' },
+  { id: 'premium', label: 'Premium Â· Silk Atelier' },
   { id: 'hero', label: 'Hero' },
   { id: 'content', label: 'Content' },
   { id: 'social', label: 'Social Proof' },
@@ -4298,8 +4313,8 @@ function pagesNavKey(pages: WebsitePage[]): string {
     .join('|')
 }
 
-const GLOBAL_STRUCTURE_BLOCK_TYPES = new Set(['announcement_bar', 'nav', 'footer'])
-const STRUCTURE_ONLY_BLOCK_TYPES = new Set(['nav', 'announcement_bar', 'footer', 'cookie_consent'])
+const GLOBAL_STRUCTURE_BLOCK_TYPES = new Set(['announcement_bar', 'nav', 'silk_atelier_mega_nav', 'footer'])
+const STRUCTURE_ONLY_BLOCK_TYPES = new Set(['nav', 'announcement_bar', 'silk_atelier_mega_nav', 'footer', 'cookie_consent'])
 
 function builderPageHasContentBlocks(blocks: WebsiteBlock[] | undefined): boolean {
   return (blocks || []).some(b => !STRUCTURE_ONLY_BLOCK_TYPES.has(b.block_type))
@@ -4377,6 +4392,13 @@ function getPreferredBlockInsertIndex(
     while (idx < len && blocks[idx].block_type === 'announcement_bar') idx += 1
     return idx
   }
+  if (blockType === 'silk_atelier_mega_nav') {
+    // Collections menu sits directly under the main nav bar.
+    let idx = 0
+    while (idx < len && blocks[idx].block_type === 'announcement_bar') idx += 1
+    if (idx < len && blocks[idx].block_type === 'nav') idx += 1
+    return idx
+  }
   if (blockType === 'footer') return len
   const footerIdx = blocks.findIndex(b => b.block_type === 'footer')
   return footerIdx >= 0 ? footerIdx : len
@@ -4409,7 +4431,7 @@ function sortPageBlocks(blocks: WebsiteBlock[]): WebsiteBlock[] {
 /** First/last index where regular content blocks may be placed (between header shell and footer). */
 function getContentMoveBounds(blocks: WebsiteBlock[]): { min: number; max: number } {
   let min = 0
-  while (min < blocks.length && (blocks[min].block_type === 'announcement_bar' || blocks[min].block_type === 'nav')) {
+  while (min < blocks.length && (blocks[min].block_type === 'announcement_bar' || blocks[min].block_type === 'nav' || blocks[min].block_type === 'silk_atelier_mega_nav')) {
     min += 1
   }
   let max = blocks.length - 1
@@ -4543,7 +4565,7 @@ function consolidateStructureBlocksOnHomepage(
 
   let next: Record<string, WebsiteBlock[]> = { ...blocksByPage }
 
-  for (const type of ['announcement_bar', 'nav', 'footer'] as const) {
+  for (const type of ['announcement_bar', 'nav', 'silk_atelier_mega_nav', 'footer'] as const) {
     let canonical: WebsiteBlock | undefined = (next[home.id] || []).find(b => b.block_type === type)
     if (!canonical) {
       for (const page of pages) {
@@ -7201,6 +7223,40 @@ function formatCountdownEndLabel(iso: string | undefined | null): string {
     hour: 'numeric',
     minute: '2-digit',
   })
+}
+
+/**
+ * Content editor for the premium Silk Atelier blocks (and their opt-in options on the stock
+ * announcement bar / nav). Renders nothing for every other block type.
+ */
+function PremiumBlockPanel({
+  block, siteId, pages, onUpdate,
+}: {
+  block: WebsiteBlock
+  siteId: string
+  pages?: WebsitePage[]
+  onUpdate: (props: Partial<BlockProps>) => void
+}) {
+  const schema = getPremiumSchema(block.block_type)
+  const p = (block.props || {}) as Record<string, unknown>
+  const extra = PREMIUM_STOCK_EXTRA_FIELDS[block.block_type]
+  const showExtra = Boolean(extra) && (
+    block.block_type === 'announcement_bar' ? p.lead_text !== undefined : p.search_style === 'bar'
+  )
+  if (!schema && !showExtra) return null
+  return (
+    <PremiumBlockEditor
+      key={block.id}
+      heading={schema ? 'Section content' : 'Premium header options'}
+      fields={schema ? schema.fields : extra!}
+      props={p}
+      onUpdate={patch => onUpdate(patch as Partial<BlockProps>)}
+      pagePaths={(pages || []).map(pg => builderPageStorePath(pg))}
+      renderImage={(value, onChange) => (
+        <InlineMediaPicker siteId={siteId} value={value} onChange={onChange} label="" />
+      )}
+    />
+  )
 }
 
 function PropsEditor({
@@ -19735,7 +19791,7 @@ export default function WebsiteBuilder() {
                         }
                         saving={savingBlockId === block.id}
                         visible={block.visible !== false}
-                        shellHeader={block.block_type === 'nav' || block.block_type === 'announcement_bar'}
+                        shellHeader={block.block_type === 'nav' || block.block_type === 'announcement_bar' || block.block_type === 'silk_atelier_mega_nav'}
                         dropBefore={dropTarget?.idx === idx && dropTarget.before}
                         dropAfter={dropTarget?.idx === idx && !dropTarget.before}
                         dragging={draggingBlockIdx === idx}
@@ -19851,6 +19907,15 @@ export default function WebsiteBuilder() {
                             || (overlayImageTarget?.blockId === block.id && overlayImageTarget?.overlayId)
 
                           if (!sectionResizeActive || suppressSectionResizeChrome) return null
+                          if (
+                            block.block_type === 'announcement_bar'
+                            || block.block_type === 'nav'
+                            || block.block_type === 'silk_atelier_mega_nav'
+                            || block.block_type === 'heritage_mega_nav'
+                            || block.block_type === 'ambica_mega_nav'
+                          ) {
+                            return null
+                          }
 
                           const sectionSpacing = resolveBlockSectionSpacing(block, device)
                           const { paddingTop, paddingBottom } = sectionSpacing
@@ -20185,6 +20250,18 @@ export default function WebsiteBuilder() {
               <div className={builderPanelUi.panelBody}>
                 {rightPanel === 'props' && (
                   selectedBlock ? (
+                    <>
+                    <PremiumBlockPanel
+                      block={selectedBlock}
+                      siteId={siteId!}
+                      pages={localPages}
+                      onUpdate={updates => handleUpdateBlockProps(selectedBlock.id, updates)}
+                    />
+                    {getPremiumSchema(selectedBlock.block_type) && (
+                      <p className="border-t border-gray-100 px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                        Layout, spacing &amp; visibility
+                      </p>
+                    )}
                     <PropsEditor
                       block={selectedBlock}
                       onUpdate={updates => handleUpdateBlockProps(selectedBlock.id, updates)}
@@ -20208,6 +20285,7 @@ export default function WebsiteBuilder() {
                       previewDevice={device}
                       onPreviewDeviceChange={setDevice}
                     />
+                    </>
                   ) : (
                     <div className="p-4 space-y-4">
                       <div className="text-center py-8">

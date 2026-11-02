@@ -83,8 +83,20 @@ export default function StorefrontBrowserPreviewShell() {
     || (legacyTarget ? parseTokenFromLegacyTarget(legacyTarget) : null)
     || '').trim()
   const pageSlug = searchParams.get('page')?.trim() || null
-  const catalogRoute = searchParams.get('route')?.trim() || null
+  const catalogRouteBase = searchParams.get('route')?.trim() || null
   const pending = searchParams.get(DRAFT_PREVIEW_PENDING_PARAM) === '1'
+  // Forward catalog filters (e.g. ?category=…, ?search=…) from the shell URL to the catalog iframe;
+  // previously only the bare route (`products`) was embedded, so menu links lost their filter.
+  const catalogRoute = (() => {
+    if (!catalogRouteBase || catalogRouteBase.includes('?')) return catalogRouteBase
+    const shellOnly = new Set(['token', 'route', 'page', 'target', DRAFT_PREVIEW_PENDING_PARAM, PREVIEW_SITE_QUERY_PARAM])
+    const extra = new URLSearchParams()
+    searchParams.forEach((value, key) => {
+      if (!shellOnly.has(key)) extra.append(key, value)
+    })
+    const qs = extra.toString()
+    return qs ? `${catalogRouteBase}?${qs}` : catalogRouteBase
+  })()
   /** Isolates this shell so navigate/error from other site builders cannot retarget it. */
   const previewSiteId = searchParams.get(PREVIEW_SITE_QUERY_PARAM)?.trim() ?? ''
   const templateTarget = legacyTarget && isAllowedTemplateTarget(legacyTarget) ? legacyTarget : null

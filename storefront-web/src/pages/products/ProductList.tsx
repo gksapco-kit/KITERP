@@ -39,6 +39,11 @@ import { shouldShowServiceBookCta, serviceBookingListCtaLabel } from '@/lib/serv
 import { resolveServiceDuration, resolveServicePrice } from '@/lib/servicePricing'
 import { ServiceCard } from '@/kit/services/ServiceBlocks'
 import { vendorDashboardUrl } from '@/lib/vendorDashboardUrl'
+import { siteUsesSilkAtelierCatalog } from '@/lib/storefrontLayoutChrome'
+import { CatalogMegaNavBar } from '@/components/catalog/CatalogMegaNavBar'
+import { SilkAtelierCollectionHeader, buildPriceBands } from '@/components/catalog/SilkAtelierCollectionHeader'
+import { SilkAtelierRefineBar } from '@/components/catalog/SilkAtelierRefineBar'
+import { SilkAtelierCatalogProductCard } from '@/components/catalog/SilkAtelierCatalogProductCard'
 
 type FilterType = 'products' | 'services' | 'both'
 
@@ -236,7 +241,7 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
   const cartQtyByProduct = useCartProductQtyMap()
   const { setQty: setCatalogQty } = useSetCatalogCartQty()
   const cardStyle = theme.card_style || 'default'
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const initialSearch = searchParams.get('search') || ''
   const initialCategory = searchParams.get('category') || ''
 
@@ -271,9 +276,61 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
       : { to: storePath('/account/orders'), label: 'My Orders' }
   const { data: catData } = useStoreCategories({ tree: true })
   const categories = catData?.categories || []
+  const flatCategories = useMemo(() => flattenCats(categories), [categories])
+
+  const patchCatalogQuery = (patch: {
+    category?: string
+    search?: string
+    collection?: string
+    menu?: string
+    menu_category?: string
+  }) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (patch.category !== undefined) {
+        if (patch.category) next.set('category', patch.category)
+        else next.delete('category')
+      }
+      if (patch.collection !== undefined) {
+        if (patch.collection) next.set('collection', patch.collection)
+        else next.delete('collection')
+      }
+      if (patch.menu !== undefined) {
+        if (patch.menu) next.set('menu', patch.menu)
+        else next.delete('menu')
+      }
+      if (patch.menu_category !== undefined) {
+        if (patch.menu_category) next.set('menu_category', patch.menu_category)
+        else next.delete('menu_category')
+      }
+      if (patch.search !== undefined) {
+        if (patch.search) next.set('search', patch.search)
+        else next.delete('search')
+      }
+      return next
+    }, { replace: true })
+  }
+
+  const setCatalogCategory = (name: string, collectionTitle?: string) => {
+    setSelectedCategory(name)
+    setPage(1)
+    patchCatalogQuery({
+      category: name,
+      collection: collectionTitle || name || '',
+      menu: '',
+      menu_category: '',
+    })
+  }
+
+  const silkCollectionCatalog =
+    defaultFilterType === 'products' && siteUsesSilkAtelierCatalog(builderSite)
 
   // Build query params - when showing "both" - when showing "both", fetch larger pages and paginate client-side
-  const pageSize = filterType === 'both' ? 50 : 12
+  const pageSize = useMemo(() => {
+    if (filterType === 'both') return 50
+    if (silkCollectionCatalog && filterType === 'products' && page === 1) return 100
+    return CATALOG_PAGE_SIZE
+  }, [filterType, silkCollectionCatalog, page])
   const productParams = useMemo(() => ({
     page: filterType === 'services' ? 1 : (filterType === 'both' ? 1 : page),
     size: pageSize,
@@ -295,7 +352,8 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
   }), [page, search, selectedCategory, minPrice, maxPrice, filterType, pageSize, sortBy])
 
   const { data: productsData, isLoading: productsLoading, isError: productsError, refetch: refetchProducts } = useProducts(
-    filterType === 'services' ? null : productParams
+    filterType === 'services' ? null : productParams,
+    { keepPrevious: true },
   )
   const { data: servicesData, isLoading: servicesLoading, isError: servicesError, refetch: refetchServices } = useServices(
     filterType === 'products' ? null : serviceParams
@@ -362,8 +420,11 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
       const start = (page - 1) * CATALOG_PAGE_SIZE
       return sortedItems.slice(start, start + CATALOG_PAGE_SIZE)
     }
+    if (silkCollectionCatalog && filterType === 'products' && page === 1) {
+      return sortedItems.slice(0, CATALOG_PAGE_SIZE)
+    }
     return sortedItems
-  }, [sortedItems, page, filterType])
+  }, [sortedItems, page, filterType, silkCollectionCatalog])
 
   const totalCount = useMemo(() => {
     if (filterType === 'products') return productsData?.total || 0
@@ -385,20 +446,102 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
     if (page > pages) setPage(pages)
   }, [isLoading, page, totalCount])
 
-  const skipPageScroll = useRef(true)
+  const lastScrolledPage = useRef(page)
   useEffect(() => {
-    if (skipPageScroll.current) {
-      skipPageScroll.current = false
-      return
-    }
+    // Only scroll when the page number really changed (not on first mount / StrictMode re-run).
+    if (lastScrolledPage.current === page) return
+    lastScrolledPage.current = page
     document.getElementById('catalog-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [page])
 
   const clearFilters = () => {
-    setSearch(''); setSearchInput(''); setSelectedCategory(''); setMinPrice(''); setMaxPrice(''); setInStockOnly(false); setPage(1)
+    setSearch('')
+    setSearchInput('')
+    setSelectedCategory('')
+    setMinPrice('')
+    setMaxPrice('')
+    setInStockOnly(false)
+    setPage(1)
+    patchCatalogQuery({ category: '', search: '', collection: '', menu: '', menu_category: '' })
   }
 
-  const clearSearch = () => { setSearch(''); setSearchInput(''); setPage(1) }
+  const clearSearch = () => {
+    setSearch('')
+    setSearchInput('')
+    setPage(1)
+    patchCatalogQuery({ search: '' })
+  }
+
+  // Menu / banner links change ?category= or ?search= while this page stays mounted
+  // (same route), so mirror the URL into the filters instead of reading it only once.
+  const urlCategory = searchParams.get('category') || ''
+  const urlSearch = searchParams.get('search') || ''
+  const urlCollection = searchParams.get('collection') || ''
+  const urlMenu = searchParams.get('menu') || ''
+  const urlMenuCategory = searchParams.get('menu_category') || ''
+  const lastUrlCategory = useRef(urlCategory)
+  const lastUrlSearch = useRef(urlSearch)
+  const lastUrlCollection = useRef(urlCollection)
+  useEffect(() => {
+    if (
+      lastUrlCategory.current === urlCategory
+      && lastUrlSearch.current === urlSearch
+      && lastUrlCollection.current === urlCollection
+    ) {
+      return
+    }
+    lastUrlCategory.current = urlCategory
+    lastUrlSearch.current = urlSearch
+    lastUrlCollection.current = urlCollection
+    setSelectedCategory(urlCategory)
+    setSearch(urlSearch)
+    setSearchInput(urlSearch)
+    setMinPrice('')
+    setMaxPrice('')
+    setPage(1)
+  }, [urlCategory, urlSearch, urlCollection])
+
+  // Silk Atelier / RK-style collection page (maroon banner, REFINE, boutique cards).
+  const collectionHeader = silkCollectionCatalog
+  const collectionTitle =
+    urlCollection
+    || selectedCategory
+    || (search ? `Results for “${search}”` : 'Shop all collections')
+  const collectionParentCrumb = useMemo(() => {
+    if (!urlMenu.trim() || urlMenu.trim() === collectionTitle.trim()) return null
+    const parentCat = urlMenuCategory.trim() || urlMenu.trim()
+    const qs = new URLSearchParams({
+      category: parentCat,
+      collection: urlMenu.trim(),
+    })
+    return {
+      label: urlMenu.trim(),
+      href: storePath(`/products?${qs.toString()}`),
+    }
+  }, [urlMenu, urlMenuCategory, collectionTitle, storePath])
+  const silkPrimary = String((builderSite?.style_config as Record<string, unknown> | undefined)?.primary_color || theme.colors.primary)
+  const silkAccent = String((builderSite?.style_config as Record<string, unknown> | undefined)?.accent_color || '#C9A04A')
+  const silkHeadingFont = String((builderSite?.style_config as Record<string, unknown> | undefined)?.font_heading || 'Cormorant Garamond')
+  const silkBodyFont = String((builderSite?.style_config as Record<string, unknown> | undefined)?.font_body || 'Montserrat')
+  const catalogBrandLabel =
+    (effectiveVendor?.display_name || vendor?.display_name || builderSite?.name || '').trim() || undefined
+  const bandPrices = useMemo(
+    () =>
+      collectionHeader
+        ? (productsData?.items || [])
+            .map((p: Product) =>
+              catalogEffectivePrice(p, true, (p.variants || []).filter((v) => v.is_active !== false)),
+            )
+            .filter((n): n is number => typeof n === 'number' && n > 0)
+        : [],
+    [collectionHeader, productsData],
+  )
+  const priceBands = useMemo(() => buildPriceBands(bandPrices), [bandPrices])
+  const activeBandKey =
+    priceBands.find(
+      (b) =>
+        (b.min != null ? String(b.min) : '') === minPrice && (b.max != null ? String(b.max) : '') === maxPrice,
+    )?.key ?? null
 
   // Radix trigger + content styling: keeps the dropdown inside the viewport on
   // mobile (native <select> popups overflow/overlap on small screens).
@@ -430,8 +573,55 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
   }
 
   return (
-    <div className="max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8 py-2 sm:py-3">
+    <>
+    {collectionHeader && <CatalogMegaNavBar />}
+    {collectionHeader && (
+      <SilkAtelierCollectionHeader
+        title={collectionTitle}
+        count={totalCount}
+        bands={priceBands}
+        activeBandKey={activeBandKey}
+        onPickBand={(band) => {
+          setMinPrice(band?.min != null ? String(band.min) : '')
+          setMaxPrice(band?.max != null ? String(band.max) : '')
+          setPage(1)
+        }}
+        homeHref={storePath('/')}
+        parentCrumb={collectionParentCrumb}
+        primary={silkPrimary}
+        accent={silkAccent}
+        headingFont={silkHeadingFont}
+        bodyFont={silkBodyFont}
+      />
+    )}
+    <div className={cn('mx-auto max-w-[1440px] px-3 sm:px-6 lg:px-8', collectionHeader ? 'py-4 sm:py-5' : 'py-2 sm:py-3')}>
+      {collectionHeader && (
+        <SilkAtelierRefineBar
+          count={totalCount}
+          primary={silkPrimary}
+          accent={silkAccent}
+          bodyFont={silkBodyFont}
+          headingFont={silkHeadingFont}
+          categories={flatCategories}
+          selectedCategory={selectedCategory}
+          collectionLabel={urlCollection || undefined}
+          onCategoryChange={setCatalogCategory}
+          priceBands={priceBands}
+          activeBandKey={activeBandKey}
+          onPickBand={(band) => {
+            setMinPrice(band?.min != null ? String(band.min) : '')
+            setMaxPrice(band?.max != null ? String(band.max) : '')
+            setPage(1)
+          }}
+          sortBy={sortBy}
+          onSortChange={(v) => {
+            setSortBy(v)
+            setPage(1)
+          }}
+        />
+      )}
       {/* Breadcrumb */}
+      {!collectionHeader && (<>
       <nav className={`${themeUi.breadcrumbNav} mb-1 text-xs sm:text-sm leading-none`}>
         <Link to={storePath('/')} className={themeUi.linkOnPage}>Home</Link>
         <ChevronRight className="w-3 h-3 opacity-50" />
@@ -454,6 +644,7 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
           {pageDescription}
         </p>
       </header>
+      </>)}
 
       <div className="flex flex-col lg:flex-row gap-4 sm:gap-6">
         {/* Sidebar Filters - toggled by Filters button */}
@@ -555,6 +746,7 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
         {/* Main content */}
         <div className="flex-1 min-w-0">
           {/* Unified toolbar: search + sort + view + count + active chips */}
+          {!collectionHeader && (
           <div className={`mb-3 rounded-xl border shadow-sm overflow-hidden ${themeUi.cardSurface} ${themeUi.cardBorder}`}>
             <div className="flex flex-col gap-2 p-2.5 sm:p-3">
               <div className="flex flex-col lg:flex-row lg:items-center gap-2">
@@ -575,8 +767,16 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
                   className="flex flex-1 min-w-0 flex-col gap-2 sm:flex-row sm:items-center"
                   onSubmit={(e) => {
                     e.preventDefault()
-                    setSearch(searchInput.trim())
+                    const q = searchInput.trim()
+                    setSearch(q)
                     setPage(1)
+                    patchCatalogQuery({
+                      search: q,
+                      category: '',
+                      collection: '',
+                      menu: '',
+                      menu_category: '',
+                    })
                   }}
                 >
                   <div className="relative flex-1 min-w-0 max-w-2xl">
@@ -732,8 +932,8 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
               </div>
             </div>
           </div>
+          )}
 
-          {/* Mobile Filters */}
           {/* Products/Services grid/list */}
           <div id="catalog-results">
           {isLoading ? (
@@ -742,11 +942,17 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
             <div className="text-center py-20 bg-white rounded-xl border">
               <ShoppingBag className="w-16 h-16 text-gray-200 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                {catalogError ? 'Could not load catalog' : 'No items found'}
+                {catalogError
+                  ? 'Could not load catalog'
+                  : collectionHeader && selectedCategory && !minPrice && !maxPrice && !search
+                    ? `No pieces in ${selectedCategory} yet`
+                    : 'No items found'}
               </h3>
               <p className="text-gray-500 text-sm mb-4">
                 {catalogError
                   ? `Your ${defaultFilterType === 'services' ? 'services' : 'products'} are still in the store — try refreshing the page.`
+                  : collectionHeader && selectedCategory && !minPrice && !maxPrice && !search
+                    ? `Products must have the category "${selectedCategory}" to appear here. New designs are added regularly — please check back soon.`
                   : (search || selectedCategory || minPrice || maxPrice || inStockOnly)
                     ? 'Try adjusting your search or filters'
                     : defaultFilterType === 'services'
@@ -782,14 +988,16 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
             <div
               className={cn(
                 'grid',
-                useSectionImageFrame && productCardLayout
-                  ? catalogGridResponsiveColClass(productCardLayout.columns, 'product_grid')
-                  : defaultFilterType === 'services'
-                    ? 'grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-2.5 lg:grid-cols-3 xl:grid-cols-4'
-                    : 'grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-2.5 xl:grid-cols-4',
+                collectionHeader && defaultFilterType === 'products'
+                  ? 'grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4'
+                  : useSectionImageFrame && productCardLayout
+                    ? catalogGridResponsiveColClass(productCardLayout.columns, 'product_grid')
+                    : defaultFilterType === 'services'
+                      ? 'grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-2.5 lg:grid-cols-3 xl:grid-cols-4'
+                      : 'grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-2.5 xl:grid-cols-4',
               )}
               style={
-                useSectionImageFrame && productCardLayout
+                useSectionImageFrame && productCardLayout && !collectionHeader
                   ? { gap: productCardLayout.itemGap }
                   : undefined
               }
@@ -807,6 +1015,28 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
                 const effectivePrice = catalogEffectivePrice(item, isProduct, variants)
                 const showFrom = isProduct && !(Number(item.price) > 0) && effectivePrice != null && variants.some((v: any) => Number(v.price) > 0)
                 const hasPrice = effectivePrice != null
+
+                if (collectionHeader && isProduct) {
+                  const compareAt =
+                    (item.compare_at_price ?? 0) > (effectivePrice ?? 0)
+                      ? Number(item.compare_at_price)
+                      : null
+                  return (
+                    <SilkAtelierCatalogProductCard
+                      key={`${item.type}-${item.id}`}
+                      name={item.name}
+                      slug={item.slug}
+                      imageUrl={imageUrl}
+                      price={effectivePrice}
+                      compareAtPrice={compareAt}
+                      linkTo={cardLinkTo}
+                      primary={silkPrimary}
+                      accent={silkAccent}
+                      headingFont={silkHeadingFont}
+                      brandLabel={catalogBrandLabel}
+                    />
+                  )
+                }
 
                 if (cardStyle === 'modern' && !(isProduct && useSectionImageFrame)) {
                   // Dark overlay card: image fills the card, gradient overlay at bottom, text over image
@@ -1180,5 +1410,6 @@ export default function ProductList({ defaultFilterType = 'products' }: CatalogL
         </div>
       </div>
     </div>
+    </>
   )
 }

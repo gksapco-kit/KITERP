@@ -20,8 +20,12 @@ import {
 import { formatKiterpBrandText } from '@/kit/footer/kiterpBrandText'
 import {
   buildFooterContactLinks,
+  collectBusinessContactEmails,
+  collectBusinessContactPhones,
   isFooterContactColumn,
 } from '@/lib/businessContact'
+import { formatPhoneDisplay } from '@/lib/phoneE164'
+import { siteUsesSilkAtelierCatalog } from '@/lib/storefrontLayoutChrome'
 import {
   isBlockFieldHidden,
   isNestedBlockFieldHidden,
@@ -32,6 +36,7 @@ import { readSocialIconStyleFromSettings, SocialPlatformIcon } from '@/lib/socia
 import type { SocialLinksIconStyle } from '@/lib/socialLinksMode'
 import { resolveSocialLinkHref } from '@/lib/socialLinkHref'
 import { builderSectionContainerClass } from '@/lib/builderSectionLayout'
+import { SilkAtelierFooter } from '@/components/builder/blocks/silk_atelier/SilkAtelierFooter'
 
 interface Props {
   site: PublicSite
@@ -545,6 +550,44 @@ export default function FooterBlock({ site, style, props, liveItems, blockId }: 
         socialIconStyle={socialIconStyle}
         profile={profile}
         vendor={effectiveVendor}
+      />
+    )
+  }
+
+  const isSilkAtelierFooter =
+    footerStyle === 'silk_atelier'
+    || (siteUsesSilkAtelierCatalog(site) && footerStyle === 'dark' && props.show_newsletter === true)
+
+  if (isSilkAtelierFooter && footerColumns.length > 0) {
+    const phones = collectBusinessContactPhones(profile, effectiveVendor)
+    const emails = collectBusinessContactEmails(profile, effectiveVendor)
+    const supportExtras: Array<{ label: string; href?: string }> = []
+    phones.slice(0, 2).forEach((p) => {
+      const display = formatPhoneDisplay(p) || p
+      const tel = p.replace(/[^\d+]/g, '')
+      supportExtras.push({ label: `Call: ${display}`, href: tel ? `tel:${tel}` : undefined })
+    })
+    emails.slice(0, 2).forEach((e) => {
+      supportExtras.push({ label: e, href: `mailto:${e}` })
+    })
+
+    return (
+      <SilkAtelierFooter
+        columns={footerColumns}
+        footerBg={footerBg}
+        bodyFont={style.font_body || undefined}
+        newsletterBlurb={String(props.newsletter_blurb || '')}
+        registeredAddress={String(props.registered_address || '')}
+        copyright={copyright}
+        poweredByText={poweredByText}
+        poweredByHref={poweredByHref}
+        poweredByNewTab={poweredByNewTab}
+        supportExtras={supportExtras}
+        LinkWrap={({ href, className, children }) => (
+          <FooterLink href={href} className={className}>
+            {children}
+          </FooterLink>
+        )}
       />
     )
   }

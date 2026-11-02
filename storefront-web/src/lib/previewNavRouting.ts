@@ -12,6 +12,25 @@ function normalizeNavPathname(rawPath: string): string {
   return (pathOnly.startsWith('/') ? pathOnly : `/${pathOnly}`).replace(/\/+$/, '') || '/'
 }
 
+const CATALOG_FILTER_QUERY_KEYS = [
+  'search',
+  'category',
+  'collection',
+  'menu',
+  'menu_category',
+  'min_price',
+  'max_price',
+  'sort',
+] as const
+
+/** True when a store nav href carries catalog list filters (search, category, …). */
+export function storeNavPathHasCatalogFilters(rawPath: string): boolean {
+  const qIdx = rawPath.indexOf('?')
+  if (qIdx < 0) return false
+  const params = new URLSearchParams(rawPath.slice(qIdx + 1))
+  return CATALOG_FILTER_QUERY_KEYS.some((key) => Boolean(params.get(key)?.trim()))
+}
+
 export function isDraftPreviewShellHref(pathname: string): boolean {
   return (pathname.replace(/\/+$/, '') || '/') === '/preview/draft'
 }

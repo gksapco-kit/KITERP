@@ -9,7 +9,9 @@ import {
   builderSiteHomePage,
   siteFooterShellBlock,
   siteShellBlocks,
+  siteUsesSilkAtelierStickyHeader,
 } from '@/lib/storefrontLayoutChrome'
+import { cn } from '@/lib/utils'
 
 export function BuilderSiteShellChrome({ part }: { part: 'header' | 'footer' }) {
   const { builderSite } = useBuilderSite()
@@ -27,8 +29,9 @@ export function BuilderSiteShellChrome({ part }: { part: 'header' | 'footer' }) 
     // be confined to this short header-only .builder-page and scroll away. Pin the
     // header from this outer wrapper (whose parent is the full-height layout column)
     // and suppress the inner sticky to avoid a nested, ineffective sticky context.
+    const silkScrollAway = siteUsesSilkAtelierStickyHeader(builderSite)
     return (
-      <div className="sticky top-0 z-50 w-full">
+      <div className={cn('w-full', !silkScrollAway && 'sticky top-0 z-50')}>
         <BlockRenderer
           blocks={blocks}
           site={builderSite}

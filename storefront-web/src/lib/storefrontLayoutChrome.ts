@@ -40,6 +40,37 @@ export function builderSiteHomeHasBlocks(site: PublicSite | null | undefined): b
   return Boolean(home?.blocks?.length)
 }
 
+const SILK_CATALOG_HEADER_FLAGS = new Set(['silk_atelier', 'heritage', 'ambica'])
+
+/**
+ * Silk Atelier uses Prashanti-style scroll: main header scrolls away (not sticky).
+ * Used to disable generic sticky nav for this template family only.
+ */
+export function siteUsesSilkAtelierStickyHeader(site: PublicSite | null | undefined): boolean {
+  return siteUsesSilkAtelierCatalog(site)
+}
+
+/**
+ * Boutique collection UI on /products (maroon banner, REFINE row, silk cards).
+ * Enabled by style flag, Silk Atelier template, or any silk_atelier_* block on home.
+ */
+export function siteUsesSilkAtelierCatalog(site: PublicSite | null | undefined): boolean {
+  if (!site) return false
+  const sc = (site.style_config || {}) as Record<string, unknown>
+  const flag = sc.catalog_header
+  if (typeof flag === 'string' && SILK_CATALOG_HEADER_FLAGS.has(flag)) return true
+  if (sc.applied_template_id === 'silk_atelier') return true
+  const home = builderSiteHomePage(site)
+  return Boolean(
+    home?.blocks?.some(
+      (b) =>
+        b.visible !== false
+        && typeof b.block_type === 'string'
+        && (b.block_type === 'silk_atelier_mega_nav' || b.block_type.startsWith('silk_atelier_')),
+    ),
+  )
+}
+
 export function pageHasNavBlock(
   blocks: Array<{ block_type?: string; visible?: boolean }> | null | undefined,
 ): boolean {
@@ -53,14 +84,37 @@ export function siteShellBlocks(site: PublicSite | null | undefined) {
   const home = builderSiteHomePage(site)
   if (!home?.blocks?.length) return { homePage: home, blocks: [] as NonNullable<typeof home.blocks> }
   const blocks = home.blocks.filter(
-    b => b.visible !== false && (b.block_type === 'nav' || b.block_type === 'announcement_bar'),
+    b => b.visible !== false && (b.block_type === 'nav' || b.block_type === 'announcement_bar' || b.block_type === 'silk_atelier_mega_nav'),
   )
   return { homePage: home, blocks }
 }
 
-/** True when the site exposes a navigation block on its homepage (the shared header source). */
+/** True when the site exposes header shell blocks on the homepage (shared across catalog routes). */
 export function siteHasNavShell(site: PublicSite | null | undefined): boolean {
-  return siteShellBlocks(site).blocks.some(b => b.block_type === 'nav')
+  return siteShellBlocks(site).blocks.some(
+    (b) =>
+      b.block_type === 'nav'
+      || b.block_type === 'silk_atelier_mega_nav'
+      || b.block_type === 'heritage_mega_nav'
+      || b.block_type === 'ambica_mega_nav',
+  )
+}
+
+/** Homepage mega-menu block for catalog pages (when layout shell is unavailable). */
+export function siteMegaNavShellBlock(site: PublicSite | null | undefined): PublicBlock | null {
+  const home = builderSiteHomePage(site)
+  if (!home?.blocks?.length) return null
+  return (
+    home.blocks.find(
+      (b) =>
+        b.visible !== false
+        && (
+          b.block_type === 'silk_atelier_mega_nav'
+          || b.block_type === 'heritage_mega_nav'
+          || b.block_type === 'ambica_mega_nav'
+        ),
+    ) ?? null
+  )
 }
 
 /** Homepage footer block shared across catalog/shell routes. */
@@ -83,7 +137,7 @@ export function storePageOwnsBuilderNav(
   return resolveBuilderPageSlug(pathname, vendorSlug) !== null
 }
 
-const SHARED_SHELL_BLOCK_TYPES = new Set(['nav', 'announcement_bar', 'footer'])
+const SHARED_SHELL_BLOCK_TYPES = new Set(['nav', 'announcement_bar', 'silk_atelier_mega_nav', 'footer'])
 
 /** Strip nav / announcement / footer from page content — homepage shell is canonical. */
 export function stripSharedShellBlocksFromPage(blocks: PublicBlock[]): PublicBlock[] {
@@ -118,7 +172,7 @@ export function withSharedShellBlocks(
 
   const leading: PublicBlock[] = []
   for (const b of homeBlocks) {
-    if (b.visible !== false && (b.block_type === 'announcement_bar' || b.block_type === 'nav')) {
+    if (b.visible !== false && (b.block_type === 'announcement_bar' || b.block_type === 'nav' || b.block_type === 'silk_atelier_mega_nav')) {
       leading.push(b)
     }
   }
@@ -238,6 +292,14 @@ export function shouldHideStoreLayoutChrome(input: StoreChromeHideInput): boolea
   // as builder pages — not the legacy UnifiedNav header.
   if (siteHasNavShell(site) && input.vendorSlug) {
     if (relativePathUnderVendor(input.pathname, input.vendorSlug, pathOpts) != null) {
+      return true
+    }
+  }
+
+  // Silk Atelier product pages always use builder header (maroon bar + white category row).
+  if (siteUsesSilkAtelierCatalog(site) && input.vendorSlug) {
+    const rel = relativePathUnderVendor(input.pathname, input.vendorSlug, pathOpts)
+    if (rel != null && (rel === 'products' || rel.startsWith('products/'))) {
       return true
     }
   }

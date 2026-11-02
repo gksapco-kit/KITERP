@@ -657,6 +657,68 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
   isolation: isolate;
 }
 
+/* Silk Atelier — Prashanti-style drops bar sticks; main header scrolls away. */
+[data-silk-drops-sticky] {
+  isolation: isolate;
+}
+[data-silk-mega-nav] {
+  overflow: visible;
+}
+
+[data-silk-atelier-footer] a:hover {
+  opacity: 0.92;
+}
+
+/* Silk Atelier header chrome — no extra section padding above/below the category bar. */
+.builder-block.shell-mega-nav-block,
+.builder-block.shell-mega-nav-block .builder-block-zoom-wrap {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  margin-bottom: 0 !important;
+  min-height: 0 !important;
+  height: auto !important;
+}
+.builder-page-content > .shell-hero-flush-block:first-child {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+  min-height: 0 !important;
+}
+.builder-block.shell-hero-flush-block {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+[data-silk-mega-panel] a,
+[data-silk-mega-panel] p {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+[data-silk-mega-panel] a,
+[data-silk-mega-nav] a,
+[data-silk-mega-nav] button {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+[data-silk-mega-panel] a:hover,
+[data-silk-mega-panel] a:focus,
+[data-silk-mega-panel] a:active,
+[data-silk-mega-panel] a:visited,
+[data-silk-mega-nav] a:hover,
+[data-silk-mega-nav] a:focus,
+[data-silk-mega-nav] a:active,
+[data-silk-mega-nav] a:visited {
+  text-decoration: none;
+}
+
+[data-page-canvas] [data-silk-mega-panel] a,
+[data-page-canvas] [data-silk-mega-nav] a,
+[data-page-canvas] [data-silk-mega-nav] button {
+  cursor: pointer !important;
+}
+
 .builder-canvas-text-field,
 [data-field-layout] > [data-text-key] {
   user-select: text;

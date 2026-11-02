@@ -16,7 +16,7 @@ import { StoreBranchPicker } from '@/components/store/StoreBranchPicker'
 import { resolveStorefrontLinkMode } from '@/lib/storefrontTemplateAssignment'
 import type { PublicSite, StyleConfig, LiveItem } from '@/blocks/registry'
 import type { NavLinkItem } from '@/kit/types'
-import { resolveNavBlockShell } from '@/lib/navBlockLayout'
+import { readNavHeaderBarSize, resolveNavBlockShell } from '@/lib/navBlockLayout'
 import {
   isNavLinkActive,
   resolveCurrentNavActiveKey,
@@ -30,6 +30,7 @@ import {
   isDraftPreviewShellHref,
   resolveStoreNavPathFromHref,
   shouldOpenCatalogPreviewForNavPath,
+  storeNavPathHasCatalogFilters,
   sitePageSlugSet,
 } from '@/lib/previewNavRouting'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
@@ -89,6 +90,7 @@ export default function NavBlock({
 
   const openBuilderPageFromPath = useCallback((rawPath: string) => {
     if (!openBuilderForPage) return false
+    if (storeNavPathHasCatalogFilters(rawPath)) return false
     const pathname = resolveStoreNavPathFromHref(rawPath, storePath)
     if (shouldOpenCatalogPreviewForNavPath(pathname, sitePageSlugs)) return false
     openBuilderForPage(builderPageSlugFromNavPath(pathname))
@@ -144,6 +146,8 @@ export default function NavBlock({
   const showBrandName = props.show_brand_name !== false
   const showNavLinks = props.show_nav_links !== false
   const showSearch = props.show_search !== false
+  /** Boutique header (Silk Atelier): full-width search bar + compact row height. */
+  const searchAsBar = showSearch && props.search_style === 'bar'
   const showCart = isEditorCanvas ? props.show_cart !== false : true
   const showAccount = props.show_login !== false && props.show_account !== false
   const ctaLabel = resolveNavCtaLabel(props.cta_label as string | null)
@@ -320,8 +324,14 @@ export default function NavBlock({
   const brandGap = readNavBrandGap(props)
   const logoPresentation = resolveNavLogoPresentation(props, shell.isCompact)
   const brandLinkClass = resolveNavBrandLinkClass(props, brandLayout, shell.isCentered)
-  const navRowPaddingClass = resolveNavBarRowClass(props, shell.isCompact)
-  const navRowMinHeight = resolveNavBarMinHeightPx(props, shell.isCompact)
+  const navRowPaddingClass = searchAsBar ? 'py-2' : resolveNavBarRowClass(props, shell.isCompact)
+  const navRowMinHeight = searchAsBar
+    ? (readNavHeaderBarSize(props) ?? 64)
+    : resolveNavBarMinHeightPx(props, shell.isCompact)
+  /** ~65% of maroon bar — matches boutique headers (Prashanti-style). */
+  const searchBarHeightPx = searchAsBar
+    ? Math.max(36, Math.min(46, Math.round(navRowMinHeight * 0.65)))
+    : 36
 
   const logoImageNode = showLogoImageResolved ? (
     isEditorCanvas && blockId ? (
@@ -429,10 +439,21 @@ export default function NavBlock({
     e?.preventDefault()
     const q = searchQuery.trim()
     if (!q) return
-    closeSearch()
+    if (searchAsBar) {
+      setSearchOpen(false)
+    } else {
+      closeSearch()
+    }
     closeMobileMenu()
     navigateStorePath(`/products?search=${encodeURIComponent(q)}`)
   }
+
+  useEffect(() => {
+    if (!searchAsBar) return
+    const params = new URLSearchParams(location.search)
+    const fromUrl = params.get('search')?.trim() || ''
+    setSearchQuery(fromUrl)
+  }, [location.search, searchAsBar])
 
   const renderSearchButton = () => showSearch && !searchOpen && (
     <button
@@ -477,6 +498,52 @@ export default function NavBlock({
   )
 
   const mobileSearchBarNode = searchFormNode(true)
+
+  const showCartTotal = showCart && props.show_cart_total === true
+  const searchPlaceholder = ((props.search_placeholder as string) || '').trim() || 'What are you looking for?'
+  const cartTotalPrefix = typeof props.cart_total_prefix === 'string' ? props.cart_total_prefix : 'Rs.'
+  const cartTotalLabel = `${cartTotalPrefix} ${Number(liveCart?.subtotal || 0).toLocaleString('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`.trim()
+
+  const searchBarNode = searchAsBar && (
+    <form
+      onSubmit={submitSearch}
+      role="search"
+      data-nav-search-bar
+      className="relative hidden w-[min(100%,20rem)] shrink min-w-[12.5rem] lg:block xl:w-[22rem]"
+    >
+      <Input
+        value={searchQuery}
+        onChange={e => setSearchQuery(e.target.value)}
+        placeholder={searchPlaceholder}
+        className="w-full rounded-[3px] border bg-white px-4 pr-11 text-sm text-gray-900 shadow-none placeholder:italic placeholder:opacity-90"
+        style={{
+          height: searchBarHeightPx,
+          fontFamily: style.font_body || undefined,
+          borderColor: 'rgba(255,255,255,0.45)',
+        }}
+        aria-label="Search products"
+      />
+      <style>{`
+        [data-nav-search-bar] input::placeholder {
+          color: ${shell.navBrandCol};
+          font-family: ${style.font_heading ? `"${style.font_heading}", serif` : 'inherit'};
+          font-style: italic;
+          opacity: 0.85;
+        }
+      `}</style>
+      <button
+        type="submit"
+        className="absolute right-0 top-0 flex w-11 items-center justify-center text-gray-800 transition-opacity hover:opacity-70"
+        style={{ height: searchBarHeightPx }}
+        aria-label="Search"
+      >
+        <Search className="h-[18px] w-[18px]" strokeWidth={2.25} />
+      </button>
+    </form>
+  )
 
   const mobileCartNode = showCart && (
     builderCanvas?.onNavigate ? (
@@ -728,8 +795,8 @@ export default function NavBlock({
 
   const actionsNode = (
     <div className="flex items-center gap-0.5 sm:gap-2 shrink-0">
-      {renderSearchButton()}
-      {searchFormNode(false)}
+      {!searchAsBar && renderSearchButton()}
+      {!searchAsBar && searchFormNode(false)}
       {showCart && (
         builderCanvas?.onNavigate ? (
           <button
@@ -771,6 +838,17 @@ export default function NavBlock({
             )}
           </Link>
         )
+      )}
+      {showCartTotal && (
+        <button
+          type="button"
+          onClick={() => navigateStorePath('/cart')}
+          className="hidden whitespace-nowrap text-sm font-medium transition-opacity hover:opacity-80 lg:inline-block"
+          style={{ color: shell.navTextCol, fontFamily: style.font_body || undefined }}
+          aria-label="Cart total"
+        >
+          {cartTotalLabel}
+        </button>
       )}
       {showAccount && (
         <div className="hidden lg:block">
@@ -840,7 +918,7 @@ export default function NavBlock({
         )}
         style={{
           backgroundColor: shell.navBg === 'transparent' ? undefined : shell.navBg,
-          borderBottom: shell.isElevated ? undefined : shell.navBorderBottom,
+          borderBottom: searchAsBar ? 'none' : shell.isElevated ? undefined : shell.navBorderBottom,
         }}
       >
         <div
@@ -875,22 +953,38 @@ export default function NavBlock({
           ) : (
             <>
               {renderMobileHeaderRow()}
-              <div className={cn(
-                // auto | flexible links | auto — brand & actions keep intrinsic width so
-                // they never collapse under a wide link row and paint on top of it.
-                'w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 xl:gap-4',
-                narrowNavPreview ? 'hidden' : 'hidden lg:grid',
-              )}>
-                <div className="col-start-1 flex items-center gap-2 min-w-0 max-w-[min(28vw,200px)] xl:max-w-[min(32vw,280px)] overflow-hidden justify-self-start">
-                  {logoNode}
+              {searchAsBar ? (
+                <div className={cn(
+                  'w-full min-w-0 items-center gap-3 xl:gap-4',
+                  narrowNavPreview ? 'hidden' : 'hidden lg:flex',
+                )}>
+                  <div className="flex min-w-0 max-w-[min(36vw,320px)] shrink items-center gap-2 overflow-hidden xl:max-w-[min(32vw,360px)]">
+                    {logoNode}
+                  </div>
+                  <div className="min-w-0 flex-1" aria-hidden />
+                  <div className="flex shrink-0 items-center gap-2 xl:gap-3">
+                    {searchBarNode}
+                    {actionsNode}
+                  </div>
                 </div>
-                <div className="col-start-2 flex min-w-0 justify-center px-1">
-                  {linksNode}
+              ) : (
+                <div className={cn(
+                  // auto | flexible links | auto — brand & actions keep intrinsic width so
+                  // they never collapse under a wide link row and paint on top of it.
+                  'w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 xl:gap-4',
+                  narrowNavPreview ? 'hidden' : 'hidden lg:grid',
+                )}>
+                  <div className="col-start-1 flex items-center gap-2 min-w-0 max-w-[min(28vw,200px)] xl:max-w-[min(32vw,280px)] overflow-hidden justify-self-start">
+                    {logoNode}
+                  </div>
+                  <div className="col-start-2 flex min-w-0 justify-center px-1">
+                    {linksNode}
+                  </div>
+                  <div className="col-start-3 flex shrink-0 justify-self-end">
+                    {actionsNode}
+                  </div>
                 </div>
-                <div className="col-start-3 flex shrink-0 justify-self-end">
-                  {actionsNode}
-                </div>
-              </div>
+              )}
             </>
           )}
         </div>

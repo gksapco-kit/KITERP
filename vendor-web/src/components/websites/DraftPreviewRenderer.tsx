@@ -164,6 +164,7 @@ export function DraftPreviewRenderer({
               blocks={shellBlocks as PublicSite['pages'][0]['blocks']}
               site={site as PublicSite}
               pageId={homePage?.id}
+              suppressShellSticky
             />
           )}
           {pageContent}

@@ -46,6 +46,8 @@ const SECTION_PADDING_SHELL_BLOCKS = new Set([
   'hero_minimal',
   'marquee_strip',
   'cookie_consent',
+  'silk_atelier_mega_nav',
+  'silk_atelier_hero',
 ])
 
 function defaultSectionPaddingForBlock(blockType: string | undefined): number {

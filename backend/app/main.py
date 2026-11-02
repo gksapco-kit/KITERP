@@ -200,6 +200,15 @@ async def serve_uploaded_file(file_path: str):
     """Stream website/product media without buffering the whole file into RAM."""
     from app.services.file_service import FileService
 
+    # Images that ship with built-in website templates live in the repo (not in the
+    # per-environment uploads volume), so they render the same on every deployment.
+    if file_path.startswith("template-assets/"):
+        assets_root = (Path(__file__).resolve().parent / "template_assets").resolve()
+        candidate = (assets_root / file_path[len("template-assets/"):]).resolve()
+        if assets_root in candidate.parents and candidate.is_file():
+            return FileResponse(candidate, headers={"Cache-Control": "public, max-age=86400"})
+        return JSONResponse(status_code=404, content={"detail": "File not found"})
+
     fs = FileService()
     local = fs.safe_local_path(file_path)
     if local is not None and local.is_file():

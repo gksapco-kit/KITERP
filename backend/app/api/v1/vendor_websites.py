@@ -2828,7 +2828,26 @@ WEBSITE_TEMPLATES = {
     },
 }
 
+# Large built-in templates live in their own modules; they show up in the gallery like any other.
+from app.services.website_templates.silk_atelier import (  # noqa: E402
+    TEMPLATE_ID as SILK_ATELIER_TEMPLATE_ID,
+    build_silk_atelier_template,
+)
+
+WEBSITE_TEMPLATES[SILK_ATELIER_TEMPLATE_ID] = build_silk_atelier_template()
+
 EDITORIAL_WEBSITE_TEMPLATE_IDS = frozenset({"atelier", "verde", "solace"})
+
+
+def _replace_brand_placeholder(value: Any, placeholder: str, brand: str) -> Any:
+    """Recursively swap a template's placeholder brand text for the vendor's business name."""
+    if isinstance(value, str):
+        return value.replace(placeholder, brand) if placeholder in value else value
+    if isinstance(value, list):
+        return [_replace_brand_placeholder(v, placeholder, brand) for v in value]
+    if isinstance(value, dict):
+        return {k: _replace_brand_placeholder(v, placeholder, brand) for k, v in value.items()}
+    return value
 
 
 # Maps block_type → live data resource.
@@ -3104,6 +3123,18 @@ async def apply_template(
             for b_idx, b_tpl in enumerate(p_tpl.get("blocks", [])):
                 props = copy.deepcopy(b_tpl.get("props", {}) or {})
                 b_type = b_tpl.get("block_type", "")
+
+                # Templates that declare a brand placeholder get the vendor's business name.
+                brand_placeholder = tpl.get("brand_placeholder")
+                if brand_placeholder:
+                    brand_name = (
+                        getattr(vendor, "business_name", None)
+                        or getattr(vendor, "display_name", None)
+                        or site.name
+                        or ""
+                    ).strip()
+                    if brand_name:
+                        props = _replace_brand_placeholder(props, brand_placeholder, brand_name)
 
                 # Auto-wire block to live vendor data so template content is
                 # immediately replaced by the vendor's real catalog / profile

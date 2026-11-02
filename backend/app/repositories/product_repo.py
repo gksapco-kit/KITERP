@@ -349,7 +349,9 @@ class ProductRepository(BaseRepository[Product]):
             cat = category.strip()
             category_filter = or_(
                 Product.category == cat,
+                Product.category.ilike(f"%{cat}%"),
                 Product.subcategory == cat,
+                Product.subcategory.ilike(f"%{cat}%"),
                 Product.subcategory.ilike(f"% / {cat}"),
                 Product.subcategory.ilike(f"{cat} / %"),
                 Product.subcategory.ilike(f"% / {cat} / %"),

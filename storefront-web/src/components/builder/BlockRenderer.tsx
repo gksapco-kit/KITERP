@@ -45,6 +45,8 @@ import {
   splitLeadingShellBlocks,
   splitTrailingShellBlocks,
 } from '@/lib/blockRendererUtils'
+import { siteUsesSilkAtelierStickyHeader } from '@/lib/storefrontLayoutChrome'
+import { cn } from '@/lib/utils'
 
 /** Product grids default to a white section so the page tint does not show behind cards. */
 const WHITE_CATALOG_SECTION_BLOCKS = new Set([
@@ -52,6 +54,25 @@ const WHITE_CATALOG_SECTION_BLOCKS = new Set([
   'related_products',
   'recently_viewed',
   'menu_grid',
+])
+
+/** Header chrome — no section padding / min-height on the block wrapper. */
+const COMPACT_SHELL_HEADER_BLOCKS = new Set([
+  'announcement_bar',
+  'nav',
+  'silk_atelier_mega_nav',
+  'heritage_mega_nav',
+  'ambica_mega_nav',
+])
+
+/** min_height lives on the inner section component, not the outer builder-block wrapper. */
+const INNER_MIN_HEIGHT_ONLY_BLOCKS = new Set([
+  'silk_atelier_hero',
+  'heritage_hero',
+  'ambica_hero',
+  'hero',
+  'hero_split',
+  'hero_minimal',
 ])
 
 /** Retry once on Vite stale-chunk / Windows @fs failures before surfacing to the route error boundary. */
@@ -119,6 +140,17 @@ const LiveQuoteBlock = lazyBlock(() => import('@/components/builder/blocks/LiveQ
 const CommerceLibraryBlock = lazyBlock(() => import('@/components/builder/blocks/CommerceLibraryBlock'))
 const HtmlEmbedBlock = lazyBlock(() => import('@/components/builder/blocks/HtmlEmbedBlock'))
 
+// "Silk Atelier" saree-boutique family — additive; only used by sites whose pages contain these types.
+const SilkAtelierMegaNav = lazyBlock(() => import('@/components/builder/blocks/silk_atelier/SilkAtelierMegaNav'))
+const SilkAtelierDrops = lazyBlock(() => import('@/components/builder/blocks/silk_atelier/SilkAtelierDrops'))
+const SilkAtelierBrandTabs = lazyBlock(() => import('@/components/builder/blocks/silk_atelier/SilkAtelierBrandTabs'))
+const SilkAtelierLooms = lazyBlock(() => import('@/components/builder/blocks/silk_atelier/SilkAtelierLooms'))
+const SilkAtelierTiles = lazyBlock(() => import('@/components/builder/blocks/silk_atelier/SilkAtelierTiles'))
+const SilkAtelierProductCarousel = lazyBlock(() => import('@/components/builder/blocks/silk_atelier/SilkAtelierProductCarousel'))
+const SilkAtelierStores = lazyBlock(() => import('@/components/builder/blocks/silk_atelier/SilkAtelierStores'))
+const SilkAtelierPromo = lazyBlock(() => import('@/components/builder/blocks/silk_atelier/SilkAtelierPromo'))
+const SilkAtelierHero = lazyBlock(() => import('@/components/builder/blocks/silk_atelier/SilkAtelierHero'))
+
 export interface BlockProps {
   block: PublicBlock
   site: PublicSite
@@ -136,6 +168,12 @@ function BlockSkeleton() {
 const SUSPENSE_NULL_FALLBACK_BLOCKS = new Set([
   'nav', 'footer', 'announcement_bar', 'marquee_strip',
   'search_bar', 'cookie_consent', 'recently_viewed', 'cart_drawer',
+  'silk_atelier_mega_nav',
+  'heritage_mega_nav',
+  'ambica_mega_nav',
+  'silk_atelier_hero',
+  'heritage_hero',
+  'ambica_hero',
 ])
 
 // ── Live data hook ─────────────────────────────────────────────────────────
@@ -145,6 +183,7 @@ type LiveResource = 'products' | 'services' | 'rentals' | 'testimonials' | 'team
 const BLOCK_LIVE_RESOURCE: Record<string, LiveResource> = {
   product_grid: 'products', live_stock: 'products', live_quote: 'products', related_products: 'products', product_detail: 'products',
   cart_drawer: 'products',
+  silk_atelier_drops: 'products', silk_atelier_brand_tabs: 'products', silk_atelier_looms: 'products', silk_atelier_product_carousel: 'products',
   category_cards: 'categories',
   services_cards: 'services', booking_widget: 'services', booking_slot_picker: 'services', services_list: 'services',
   rental_grid: 'rentals', rental_list: 'rentals',
@@ -477,6 +516,42 @@ export function SingleBlock({
         return <div style={{ height: `${Number(p.height ?? 80)}px` }} />
       case 'html_embed':
         return <HtmlEmbedBlock {...commonProps} />
+      case 'silk_atelier_mega_nav':
+      case 'heritage_mega_nav':
+      case 'ambica_mega_nav':
+        return <SilkAtelierMegaNav {...commonProps} />
+      case 'silk_atelier_drops':
+      case 'heritage_drops':
+      case 'ambica_drops':
+        return <SilkAtelierDrops {...commonProps} />
+      case 'silk_atelier_brand_tabs':
+      case 'heritage_brand_tabs':
+      case 'ambica_brand_tabs':
+        return <SilkAtelierBrandTabs {...commonProps} />
+      case 'silk_atelier_looms':
+      case 'heritage_looms':
+      case 'ambica_heritage':
+        return <SilkAtelierLooms {...commonProps} />
+      case 'silk_atelier_tiles':
+      case 'heritage_tiles':
+      case 'ambica_tiles':
+        return <SilkAtelierTiles {...commonProps} />
+      case 'silk_atelier_product_carousel':
+      case 'heritage_product_carousel':
+      case 'ambica_product_carousel':
+        return <SilkAtelierProductCarousel {...commonProps} />
+      case 'silk_atelier_stores':
+      case 'heritage_stores':
+      case 'ambica_stores':
+        return <SilkAtelierStores {...commonProps} />
+      case 'silk_atelier_promo':
+      case 'heritage_promo':
+      case 'ambica_promo':
+        return <SilkAtelierPromo {...commonProps} />
+      case 'silk_atelier_hero':
+      case 'heritage_hero':
+      case 'ambica_hero':
+        return <SilkAtelierHero {...commonProps} />
       default:
         return import.meta.env.DEV
           ? <div className="py-4 px-6 bg-yellow-50 border border-yellow-200 text-yellow-700 text-sm rounded">Unknown block type: <strong>{block.block_type}</strong></div>
@@ -488,7 +563,7 @@ export function SingleBlock({
 
   /** Keep shell blocks above later sections so sticky nav / bars are not painted over by following content. */
   const shellStack =
-    block.block_type === 'nav' || block.block_type === 'announcement_bar'
+    block.block_type === 'nav' || block.block_type === 'announcement_bar' || block.block_type === 'silk_atelier_mega_nav'
       ? 'z-[35]'
       : ''
 
@@ -524,8 +599,8 @@ export function SingleBlock({
     : ''
   const useResponsiveSpacingCss = responsiveSpacingCss.length > 0
   const sectionStyles = mergeBlockSectionStyles(p, resolvedOverrides)
-  const paddingTop = useResponsiveSpacingCss ? 0 : sectionSpacing.paddingTop
-  const paddingBottom = useResponsiveSpacingCss ? 0 : sectionSpacing.paddingBottom
+  let paddingTop = useResponsiveSpacingCss ? 0 : sectionSpacing.paddingTop
+  let paddingBottom = useResponsiveSpacingCss ? 0 : sectionSpacing.paddingBottom
   const blockShadow = resolveBlockBoxShadow(p)
   const hasBlockShadow = blockShadowIsActive(p)
   const overlays = (Array.isArray(p.overlays) ? p.overlays : []) as BlockOverlayItem[]
@@ -535,12 +610,39 @@ export function SingleBlock({
     typeof minHeightRaw === 'number' && Number.isFinite(minHeightRaw) && minHeightRaw > 0
       ? Math.round(minHeightRaw)
       : 0
-  const sectionMinHeight = Math.max(minHeightPx, overlayMinH)
+  let sectionMinHeight = Math.max(minHeightPx, overlayMinH)
+  if (COMPACT_SHELL_HEADER_BLOCKS.has(block.block_type)) {
+    paddingTop = 0
+    paddingBottom = 0
+    if (
+      block.block_type === 'silk_atelier_mega_nav'
+      || block.block_type === 'heritage_mega_nav'
+      || block.block_type === 'ambica_mega_nav'
+    ) {
+      sectionMinHeight = 0
+    }
+  }
+  if (INNER_MIN_HEIGHT_ONLY_BLOCKS.has(block.block_type)) {
+    sectionMinHeight = overlayMinH
+    paddingTop = 0
+    paddingBottom = 0
+  }
+
+  const isMegaNavBlock =
+    block.block_type === 'silk_atelier_mega_nav'
+    || block.block_type === 'heritage_mega_nav'
+    || block.block_type === 'ambica_mega_nav'
+
+  const skipSectionSpacingCss =
+    isMegaNavBlock
+    || COMPACT_SHELL_HEADER_BLOCKS.has(block.block_type)
+    || INNER_MIN_HEIGHT_ONLY_BLOCKS.has(block.block_type)
 
   // Whole-section size — scales the section AND everything inside it (text, media,
   // padding) while still reflowing layout (unlike transform: scale, which would
   // leave gaps/overlap). `zoom` is the only CSS that grows the section's footprint.
   const sectionScale = (() => {
+    if (skipSectionSpacingCss) return undefined
     const s = sectionSpacing.sectionScale
     if (s !== 1) return s
     // Live CSS targets `.builder-block-zoom-wrap` at tablet/mobile — keep the
@@ -561,6 +663,12 @@ export function SingleBlock({
   if (sectionStyles.backgroundColor) {
     wrapperStyle.backgroundColor = sectionStyles.backgroundColor
   } else if (
+    block.block_type === 'silk_atelier_mega_nav'
+    || block.block_type === 'heritage_mega_nav'
+    || block.block_type === 'ambica_mega_nav'
+  ) {
+    wrapperStyle.backgroundColor = (typeof p.bar_bg === 'string' && p.bar_bg.trim()) || '#ffffff'
+  } else if (
     WHITE_CATALOG_SECTION_BLOCKS.has(block.block_type)
     && p.bg_style !== 'dark'
     && p.bg_style !== 'image'
@@ -573,6 +681,21 @@ export function SingleBlock({
   if (sectionMinHeight > 0) wrapperStyle.minHeight = `${sectionMinHeight}px`
   if (blockShadow) wrapperStyle.boxShadow = blockShadow
   Object.assign(wrapperStyle, sectionTransformStyle(p))
+
+  if (isMegaNavBlock) {
+    wrapperStyle.paddingTop = 0
+    wrapperStyle.paddingBottom = 0
+    wrapperStyle.minHeight = undefined
+    wrapperStyle.height = 'auto'
+    wrapperStyle.maxHeight = 'none'
+    wrapperStyle.backgroundColor = (typeof p.bar_bg === 'string' && p.bar_bg.trim()) || '#ffffff'
+  }
+  if (block.block_type === 'silk_atelier_hero') {
+    wrapperStyle.paddingTop = 0
+    wrapperStyle.paddingBottom = 0
+    wrapperStyle.minHeight = undefined
+    wrapperStyle.marginTop = 0
+  }
 
   const blockColorProps = p as BlockColorProps
   const blockThemeColors: ThemeColors = {
@@ -629,6 +752,8 @@ export function SingleBlock({
       } : undefined}
       className={[
         'builder-block relative w-full',
+        isMegaNavBlock ? 'shell-mega-nav-block' : '',
+        block.block_type === 'silk_atelier_hero' ? 'shell-hero-flush-block' : '',
         hasBlockShadow ? 'builder-block--has-shadow' : '',
         enableBlockLink ? 'cursor-pointer' : '',
         shellStack,
@@ -655,7 +780,7 @@ export function SingleBlock({
       {topShape && topShape !== 'none' && (
         <SectionShapeDivider shape={topShape} fillColor={shapeColor} position="top" />
       )}
-      {(fontSizePx || textScaleEm || blockColorCss || fieldStyleCss || responsiveSpacingCss) && (
+      {(fontSizePx || textScaleEm || blockColorCss || fieldStyleCss || (responsiveSpacingCss && !skipSectionSpacingCss)) && (
         <style>{`
           [data-sf-bid="${sfBid}"] h1,
           [data-sf-bid="${sfBid}"] h2,
@@ -670,7 +795,7 @@ export function SingleBlock({
           }
           ${blockColorCss}
           ${fieldStyleCss}
-          ${responsiveSpacingCss}
+          ${skipSectionSpacingCss ? '' : responsiveSpacingCss}
         `}</style>
       )}
       {sectionScale ? (
@@ -780,6 +905,7 @@ export default function BlockRenderer({ blocks, site, pageId, branchCode, suppre
   )
 
   const siteRadiusMode = normalizeSiteBorderRadius(style.border_radius)
+  const silkStickyHeader = siteUsesSilkAtelierStickyHeader(site)
 
   const renderShell = shellBlocks.length > 0 && !suppressShellSticky
   const blocksToRender = suppressShellSticky ? visibleBlocks : middleBlocks
@@ -788,15 +914,25 @@ export default function BlockRenderer({ blocks, site, pageId, branchCode, suppre
   const pageCustomCss = sanitizeCustomCss(style.custom_css)
 
   return (
-    <div className="builder-page min-w-0" style={pageStyle} data-site-radius={siteRadiusMode}>
+    <div
+      className={cn('builder-page min-w-0', silkStickyHeader && 'builder-page--silk-sticky')}
+      style={pageStyle}
+      data-site-radius={siteRadiusMode}
+    >
       <style>{buildSiteThemeCss(style)}</style>
       {pageCustomCss ? <style data-page-custom-css>{pageCustomCss}</style> : null}
-      {renderShell && (
-        <div className="sticky top-0 z-50 w-full">
+      {renderShell ? (
+        <div
+          className={cn(
+            'flex w-full flex-col [&_.builder-block]:!mb-0 [&_.builder-block]:!pb-0 [&_.builder-block]:!pt-0',
+            /* Prashanti-style: Silk header scrolls off; other templates keep sticky nav. */
+            !silkStickyHeader && 'sticky top-0 z-50',
+          )}
+        >
           {shellBlocks.map(renderBlock)}
         </div>
-      )}
-      <div className="builder-page-content min-w-0 overflow-x-clip">
+      ) : null}
+      <div className="builder-page-content min-w-0 overflow-x-clip [&>.shell-hero-flush-block:first-child]:!mt-0 [&>.shell-hero-flush-block:first-child]:!pt-0">
         {blocksToRender.map(renderBlock)}
       </div>
       {trailingToRender.map(renderBlock)}
