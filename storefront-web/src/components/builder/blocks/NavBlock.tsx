@@ -467,40 +467,90 @@ export default function NavBlock({
     </button>
   )
 
+  const showCartTotal = showCart && props.show_cart_total === true
+  const searchPlaceholder = ((props.search_placeholder as string) || '').trim()
+    || (searchAsBar ? 'What are you looking for?' : 'Search products, prices, variants…')
+  /** Maroon placeholder + icon on the white search field (dark header uses white brand text). */
+  const searchBarInk = primary
+
   const searchFormNode = (compact: boolean) => showSearch && searchOpen && (
-    <form onSubmit={submitSearch} className={cn('items-center gap-1.5 min-w-0', compact ? 'flex flex-1' : 'hidden lg:flex')}>
-      <Input
-        autoFocus
-        value={searchQuery}
-        onChange={e => setSearchQuery(e.target.value)}
-        placeholder="Search products, prices, variants…"
-        className={cn('h-9 text-sm min-w-0', compact ? 'flex-1' : 'w-44 xl:w-56')}
-        aria-label="Search products"
-      />
-      <button
-        type="submit"
-        className="p-2 rounded-lg hover:opacity-70 transition-opacity shrink-0"
-        style={{ color: shell.navTextCol }}
-        aria-label="Submit search"
+    searchAsBar ? (
+      <form
+        onSubmit={submitSearch}
+        role="search"
+        data-nav-search-bar
+        className={cn('relative min-w-0', compact ? 'flex flex-1' : 'hidden lg:flex')}
       >
-        <Search className="w-4 h-4" />
-      </button>
-      <button
-        type="button"
-        onClick={closeSearch}
-        className="p-2 rounded-lg hover:opacity-70 transition-opacity shrink-0"
-        style={{ color: shell.navTextCol }}
-        aria-label="Close search"
-      >
-        <X className="w-4 h-4" />
-      </button>
-    </form>
+        <Input
+          autoFocus
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          placeholder={searchPlaceholder}
+          className="w-full min-w-0 rounded-md border-0 bg-white px-4 pr-11 text-sm text-gray-900 shadow-none placeholder:italic"
+          style={{
+            height: compact ? 40 : searchBarHeightPx,
+            fontFamily: style.font_body || undefined,
+          }}
+          aria-label="Search products"
+        />
+        <style>{`
+          [data-nav-search-bar] input::placeholder {
+            color: ${searchBarInk};
+            font-family: ${style.font_heading ? `"${style.font_heading}", serif` : 'inherit'};
+            font-style: italic;
+            opacity: 1;
+          }
+        `}</style>
+        <button
+          type="submit"
+          className="absolute right-0 top-0 flex w-11 items-center justify-center transition-opacity hover:opacity-70"
+          style={{ height: compact ? 40 : searchBarHeightPx, color: searchBarInk }}
+          aria-label="Submit search"
+        >
+          <Search className="h-[18px] w-[18px]" strokeWidth={2.25} />
+        </button>
+        <button
+          type="button"
+          onClick={closeSearch}
+          className="ml-1 flex shrink-0 items-center justify-center p-2 transition-opacity hover:opacity-70"
+          style={{ color: shell.navTextCol }}
+          aria-label="Close search"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </form>
+    ) : (
+      <form onSubmit={submitSearch} className={cn('items-center gap-1.5 min-w-0', compact ? 'flex flex-1' : 'hidden lg:flex')}>
+        <Input
+          autoFocus
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          placeholder={searchPlaceholder}
+          className={cn('h-9 text-sm min-w-0', compact ? 'flex-1' : 'w-44 xl:w-56')}
+          aria-label="Search products"
+        />
+        <button
+          type="submit"
+          className="p-2 rounded-lg hover:opacity-70 transition-opacity shrink-0"
+          style={{ color: shell.navTextCol }}
+          aria-label="Submit search"
+        >
+          <Search className="w-4 h-4" />
+        </button>
+        <button
+          type="button"
+          onClick={closeSearch}
+          className="p-2 rounded-lg hover:opacity-70 transition-opacity shrink-0"
+          style={{ color: shell.navTextCol }}
+          aria-label="Close search"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </form>
+    )
   )
 
   const mobileSearchBarNode = searchFormNode(true)
-
-  const showCartTotal = showCart && props.show_cart_total === true
-  const searchPlaceholder = ((props.search_placeholder as string) || '').trim() || 'What are you looking for?'
   const cartTotalPrefix = typeof props.cart_total_prefix === 'string' ? props.cart_total_prefix : 'Rs.'
   const cartTotalLabel = `${cartTotalPrefix} ${Number(liveCart?.subtotal || 0).toLocaleString('en-IN', {
     minimumFractionDigits: 2,
@@ -518,26 +568,25 @@ export default function NavBlock({
         value={searchQuery}
         onChange={e => setSearchQuery(e.target.value)}
         placeholder={searchPlaceholder}
-        className="w-full rounded-[3px] border bg-white px-4 pr-11 text-sm text-gray-900 shadow-none placeholder:italic placeholder:opacity-90"
+        className="w-full rounded-md border-0 bg-white px-4 pr-11 text-sm text-gray-900 shadow-none placeholder:italic"
         style={{
           height: searchBarHeightPx,
           fontFamily: style.font_body || undefined,
-          borderColor: 'rgba(255,255,255,0.45)',
         }}
         aria-label="Search products"
       />
       <style>{`
         [data-nav-search-bar] input::placeholder {
-          color: ${shell.navBrandCol};
+          color: ${searchBarInk};
           font-family: ${style.font_heading ? `"${style.font_heading}", serif` : 'inherit'};
           font-style: italic;
-          opacity: 0.85;
+          opacity: 1;
         }
       `}</style>
       <button
         type="submit"
-        className="absolute right-0 top-0 flex w-11 items-center justify-center text-gray-800 transition-opacity hover:opacity-70"
-        style={{ height: searchBarHeightPx }}
+        className="absolute right-0 top-0 flex w-11 items-center justify-center transition-opacity hover:opacity-70"
+        style={{ height: searchBarHeightPx, color: searchBarInk }}
         aria-label="Search"
       >
         <Search className="h-[18px] w-[18px]" strokeWidth={2.25} />

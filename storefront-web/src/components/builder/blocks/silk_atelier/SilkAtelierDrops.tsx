@@ -1,16 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ArrowUpRight, Clock, Lock } from 'lucide-react'
 import type { LiveItem, PublicSite, StyleConfig } from '@/blocks/registry'
-import { cn } from '@/lib/utils'
+import { cn, imgUrl } from '@/lib/utils'
 import {
   SilkAtelierLink,
+  SilkAtelierDropFeatureCard,
+  SilkAtelierDropViewAllCard,
   SilkAtelierProductCard,
   SilkAtelierScrollRow,
   PillLink,
   asObjectList,
   asStringList,
   collectionUrl,
+  extraLinkCatalogHref,
   pickItems,
+  swatchImage,
   useSilkAtelierTheme,
 } from './shared'
 
@@ -29,10 +33,15 @@ interface Slot extends Record<string, unknown> {
   label?: string
   category_filter?: string[] | string
   url?: string
+  feature_image?: string
 }
 interface ExtraLink extends Record<string, unknown> {
   label?: string
   url?: string
+  category_filter?: string[] | string
+  feature_image?: string
+  /** When true, pill navigates away instead of switching the shelf in-place. */
+  open_page?: boolean
 }
 
 /** "10:45 AM" / "13:45" → minutes since midnight (null if unparseable). */
@@ -83,12 +92,29 @@ export default function SilkAtelierDrops({ style, props, liveItems, isEditorCanv
   }, [states])
 
   const [picked, setPicked] = useState<number | null>(null)
+  const [activeExtraIdx, setActiveExtraIdx] = useState<number | null>(null)
   const activeIdx = picked != null && states[picked]?.live ? picked : latestLive
   const active = states[activeIdx]?.slot
-  const filters = asStringList(active?.category_filter)
-  const label = String(active?.label || 'New arrivals')
-  const { items, total } = pickItems(liveItems, filters.length ? filters : [label], perSlot, label)
-  const viewAll = String(active?.url || collectionUrl(filters[0] || label))
+  const extraActive = activeExtraIdx != null ? extras[activeExtraIdx] : null
+  const extraFilters = extraActive
+    ? asStringList(extraActive.category_filter).length
+      ? asStringList(extraActive.category_filter)
+      : [String(extraActive.label || '').trim()].filter(Boolean)
+    : []
+  const filters = extraActive ? extraFilters : asStringList(active?.category_filter)
+  const label = extraActive
+    ? String(extraActive.label || 'Collection')
+    : String(active?.label || 'New arrivals')
+  const { items, total, isPlaceholder } = pickItems(liveItems, filters.length ? filters : [label], perSlot, label)
+  const viewAll = extraActive
+    ? extraLinkCatalogHref(String(extraActive.label || ''), String(extraActive.url || ''))
+    : String(active?.url || collectionUrl(filters[0] || label, label))
+  const carouselItems = items.slice(0, 8)
+  const featureImage =
+    imgUrl(String((extraActive ? extraActive.feature_image : active?.feature_image) || ''))
+    || imgUrl(carouselItems[0]?.image_url)
+    || swatchImage(label, 520, 700)
+  const designCount = total > 0 ? total : (isPlaceholder ? 0 : carouselItems.length)
 
   return (
     <section
@@ -117,9 +143,19 @@ export default function SilkAtelierDrops({ style, props, liveItems, isEditorCanv
             </div>
           </div>
 
-          <div className="-mx-1 mt-6 flex gap-3 overflow-x-auto px-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="Today's drops">
+          <div className="relative mt-6">
+            <div
+              className="pointer-events-none absolute left-0 right-0 top-[26px] hidden h-px sm:block"
+              style={{ background: `linear-gradient(90deg, transparent, ${theme.accent} 8%, ${theme.accent} 92%, transparent)` }}
+              aria-hidden
+            />
+            <div
+              className="-mx-1 flex gap-2.5 overflow-x-auto px-1 pb-2 [scrollbar-width:none] sm:gap-3 [&::-webkit-scrollbar]:hidden"
+              role="tablist"
+              aria-label="Today's drops"
+            >
           {states.map(({ slot, live }, i) => {
-            const isActive = i === activeIdx
+            const isActive = !extraActive && i === activeIdx
             return (
               <button
                 key={`${slot.time}-${i}`}
@@ -127,14 +163,17 @@ export default function SilkAtelierDrops({ style, props, liveItems, isEditorCanv
                 role="tab"
                 aria-selected={isActive}
                 disabled={!live}
-                onClick={() => setPicked(i)}
+                onClick={() => {
+                  setPicked(i)
+                  setActiveExtraIdx(null)
+                }}
                 className={cn(
-                  'flex shrink-0 flex-col items-start rounded-full px-5 py-2 text-left transition',
+                  'relative z-[1] flex shrink-0 flex-col items-start rounded-full px-4 py-2 text-left transition sm:px-5',
                   !live && 'cursor-not-allowed opacity-70',
                 )}
                 style={
                   isActive
-                    ? { background: theme.primary, color: '#fff', border: `1px solid ${theme.primary}` }
+                    ? { background: theme.primary, color: '#fff', border: `2px solid ${theme.primary}` }
                     : { background: '#fff', color: theme.primary, border: `1px solid ${theme.accent}` }
                 }
               >
@@ -146,31 +185,81 @@ export default function SilkAtelierDrops({ style, props, liveItems, isEditorCanv
               </button>
             )
           })}
-          {extras.map((x, i) => (
-            <SilkAtelierLink
-              key={`${x.label}-${i}`}
-              to={String(x.url || '/products')}
-              className="flex shrink-0 items-center gap-1.5 rounded-full border border-dashed px-5 py-3 text-sm font-semibold italic"
-              style={{ borderColor: theme.accent, color: theme.primary, background: '#fff' }}
-            >
-              {x.label} <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
-            </SilkAtelierLink>
-          ))}
+          {extras.map((x, i) => {
+            const isExtraActive = activeExtraIdx === i
+            const extraHref = extraLinkCatalogHref(String(x.label || ''), String(x.url || ''))
+            const openPage = x.open_page === true
+            const pillClass = cn(
+              'relative z-[1] flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-semibold italic transition sm:px-5 sm:py-3',
+              isExtraActive ? 'border-2' : 'border border-dashed',
+            )
+            const pillStyle = isExtraActive
+              ? { borderColor: theme.primary, color: '#fff', background: theme.primary }
+              : { borderColor: theme.accent, color: theme.primary, background: '#fff' }
+
+            if (openPage) {
+              return (
+                <SilkAtelierLink
+                  key={`${x.label}-${i}`}
+                  to={extraHref}
+                  className={pillClass}
+                  style={pillStyle}
+                >
+                  {x.label} <ArrowUpRight className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                </SilkAtelierLink>
+              )
+            }
+
+            return (
+              <button
+                key={`${x.label}-${i}`}
+                type="button"
+                role="tab"
+                aria-selected={isExtraActive}
+                onClick={() => {
+                  setActiveExtraIdx(i)
+                  setPicked(null)
+                }}
+                className={pillClass}
+                style={pillStyle}
+              >
+                {x.label}
+                {!isExtraActive ? <ArrowUpRight className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden /> : null}
+              </button>
+            )
+          })}
+            </div>
           </div>
         </div>
 
         <div className="mt-8 flex items-end justify-between gap-4">
-          <h3 className="text-2xl" style={{ color: theme.primary, fontFamily: theme.headingFont }}>
+          <h3 className="text-xl sm:text-2xl" style={{ color: theme.primary, fontFamily: theme.headingFont }}>
             {label}
           </h3>
           <SilkAtelierLink to={viewAll} className="text-sm font-semibold italic underline underline-offset-4" style={{ color: theme.primary }}>
-            View all{total > 0 ? ` (${total})` : ''}
+            View all
           </SilkAtelierLink>
         </div>
 
         <div className="mt-5">
-          <SilkAtelierScrollRow theme={theme}>
-            {items.map((it) => <SilkAtelierProductCard key={String(it.id)} item={it} theme={theme} shape="arch" />)}
+          <SilkAtelierScrollRow
+            theme={theme}
+            leading={
+              <SilkAtelierDropFeatureCard
+                label={label}
+                viewAll={viewAll}
+                styleCount={designCount}
+                imageUrl={featureImage}
+                theme={theme}
+              />
+            }
+            trailing={
+              <SilkAtelierDropViewAllCard viewAll={viewAll} designCount={designCount} theme={theme} />
+            }
+          >
+            {carouselItems.map((it) => (
+              <SilkAtelierProductCard key={String(it.id)} item={it} theme={theme} shape="arch" width={176} />
+            ))}
           </SilkAtelierScrollRow>
         </div>
 

@@ -285,14 +285,23 @@ def drops_block() -> Dict[str, Any]:
         "subtitle": "Fresh designs unlock through the day. Swipe to browse.",
         "unlock_by_time": True, "items_per_slot": 10,
         "slots": [
-            {"time": "7:00 AM", "label": "Bridal Silks", "category_filter": ["Bridal"], "url": cat_url("Bridal")},
-            {"time": "10:45 AM", "label": "Banarasi Semi Silks", "category_filter": ["Banarasi"], "url": cat_url("Banarasi")},
+            {"time": "7:00 AM", "label": "Patola Silk Sarees", "category_filter": ["Patola", "Rajkot"], "url": cat_url("Patola")},
+            {"time": "10:45 AM", "label": "Vaibhogam — Festive Kanchipuram", "category_filter": ["Kanchipuram"], "url": cat_url("Kanchipuram")},
             {"time": "1:45 PM", "label": "Semi Mysore Silks", "category_filter": ["Mysore"], "url": cat_url("Mysore")},
             {"time": "5:00 PM", "label": "Pochampally Silk", "category_filter": ["Pochampally"], "url": cat_url("Pochampally")},
+            {"time": "8:00 PM", "label": "LILA — Luxury Indian Silks", "category_filter": ["Silk"], "url": cat_url("Silk")},
         ],
         "extra_links": [
-            {"label": "Jadau Necklace", "url": cat_url("Jadau Necklace")},
-            {"label": "Bridal Jewellery", "url": cat_url("Jewellery")},
+            {
+                "label": "Antique Necklace",
+                "category_filter": ["Antique Necklace", "Antique", "Necklace"],
+                "url": cat_url("Antique Necklace"),
+            },
+            {
+                "label": "Bridal Jewellery",
+                "category_filter": ["Jewellery", "Bridal", "Jadau", "Necklace", "Haaram", "Choker", "Bangles"],
+                "url": cat_url("Bridal Jewellery"),
+            },
         ],
     }}
 

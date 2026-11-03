@@ -87,7 +87,12 @@ export function matchesCollection(item: LiveItem, filters: string[] | undefined)
     ...((Array.isArray(meta.tags) ? meta.tags : []) as unknown[]).map(norm),
   ].filter(Boolean)
   const title = norm(item.title)
-  return list.some((f) => haystacks.some((h) => h === f || h.includes(f)) || title.includes(f))
+  return list.some(
+    (f) =>
+      haystacks.some((h) => h === f || h.includes(f) || (h.length >= 3 && f.includes(h)))
+      || title.includes(f)
+      || f.split(/\s+/).filter((w) => w.length >= 4).some((w) => title.includes(w)),
+  )
 }
 
 export function asStringList(v: unknown): string[] {
@@ -279,6 +284,31 @@ export function withCollectionTitle(path: string, title: string, ctx?: string | 
   return qs ? `${base}?${qs}` : base
 }
 
+/** Drops / promo extras: prefer the visible label as the catalog filter (e.g. Bridal Jewellery). */
+export function extraLinkCatalogHref(label: string, url?: string): string {
+  const title = String(label || '').trim()
+  if (!title) return String(url || '/products').trim() || '/products'
+  const fromLabel = collectionUrl(title, title)
+  const raw = String(url || '').trim()
+  if (!raw || !raw.includes('/products')) return fromLabel
+  try {
+    const u = new URL(raw, 'http://local')
+    const cat = u.searchParams.get('category')?.trim() || ''
+    const titleLower = title.toLowerCase()
+    const catLower = cat.toLowerCase()
+    if (
+      cat
+      && titleLower !== catLower
+      && (titleLower.includes('jewell') || catLower.includes('jewell'))
+    ) {
+      return fromLabel
+    }
+    return withCollectionTitle(raw, title)
+  } catch {
+    return fromLabel
+  }
+}
+
 // ── Product card ───────────────────────────────────────────────────────────
 
 export type SilkAtelierCardShape = 'arch' | 'portrait' | 'rounded'
@@ -328,29 +358,32 @@ export function SilkAtelierProductCard({ item, theme, shape = 'arch', showCode =
         />
         {discount > 0 && !placeholder && (
           <span
-            className="absolute left-1/2 bottom-3 -translate-x-1/2 whitespace-nowrap rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide"
+            className="absolute bottom-3 left-3 whitespace-nowrap rounded-md px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide shadow-sm"
             style={{ background: `linear-gradient(135deg, ${theme.accent}, #E9CF8F)`, color: theme.primary }}
           >
             {discount}% off
           </span>
         )}
       </div>
-      <div className="px-1 pt-3">
+      <div className="px-0.5 pt-3">
+        <h3
+          className="line-clamp-2 text-[13px] font-medium leading-snug"
+          style={{ color: theme.ink, fontFamily: theme.headingFont }}
+        >
+          {item.title}
+        </h3>
         {showCode && (sku || collection) && !placeholder && (
-          <p className="truncate text-[10px] uppercase tracking-[0.14em]" style={{ color: `${theme.ink}99` }}>
+          <p className="mt-1 truncate text-[11px]" style={{ color: `${theme.ink}88` }}>
             {sku}
-            {sku && collection ? ' · ' : ''}
+            {sku && collection ? ' | ' : ''}
             {collection}
           </p>
         )}
-        <h3 className="mt-1 line-clamp-2 text-[13px] leading-snug" style={{ color: theme.ink, fontFamily: theme.bodyFont }}>
-          {item.title}
-        </h3>
         {!placeholder && price > 0 && (
-          <p className="mt-1.5 flex flex-wrap items-baseline gap-x-2 text-sm">
+          <p className="mt-2 flex flex-wrap items-baseline gap-x-2 text-[13px]">
             <span className="font-bold" style={{ color: theme.primary }}>{formatAmount(price, meta.currency)}</span>
             {compare > price && (
-              <span className="text-xs line-through" style={{ color: `${theme.ink}88` }}>{formatAmount(compare, meta.currency)}</span>
+              <span className="text-xs line-through" style={{ color: `${theme.ink}77` }}>{formatAmount(compare, meta.currency)}</span>
             )}
           </p>
         )}
@@ -359,9 +392,119 @@ export function SilkAtelierProductCard({ item, theme, shape = 'arch', showCode =
   )
 }
 
+const ARCH_TOP = '999px 999px 16px 16px'
+
+/** Prashanti-style hero tile at the start of a drops carousel. */
+export function SilkAtelierDropFeatureCard({
+  label,
+  viewAll,
+  styleCount,
+  imageUrl,
+  theme,
+  width = 248,
+}: {
+  label: string
+  viewAll: string
+  styleCount: number
+  imageUrl: string
+  theme: SilkAtelierTheme
+  width?: number
+}) {
+  const countLabel = styleCount > 0 ? styleCount : 'New'
+  return (
+    <SilkAtelierLink to={viewAll} className="group block shrink-0 snap-start" style={{ width }} aria-label={`View all ${label}`}>
+      <div
+        className="relative overflow-hidden"
+        style={{
+          aspectRatio: '3 / 4.25',
+          borderRadius: ARCH_TOP,
+          background: theme.primary,
+          boxShadow: '0 12px 28px -16px rgba(90,11,58,.6)',
+        }}
+      >
+        <img
+          src={imageUrl}
+          alt=""
+          loading="lazy"
+          className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+        />
+        <div
+          className="absolute inset-0"
+          style={{ background: `linear-gradient(180deg, transparent 35%, ${theme.primary} 88%)` }}
+        />
+        <span className="absolute left-4 top-4 rounded-full bg-black/45 px-3 py-1 text-[11px] font-medium text-white backdrop-blur-[2px]">
+          ● {countLabel} new styles
+        </span>
+        <div className="absolute inset-x-0 bottom-0 px-4 pb-5 pt-16 text-center">
+          <p
+            className="text-[1.65rem] leading-tight italic text-white drop-shadow-sm sm:text-[1.85rem]"
+            style={{ fontFamily: theme.headingFont }}
+          >
+            {label}
+          </p>
+          <span
+            className="mt-4 inline-block rounded-full px-8 py-2.5 text-[11px] font-bold uppercase tracking-[0.2em] text-[#3B1A2C] shadow-md transition group-hover:brightness-105"
+            style={{ background: `linear-gradient(135deg, ${theme.accent}, #E9CF8F)` }}
+          >
+            View all
+          </span>
+        </div>
+      </div>
+    </SilkAtelierLink>
+  )
+}
+
+/** Maroon “View all” cap at the end of the drops carousel. */
+export function SilkAtelierDropViewAllCard({
+  viewAll,
+  designCount,
+  theme,
+  width = 188,
+}: {
+  viewAll: string
+  designCount: number
+  theme: SilkAtelierTheme
+  width?: number
+}) {
+  return (
+    <SilkAtelierLink to={viewAll} className="group block shrink-0 snap-start" style={{ width }} aria-label="View all designs">
+      <div
+        className="flex flex-col items-center justify-center px-4 text-center"
+        style={{
+          aspectRatio: '3 / 4.1',
+          borderRadius: ARCH_TOP,
+          background: theme.primary,
+          boxShadow: '0 10px 24px -14px rgba(90,11,58,.55)',
+        }}
+      >
+        <span
+          className="flex h-14 w-14 items-center justify-center rounded-full shadow-md transition group-hover:scale-105"
+          style={{ background: theme.accent, color: theme.primary }}
+        >
+          <ChevronRight className="h-7 w-7" strokeWidth={2.25} />
+        </span>
+        <p className="mt-5 text-lg font-medium italic text-white" style={{ fontFamily: theme.headingFont }}>
+          View all
+        </p>
+        <p className="mt-1 text-sm text-white/75">{designCount > 0 ? `${designCount} Designs` : 'Browse all'}</p>
+      </div>
+    </SilkAtelierLink>
+  )
+}
+
 // ── Scroll row with arrows + gold progress bar ─────────────────────────────
 
-export function SilkAtelierScrollRow({ children, theme, leading }: { children: ReactNode; theme: SilkAtelierTheme; leading?: ReactNode }) {
+export function SilkAtelierScrollRow({
+  children,
+  theme,
+  leading,
+  trailing,
+}: {
+  children: ReactNode
+  theme: SilkAtelierTheme
+  leading?: ReactNode
+  trailing?: ReactNode
+}) {
   const ref = useRef<HTMLDivElement>(null)
   const [progress, setProgress] = useState(0)
   const [canPrev, setCanPrev] = useState(false)
@@ -417,6 +560,7 @@ export function SilkAtelierScrollRow({ children, theme, leading }: { children: R
       >
         {leading}
         {children}
+        {trailing}
       </div>
       {arrow(-1, canPrev)}
       {arrow(1, canNext)}

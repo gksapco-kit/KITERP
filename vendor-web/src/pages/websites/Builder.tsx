@@ -345,7 +345,7 @@ import { mediaUrl } from '@/lib/utils'
 import { extractApiError, isBuilderPreviewInfraFailure } from '@/lib/errorMessages'
 import { isStorefrontEmbedNavPath, normalizeStorefrontCatalogHref, parseCatalogStorePath, parseStorefrontEmbedRoute } from '@/lib/catalogStorePaths'
 import { DraftCatalogPreview } from '@/components/websites/DraftCatalogPreview'
-import { findBuilderPageForNavPath } from '@storefront/lib/previewNavRouting'
+import { findBuilderPageForNavPath, storeNavPathHasCatalogFilters } from '@storefront/lib/previewNavRouting'
 import { isVendorBlogEnabled } from '@storefront/lib/catalogNavCapabilities'
 import { recallDraftPreviewToken } from '@/lib/draftPreviewNavigation'
 import {
@@ -13887,6 +13887,16 @@ export default function WebsiteBuilder() {
     const embedRoute = parseStorefrontEmbedRoute(normalized)
       || parseCatalogStorePath(pathOnly)
       || (isStorefrontEmbedNavPath(pathOnly) ? pathOnly.replace(/^\/+/, '') : null)
+
+    // Filtered /products?category=… must open the catalog embed even when a builder "Products" page exists.
+    if (storeNavPathHasCatalogFilters(normalized) && embedRoute) {
+      if (target) {
+        setActivePageId(target.id)
+        setSelectedBlockId(null)
+      }
+      void showCatalogInCanvas(normalized)
+      return
+    }
 
     if (targetHasContent && target) {
       exitCanvasCatalog()
