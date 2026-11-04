@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Outlet, NavLink, useLocation } from 'react-router-dom'
+import { Navigate, Outlet, NavLink, useLocation } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useDocumentSeo, adminPageTitle } from '@/lib/documentSeo'
 import {
@@ -30,7 +30,13 @@ import {
 import { cn, mediaUrl } from '@/lib/utils'
 import { useLogout } from '@/hooks/useAuth'
 import { useAuthStore } from '@/stores/authStore'
-import { getDashboardUserRoleLabel, isPlatformStaff, isSuperuserAdmin } from '@/lib/platformAccess'
+import {
+  getDashboardUserRoleLabel,
+  hasPlatformPermission,
+  isPlatformStaff,
+  isSuperuserAdmin,
+} from '@/lib/platformAccess'
+import { adminPathAccess, hasSubmoduleAccess } from '@/lib/adminAreas'
 import { HR_ADMIN_BASE, HR_ADMIN_NAV_ITEMS, getHrAdminNavItem } from '@/lib/hrAdminNav'
 import { CRM_ADMIN_BASE, CRM_ADMIN_NAV_ITEMS, getCrmAdminNavItem } from '@/lib/crmAdminNav'
 import { FINANCE_ADMIN_BASE, FINANCE_ADMIN_NAV_ITEMS, getFinanceAdminNavItem } from '@/lib/financeAdminNav'
@@ -47,6 +53,8 @@ type NavItem = {
   expandableHr?: boolean
   expandableCrm?: boolean
   expandableFinance?: boolean
+  /** Platform job-role permission required for support staff (Super Admin always passes). */
+  permission?: string
 }
 
 const vendorNavItems: NavItem[] = [
@@ -75,13 +83,13 @@ const adminNavItemsSuperuser: NavItem[] = [
 ]
 
 const adminNavItemsSupport: NavItem[] = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/dashboard/vendors', icon: Users, label: 'Business Accounts' },
-  { to: '/dashboard/website-analytics', icon: BarChart3, label: 'Website Analytics' },
-  { to: '/dashboard/account-activity', icon: ScrollText, label: 'Account activity' },
-  { to: CRM_ADMIN_BASE, icon: UsersRound, label: 'CRM Management', expandableCrm: true },
-  { to: FINANCE_ADMIN_BASE, icon: Landmark, label: 'Finance Management', expandableFinance: true },
-  { to: HR_ADMIN_BASE, icon: UserCog, label: 'HR Management', expandableHr: true },
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', permission: 'admin.dashboard' },
+  { to: '/dashboard/vendors', icon: Users, label: 'Business Accounts', permission: 'admin.vendors' },
+  { to: '/dashboard/website-analytics', icon: BarChart3, label: 'Website Analytics', permission: 'admin.website_analytics' },
+  { to: '/dashboard/account-activity', icon: ScrollText, label: 'Account activity', permission: 'admin.account_activity' },
+  { to: CRM_ADMIN_BASE, icon: UsersRound, label: 'CRM Management', expandableCrm: true, permission: 'admin.crm' },
+  { to: FINANCE_ADMIN_BASE, icon: Landmark, label: 'Finance Management', expandableFinance: true, permission: 'admin.finance' },
+  { to: HR_ADMIN_BASE, icon: UserCog, label: 'HR Management', expandableHr: true, permission: 'admin.hr' },
 ]
 
 function ProfileAvatar({
@@ -140,6 +148,7 @@ function FinanceExpandableNav({
   onNavigate: () => void
 }) {
   const location = useLocation()
+  const { user } = useAuthStore()
   const onFinanceRoute =
     location.pathname === FINANCE_ADMIN_BASE || location.pathname.startsWith(`${FINANCE_ADMIN_BASE}/`)
   const [expanded, setExpanded] = useState(onFinanceRoute)
@@ -174,7 +183,7 @@ function FinanceExpandableNav({
 
       {expanded ? (
         <div id="admin-finance-submenu" className="space-y-1 pl-3" role="group" aria-label="Finance Management pages">
-          {FINANCE_ADMIN_NAV_ITEMS.map((item) => {
+          {FINANCE_ADMIN_NAV_ITEMS.filter((item) => hasSubmoduleAccess(user, 'finance', item.slug)).map((item) => {
             const to = `${FINANCE_ADMIN_BASE}/${item.slug}`
             return (
               <NavLink
@@ -228,6 +237,7 @@ function CrmExpandableNav({
   onNavigate: () => void
 }) {
   const location = useLocation()
+  const { user } = useAuthStore()
   const onCrmRoute = location.pathname === CRM_ADMIN_BASE || location.pathname.startsWith(`${CRM_ADMIN_BASE}/`)
   const [expanded, setExpanded] = useState(onCrmRoute)
   const { data: newLeadCount, isSuccess: leadCountReady } = useNewLeadCount(true)
@@ -277,7 +287,7 @@ function CrmExpandableNav({
 
       {expanded ? (
         <div id="admin-crm-submenu" className="space-y-1 pl-3" role="group" aria-label="CRM Management pages">
-          {CRM_ADMIN_NAV_ITEMS.map((item) => {
+          {CRM_ADMIN_NAV_ITEMS.filter((item) => hasSubmoduleAccess(user, 'crm', item.slug)).map((item) => {
             const to = `${CRM_ADMIN_BASE}/${item.slug}`
             const leadBadge = item.slug === 'leads' ? leadBadgeCount : 0
             return (
@@ -312,6 +322,7 @@ function HrExpandableNav({
   onNavigate: () => void
 }) {
   const location = useLocation()
+  const { user } = useAuthStore()
   const onHrRoute = location.pathname === HR_ADMIN_BASE || location.pathname.startsWith(`${HR_ADMIN_BASE}/`)
   const [expanded, setExpanded] = useState(onHrRoute)
 
@@ -345,7 +356,7 @@ function HrExpandableNav({
 
       {expanded ? (
         <div id="admin-hr-submenu" className="space-y-1 pl-3" role="group" aria-label="HR Management pages">
-          {HR_ADMIN_NAV_ITEMS.map((item) => {
+          {HR_ADMIN_NAV_ITEMS.filter((item) => hasSubmoduleAccess(user, 'hr', item.slug)).map((item) => {
             const to = `${HR_ADMIN_BASE}/${item.slug}`
             return (
               <NavLink
@@ -383,8 +394,14 @@ export default function DashboardLayout() {
   const navItems = isAdmin
     ? isSuperuserAdmin(user)
       ? adminNavItemsSuperuser
-      : adminNavItemsSupport
+      : adminNavItemsSupport.filter((item) => !item.permission || hasPlatformPermission(user, item.permission))
     : vendorNavItems
+
+  // Support staff may only open the admin areas / CRM, Finance, HR sub-modules their job role grants.
+  const areaAccess =
+    isAdmin && !isSuperuserAdmin(user) ? adminPathAccess(user, location.pathname) : null
+  const areaBlocked = areaAccess ? !areaAccess.allowed : false
+  const fallbackAreaPath = areaAccess && !areaAccess.allowed ? areaAccess.redirectTo : null
   const displayName = isAdmin ? 'KIT ERP' : vendor?.display_name || 'KIT ERP'
   const roleLabel = getDashboardUserRoleLabel(user)
 
@@ -554,7 +571,20 @@ export default function DashboardLayout() {
             isModuleIframeShell ? 'p-0' : 'p-4 sm:p-6 lg:p-8',
           )}
         >
-          <Outlet />
+          {areaBlocked ? (
+            fallbackAreaPath && fallbackAreaPath !== location.pathname ? (
+              <Navigate to={fallbackAreaPath} replace />
+            ) : (
+              <div className="mx-auto max-w-lg rounded-lg border border-gray-200 bg-white p-6 text-center">
+                <h1 className="text-lg font-semibold text-gray-900">No access</h1>
+                <p className="mt-2 text-sm text-gray-600">
+                  Your role does not include this area. Ask a Super Admin to update your job role.
+                </p>
+              </div>
+            )
+          ) : (
+            <Outlet />
+          )}
         </main>
       </div>
       <ResponsiveViewportBadge />

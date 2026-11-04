@@ -13,8 +13,13 @@ import {
   usePlatformJobRoles,
   useUpdatePlatformJobRole,
 } from '@/hooks/usePlatformJobRoles'
-import type { PlatformJobRole } from '@/api/admin.api'
+import type { PlatformJobRole, PlatformModuleDef } from '@/api/admin.api'
+import ModulePermissionPicker from '@/components/user-roles/ModulePermissionPicker'
+import { summarizeModules } from '@/lib/platformModulePerms'
 import { cn } from '@/lib/utils'
+
+/** Derived by the backend from sub-module grants; shown via the module summary instead. */
+const DERIVED_MODULE_PERMS = new Set(['admin.crm', 'admin.finance', 'admin.hr'])
 import {
   Check,
   ChevronDown,
@@ -82,7 +87,6 @@ function RoleFormModal({
         'admin.vendors',
         'admin.website_analytics',
         'admin.account_activity',
-        'admin.crm',
         'vendors.create',
         'vendors.handoff',
       ])
@@ -92,6 +96,7 @@ function RoleFormModal({
   if (!open) return null
 
   const grouped = permData?.permissions || {}
+  const modules = permData?.modules ?? []
   const busy = createRole.isPending || updateRole.isPending
 
   const togglePerm = (key: string) => {
@@ -222,6 +227,8 @@ function RoleFormModal({
           })}
         </div>
 
+        <ModulePermissionPicker modules={modules} perms={perms} onChange={setPerms} />
+
         <div className="flex justify-end gap-2 pt-1">
           <Button type="button" variant="outline" onClick={onClose} disabled={busy}>
             Cancel
@@ -247,6 +254,7 @@ function RoleCard({
   onEdit,
   onDelete,
   permissionLabels,
+  modules,
 }: {
   role: PlatformJobRole
   expanded: boolean
@@ -254,9 +262,15 @@ function RoleCard({
   onEdit?: () => void
   onDelete?: () => void
   permissionLabels: Record<string, string>
+  modules: PlatformModuleDef[]
 }) {
   const store = vendorScopeFromPerms(role.permissions || [])
-  const adminPerms = (role.permissions || []).filter((p) => p.startsWith('admin.'))
+  const adminPerms = (role.permissions || []).filter(
+    (p) => p.startsWith('admin.') && !DERIVED_MODULE_PERMS.has(p),
+  )
+  const moduleSummary = summarizeModules(role.permissions || [], modules).filter(
+    (m) => m.rows.length > 0,
+  )
   const vendorPerms = (role.permissions || []).filter(
     (p) => p.startsWith('vendors.') || p.startsWith('staff.'),
   )
@@ -353,6 +367,47 @@ function RoleCard({
             </div>
           </div>
 
+          {modules.length > 0 && (
+            <div>
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Modules &amp; sub-modules
+              </h3>
+              {moduleSummary.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No CRM, Finance or HR access</p>
+              ) : (
+                <div className="grid gap-3 md:grid-cols-3">
+                  {moduleSummary.map((m) => (
+                    <div key={m.module} className="rounded-md border p-3">
+                      <p className="mb-1.5 text-sm font-medium text-gray-900">
+                        {m.label}{' '}
+                        <span className="font-normal text-muted-foreground">
+                          ({m.rows.length}/{m.total})
+                        </span>
+                      </p>
+                      <ul className="max-h-48 space-y-1 overflow-y-auto pr-1">
+                        {m.rows.map((r) => (
+                          <li key={r.slug} className="flex items-center justify-between gap-2 text-sm text-gray-800">
+                            <span className="min-w-0 truncate">{r.label}</span>
+                            <span
+                              className={cn(
+                                'shrink-0 rounded-full border px-1.5 py-0.5 text-[11px] font-medium',
+                                r.level === 'manage'
+                                  ? 'border-green-200 bg-green-50 text-green-800'
+                                  : 'border-gray-200 bg-gray-50 text-gray-700',
+                              )}
+                            >
+                              {r.level === 'manage' ? (r.mode === 'access' ? 'Access' : 'Manage') : 'View'}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="flex flex-wrap gap-2">
             <Button asChild type="button" variant="outline" size="sm">
               <Link to="/dashboard/platform-team">
@@ -390,12 +445,13 @@ export default function UserRoles() {
   const [editRole, setEditRole] = useState<PlatformJobRole | null>(null)
 
   const permissionLabels = useMemo(() => {
-    const map: Record<string, string> = {}
+    const map: Record<string, string> = { ...(permData?.labels ?? {}) }
     for (const items of Object.values(permData?.permissions || {})) {
       for (const p of items) map[p.key] = p.label
     }
     return map
   }, [permData])
+  const modules = permData?.modules ?? []
 
   const roles = data?.roles ?? []
   const builtin = roles.filter((r) => r.is_builtin)
@@ -466,6 +522,7 @@ export default function UserRoles() {
                   expanded={expanded === role.slug}
                   onToggle={() => setExpanded((prev) => (prev === role.slug ? null : role.slug))}
                   permissionLabels={permissionLabels}
+                  modules={modules}
                 />
               ))}
             </CardContent>
@@ -521,6 +578,7 @@ export default function UserRoles() {
                   expanded={expanded === role.slug}
                   onToggle={() => setExpanded((prev) => (prev === role.slug ? null : role.slug))}
                   permissionLabels={permissionLabels}
+                  modules={modules}
                   onEdit={() => {
                     setEditRole(role)
                     setFormOpen(true)

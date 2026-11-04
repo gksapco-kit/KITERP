@@ -168,6 +168,7 @@ function applyFormState(
     setSubscriptionsEnabled: (v: boolean) => void
     setProjectsEnabled: (v: boolean) => void
     setRentalsEnabled: (v: boolean) => void
+    setRealestateEnabled: (v: boolean) => void
   },
 ) {
   setters.setOfferingType(state.offeringType)
@@ -187,6 +188,7 @@ function applyFormState(
   setters.setSubscriptionsEnabled(state.subscriptionsEnabled)
   setters.setProjectsEnabled(state.projectsEnabled)
   setters.setRentalsEnabled(state.rentalsEnabled)
+  setters.setRealestateEnabled(state.realestateEnabled)
 }
 
 export default function ModulesPage() {
@@ -227,6 +229,7 @@ export default function ModulesPage() {
   const [subscriptionsEnabled, setSubscriptionsEnabled] = useState(true)
   const [projectsEnabled, setProjectsEnabled] = useState(true)
   const [rentalsEnabled, setRentalsEnabled] = useState(true)
+  const [realestateEnabled, setRealestateEnabled] = useState(false)
 
 
   const formSetters = useMemo(
@@ -248,6 +251,7 @@ export default function ModulesPage() {
       setSubscriptionsEnabled,
       setProjectsEnabled,
       setRentalsEnabled,
+      setRealestateEnabled,
     }),
     [],
   )
@@ -271,6 +275,7 @@ export default function ModulesPage() {
       subscriptionsEnabled,
       projectsEnabled,
       rentalsEnabled,
+      realestateEnabled,
     }),
     [
       offeringType,
@@ -290,6 +295,7 @@ export default function ModulesPage() {
       subscriptionsEnabled,
       projectsEnabled,
       rentalsEnabled,
+      realestateEnabled,
     ],
   )
 
@@ -717,9 +723,21 @@ export default function ModulesPage() {
           />
         )
         break
+      case 'realestate':
+        panelBody = (
+          <EnableRow
+            label="Enable Real Estate"
+            hint="Property inventory, sales & CRM, bookings, collections, construction, leasing and facility management in the Real Estate sidebar section. Off by default."
+            enabled={realestateEnabled}
+            onToggle={() => {
+              markModulesDirty()
+              setRealestateEnabled(v => !v)
+            }}
+          />
+        )
+        break
       default:
-        panelBody = null
-    }
+        panelBody = null    }
 
   return (
     <div className="mx-auto flex max-h-[calc(100dvh-10rem)] min-h-0 w-full max-w-6xl flex-col overflow-hidden">

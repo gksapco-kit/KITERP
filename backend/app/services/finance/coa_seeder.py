@@ -89,6 +89,10 @@ DEFAULT_COA = [
     ("2140", "Salary Payable", "Liability", "Current Liability", True, False, None),
     ("2150", "Advance from Customers", "Liability", "Current Liability", False, False, None),
     ("2160", "Other Current Liabilities", "Liability", "Current Liability", False, False, None),
+    ("2170", "PF Payable", "Liability", "Current Liability", False, False, None),
+    ("2180", "ESI Payable", "Liability", "Current Liability", False, False, None),
+    ("2190", "Professional Tax Payable", "Liability", "Current Liability", False, False, None),
+    ("2195", "Other Payable", "Liability", "Current Liability", False, False, None),
     ("2200", "Long-term Liabilities", "Liability", "Long-term Liability", False, False, None),
     ("2210", "Long-term Loans", "Liability", "Long-term Liability", False, False, None),
     ("2220", "Bank Overdraft", "Liability", "Long-term Liability", False, False, None),
@@ -112,6 +116,8 @@ DEFAULT_COA = [
     ("5110", "Purchases / COGS", "Expense", "COGS", True, False, None),
     ("5200", "Operating Expenses", "Expense", "Operating Expense", True, False, None),
     ("5210", "Salary & Wages", "Expense", "Operating Expense", True, False, None),
+    ("5211", "PF Expense (Employer)", "Expense", "Operating Expense", False, False, None),
+    ("5212", "ESI Expense (Employer)", "Expense", "Operating Expense", False, False, None),
     ("5220", "Rent Expense", "Expense", "Operating Expense", False, False, None),
     ("5230", "Utilities", "Expense", "Operating Expense", False, False, None),
     ("5240", "Depreciation Expense", "Expense", "Operating Expense", True, False, None),
@@ -120,6 +126,7 @@ DEFAULT_COA = [
     ("5270", "Travel & Conveyance", "Expense", "Operating Expense", False, False, None),
     ("5280", "Office Supplies", "Expense", "Operating Expense", False, False, None),
     ("5290", "Marketing & Advertising", "Expense", "Operating Expense", False, False, None),
+    ("5295", "Inventory Adjustment", "Expense", "Operating Expense", False, False, None),
     ("5300", "Tax Expenses", "Expense", "Tax Expense", False, False, None),
     ("5310", "Income Tax Expense", "Expense", "Tax Expense", False, False, None),
 ]
@@ -133,7 +140,8 @@ PARENT_MAP = {
     "1250": "1200", "1290": "1200",
     "2100": "2000", "2200": "2000",
     "2110": "2100", "2120": "2100", "2130": "2100", "2140": "2100",
-    "2150": "2100", "2160": "2100",
+    "2150": "2100", "2160": "2100", "2170": "2100", "2180": "2100",
+    "2190": "2100", "2195": "2100", "5211": "5200", "5212": "5200",
     "2210": "2200", "2220": "2200",
     "3100": "3000", "3200": "3000", "3300": "3000",
     "4100": "4000", "4200": "4000",
@@ -143,7 +151,7 @@ PARENT_MAP = {
     "5110": "5100",
     "5210": "5200", "5220": "5200", "5230": "5200", "5240": "5200",
     "5250": "5200", "5260": "5200", "5270": "5200", "5280": "5200",
-    "5290": "5200",
+    "5290": "5200", "5295": "5200",
     "5310": "5300",
 }
 
@@ -181,6 +189,46 @@ async def seed_default_coa(db: AsyncSession, vendor_id) -> None:
             code_to_id[code].parent_id = code_to_id[parent_code].id
 
     await db.flush()
+
+
+async def ensure_default_accounts(db: AsyncSession, vendor_id) -> list[str]:
+    """
+    Backfill any default account that is missing for an already-seeded tenant
+    (the seeder is a no-op once a vendor has any account, so accounts added to the
+    defaults later — PF/ESI payable, inventory adjustment … — would never appear).
+
+    An account is considered present if its code OR its name already exists, so a
+    tenant's customised chart is never duplicated. Returns the codes that were added.
+    """
+    r = await db.execute(select(FinAccount).where(FinAccount.vendor_id == vendor_id))
+    existing = r.scalars().all()
+    if not existing:
+        await seed_default_coa(db, vendor_id)
+        return [row[0] for row in DEFAULT_COA]
+    by_code = {a.code: a for a in existing}
+    names = {(a.name or "").strip().lower() for a in existing}
+    added: list[str] = []
+    new_accounts: dict[str, FinAccount] = {}
+    for code, name, acct_type, subtype, is_system, is_recon, recon_sub in DEFAULT_COA:
+        if code in by_code or name.strip().lower() in names:
+            continue
+        acct = FinAccount(
+            id=uuid.uuid4(), vendor_id=vendor_id, code=code, name=name,
+            account_type=acct_type, account_subtype=subtype, is_system=is_system,
+            is_active=True, is_reconciliation_account=is_recon,
+            reconciliation_subledger=recon_sub,
+        )
+        new_accounts[code] = acct
+        db.add(acct)
+        added.append(code)
+    if new_accounts:
+        await db.flush()
+        for code, acct in new_accounts.items():
+            parent = by_code.get(PARENT_MAP.get(code, "")) or new_accounts.get(PARENT_MAP.get(code, ""))
+            if parent is not None:
+                acct.parent_id = parent.id
+        await db.flush()
+    return added
 
 
 # Default Fixed Asset categories, mapped to the Fixed Asset GL accounts above.

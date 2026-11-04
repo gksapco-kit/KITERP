@@ -5,17 +5,19 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime, timezone
 from decimal import Decimal
-from typing import Any, List, Optional, Set
+from typing import Any, Iterable, List, Optional, Set
 from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
-from sqlalchemy import select, func, delete
+from sqlalchemy import select, func, delete, or_, case, and_
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_db, require_permission
 from app.models.vendor_user import VendorUser
-from app.models.finance import FinCompany
+from app.models.vendor_product import Product
+from app.models.finance import FinAccount, FinCompany, FinCostCenter, FinProject
 from app.models.mrp import ProductBOMItem
 from app.models.controlling import (
     CoActivityType,
@@ -36,6 +38,7 @@ from app.models.controlling import (
     CoWorkCenter,
     CoRouting,
     CoRoutingOperation,
+    CoVarianceRunOrder,
 )
 from app.schemas.controlling import (
     ActivityTypeCreate,
@@ -69,6 +72,7 @@ from app.schemas.controlling import (
     CoGlMappingUpsert,
     CoCostBookingOut,
     CoSettlementPostIn,
+    CoSettlementReverseIn,
     ActivityConfirmationCreate,
     ActivityConfirmationUpdate,
     ActivityConfirmationOut,
@@ -86,17 +90,38 @@ from app.schemas.controlling import (
     VarianceRunPostIn,
     OrderStatusTransitionIn,
     PeriodEndReportOut,
+    CostVersionRoutingIn,
+    ApplyOverheadIn,
+    WorkCenterCreate,
+    WorkCenterUpdate,
+    RoutingCreate,
+    RoutingUpdate,
+    RoutingOperationCreate,
+    RoutingOperationUpdate,
 )
 from app.services.controlling.settlement import (
     get_gl_mapping,
     upsert_gl_mapping,
     post_production_completion,
     post_cogs_issue,
+    reverse_cogs_issue,
+    reverse_production_completion_posting,
+    reverse_journal,
+    order_line_amounts as _order_line_amounts,
+    sum_order_planned_actual as _sum_order_planned_actual,
+    check_period_open,
 )
 from app.services.controlling.budget_control import (
     BudgetExceededError,
     assert_budget_allows,
 )
+from app.services.controlling import movements as co_movements
+from app.services.controlling.guards import (
+    StateError,
+    assert_order_editable,
+    assert_version_editable,
+)
+from app.services.controlling.numbering import next_order_no
 
 router = APIRouter(dependencies=[Depends(require_permission("controlling.view"))])
 
@@ -125,6 +150,87 @@ async def _require_company(db: AsyncSession, vendor_id: UUID, company_id: UUID) 
     return co
 
 
+async def _assert_owned(
+    db: AsyncSession, vendor_id: UUID, model: Any, ids: Iterable[Optional[UUID]], label: str
+) -> None:
+    """404 unless every non-null id is a row of ``model`` owned by this vendor (blocks cross-tenant references)."""
+    wanted = {i for i in ids if i}
+    if not wanted:
+        return
+    found = set(
+        (
+            await db.execute(select(model.id).where(model.id.in_(wanted), model.vendor_id == vendor_id))
+        ).scalars().all()
+    )
+    if wanted - found:
+        raise HTTPException(status_code=404, detail=f"{label} not found")
+
+
+async def _assert_line_refs(
+    db: AsyncSession,
+    vendor_id: UUID,
+    *,
+    products: Iterable[Optional[UUID]] = (),
+    activity_types: Iterable[Optional[UUID]] = (),
+    pools: Iterable[Optional[UUID]] = (),
+) -> None:
+    """Validate the optional master-data references carried by cost lines."""
+    await _assert_owned(db, vendor_id, Product, products, "Product")
+    await _assert_owned(db, vendor_id, CoActivityType, activity_types, "Activity type")
+    await _assert_owned(db, vendor_id, CoOverheadPool, pools, "Overhead pool")
+
+
+async def _assert_order_refs(
+    db: AsyncSession, vendor_id: UUID, data: dict[str, Any], company_id: Optional[UUID] = None
+) -> None:
+    """Validate the master-data references of an order payload (create / update)."""
+    await _assert_owned(db, vendor_id, FinCostCenter, [data.get("cost_center_id")], "Cost center")
+    await _assert_owned(db, vendor_id, FinProject, [data.get("project_id")], "Project")
+    await _assert_owned(db, vendor_id, Product, [data.get("product_id")], "Product")
+    ver_id = data.get("standard_cost_version_id")
+    if ver_id:
+        ver = (
+            await db.execute(
+                select(CoProductCostVersion).where(
+                    CoProductCostVersion.id == ver_id, CoProductCostVersion.vendor_id == vendor_id
+                )
+            )
+        ).scalar_one_or_none()
+        if not ver:
+            raise HTTPException(status_code=404, detail="Cost version not found")
+        if company_id and ver.company_id != company_id:
+            raise HTTPException(status_code=400, detail="Cost version belongs to a different business unit")
+
+
+async def _commit(db: AsyncSession) -> None:
+    """Commit; turn constraint violations (duplicate code / order no, bad reference) into a 409."""
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Conflict: a record with the same code / number already exists, or a referenced record is invalid.",
+        ) from exc
+
+
+async def _get_owned_order(
+    db: AsyncSession, vendor_id: UUID, order_id: UUID, company_id: Optional[UUID] = None
+) -> CoManufacturingOrder:
+    order = (
+        await db.execute(
+            select(CoManufacturingOrder).where(
+                CoManufacturingOrder.id == order_id, CoManufacturingOrder.vendor_id == vendor_id
+            )
+        )
+    ).scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if company_id and order.company_id != company_id:
+        raise HTTPException(status_code=400, detail="Order belongs to a different business unit")
+    return order
+
+
 def _line_amount(qty: Decimal, rate: Decimal) -> Decimal:
     return (qty * rate).quantize(Decimal("0.0001"))
 
@@ -137,7 +243,12 @@ def _recalc_product_cost_line_amount(line: CoProductCostLine) -> None:
 
 
 def _rollup_version_totals(ver: CoProductCostVersion) -> None:
-    mat = act = ovh = Decimal("0")
+    """Recompute all planned totals of a cost version from its lines.
+
+    line_type values: material | activity | overhead | direct_overhead | indirect_overhead
+    (anything else, e.g. scrap / other, counts towards the rolled-up unit cost only).
+    """
+    mat = act = ovh = dovh = iovh = other = Decimal("0")
     for ln in ver.lines:
         _recalc_product_cost_line_amount(ln)
         amt = Decimal(str(ln.amount_planned or 0))
@@ -148,28 +259,53 @@ def _rollup_version_totals(ver: CoProductCostVersion) -> None:
             act += amt
         elif lt == "overhead":
             ovh += amt
+        elif lt == "direct_overhead":
+            dovh += amt
+        elif lt == "indirect_overhead":
+            iovh += amt
+        else:
+            other += amt
     ver.material_total_planned = mat
     ver.activity_total_planned = act
-    ver.overhead_total_planned = ovh
-    ver.rolled_up_unit_cost = mat + act + ovh
+    ver.direct_overhead_total_planned = dovh
+    ver.indirect_overhead_total_planned = iovh
+    ver.overhead_total_planned = ovh + dovh + iovh
+    ver.rolled_up_unit_cost = mat + act + ovh + dovh + iovh + other
 
 
-def _order_line_amounts(ln: CoOrderCostLine) -> None:
-    ap0 = Decimal(str(ln.amount_planned or 0))
-    if ap0 == 0 and ln.qty_planned is not None and ln.rate_planned is not None:
-        ln.amount_planned = _line_amount(Decimal(str(ln.qty_planned)), Decimal(str(ln.rate_planned)))
-    aa0 = Decimal(str(ln.amount_actual or 0))
-    if aa0 == 0 and ln.qty_actual is not None and ln.rate_actual is not None:
-        ln.amount_actual = _line_amount(Decimal(str(ln.qty_actual)), Decimal(str(ln.rate_actual)))
+def _co_error(exc: Exception) -> HTTPException:
+    """Map service-layer errors to HTTP: state -> 409, budget -> 409, missing -> 404, other -> 422."""
+    if isinstance(exc, BudgetExceededError):
+        return HTTPException(status_code=409, detail=exc.availability.to_detail())
+    msg = str(exc)
+    if isinstance(exc, StateError) or "already" in msg.lower():
+        return HTTPException(status_code=409, detail=msg)
+    if "not found" in msg.lower():
+        return HTTPException(status_code=404, detail=msg)
+    return HTTPException(status_code=422, detail=msg)
 
 
-def _sum_order_planned_actual(order: CoManufacturingOrder) -> tuple[Decimal, Decimal]:
-    p = a = Decimal("0")
-    for ln in order.cost_lines:
-        _order_line_amounts(ln)
-        p += Decimal(str(ln.amount_planned or 0))
-        a += Decimal(str(ln.amount_actual or 0))
-    return p, a
+async def _load_order_for_edit(
+    db: AsyncSession, vendor_id: UUID, order_id: UUID, what: str = "order", *, check: bool = True
+) -> CoManufacturingOrder:
+    """Load an order (row-locked) with its children and, unless ``check`` is False, require it to be editable."""
+    order = (
+        await db.execute(
+            select(CoManufacturingOrder)
+            .options(*_mo_load_options())
+            .where(CoManufacturingOrder.id == order_id, CoManufacturingOrder.vendor_id == vendor_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="Not found")
+    if check:
+        try:
+            await assert_order_editable(db, order, what)
+        except StateError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return order
 
 
 def _mo_load_options():
@@ -239,6 +375,7 @@ async def _rate_for_pool_on_date(
         .where(
             CoOverheadRate.pool_id == pool_id,
             CoOverheadRate.effective_from <= on_date,
+            or_(CoOverheadRate.effective_to.is_(None), CoOverheadRate.effective_to >= on_date),
         )
         .order_by(CoOverheadRate.effective_from.desc())
         .limit(1)
@@ -247,11 +384,6 @@ async def _rate_for_pool_on_date(
     if not row:
         return Decimal("0")
     return Decimal(str(row.rate_per_unit or 0))
-
-
-async def _next_order_no(db: AsyncSession, vendor_id: UUID) -> str:
-    suffix = uuid.uuid4().hex[:6].upper()
-    return f"MO-{date.today().strftime('%Y%m%d')}-{suffix}"
 
 
 async def _active_unit_cost(
@@ -280,10 +412,18 @@ async def _rollup_unit_cost_recursive(
     company_id: UUID,
     product_id: UUID,
     visited: Set[str],
+    memo: Optional[dict[str, Decimal]] = None,
 ) -> Decimal:
     key = str(product_id)
+    if memo is None:
+        memo = {}
+    if key in memo:
+        return memo[key]
     if key in visited:
-        return Decimal("0")
+        raise HTTPException(
+            status_code=422,
+            detail="Circular BOM detected — a component (directly or indirectly) contains the product being costed.",
+        )
     visited.add(key)
     r = await db.execute(
         select(ProductBOMItem).where(
@@ -295,12 +435,14 @@ async def _rollup_unit_cost_recursive(
     if not bom_items:
         cost = await _active_unit_cost(db, vendor_id, company_id, product_id)
         visited.remove(key)
+        memo[key] = cost
         return cost
     total = Decimal("0")
     for bi in bom_items:
-        comp_cost = await _rollup_unit_cost_recursive(db, vendor_id, company_id, bi.component_id, visited)
+        comp_cost = await _rollup_unit_cost_recursive(db, vendor_id, company_id, bi.component_id, visited, memo)
         total += Decimal(str(bi.qty_per_unit)) * comp_cost
     visited.remove(key)
+    memo[key] = total
     return total
 
 
@@ -319,6 +461,9 @@ def _version_to_out(ver: CoProductCostVersion) -> ProductCostVersionOut:
             unit_rate_planned=Decimal(str(ln.unit_rate_planned or 0)),
             amount_planned=Decimal(str(ln.amount_planned or 0)),
             sequence=ln.sequence or 0,
+            category=ln.line_type,
+            qty_planned=Decimal(str(ln.qty_per_output_unit or 0)),
+            rate_planned=Decimal(str(ln.unit_rate_planned or 0)),
         )
         for ln in ver.lines
     ]
@@ -334,6 +479,9 @@ def _version_to_out(ver: CoProductCostVersion) -> ProductCostVersionOut:
         material_total_planned=Decimal(str(ver.material_total_planned or 0)),
         activity_total_planned=Decimal(str(ver.activity_total_planned or 0)),
         overhead_total_planned=Decimal(str(ver.overhead_total_planned or 0)),
+        direct_overhead_total_planned=Decimal(str(ver.direct_overhead_total_planned or 0)),
+        indirect_overhead_total_planned=Decimal(str(ver.indirect_overhead_total_planned or 0)),
+        routing_id=ver.routing_id,
         rolled_up_unit_cost=Decimal(str(ver.rolled_up_unit_cost or 0)),
         notes=ver.notes,
         extra=ver.extra or {},
@@ -398,6 +546,7 @@ def _order_to_out(order: CoManufacturingOrder) -> ManufacturingOrderOut:
         production_completion_journal_id=order.production_completion_journal_id,
         cogs_issue_journal_id=order.cogs_issue_journal_id,
         settlement_status=order.settlement_status or "none",
+        qty_cogs_posted=order.qty_cogs_posted or Decimal("0"),
         cost_bookings=bookings,
     )
 
@@ -426,6 +575,7 @@ async def create_activity_type(
     db: AsyncSession = Depends(get_db),
 ):
     await _require_company(db, vu.vendor_id, body.company_id)
+    await _assert_owned(db, vu.vendor_id, FinCostCenter, [body.default_cost_center_id], "Cost center")
     row = CoActivityType(
         vendor_id=vu.vendor_id,
         company_id=body.company_id,
@@ -437,7 +587,7 @@ async def create_activity_type(
         is_active=body.is_active,
     )
     db.add(row)
-    await db.commit()
+    await _commit(db)
     await db.refresh(row)
     return ActivityTypeOut.model_validate(_d(row))
 
@@ -458,9 +608,10 @@ async def update_activity_type(
     if not row:
         raise HTTPException(status_code=404, detail="Not found")
     data = body.model_dump(exclude_unset=True)
+    await _assert_owned(db, vu.vendor_id, FinCostCenter, [data.get("default_cost_center_id")], "Cost center")
     for k, v in data.items():
         setattr(row, k, v)
-    await db.commit()
+    await _commit(db)
     await db.refresh(row)
     return ActivityTypeOut.model_validate(_d(row))
 
@@ -496,10 +647,13 @@ async def create_overhead_pool(
         name=body.name.strip(),
         description=body.description,
         allocation_base=body.allocation_base,
+        overhead_type=body.overhead_type,
+        formula_type=body.formula_type,
+        formula_value=body.formula_value,
         is_active=body.is_active,
     )
     db.add(row)
-    await db.commit()
+    await _commit(db)
     await db.refresh(row)
     return OverheadPoolOut.model_validate(_d(row))
 
@@ -521,7 +675,7 @@ async def update_overhead_pool(
         raise HTTPException(status_code=404, detail="Not found")
     for k, v in body.model_dump(exclude_unset=True).items():
         setattr(row, k, v)
-    await db.commit()
+    await _commit(db)
     await db.refresh(row)
     return OverheadPoolOut.model_validate(_d(row))
 
@@ -569,7 +723,7 @@ async def create_overhead_rate(
         notes=body.notes,
     )
     db.add(row)
-    await db.commit()
+    await _commit(db)
     await db.refresh(row)
     return OverheadRateOut.model_validate(_d(row))
 
@@ -625,6 +779,12 @@ async def create_product_cost(
     db: AsyncSession = Depends(get_db),
 ):
     await _require_company(db, vu.vendor_id, body.company_id)
+    await _assert_line_refs(
+        db, vu.vendor_id,
+        products=[body.product_id, *(ln.component_product_id for ln in body.lines)],
+        activity_types=[ln.activity_type_id for ln in body.lines],
+        pools=[ln.overhead_pool_id for ln in body.lines],
+    )
     ver = CoProductCostVersion(
         vendor_id=vu.vendor_id,
         company_id=body.company_id,
@@ -650,14 +810,42 @@ async def create_product_cost(
         _recalc_product_cost_line_amount(row)
         ver.lines.append(row)
     _rollup_version_totals(ver)
+    if body.status == "active":
+        await _activate_cost_version(db, vu.vendor_id, ver)
     db.add(ver)
-    await db.commit()
+    await _commit(db)
     r = await db.execute(
         select(CoProductCostVersion)
         .options(selectinload(CoProductCostVersion.lines))
         .where(CoProductCostVersion.id == ver.id)
     )
     return _version_to_out(r.scalar_one())
+
+
+_VERSION_TRANSITIONS: dict[str, Set[str]] = {
+    "draft": {"active", "archived"},
+    "active": {"archived"},
+    "archived": set(),
+}
+
+
+async def _activate_cost_version(db: AsyncSession, vendor_id: UUID, ver: CoProductCostVersion) -> None:
+    """Make ``ver`` the one active standard of its product / company: it needs lines, the others are archived."""
+    if not ver.lines:
+        raise HTTPException(status_code=422, detail="Add cost lines before activating a cost version")
+    others = (
+        await db.execute(
+            select(CoProductCostVersion).where(
+                CoProductCostVersion.vendor_id == vendor_id,
+                CoProductCostVersion.company_id == ver.company_id,
+                CoProductCostVersion.product_id == ver.product_id,
+                CoProductCostVersion.status == "active",
+                CoProductCostVersion.id != ver.id,
+            )
+        )
+    ).scalars().all()
+    for o in others:
+        o.status = "archived"
 
 
 @router.patch("/product-costs/{version_id}", response_model=ProductCostVersionOut)
@@ -667,21 +855,27 @@ async def update_product_cost(
     vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    r = await db.execute(
-        select(CoProductCostVersion)
-        .options(selectinload(CoProductCostVersion.lines))
-        .where(
-            CoProductCostVersion.id == version_id,
-            CoProductCostVersion.vendor_id == vu.vendor_id,
+    ver = await _load_cost_version(db, vu.vendor_id, version_id, editable=False)
+    changes = body.model_dump(exclude_unset=True)
+    if (ver.status or "draft") != "draft" and set(changes) - {"status", "notes", "valid_to", "extra"}:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Cost version is {ver.status}; only its status, validity end and notes can change. "
+            "Create a new version to revise the standard.",
         )
-    )
-    ver = r.scalar_one_or_none()
-    if not ver:
-        raise HTTPException(status_code=404, detail="Not found")
-    for k, v in body.model_dump(exclude_unset=True).items():
+    new_status = changes.get("status")
+    if new_status and new_status != ver.status:
+        if new_status not in _VERSION_TRANSITIONS.get(ver.status or "draft", set()):
+            raise HTTPException(
+                status_code=422,
+                detail=f"Cannot change a {ver.status} cost version to {new_status}",
+            )
+        if new_status == "active":
+            await _activate_cost_version(db, vu.vendor_id, ver)
+    for k, v in changes.items():
         setattr(ver, k, v)
     _rollup_version_totals(ver)
-    await db.commit()
+    await _commit(db)
     await db.refresh(ver)
     r2 = await db.execute(
         select(CoProductCostVersion)
@@ -698,17 +892,13 @@ async def add_product_cost_line(
     vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    r = await db.execute(
-        select(CoProductCostVersion)
-        .options(selectinload(CoProductCostVersion.lines))
-        .where(
-            CoProductCostVersion.id == version_id,
-            CoProductCostVersion.vendor_id == vu.vendor_id,
-        )
+    ver = await _load_cost_version(db, vu.vendor_id, version_id, editable=True)
+    await _assert_line_refs(
+        db, vu.vendor_id,
+        products=[body.component_product_id],
+        activity_types=[body.activity_type_id],
+        pools=[body.overhead_pool_id],
     )
-    ver = r.scalar_one_or_none()
-    if not ver:
-        raise HTTPException(status_code=404, detail="Not found")
     row = CoProductCostLine(
         line_type=body.line_type,
         description=body.description,
@@ -722,7 +912,7 @@ async def add_product_cost_line(
     _recalc_product_cost_line_amount(row)
     ver.lines.append(row)
     _rollup_version_totals(ver)
-    await db.commit()
+    await _commit(db)
     r2 = await db.execute(
         select(CoProductCostVersion)
         .options(selectinload(CoProductCostVersion.lines))
@@ -738,21 +928,13 @@ async def delete_product_cost_line(
     vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    r = await db.execute(
-        select(CoProductCostVersion)
-        .options(selectinload(CoProductCostVersion.lines))
-        .where(
-            CoProductCostVersion.id == version_id,
-            CoProductCostVersion.vendor_id == vu.vendor_id,
-        )
-    )
-    ver = r.scalar_one_or_none()
-    if not ver:
-        raise HTTPException(status_code=404, detail="Not found")
-    ver.lines = [ln for ln in ver.lines if ln.id != line_id]
-    await db.execute(delete(CoProductCostLine).where(CoProductCostLine.id == line_id))
+    ver = await _load_cost_version(db, vu.vendor_id, version_id, editable=True)
+    target = next((ln for ln in ver.lines if ln.id == line_id), None)
+    if target is None:
+        raise HTTPException(status_code=404, detail="Cost line not found")
+    ver.lines.remove(target)  # delete-orphan removes the row; only lines of this version are reachable
     _rollup_version_totals(ver)
-    await db.commit()
+    await _commit(db)
     r2 = await db.execute(
         select(CoProductCostVersion)
         .options(selectinload(CoProductCostVersion.lines))
@@ -767,17 +949,7 @@ async def roll_up_bom_into_product_cost(
     vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    r = await db.execute(
-        select(CoProductCostVersion)
-        .options(selectinload(CoProductCostVersion.lines))
-        .where(
-            CoProductCostVersion.id == version_id,
-            CoProductCostVersion.vendor_id == vu.vendor_id,
-        )
-    )
-    ver = r.scalar_one_or_none()
-    if not ver:
-        raise HTTPException(status_code=404, detail="Not found")
+    ver = await _load_cost_version(db, vu.vendor_id, version_id, editable=True)
     await db.execute(
         delete(CoProductCostLine).where(
             CoProductCostLine.version_id == version_id,
@@ -820,7 +992,7 @@ async def roll_up_bom_into_product_cost(
         ver.lines.append(row)
         seq += 1
     _rollup_version_totals(ver)
-    await db.commit()
+    await _commit(db)
     r3 = await db.execute(
         select(CoProductCostVersion)
         .options(selectinload(CoProductCostVersion.lines))
@@ -839,6 +1011,8 @@ async def list_manufacturing_orders(
     status: Optional[str] = Query(None),
     order_kind: Optional[str] = Query(None),
     project_id: Optional[UUID] = Query(None),
+    limit: int = Query(500, ge=1, le=2000, description="Max rows returned"),
+    offset: int = Query(0, ge=0),
     vu: VendorUser = Depends(require_permission("finance.view")),
     db: AsyncSession = Depends(get_db),
 ):
@@ -852,7 +1026,8 @@ async def list_manufacturing_orders(
         q = q.where(CoManufacturingOrder.order_kind == order_kind)
     if project_id:
         q = q.where(CoManufacturingOrder.project_id == project_id)
-    r = await db.execute(q.order_by(CoManufacturingOrder.created_at.desc()))
+    q = q.order_by(CoManufacturingOrder.created_at.desc(), CoManufacturingOrder.id).limit(limit).offset(offset)
+    r = await db.execute(q)
     return [_order_to_out(o) for o in r.scalars().unique().all()]
 
 
@@ -879,7 +1054,7 @@ async def get_manufacturing_order(
 def _co_settle_http_err(exc: ValueError) -> HTTPException:
     msg = str(exc)
     low = msg.lower()
-    if "already posted" in low:
+    if "already posted" in low or "release the order" in low or "is closed" in low or "is locked" in low:
         return HTTPException(status_code=409, detail=msg)
     if "not found" in low:
         return HTTPException(status_code=404, detail=msg)
@@ -908,8 +1083,10 @@ async def put_co_gl_mapping(
     await _require_company(db, vu.vendor_id, body.company_id)
     payload = body.model_dump(exclude_unset=True)
     payload.pop("company_id", None)
+    account_ids = [v for k, v in payload.items() if k.endswith("_account_id")]
+    await _assert_owned(db, vu.vendor_id, FinAccount, account_ids, "GL account")
     row = await upsert_gl_mapping(db, vu.vendor_id, body.company_id, **payload)
-    await db.commit()
+    await _commit(db)
     r = await db.execute(select(CoGlMapping).where(CoGlMapping.id == row.id))
     fresh = r.scalar_one()
     return CoGlMappingOut.model_validate(_d(fresh))
@@ -929,8 +1106,9 @@ async def post_mo_production_completion(
     try:
         await post_production_completion(db, vu.vendor_id, order_id, vu.id, p.entry_date)
     except ValueError as e:
+        await db.rollback()
         raise _co_settle_http_err(e) from e
-    await db.commit()
+    await _commit(db)
     r = await db.execute(
         select(CoManufacturingOrder)
         .options(*_mo_load_options())
@@ -959,8 +1137,9 @@ async def post_mo_cogs_issue(
     try:
         await post_cogs_issue(db, vu.vendor_id, order_id, vu.id, p.entry_date)
     except ValueError as e:
+        await db.rollback()
         raise _co_settle_http_err(e) from e
-    await db.commit()
+    await _commit(db)
     r = await db.execute(
         select(CoManufacturingOrder)
         .options(*_mo_load_options())
@@ -975,6 +1154,54 @@ async def post_mo_cogs_issue(
     return _order_to_out(order)
 
 
+async def _reverse_settlement(
+    db: AsyncSession, vu: VendorUser, order_id: UUID, body: CoSettlementReverseIn, kind: str
+) -> ManufacturingOrderOut:
+    try:
+        if kind == "cogs":
+            await reverse_cogs_issue(db, vu.vendor_id, order_id, vu.id, body.reason)
+        else:
+            await reverse_production_completion_posting(db, vu.vendor_id, order_id, vu.id, body.reason)
+    except ValueError as e:
+        await db.rollback()
+        msg = str(e).lower()
+        if "not found" in msg:
+            raise HTTPException(status_code=404, detail=str(e)) from e
+        raise HTTPException(status_code=409, detail=str(e)) from e
+    await _commit(db)
+    order = (
+        await db.execute(
+            select(CoManufacturingOrder)
+            .options(*_mo_load_options())
+            .where(CoManufacturingOrder.id == order_id, CoManufacturingOrder.vendor_id == vu.vendor_id)
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one()
+    return _order_to_out(order)
+
+
+@router.post("/manufacturing-orders/{order_id}/reverse-cogs-issue", response_model=ManufacturingOrderOut)
+async def reverse_mo_cogs_issue(
+    order_id: UUID,
+    body: CoSettlementReverseIn,
+    vu: VendorUser = Depends(require_permission("finance.journal.post")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Reverse the most recent COGS posting (voids / reverses its journal and releases the quantity)."""
+    return await _reverse_settlement(db, vu, order_id, body, "cogs")
+
+
+@router.post("/manufacturing-orders/{order_id}/reverse-production-completion", response_model=ManufacturingOrderOut)
+async def reverse_mo_production_completion(
+    order_id: UUID,
+    body: CoSettlementReverseIn,
+    vu: VendorUser = Depends(require_permission("finance.journal.post")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Reverse the FG-receipt / WIP-relief journal so actuals can be corrected and re-posted."""
+    return await _reverse_settlement(db, vu, order_id, body, "completion")
+
+
 @router.post("/manufacturing-orders", response_model=ManufacturingOrderOut, status_code=201)
 async def create_manufacturing_order(
     body: ManufacturingOrderCreate,
@@ -982,7 +1209,14 @@ async def create_manufacturing_order(
     db: AsyncSession = Depends(get_db),
 ):
     await _require_company(db, vu.vendor_id, body.company_id)
-    order_no = (body.order_no or "").strip() or await _next_order_no(db, vu.vendor_id)
+    await _assert_order_refs(db, vu.vendor_id, body.model_dump(), company_id=body.company_id)
+    await _assert_line_refs(
+        db, vu.vendor_id,
+        products=[cl.product_id for cl in body.cost_lines],
+        activity_types=[cl.activity_type_id for cl in body.cost_lines],
+        pools=[cl.overhead_pool_id for cl in body.cost_lines],
+    )
+    order_no = (body.order_no or "").strip() or await next_order_no(db, vu.vendor_id)
     order = CoManufacturingOrder(
         vendor_id=vu.vendor_id,
         company_id=body.company_id,
@@ -1025,7 +1259,7 @@ async def create_manufacturing_order(
     if body.status in ("released", "in_progress"):
         order.released_at = datetime.now(timezone.utc)
     db.add(order)
-    await db.commit()
+    await _commit(db)
     r = await db.execute(
         select(CoManufacturingOrder)
         .options(*_mo_load_options())
@@ -1041,27 +1275,14 @@ async def update_manufacturing_order(
     vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    r = await db.execute(
-        select(CoManufacturingOrder)
-        .options(*_mo_load_options())
-        .where(
-            CoManufacturingOrder.id == order_id,
-            CoManufacturingOrder.vendor_id == vu.vendor_id,
-        )
-    )
-    order = r.scalar_one_or_none()
-    if not order:
-        raise HTTPException(status_code=404, detail="Not found")
-    prev_status = order.status
-    for k, v in body.model_dump(exclude_unset=True).items():
+    order = await _load_order_for_edit(db, vu.vendor_id, order_id, "header")
+    changes = body.model_dump(exclude_unset=True)
+    await _assert_order_refs(db, vu.vendor_id, changes, company_id=order.company_id)
+    for k, v in changes.items():
         setattr(order, k, v)
-    if prev_status == "draft" and order.status in ("released", "in_progress") and not order.released_at:
-        order.released_at = datetime.now(timezone.utc)
-    if order.status == "completed" and not order.completed_at:
-        order.completed_at = datetime.now(timezone.utc)
     for ln in order.cost_lines:
         _order_line_amounts(ln)
-    await db.commit()
+    await _commit(db)
     r2 = await db.execute(
         select(CoManufacturingOrder)
         .options(*_mo_load_options())
@@ -1077,17 +1298,13 @@ async def add_order_cost_line(
     vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    r = await db.execute(
-        select(CoManufacturingOrder)
-        .options(*_mo_load_options())
-        .where(
-            CoManufacturingOrder.id == order_id,
-            CoManufacturingOrder.vendor_id == vu.vendor_id,
-        )
+    order = await _load_order_for_edit(db, vu.vendor_id, order_id, "cost lines")
+    await _assert_line_refs(
+        db, vu.vendor_id,
+        products=[body.product_id],
+        activity_types=[body.activity_type_id],
+        pools=[body.overhead_pool_id],
     )
-    order = r.scalar_one_or_none()
-    if not order:
-        raise HTTPException(status_code=404, detail="Not found")
     ln = CoOrderCostLine(
         category=body.category,
         description=body.description,
@@ -1105,7 +1322,7 @@ async def add_order_cost_line(
     )
     _order_line_amounts(ln)
     order.cost_lines.append(ln)
-    await db.commit()
+    await _commit(db)
     r2 = await db.execute(
         select(CoManufacturingOrder)
         .options(*_mo_load_options())
@@ -1120,17 +1337,7 @@ async def refresh_order_planned_from_standard(
     vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    r = await db.execute(
-        select(CoManufacturingOrder)
-        .options(*_mo_load_options())
-        .where(
-            CoManufacturingOrder.id == order_id,
-            CoManufacturingOrder.vendor_id == vu.vendor_id,
-        )
-    )
-    order = r.scalar_one_or_none()
-    if not order:
-        raise HTTPException(status_code=404, detail="Not found")
+    order = await _load_order_for_edit(db, vu.vendor_id, order_id, "planned costs")
     if not order.product_id:
         raise HTTPException(status_code=400, detail="Order has no product_id")
     q_planned = Decimal(str(order.qty_planned or 0))
@@ -1160,6 +1367,8 @@ async def refresh_order_planned_from_standard(
         qty_p = Decimal(str(pl.qty_per_output_unit or 0)) * q_planned
         rate_p = Decimal(str(pl.unit_rate_planned or 0))
         cat = (pl.line_type or "other").lower()
+        if cat in ("direct_overhead", "indirect_overhead"):
+            cat = "overhead"
         if cat not in ("material", "activity", "overhead"):
             cat = "other"
         ln = CoOrderCostLine(
@@ -1179,7 +1388,7 @@ async def refresh_order_planned_from_standard(
         )
         order.cost_lines.append(ln)
         seq += 1
-    await db.commit()
+    await _commit(db)
     r3 = await db.execute(
         select(CoManufacturingOrder)
         .options(*_mo_load_options())
@@ -1282,24 +1491,21 @@ async def patch_order_cost_line(
     vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    r = await db.execute(
-        select(CoManufacturingOrder)
-        .options(*_mo_load_options())
-        .where(
-            CoManufacturingOrder.id == order_id,
-            CoManufacturingOrder.vendor_id == vu.vendor_id,
-        )
-    )
-    order = r.scalar_one_or_none()
-    if not order:
-        raise HTTPException(status_code=404, detail="Not found")
+    order = await _load_order_for_edit(db, vu.vendor_id, order_id, "cost lines")
     ln = next((x for x in order.cost_lines if x.id == line_id), None)
     if not ln:
         raise HTTPException(status_code=404, detail="Cost line not found")
-    for k, v in body.model_dump(exclude_unset=True).items():
+    changes = body.model_dump(exclude_unset=True)
+    for k, v in changes.items():
         setattr(ln, k, v)
+    # An amount typed without qty / rate becomes qty 1 x rate = amount, so the stored qty x rate
+    # (which is authoritative whenever both are set) cannot silently override what the user entered.
+    if "amount_planned" in changes and not ({"qty_planned", "rate_planned"} & set(changes)):
+        ln.qty_planned, ln.rate_planned = Decimal("1"), Decimal(str(changes["amount_planned"] or 0))
+    if "amount_actual" in changes and not ({"qty_actual", "rate_actual"} & set(changes)):
+        ln.qty_actual, ln.rate_actual = Decimal("1"), Decimal(str(changes["amount_actual"] or 0))
     _order_line_amounts(ln)
-    await db.commit()
+    await _commit(db)
     r2 = await db.execute(
         select(CoManufacturingOrder)
         .options(*_mo_load_options())
@@ -1315,17 +1521,9 @@ async def create_order_operation(
     vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    r = await db.execute(
-        select(CoManufacturingOrder)
-        .options(*_mo_load_options())
-        .where(
-            CoManufacturingOrder.id == order_id,
-            CoManufacturingOrder.vendor_id == vu.vendor_id,
-        )
-    )
-    order = r.scalar_one_or_none()
-    if not order:
-        raise HTTPException(status_code=404, detail="Not found")
+    await _load_order_for_edit(db, vu.vendor_id, order_id, "operations")
+    await _assert_owned(db, vu.vendor_id, CoActivityType, [body.activity_type_id], "Activity type")
+    await _assert_owned(db, vu.vendor_id, CoWorkCenter, [body.work_center_id], "Work center")
     op = CoOrderOperation(
         order_id=order_id,
         sequence=body.sequence,
@@ -1345,7 +1543,7 @@ async def create_order_operation(
         notes=body.notes,
     )
     db.add(op)
-    await db.commit()
+    await _commit(db)
     r2 = await db.execute(
         select(CoManufacturingOrder)
         .options(*_mo_load_options())
@@ -1362,6 +1560,7 @@ async def update_order_operation(
     vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
+    await _load_order_for_edit(db, vu.vendor_id, order_id, "operations")
     r = await db.execute(
         select(CoOrderOperation)
         .join(CoManufacturingOrder, CoOrderOperation.order_id == CoManufacturingOrder.id)
@@ -1374,9 +1573,12 @@ async def update_order_operation(
     op = r.scalar_one_or_none()
     if not op:
         raise HTTPException(status_code=404, detail="Operation not found")
-    for k, v in body.model_dump(exclude_unset=True).items():
+    changes = body.model_dump(exclude_unset=True)
+    await _assert_owned(db, vu.vendor_id, CoActivityType, [changes.get("activity_type_id")], "Activity type")
+    await _assert_owned(db, vu.vendor_id, CoWorkCenter, [changes.get("work_center_id")], "Work center")
+    for k, v in changes.items():
         setattr(op, k, v)
-    await db.commit()
+    await _commit(db)
     r2 = await db.execute(
         select(CoManufacturingOrder)
         .options(*_mo_load_options())
@@ -1392,6 +1594,7 @@ async def delete_order_operation(
     vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
+    await _load_order_for_edit(db, vu.vendor_id, order_id, "operations")
     r = await db.execute(
         select(CoOrderOperation)
         .join(CoManufacturingOrder, CoOrderOperation.order_id == CoManufacturingOrder.id)
@@ -1405,7 +1608,7 @@ async def delete_order_operation(
     if not op:
         raise HTTPException(status_code=404, detail="Operation not found")
     await db.execute(delete(CoOrderOperation).where(CoOrderOperation.id == op_id))
-    await db.commit()
+    await _commit(db)
     r2 = await db.execute(
         select(CoManufacturingOrder)
         .options(*_mo_load_options())
@@ -1420,17 +1623,7 @@ async def generate_operations_from_standard(
     vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    r = await db.execute(
-        select(CoManufacturingOrder)
-        .options(*_mo_load_options())
-        .where(
-            CoManufacturingOrder.id == order_id,
-            CoManufacturingOrder.vendor_id == vu.vendor_id,
-        )
-    )
-    order = r.scalar_one_or_none()
-    if not order:
-        raise HTTPException(status_code=404, detail="Not found")
+    order = await _load_order_for_edit(db, vu.vendor_id, order_id, "operations")
     if not order.product_id:
         raise HTTPException(status_code=400, detail="Order has no product_id")
     q_ord = Decimal(str(order.qty_planned or 0))
@@ -1490,7 +1683,7 @@ async def generate_operations_from_standard(
         )
         db.add(op)
         seq += 1
-    await db.commit()
+    await _commit(db)
     r3 = await db.execute(
         select(CoManufacturingOrder)
         .options(*_mo_load_options())
@@ -1505,17 +1698,7 @@ async def sync_activity_actuals_from_operations(
     vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    r = await db.execute(
-        select(CoManufacturingOrder)
-        .options(*_mo_load_options())
-        .where(
-            CoManufacturingOrder.id == order_id,
-            CoManufacturingOrder.vendor_id == vu.vendor_id,
-        )
-    )
-    order = r.scalar_one_or_none()
-    if not order:
-        raise HTTPException(status_code=404, detail="Not found")
+    order = await _load_order_for_edit(db, vu.vendor_id, order_id, "actuals")
 
     used_line_ids: Set[str] = set()
     for op in sorted(order.operations or [], key=lambda x: x.sequence or 0):
@@ -1537,7 +1720,7 @@ async def sync_activity_actuals_from_operations(
             ln.amount_actual = _line_amount(ah, ar)
             break
 
-    await db.commit()
+    await _commit(db)
     r2 = await db.execute(
         select(CoManufacturingOrder)
         .options(*_mo_load_options())
@@ -1553,17 +1736,7 @@ async def recalculate_overhead_actual(
     vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    r = await db.execute(
-        select(CoManufacturingOrder)
-        .options(*_mo_load_options())
-        .where(
-            CoManufacturingOrder.id == order_id,
-            CoManufacturingOrder.vendor_id == vu.vendor_id,
-        )
-    )
-    order = r.scalar_one_or_none()
-    if not order:
-        raise HTTPException(status_code=404, detail="Not found")
+    order = await _load_order_for_edit(db, vu.vendor_id, order_id, "actuals")
     d = as_of or date.today()
 
     mat_actual = mat_planned = Decimal("0")
@@ -1583,16 +1756,29 @@ async def recalculate_overhead_actual(
             dl_actual += Decimal(str(ln.amount_actual or 0))
             dl_planned += Decimal(str(ln.amount_planned or 0))
 
+    pool_ids = {
+        ln.overhead_pool_id
+        for ln in order.cost_lines
+        if (ln.category or "").lower() == "overhead" and ln.overhead_pool_id
+    }
+    pools_by_id: dict = {}
+    if pool_ids:
+        pools_by_id = {
+            pl.id: pl
+            for pl in (
+                await db.execute(
+                    select(CoOverheadPool).where(
+                        CoOverheadPool.id.in_(pool_ids), CoOverheadPool.vendor_id == vu.vendor_id
+                    )
+                )
+            ).scalars().all()
+        }
+    rate_cache: dict = {}
+
     for ln in order.cost_lines:
         if (ln.category or "").lower() != "overhead" or not ln.overhead_pool_id:
             continue
-        rpool = await db.execute(
-            select(CoOverheadPool).where(
-                CoOverheadPool.id == ln.overhead_pool_id,
-                CoOverheadPool.vendor_id == vu.vendor_id,
-            )
-        )
-        pool = rpool.scalar_one_or_none()
+        pool = pools_by_id.get(ln.overhead_pool_id)
         if not pool:
             continue
         base = (pool.allocation_base or "labor_hours").lower()
@@ -1608,12 +1794,14 @@ async def recalculate_overhead_actual(
             driver = dl_actual if dl_actual != 0 else dl_planned
         else:
             driver = act_hours_actual if act_hours_actual != 0 else act_hours_planned
-        rate = await _rate_for_pool_on_date(db, pool.id, d)
+        if pool.id not in rate_cache:
+            rate_cache[pool.id] = await _rate_for_pool_on_date(db, pool.id, d)
+        rate = rate_cache[pool.id]
         ln.qty_actual = driver
         ln.rate_actual = rate
         ln.amount_actual = _line_amount(driver, rate)
 
-    await db.commit()
+    await _commit(db)
     r2 = await db.execute(
         select(CoManufacturingOrder)
         .options(*_mo_load_options())
@@ -1737,6 +1925,38 @@ async def _build_wip_summary(
     )
 
 
+async def _wip_totals(
+    db: AsyncSession, vendor_id: UUID, company_id: Optional[UUID]
+) -> tuple[int, Decimal, Decimal]:
+    """Open-order count and planned/actual WIP value via SQL aggregates (no per-order loading).
+
+    Mirrors ``order_line_amounts``: a line with both qty and rate is valued at qty x rate,
+    otherwise at its explicit amount.
+    """
+    open_statuses = ("draft", "released", "in_progress")
+
+    def _value(qty, rate, amount):
+        return case((and_(qty != 0, rate != 0), func.round(qty * rate, 4)), else_=amount)
+
+    lines_q = (
+        select(
+            func.coalesce(func.sum(_value(CoOrderCostLine.qty_planned, CoOrderCostLine.rate_planned, CoOrderCostLine.amount_planned)), 0),
+            func.coalesce(func.sum(_value(CoOrderCostLine.qty_actual, CoOrderCostLine.rate_actual, CoOrderCostLine.amount_actual)), 0),
+        )
+        .join(CoManufacturingOrder, CoManufacturingOrder.id == CoOrderCostLine.order_id)
+        .where(CoManufacturingOrder.vendor_id == vendor_id, CoManufacturingOrder.status.in_(open_statuses))
+    )
+    count_q = select(func.count()).select_from(CoManufacturingOrder).where(
+        CoManufacturingOrder.vendor_id == vendor_id, CoManufacturingOrder.status.in_(open_statuses)
+    )
+    if company_id:
+        lines_q = lines_q.where(CoManufacturingOrder.company_id == company_id)
+        count_q = count_q.where(CoManufacturingOrder.company_id == company_id)
+    planned, actual = (await db.execute(lines_q)).one()
+    open_count = (await db.execute(count_q)).scalar() or 0
+    return int(open_count), Decimal(str(planned or 0)), Decimal(str(actual or 0))
+
+
 @router.get("/wip-summary", response_model=WipSummaryOut)
 async def wip_summary(
     company_id: Optional[UUID] = Query(None),
@@ -1765,13 +1985,13 @@ async def controlling_dashboard(
         qo = qo.where(CoManufacturingOrder.company_id == company_id)
     active_costs = (await db.execute(qv)).scalar() or 0
     total_orders = (await db.execute(qo)).scalar() or 0
-    wip = await _build_wip_summary(db, vu.vendor_id, company_id)
+    wip_open, wip_planned, wip_actual = await _wip_totals(db, vu.vendor_id, company_id)
     return {
         "active_standard_costs": active_costs,
         "manufacturing_orders": total_orders,
-        "wip_open_orders": wip.open_orders,
-        "wip_planned_value": str(wip.wip_planned_value),
-        "wip_actual_cost": str(wip.wip_actual_cost),
+        "wip_open_orders": wip_open,
+        "wip_planned_value": str(wip_planned),
+        "wip_actual_cost": str(wip_actual),
     }
 
 
@@ -1802,18 +2022,51 @@ async def transition_order_status(
             selectinload(CoManufacturingOrder.cost_bookings),
         )
         .where(CoManufacturingOrder.id == order_id, CoManufacturingOrder.vendor_id == vu.vendor_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
     )
     order = r.scalar_one_or_none()
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
 
     current = order.status or "draft"
+    if (order.ref_doc_type or "") == "production_order":
+        raise HTTPException(
+            status_code=409,
+            detail="This order mirrors a Production order; its status is managed by the Production module.",
+        )
     allowed = _VALID_TRANSITIONS.get(current, set())
     if body.status not in allowed:
         raise HTTPException(
             status_code=422,
             detail=f"Cannot transition from '{current}' to '{body.status}'. Allowed: {sorted(allowed)}",
         )
+    if body.status == "cancelled":
+        has_live_docs = (
+            order.production_completion_journal_id is not None
+            or any((b.status or "posted") == "posted" for b in order.cost_bookings)
+            or (
+                await db.execute(
+                    select(CoGoodsMovement.id).where(
+                        CoGoodsMovement.order_id == order.id, CoGoodsMovement.status == "posted"
+                    ).limit(1)
+                )
+            ).first()
+            is not None
+            or (
+                await db.execute(
+                    select(CoActivityConfirmation.id).where(
+                        CoActivityConfirmation.order_id == order.id, CoActivityConfirmation.status == "posted"
+                    ).limit(1)
+                )
+            ).first()
+            is not None
+        )
+        if has_live_docs:
+            raise HTTPException(
+                status_code=409,
+                detail="Order has posted goods movements, confirmations or settlements. Reverse them before cancelling.",
+            )
 
     order.status = body.status
     if body.notes:
@@ -1822,9 +2075,14 @@ async def transition_order_status(
         order.released_at = datetime.now(timezone.utc)
     elif body.status == "completed":
         order.completed_at = datetime.now(timezone.utc)
-    await db.commit()
-    await db.refresh(order)
-    return ManufacturingOrderOut.model_validate(order)
+    await _commit(db)
+    r2 = await db.execute(
+        select(CoManufacturingOrder)
+        .options(*_mo_load_options())
+        .where(CoManufacturingOrder.id == order_id)
+        .execution_options(populate_existing=True)
+    )
+    return _order_to_out(r2.scalar_one())
 
 
 # ── Activity Confirmations ────────────────────────────────────────────────────
@@ -1836,6 +2094,8 @@ async def list_activity_confirmations(
     confirmation_type: Optional[str] = Query(None),
     from_date: Optional[date] = Query(None),
     to_date: Optional[date] = Query(None),
+    limit: int = Query(500, ge=1, le=2000, description="Max rows returned"),
+    offset: int = Query(0, ge=0),
     vu: VendorUser = Depends(require_permission("finance.view")),
     db: AsyncSession = Depends(get_db),
 ):
@@ -1850,7 +2110,7 @@ async def list_activity_confirmations(
         q = q.where(CoActivityConfirmation.confirmation_date >= from_date)
     if to_date:
         q = q.where(CoActivityConfirmation.confirmation_date <= to_date)
-    q = q.order_by(CoActivityConfirmation.confirmation_date.desc())
+    q = q.order_by(CoActivityConfirmation.confirmation_date.desc(), CoActivityConfirmation.id).limit(limit).offset(offset)
     rows = (await db.execute(q)).scalars().all()
     return [ActivityConfirmationOut.model_validate(r) for r in rows]
 
@@ -1862,56 +2122,48 @@ async def create_activity_confirmation(
     db: AsyncSession = Depends(get_db),
 ):
     await _require_company(db, vu.vendor_id, body.company_id)
-    hours = Decimal(str(body.hours_confirmed))
-    rate = Decimal(str(body.rate_per_hour))
-    total = (hours * rate).quantize(Decimal("0.0001"))
-
-    if body.order_id and total > 0:
-        try:
-            await assert_budget_allows(db, body.order_id, "labor", total)
-        except BudgetExceededError as exc:
-            raise HTTPException(status_code=409, detail=exc.availability.to_detail()) from exc
-
-    conf = CoActivityConfirmation(
-        id=uuid.uuid4(),
-        vendor_id=vu.vendor_id,
-        company_id=body.company_id,
-        order_id=body.order_id,
-        operation_id=body.operation_id,
-        activity_type_id=body.activity_type_id,
-        cost_center_id=body.cost_center_id,
-        confirmation_date=body.confirmation_date,
-        confirmation_type=body.confirmation_type,
-        qty_confirmed=body.qty_confirmed,
-        hours_confirmed=hours,
-        rate_per_hour=rate,
-        total_cost=total,
-        scrap_qty=body.scrap_qty,
-        yield_pct=body.yield_pct,
-        narration=body.narration,
-        extra=body.extra or {},
-    )
-    db.add(conf)
-
-    # Sync actual hours back to order operation
+    await _get_owned_order(db, vu.vendor_id, body.order_id, body.company_id)
+    await _assert_owned(db, vu.vendor_id, CoActivityType, [body.activity_type_id], "Activity type")
+    await _assert_owned(db, vu.vendor_id, FinCostCenter, [body.cost_center_id], "Cost center")
     if body.operation_id:
-        op_r = await db.execute(
-            select(CoOrderOperation).where(
-                CoOrderOperation.id == body.operation_id,
-                CoOrderOperation.order_id == body.order_id,
+        op_ok = (
+            await db.execute(
+                select(CoOrderOperation.id).where(
+                    CoOrderOperation.id == body.operation_id, CoOrderOperation.order_id == body.order_id
+                )
             )
+        ).first()
+        if not op_ok:
+            raise HTTPException(status_code=404, detail="Operation not found on this order")
+    try:
+        conf = await co_movements.create_confirmation(
+            db, vu.vendor_id,
+            order_id=body.order_id, operation_id=body.operation_id,
+            activity_type_id=body.activity_type_id, cost_center_id=body.cost_center_id,
+            confirmation_date=body.confirmation_date, confirmation_type=body.confirmation_type,
+            qty_confirmed=body.qty_confirmed, hours_confirmed=body.hours_confirmed,
+            rate_per_hour=body.rate_per_hour, scrap_qty=body.scrap_qty, yield_pct=body.yield_pct,
+            narration=body.narration, extra=body.extra, actor_id=vu.id,
         )
-        op = op_r.scalar_one_or_none()
-        if op:
-            op.actual_hours = Decimal(str(op.actual_hours or 0)) + hours
-            op.actual_rate = rate if rate > 0 else op.actual_rate
-            op.confirmed_qty = Decimal(str(op.confirmed_qty or 0)) + Decimal(str(body.qty_confirmed))
-            if body.qty_confirmed > 0:
-                op.status = "completed"
-
-    await db.commit()
+    except (ValueError, BudgetExceededError) as exc:
+        await db.rollback()
+        raise _co_error(exc) from exc
+    await _commit(db)
     await db.refresh(conf)
     return ActivityConfirmationOut.model_validate(conf)
+
+
+async def _get_owned_confirmation(db: AsyncSession, vendor_id: UUID, conf_id: UUID) -> CoActivityConfirmation:
+    conf = (
+        await db.execute(
+            select(CoActivityConfirmation).where(
+                CoActivityConfirmation.id == conf_id, CoActivityConfirmation.vendor_id == vendor_id
+            )
+        )
+    ).scalar_one_or_none()
+    if not conf:
+        raise HTTPException(status_code=404, detail="Confirmation not found")
+    return conf
 
 
 @router.patch("/activity-confirmations/{conf_id}", response_model=ActivityConfirmationOut)
@@ -1921,24 +2173,20 @@ async def update_activity_confirmation(
     vu: VendorUser = Depends(require_permission("finance.edit")),
     db: AsyncSession = Depends(get_db),
 ):
-    r = await db.execute(
-        select(CoActivityConfirmation).where(
-            CoActivityConfirmation.id == conf_id,
-            CoActivityConfirmation.vendor_id == vu.vendor_id,
-        )
-    )
-    conf = r.scalar_one_or_none()
-    if not conf:
-        raise HTTPException(status_code=404, detail="Confirmation not found")
-
-    for field, val in body.model_dump(exclude_none=True).items():
-        setattr(conf, field, val)
-
-    hours = Decimal(str(conf.hours_confirmed or 0))
-    rate = Decimal(str(conf.rate_per_hour or 0))
-    conf.total_cost = (hours * rate).quantize(Decimal("0.0001"))
-
-    await db.commit()
+    conf = await _get_owned_confirmation(db, vu.vendor_id, conf_id)
+    changes = body.model_dump(exclude_unset=True)
+    new_status = changes.pop("status", None)
+    try:
+        if new_status == "posted" and conf.status != "posted":
+            raise StateError("A reversed confirmation cannot be re-posted — enter a new one")
+        if changes:
+            await co_movements.update_confirmation(db, vu.vendor_id, conf, changes, vu.id)
+        if new_status == "reversed" and conf.status != "reversed":
+            await co_movements.reverse_confirmation(db, vu.vendor_id, conf, vu.id, "reversed via update")
+    except (ValueError, BudgetExceededError) as exc:
+        await db.rollback()
+        raise _co_error(exc) from exc
+    await _commit(db)
     await db.refresh(conf)
     return ActivityConfirmationOut.model_validate(conf)
 
@@ -1949,27 +2197,22 @@ async def delete_activity_confirmation(
     vu: VendorUser = Depends(require_permission("finance.edit")),
     db: AsyncSession = Depends(get_db),
 ):
-    r = await db.execute(
-        select(CoActivityConfirmation).where(
-            CoActivityConfirmation.id == conf_id,
-            CoActivityConfirmation.vendor_id == vu.vendor_id,
-        )
-    )
-    conf = r.scalar_one_or_none()
-    if not conf:
-        raise HTTPException(status_code=404, detail="Confirmation not found")
-    await db.delete(conf)
-    await db.commit()
+    """Undo a confirmation: hours, quantity and cost are taken back off the operation / cost line.
+
+    A confirmation that was journalled is kept (status ``reversed``) so the audit trail survives;
+    an un-journalled one is deleted."""
+    conf = await _get_owned_confirmation(db, vu.vendor_id, conf_id)
+    try:
+        await co_movements.reverse_confirmation(db, vu.vendor_id, conf, vu.id, "deleted")
+    except (ValueError, BudgetExceededError) as exc:
+        await db.rollback()
+        raise _co_error(exc) from exc
+    await _commit(db)
 
 
 # ── Goods Movements ───────────────────────────────────────────────────────────
 
-_MOVEMENT_LABELS = {
-    "component_issue": "Goods Issue — Component to Order",
-    "component_return": "Goods Issue Return — Component from Order",
-    "fg_receipt": "Goods Receipt — FG from Order",
-    "fg_receipt_reversal": "Goods Receipt Return — FG to Order",
-}
+_MOVEMENT_LABELS = co_movements.MOVEMENT_LABELS
 
 
 @router.get("/goods-movements", response_model=List[GoodsMovementOut])
@@ -1979,6 +2222,8 @@ async def list_goods_movements(
     movement_type: Optional[str] = Query(None),
     from_date: Optional[date] = Query(None),
     to_date: Optional[date] = Query(None),
+    limit: int = Query(500, ge=1, le=2000, description="Max rows returned"),
+    offset: int = Query(0, ge=0),
     vu: VendorUser = Depends(require_permission("finance.view")),
     db: AsyncSession = Depends(get_db),
 ):
@@ -1993,7 +2238,8 @@ async def list_goods_movements(
         q = q.where(CoGoodsMovement.posting_date >= from_date)
     if to_date:
         q = q.where(CoGoodsMovement.posting_date <= to_date)
-    q = q.order_by(CoGoodsMovement.posting_date.desc())
+    q = q.order_by(CoGoodsMovement.posting_date.desc(), CoGoodsMovement.document_no.desc(), CoGoodsMovement.id)
+    q = q.limit(limit).offset(offset)
     rows = (await db.execute(q)).scalars().all()
     return [GoodsMovementOut.model_validate(r) for r in rows]
 
@@ -2004,64 +2250,22 @@ async def create_goods_movement(
     vu: VendorUser = Depends(require_permission("finance.edit")),
     db: AsyncSession = Depends(get_db),
 ):
-    if body.movement_type not in _MOVEMENT_LABELS:
-        raise HTTPException(status_code=422, detail=f"Invalid movement_type. Use: {list(_MOVEMENT_LABELS)}")
     await _require_company(db, vu.vendor_id, body.company_id)
-
-    qty = Decimal(str(body.qty))
-    uc = Decimal(str(body.unit_cost))
-    total = (qty * uc).quantize(Decimal("0.0001"))
-
-    if body.movement_type == "component_issue" and body.order_id and total > 0:
-        try:
-            await assert_budget_allows(db, body.order_id, "material", total)
-        except BudgetExceededError as exc:
-            raise HTTPException(status_code=409, detail=exc.availability.to_detail()) from exc
-
-    # Auto-generate document_no
-    count_r = await db.execute(
-        select(func.count()).select_from(CoGoodsMovement).where(CoGoodsMovement.vendor_id == vu.vendor_id)
-    )
-    doc_no = f"GM{(count_r.scalar() or 0) + 1:06d}"
-
-    gm = CoGoodsMovement(
-        id=uuid.uuid4(),
-        vendor_id=vu.vendor_id,
-        company_id=body.company_id,
-        order_id=body.order_id,
-        movement_type=body.movement_type,
-        posting_date=body.posting_date,
-        document_no=doc_no,
-        product_id=body.product_id,
-        description=body.description or _MOVEMENT_LABELS[body.movement_type],
-        uom=body.uom,
-        qty=qty,
-        unit_cost=uc,
-        total_cost=total,
-        cost_center_id=body.cost_center_id,
-        storage_location=body.storage_location,
-        batch_no=body.batch_no,
-        extra=body.extra or {},
-    )
-    db.add(gm)
-
-    # Sync actuals back to order cost lines for material issues (component_issue)
-    if body.movement_type == "component_issue" and body.product_id and total > 0:
-        ocl_r = await db.execute(
-            select(CoOrderCostLine).where(
-                CoOrderCostLine.order_id == body.order_id,
-                CoOrderCostLine.category == "material",
-                CoOrderCostLine.product_id == body.product_id,
-            )
+    await _get_owned_order(db, vu.vendor_id, body.order_id, body.company_id)
+    await _assert_owned(db, vu.vendor_id, Product, [body.product_id], "Product")
+    await _assert_owned(db, vu.vendor_id, FinCostCenter, [body.cost_center_id], "Cost center")
+    try:
+        gm = await co_movements.create_goods_movement(
+            db, vu.vendor_id,
+            order_id=body.order_id, movement_type=body.movement_type, posting_date=body.posting_date,
+            product_id=body.product_id, qty=body.qty, unit_cost=body.unit_cost, actor_id=vu.id,
+            description=body.description, uom=body.uom, cost_center_id=body.cost_center_id,
+            storage_location=body.storage_location, batch_no=body.batch_no, extra=body.extra,
         )
-        ocl = ocl_r.scalars().first()
-        if ocl:
-            ocl.qty_actual = Decimal(str(ocl.qty_actual or 0)) + qty
-            ocl.amount_actual = Decimal(str(ocl.amount_actual or 0)) + total
-            if ocl.qty_actual > 0:
-                ocl.rate_actual = (Decimal(str(ocl.amount_actual)) / Decimal(str(ocl.qty_actual))).quantize(Decimal("0.000001"))
-
-    await db.commit()
+    except (ValueError, BudgetExceededError) as exc:
+        await db.rollback()
+        raise _co_error(exc) from exc
+    await _commit(db)
     await db.refresh(gm)
     return GoodsMovementOut.model_validate(gm)
 
@@ -2073,6 +2277,7 @@ async def reverse_goods_movement(
     vu: VendorUser = Depends(require_permission("finance.edit")),
     db: AsyncSession = Depends(get_db),
 ):
+    """Reverse a movement with a counter-document; returns the original (now ``reversed``)."""
     r = await db.execute(
         select(CoGoodsMovement).where(
             CoGoodsMovement.id == gm_id,
@@ -2082,12 +2287,12 @@ async def reverse_goods_movement(
     gm = r.scalar_one_or_none()
     if not gm:
         raise HTTPException(status_code=404, detail="Goods movement not found")
-    if gm.status == "reversed":
-        raise HTTPException(status_code=409, detail="Already reversed")
-
-    gm.status = "reversed"
-    gm.reversal_reason = reason
-    await db.commit()
+    try:
+        await co_movements.reverse_goods_movement(db, vu.vendor_id, gm, reason, vu.id)
+    except (ValueError, BudgetExceededError) as exc:
+        await db.rollback()
+        raise _co_error(exc) from exc
+    await _commit(db)
     await db.refresh(gm)
     return GoodsMovementOut.model_validate(gm)
 
@@ -2101,6 +2306,8 @@ async def list_cost_allocations(
     period_month: Optional[int] = Query(None),
     allocation_cycle: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
+    limit: int = Query(500, ge=1, le=2000, description="Max rows returned"),
+    offset: int = Query(0, ge=0),
     vu: VendorUser = Depends(require_permission("finance.view")),
     db: AsyncSession = Depends(get_db),
 ):
@@ -2115,7 +2322,8 @@ async def list_cost_allocations(
         q = q.where(CoCostAllocation.allocation_cycle == allocation_cycle)
     if status:
         q = q.where(CoCostAllocation.status == status)
-    q = q.order_by(CoCostAllocation.period_year.desc(), CoCostAllocation.period_month.desc())
+    q = q.order_by(CoCostAllocation.period_year.desc(), CoCostAllocation.period_month.desc(), CoCostAllocation.id)
+    q = q.limit(limit).offset(offset)
     rows = (await db.execute(q)).scalars().all()
     return [CostAllocationOut.model_validate(r) for r in rows]
 
@@ -2127,6 +2335,15 @@ async def create_cost_allocation(
     db: AsyncSession = Depends(get_db),
 ):
     await _require_company(db, vu.vendor_id, body.company_id)
+    await _assert_owned(
+        db, vu.vendor_id, FinCostCenter,
+        [body.sender_cost_center_id, body.receiver_cost_center_id], "Cost center",
+    )
+    await _assert_owned(
+        db, vu.vendor_id, FinAccount, [body.sender_account_id, body.receiver_account_id], "GL account",
+    )
+    if body.receiver_order_id:
+        await _get_owned_order(db, vu.vendor_id, body.receiver_order_id, body.company_id)
     alloc = CoCostAllocation(
         id=uuid.uuid4(),
         vendor_id=vu.vendor_id,
@@ -2146,7 +2363,7 @@ async def create_cost_allocation(
         extra=body.extra or {},
     )
     db.add(alloc)
-    await db.commit()
+    await _commit(db)
     await db.refresh(alloc)
     return CostAllocationOut.model_validate(alloc)
 
@@ -2155,24 +2372,112 @@ async def create_cost_allocation(
 async def post_cost_allocation(
     alloc_id: UUID,
     body: CostAllocationPostIn,
-    vu: VendorUser = Depends(require_permission("finance.edit")),
+    vu: VendorUser = Depends(require_permission("finance.journal.post")),
     db: AsyncSession = Depends(get_db),
 ):
-    r = await db.execute(
-        select(CoCostAllocation).where(
-            CoCostAllocation.id == alloc_id,
-            CoCostAllocation.vendor_id == vu.vendor_id,
+    alloc = (
+        await db.execute(
+            select(CoCostAllocation)
+            .where(CoCostAllocation.id == alloc_id, CoCostAllocation.vendor_id == vu.vendor_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
         )
-    )
-    alloc = r.scalar_one_or_none()
+    ).scalar_one_or_none()
     if not alloc:
         raise HTTPException(status_code=404, detail="Cost allocation not found")
     if alloc.status == "posted":
         raise HTTPException(status_code=409, detail="Already posted")
+    if alloc.status == "reversed":
+        raise HTTPException(status_code=409, detail="A reversed allocation cannot be re-posted — create a new one")
 
+    amount = Decimal(str(alloc.allocated_amount or 0)).quantize(Decimal("0.0001"))
+    if amount <= 0:
+        raise HTTPException(status_code=422, detail="Allocated amount must be greater than zero")
+    if not alloc.sender_account_id or not alloc.receiver_account_id:
+        raise HTTPException(
+            status_code=422,
+            detail="Select the sender and receiver GL accounts before posting the allocation",
+        )
+    entry_date = body.entry_date or date.today()
+    try:
+        await check_period_open(db, vu.vendor_id, entry_date, alloc.company_id)
+        from app.services.finance.posting import post_event
+
+        receiver_order = None
+        if alloc.receiver_order_id:
+            receiver_order = await _get_owned_order(db, vu.vendor_id, alloc.receiver_order_id)
+            if (receiver_order.status or "draft") in ("closed", "cancelled"):
+                raise StateError(f"Receiver order {receiver_order.order_no} is {receiver_order.status}")
+        label = f"Cost allocation {alloc.allocation_cycle or ''} {alloc.period_year}/{alloc.period_month:02d}".strip()
+        je = await post_event(
+            db, vu.vendor_id, "co_cost_booking", alloc.id,
+            {
+                "company_id": alloc.company_id,
+                "entry_date": entry_date.isoformat(),
+                "document_type": "CO",
+                "narration": alloc.narration or label,
+                "reference": f"ALLOC-{alloc.id}",
+                "ref_doc_type": "co_cost_allocation",
+                "ref_doc_id": str(alloc.id),
+                "lines": [
+                    {
+                        "account_id": str(alloc.receiver_account_id), "debit": str(amount), "credit": "0",
+                        "narration": f"{label} - receiver",
+                        "cost_center_id": str(alloc.receiver_cost_center_id) if alloc.receiver_cost_center_id else None,
+                        "project_id": str(receiver_order.project_id) if receiver_order and receiver_order.project_id else None,
+                    },
+                    {
+                        "account_id": str(alloc.sender_account_id), "debit": "0", "credit": str(amount),
+                        "narration": f"{label} - sender",
+                        "cost_center_id": str(alloc.sender_cost_center_id) if alloc.sender_cost_center_id else None,
+                    },
+                ],
+            },
+            created_by_id=vu.id,
+        )
+        if not je:
+            raise ValueError("Journal posting failed — check the GL accounts and period")
+    except (ValueError, StateError) as exc:
+        await db.rollback()
+        raise _co_error(exc) from exc
+
+    alloc.journal_entry_id = je.id
     alloc.status = "posted"
-    alloc.posting_date = body.entry_date or date.today()
-    await db.commit()
+    alloc.posting_date = entry_date
+    await _commit(db)
+    await db.refresh(alloc)
+    return CostAllocationOut.model_validate(alloc)
+
+
+@router.post("/cost-allocations/{alloc_id}/reverse", response_model=CostAllocationOut)
+async def reverse_cost_allocation(
+    alloc_id: UUID,
+    body: CoSettlementReverseIn,
+    vu: VendorUser = Depends(require_permission("finance.journal.post")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Reverse a posted allocation: its journal is voided / reversed and the allocation marked reversed."""
+    alloc = (
+        await db.execute(
+            select(CoCostAllocation)
+            .where(CoCostAllocation.id == alloc_id, CoCostAllocation.vendor_id == vu.vendor_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one_or_none()
+    if not alloc:
+        raise HTTPException(status_code=404, detail="Cost allocation not found")
+    if alloc.status != "posted":
+        raise HTTPException(status_code=409, detail=f"Only posted allocations can be reversed (status: {alloc.status})")
+    try:
+        await check_period_open(db, vu.vendor_id, date.today(), alloc.company_id)
+        await reverse_journal(db, vu.vendor_id, alloc.journal_entry_id, vu.id)
+    except ValueError as exc:
+        await db.rollback()
+        raise _co_error(exc) from exc
+    alloc.status = "reversed"
+    alloc.extra = {**(alloc.extra or {}), "reversal_reason": body.reason}
+    await _commit(db)
     await db.refresh(alloc)
     return CostAllocationOut.model_validate(alloc)
 
@@ -2195,10 +2500,23 @@ async def delete_cost_allocation(
     if alloc.status == "posted":
         raise HTTPException(status_code=409, detail="Cannot delete a posted allocation; reverse it instead")
     await db.delete(alloc)
-    await db.commit()
+    await _commit(db)
 
 
 # ── Budget Lines ──────────────────────────────────────────────────────────────
+
+async def _assert_budget_editable(db: AsyncSession, vendor_id: UUID, order_id: UUID) -> CoManufacturingOrder:
+    """Budgets may be revised while an order runs; not once it is closed / cancelled or mirrors Production."""
+    order = await _get_owned_order(db, vendor_id, order_id)
+    if (order.ref_doc_type or "") == "production_order" or (order.status or "draft") in ("closed", "cancelled"):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Order {order.order_no} is {order.status}"
+            + (" and mirrors a Production order" if (order.ref_doc_type or "") == "production_order" else "")
+            + "; its budget can no longer be changed.",
+        )
+    return order
+
 
 @router.get("/manufacturing-orders/{order_id}/budget-lines", response_model=List[BudgetLineOut])
 async def list_budget_lines(
@@ -2221,19 +2539,14 @@ async def create_budget_line(
     vu: VendorUser = Depends(require_permission("finance.edit")),
     db: AsyncSession = Depends(get_db),
 ):
-    r = await db.execute(
-        select(CoManufacturingOrder).where(
-            CoManufacturingOrder.id == order_id,
-            CoManufacturingOrder.vendor_id == vu.vendor_id,
-        )
-    )
-    if not r.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="Order not found")
+    order = await _assert_budget_editable(db, vu.vendor_id, order_id)
+    if order.company_id != body.company_id:
+        raise HTTPException(status_code=400, detail="Order belongs to a different business unit")
 
     bl = CoBudgetLine(
         id=uuid.uuid4(),
         vendor_id=vu.vendor_id,
-        company_id=body.company_id,
+        company_id=order.company_id,
         order_id=order_id,
         budget_type=body.budget_type,
         category=body.category,
@@ -2245,7 +2558,7 @@ async def create_budget_line(
         notes=body.notes,
     )
     db.add(bl)
-    await db.commit()
+    await _commit(db)
     await db.refresh(bl)
     return BudgetLineOut.model_validate(bl)
 
@@ -2258,6 +2571,7 @@ async def update_budget_line(
     vu: VendorUser = Depends(require_permission("finance.edit")),
     db: AsyncSession = Depends(get_db),
 ):
+    await _assert_budget_editable(db, vu.vendor_id, order_id)
     r = await db.execute(
         select(CoBudgetLine).where(
             CoBudgetLine.id == bl_id,
@@ -2270,7 +2584,7 @@ async def update_budget_line(
         raise HTTPException(status_code=404, detail="Budget line not found")
     for field, val in body.model_dump(exclude_none=True).items():
         setattr(bl, field, val)
-    await db.commit()
+    await _commit(db)
     await db.refresh(bl)
     return BudgetLineOut.model_validate(bl)
 
@@ -2282,6 +2596,7 @@ async def delete_budget_line(
     vu: VendorUser = Depends(require_permission("finance.edit")),
     db: AsyncSession = Depends(get_db),
 ):
+    await _assert_budget_editable(db, vu.vendor_id, order_id)
     r = await db.execute(
         select(CoBudgetLine).where(
             CoBudgetLine.id == bl_id,
@@ -2293,7 +2608,7 @@ async def delete_budget_line(
     if not bl:
         raise HTTPException(status_code=404, detail="Budget line not found")
     await db.delete(bl)
-    await db.commit()
+    await _commit(db)
 
 
 @router.get("/manufacturing-orders/{order_id}/budget-vs-actual", response_model=InternalOrderBudgetVsActualOut)
@@ -2360,6 +2675,8 @@ async def list_variance_runs(
     period_year: Optional[int] = Query(None),
     period_month: Optional[int] = Query(None),
     status: Optional[str] = Query(None),
+    limit: int = Query(500, ge=1, le=2000, description="Max rows returned"),
+    offset: int = Query(0, ge=0),
     vu: VendorUser = Depends(require_permission("finance.view")),
     db: AsyncSession = Depends(get_db),
 ):
@@ -2372,7 +2689,7 @@ async def list_variance_runs(
         q = q.where(CoVarianceRun.period_month == period_month)
     if status:
         q = q.where(CoVarianceRun.status == status)
-    q = q.order_by(CoVarianceRun.run_date.desc())
+    q = q.order_by(CoVarianceRun.run_date.desc(), CoVarianceRun.id).limit(limit).offset(offset)
     rows = (await db.execute(q)).scalars().all()
     return [VarianceRunOut.model_validate(r) for r in rows]
 
@@ -2383,9 +2700,17 @@ async def create_variance_run(
     vu: VendorUser = Depends(require_permission("finance.edit")),
     db: AsyncSession = Depends(get_db),
 ):
+    """Collect the orders completed / closed in the period that no other run covers yet."""
     await _require_company(db, vu.vendor_id, body.company_id)
 
-    # Aggregate completed/closed orders for the period
+    period_start = date(body.period_year, body.period_month, 1)
+    period_end = (
+        date(body.period_year + 1, 1, 1) if body.period_month == 12
+        else date(body.period_year, body.period_month + 1, 1)
+    )
+    # Orders are attributed to the period they completed in (fall back to last change for legacy rows).
+    done_at = func.coalesce(CoManufacturingOrder.completed_at, CoManufacturingOrder.updated_at)
+    already_covered = select(CoVarianceRunOrder.order_id).where(CoVarianceRunOrder.active.is_(True))
     q = (
         select(CoManufacturingOrder)
         .options(selectinload(CoManufacturingOrder.cost_lines))
@@ -2393,19 +2718,32 @@ async def create_variance_run(
             CoManufacturingOrder.vendor_id == vu.vendor_id,
             CoManufacturingOrder.company_id == body.company_id,
             CoManufacturingOrder.status.in_(["completed", "closed"]),
+            done_at >= period_start,
+            done_at < period_end,
+            CoManufacturingOrder.id.not_in(already_covered),
         )
+        .order_by(CoManufacturingOrder.order_no)
     )
     orders = (await db.execute(q)).scalars().unique().all()
+    if not orders:
+        raise HTTPException(
+            status_code=422,
+            detail="No completed orders in this period are left to settle (each order is covered by one run only).",
+        )
 
     total_planned = total_actual = Decimal("0")
     price_var = usage_var = overhead_var = scrap_var = Decimal("0")
+    coverage: list[CoVarianceRunOrder] = []
+    run_id = uuid.uuid4()
 
     for o in orders:
+        o_planned = o_actual = Decimal("0")
         for ln in o.cost_lines:
+            _order_line_amounts(ln)
             p = Decimal(str(ln.amount_planned or 0))
             a = Decimal(str(ln.amount_actual or 0))
-            total_planned += p
-            total_actual += a
+            o_planned += p
+            o_actual += a
             if ln.category == "overhead":
                 overhead_var += a - p
             elif ln.category == "scrap":
@@ -2419,9 +2757,19 @@ async def create_variance_run(
                 usage_var += (qa - qp) * rp
             else:
                 price_var += a - p
+        total_planned += o_planned
+        total_actual += o_actual
+        coverage.append(
+            CoVarianceRunOrder(
+                id=uuid.uuid4(), run_id=run_id, order_id=o.id, vendor_id=vu.vendor_id,
+                planned=o_planned.quantize(Decimal("0.0001")),
+                actual=o_actual.quantize(Decimal("0.0001")),
+                variance=(o_actual - o_planned).quantize(Decimal("0.0001")),
+            )
+        )
 
     vrun = CoVarianceRun(
-        id=uuid.uuid4(),
+        id=run_id,
         vendor_id=vu.vendor_id,
         company_id=body.company_id,
         period_year=body.period_year,
@@ -2437,81 +2785,143 @@ async def create_variance_run(
         scrap_variance=scrap_var.quantize(Decimal("0.0001")),
         order_count=len(orders),
         narration=body.narration,
-        extra={},
+        extra={"order_ids": [str(o.id) for o in orders]},
     )
     db.add(vrun)
-    await db.commit()
+    await db.flush()
+    db.add_all(coverage)
+    await _commit(db)
     await db.refresh(vrun)
     return VarianceRunOut.model_validate(vrun)
+
+
+async def _get_locked_variance_run(db: AsyncSession, vendor_id: UUID, run_id: UUID) -> CoVarianceRun:
+    vrun = (
+        await db.execute(
+            select(CoVarianceRun)
+            .where(CoVarianceRun.id == run_id, CoVarianceRun.vendor_id == vendor_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one_or_none()
+    if not vrun:
+        raise HTTPException(status_code=404, detail="Variance run not found")
+    return vrun
 
 
 @router.post("/variance-runs/{run_id}/post", response_model=VarianceRunOut)
 async def post_variance_run(
     run_id: UUID,
     body: VarianceRunPostIn,
+    vu: VendorUser = Depends(require_permission("finance.journal.post")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Finalise a run. The covered orders stay locked; the GL is only touched with ``post_to_gl``."""
+    vrun = await _get_locked_variance_run(db, vu.vendor_id, run_id)
+    if vrun.status == "posted":
+        raise HTTPException(status_code=409, detail="Already posted")
+    if vrun.status == "reversed":
+        raise HTTPException(status_code=409, detail="A reversed run cannot be posted again — create a new run")
+
+    entry_date_val = body.entry_date or date.today()
+    var = Decimal(str(vrun.total_variance or 0))
+    if body.post_to_gl and var != 0:
+        mapping = await get_gl_mapping(db, vu.vendor_id, vrun.company_id)
+        if not mapping or not mapping.production_variance_account_id or not mapping.cogs_account_id:
+            raise HTTPException(
+                status_code=422,
+                detail="Configure the production variance and COGS accounts in CO GL mapping",
+            )
+        try:
+            await check_period_open(db, vu.vendor_id, entry_date_val, vrun.company_id)
+            from app.services.finance.posting import post_event
+
+            abs_var = abs(var).quantize(Decimal("0.0001"))
+            je = await post_event(
+                db, vu.vendor_id, "co_cost_booking", vrun.id,
+                {
+                    "company_id": vrun.company_id,
+                    "entry_date": entry_date_val.isoformat(),
+                    "document_type": "CO",
+                    "narration": vrun.narration or f"Variance run {vrun.period_year}/{vrun.period_month:02d}",
+                    "reference": f"VRUN-{vrun.id}",
+                    "ref_doc_type": "co_variance_run",
+                    "ref_doc_id": str(vrun.id),
+                    "lines": [
+                        {
+                            "account_id": str(mapping.production_variance_account_id),
+                            "debit": str(abs_var) if var > 0 else "0",
+                            "credit": "0" if var > 0 else str(abs_var),
+                            "narration": "Production variance",
+                        },
+                        {
+                            "account_id": str(mapping.cogs_account_id),
+                            "debit": "0" if var > 0 else str(abs_var),
+                            "credit": str(abs_var) if var > 0 else "0",
+                            "narration": "COGS offset variance",
+                        },
+                    ],
+                },
+                created_by_id=vu.id,
+            )
+            if not je:
+                raise ValueError("Journal posting failed — check the GL accounts and period")
+        except ValueError as exc:
+            await db.rollback()
+            raise _co_error(exc) from exc
+        vrun.journal_entry_id = je.id
+    else:
+        vrun.journal_entry_id = None
+    vrun.status = "posted"
+    vrun.extra = {**(vrun.extra or {}), "posted_to_gl": bool(vrun.journal_entry_id), "posted_on": entry_date_val.isoformat()}
+    await _commit(db)
+    await db.refresh(vrun)
+    return VarianceRunOut.model_validate(vrun)
+
+
+@router.post("/variance-runs/{run_id}/reverse", response_model=VarianceRunOut)
+async def reverse_variance_run(
+    run_id: UUID,
+    body: CoSettlementReverseIn,
+    vu: VendorUser = Depends(require_permission("finance.journal.post")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Undo a posted run (reverses its journal if any) and release its orders for a new run."""
+    vrun = await _get_locked_variance_run(db, vu.vendor_id, run_id)
+    if vrun.status != "posted":
+        raise HTTPException(status_code=409, detail=f"Only posted runs can be reversed (status: {vrun.status})")
+    try:
+        if vrun.journal_entry_id:
+            await check_period_open(db, vu.vendor_id, date.today(), vrun.company_id)
+            await reverse_journal(db, vu.vendor_id, vrun.journal_entry_id, vu.id)
+    except ValueError as exc:
+        await db.rollback()
+        raise _co_error(exc) from exc
+    await db.execute(
+        CoVarianceRunOrder.__table__.update()
+        .where(CoVarianceRunOrder.run_id == vrun.id)
+        .values(active=False)
+    )
+    vrun.status = "reversed"
+    vrun.extra = {**(vrun.extra or {}), "reversal_reason": body.reason}
+    await _commit(db)
+    await db.refresh(vrun)
+    return VarianceRunOut.model_validate(vrun)
+
+
+@router.delete("/variance-runs/{run_id}", status_code=204)
+async def delete_variance_run(
+    run_id: UUID,
     vu: VendorUser = Depends(require_permission("finance.edit")),
     db: AsyncSession = Depends(get_db),
 ):
-    r = await db.execute(
-        select(CoVarianceRun).where(
-            CoVarianceRun.id == run_id,
-            CoVarianceRun.vendor_id == vu.vendor_id,
-        )
-    )
-    vrun = r.scalar_one_or_none()
-    if not vrun:
-        raise HTTPException(status_code=404, detail="Variance run not found")
-    if vrun.status == "posted":
-        raise HTTPException(status_code=409, detail="Already posted")
-
-    mapping = await get_gl_mapping(db, vu.vendor_id, vrun.company_id)
-    if not mapping or not mapping.production_variance_account_id:
-        raise HTTPException(status_code=422, detail="Configure production variance account in CO GL mapping")
-
-    from app.services.finance.posting import post_event
-
-    var = vrun.total_variance
-    if var == 0:
-        vrun.status = "posted"
-        vrun.journal_entry_id = None
-        await db.commit()
-        await db.refresh(vrun)
-        return VarianceRunOut.model_validate(vrun)
-
-    dr_acc = str(mapping.production_variance_account_id)
-    cr_acc = str(mapping.cogs_account_id or mapping.production_variance_account_id)
-    entry_date_val = body.entry_date or date.today()
-    abs_var = abs(var).quantize(Decimal("0.0001"))
-
-    payload = {
-        "company_id": vrun.company_id,
-        "entry_date": entry_date_val.isoformat(),
-        "document_type": "CO",
-        "narration": vrun.narration or f"Variance run {vrun.period_year}/{vrun.period_month:02d}",
-        "reference": f"VRUN-{vrun.id}",
-        "ref_doc_type": "co_variance_run",
-        "ref_doc_id": str(vrun.id),
-        "lines": [
-            {
-                "account_id": dr_acc,
-                "debit": str(abs_var) if var > 0 else "0",
-                "credit": "0" if var > 0 else str(abs_var),
-                "narration": "Production variance",
-            },
-            {
-                "account_id": cr_acc,
-                "debit": "0" if var > 0 else str(abs_var),
-                "credit": str(abs_var) if var > 0 else "0",
-                "narration": "COGS offset variance",
-            },
-        ],
-    }
-    je = await post_event(db, vu.vendor_id, "co_variance_run", vrun.id, payload, created_by_id=vu.id)
-    vrun.journal_entry_id = je.id if je else None
-    vrun.status = "posted"
-    await db.commit()
-    await db.refresh(vrun)
-    return VarianceRunOut.model_validate(vrun)
+    """Discard an open (not yet posted) run; its orders become available to the next run."""
+    vrun = await _get_locked_variance_run(db, vu.vendor_id, run_id)
+    if vrun.status != "open":
+        raise HTTPException(status_code=409, detail="Only open runs can be deleted; reverse a posted run instead")
+    await db.execute(delete(CoVarianceRunOrder).where(CoVarianceRunOrder.run_id == vrun.id))
+    await db.delete(vrun)
+    await _commit(db)
 
 
 # ── Period-end report ─────────────────────────────────────────────────────────
@@ -2519,14 +2929,19 @@ async def post_variance_run(
 @router.get("/period-end-report", response_model=PeriodEndReportOut)
 async def period_end_report(
     company_id: Optional[UUID] = Query(None),
-    period_year: int = Query(...),
-    period_month: int = Query(...),
+    period_year: int = Query(..., ge=2000, le=2100),
+    period_month: int = Query(..., ge=1, le=12),
     vu: VendorUser = Depends(require_permission("finance.view")),
     db: AsyncSession = Depends(get_db),
 ):
     open_statuses = ("draft", "released", "in_progress")
     closed_statuses = ("completed", "closed")
 
+    period_start = date(period_year, period_month, 1)
+    period_end = date(period_year + 1, 1, 1) if period_month == 12 else date(period_year, period_month + 1, 1)
+    done_at = func.coalesce(CoManufacturingOrder.completed_at, CoManufacturingOrder.updated_at)
+
+    # Open orders / WIP are a live snapshot; everything else is limited to the selected period.
     q_open = select(func.count()).select_from(CoManufacturingOrder).where(
         CoManufacturingOrder.vendor_id == vu.vendor_id,
         CoManufacturingOrder.status.in_(open_statuses),
@@ -2534,6 +2949,8 @@ async def period_end_report(
     q_closed = select(func.count()).select_from(CoManufacturingOrder).where(
         CoManufacturingOrder.vendor_id == vu.vendor_id,
         CoManufacturingOrder.status.in_(closed_statuses),
+        done_at >= period_start,
+        done_at < period_end,
     )
     if company_id:
         q_open = q_open.where(CoManufacturingOrder.company_id == company_id)
@@ -2542,7 +2959,7 @@ async def period_end_report(
     open_count = (await db.execute(q_open)).scalar() or 0
     closed_count = (await db.execute(q_closed)).scalar() or 0
 
-    wip = await _build_wip_summary(db, vu.vendor_id, company_id)
+    _wip_open, wip_planned, wip_actual = await _wip_totals(db, vu.vendor_id, company_id)
 
     q_vrun = select(func.count()).select_from(CoVarianceRun).where(
         CoVarianceRun.vendor_id == vu.vendor_id,
@@ -2564,12 +2981,18 @@ async def period_end_report(
 
     q_gm = select(func.count()).select_from(CoGoodsMovement).where(
         CoGoodsMovement.vendor_id == vu.vendor_id,
+        CoGoodsMovement.status == "posted",
+        CoGoodsMovement.posting_date >= period_start,
+        CoGoodsMovement.posting_date < period_end,
     )
     if company_id:
         q_gm = q_gm.where(CoGoodsMovement.company_id == company_id)
 
     q_ac = select(func.count()).select_from(CoActivityConfirmation).where(
         CoActivityConfirmation.vendor_id == vu.vendor_id,
+        CoActivityConfirmation.status == "posted",
+        CoActivityConfirmation.confirmation_date >= period_start,
+        CoActivityConfirmation.confirmation_date < period_end,
     )
     if company_id:
         q_ac = q_ac.where(CoActivityConfirmation.company_id == company_id)
@@ -2585,9 +3008,9 @@ async def period_end_report(
         period_month=period_month,
         open_orders=open_count,
         completed_orders=closed_count,
-        total_planned=wip.wip_planned_value,
-        total_actual=wip.wip_actual_cost,
-        total_variance=wip.wip_actual_cost - wip.wip_planned_value,
+        total_planned=wip_planned,
+        total_actual=wip_actual,
+        total_variance=wip_actual - wip_planned,
         pending_variance_runs=pending_vruns,
         pending_allocations=pending_allocs,
         goods_movements_count=gm_count,
@@ -2602,6 +3025,8 @@ async def internal_orders_report(
     company_id: Optional[UUID] = Query(None),
     order_kind: Optional[str] = Query(None, description="project | internal | assembly | process"),
     status: Optional[str] = Query(None),
+    limit: int = Query(500, ge=1, le=2000, description="Max rows returned"),
+    offset: int = Query(0, ge=0),
     vu: VendorUser = Depends(require_permission("finance.view")),
     db: AsyncSession = Depends(get_db),
 ):
@@ -2619,16 +3044,23 @@ async def internal_orders_report(
         q = q.where(CoManufacturingOrder.order_kind.in_(["project", "internal"]))
     if status:
         q = q.where(CoManufacturingOrder.status == status)
+    q = q.order_by(CoManufacturingOrder.created_at.desc(), CoManufacturingOrder.id).limit(limit).offset(offset)
     orders = (await db.execute(q)).scalars().unique().all()
+
+    # One grouped query for every budget total instead of one query per order.
+    budget_by_order: dict = {}
+    if orders:
+        bl_rows = await db.execute(
+            select(CoBudgetLine.order_id, func.sum(CoBudgetLine.amount_budgeted))
+            .where(CoBudgetLine.order_id.in_([o.id for o in orders]))
+            .group_by(CoBudgetLine.order_id)
+        )
+        budget_by_order = {oid: Decimal(str(total or 0)) for oid, total in bl_rows.all()}
 
     result = []
     for o in orders:
         p, a = _sum_order_planned_actual(o)
-        # fetch budget total
-        bl_r = await db.execute(
-            select(func.sum(CoBudgetLine.amount_budgeted)).where(CoBudgetLine.order_id == o.id)
-        )
-        budgeted = Decimal(str(bl_r.scalar() or 0))
+        budgeted = budget_by_order.get(o.id, Decimal("0"))
 
         result.append({
             "order_id": str(o.id),
@@ -2653,114 +3085,112 @@ async def internal_orders_report(
 # WORK CENTERS
 # ═══════════════════════════════════════════════════════════════════════════════
 
+def _wc_out(wc: CoWorkCenter) -> dict:
+    return {
+        "id": str(wc.id),
+        "company_id": str(wc.company_id),
+        "code": wc.code,
+        "name": wc.name,
+        "description": wc.description,
+        "wc_type": wc.wc_type,
+        "capacity_uom": wc.capacity_uom,
+        "labor_rate_per_hour": str(wc.labor_rate_per_hour),
+        "machine_rate_per_hour": str(wc.machine_rate_per_hour),
+        "direct_overhead_rate": str(wc.direct_overhead_rate),
+        "capacity_hours_per_period": str(wc.capacity_hours_per_period),
+        "cost_center_id": str(wc.cost_center_id) if wc.cost_center_id else None,
+        "is_active": wc.is_active,
+        "notes": wc.notes,
+    }
+
+
+async def _get_owned_work_center(db: AsyncSession, vendor_id: UUID, wc_id: UUID) -> CoWorkCenter:
+    wc = (
+        await db.execute(
+            select(CoWorkCenter).where(CoWorkCenter.id == wc_id, CoWorkCenter.vendor_id == vendor_id)
+        )
+    ).scalar_one_or_none()
+    if not wc:
+        raise HTTPException(status_code=404, detail="Work center not found")
+    return wc
+
+
 @router.get("/work-centers")
 async def list_work_centers(
-    company_id: Optional[str] = Query(None),
+    company_id: Optional[UUID] = Query(None),
     is_active: Optional[bool] = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: VendorUser = Depends(require_permission("finance.view")),
 ):
     q = select(CoWorkCenter).where(CoWorkCenter.vendor_id == current_user.vendor_id)
     if company_id:
-        q = q.where(CoWorkCenter.company_id == UUID(company_id))
+        q = q.where(CoWorkCenter.company_id == company_id)
     if is_active is not None:
         q = q.where(CoWorkCenter.is_active == is_active)
-    q = q.order_by(CoWorkCenter.code)
-    result = await db.execute(q)
-    rows = result.scalars().all()
-    out = []
-    for wc in rows:
-        out.append({
-            "id": str(wc.id),
-            "company_id": str(wc.company_id),
-            "code": wc.code,
-            "name": wc.name,
-            "description": wc.description,
-            "wc_type": wc.wc_type,
-            "capacity_uom": wc.capacity_uom,
-            "labor_rate_per_hour": str(wc.labor_rate_per_hour),
-            "machine_rate_per_hour": str(wc.machine_rate_per_hour),
-            "direct_overhead_rate": str(wc.direct_overhead_rate),
-            "capacity_hours_per_period": str(wc.capacity_hours_per_period),
-            "cost_center_id": str(wc.cost_center_id) if wc.cost_center_id else None,
-            "is_active": wc.is_active,
-            "notes": wc.notes,
-        })
-    return out
+    rows = (await db.execute(q.order_by(CoWorkCenter.code))).scalars().all()
+    return [_wc_out(wc) for wc in rows]
 
 
 @router.post("/work-centers", status_code=201)
 async def create_work_center(
-    body: dict = Body(...),
+    body: WorkCenterCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: VendorUser = Depends(require_permission("finance.view")),
+    current_user: VendorUser = Depends(require_permission("finance.coa.manage")),
 ):
-    company_id = body.get("company_id")
-    if not company_id:
-        raise HTTPException(400, "company_id required")
+    vid = current_user.vendor_id
+    await _require_company(db, vid, body.company_id)
+    await _assert_owned(db, vid, FinCostCenter, [body.cost_center_id], "Cost center")
+    code = body.code.strip()
     wc = CoWorkCenter(
-        vendor_id=current_user.vendor_id,
-        company_id=UUID(company_id),
-        code=body["code"],
-        name=body.get("name", body["code"]),
-        description=body.get("description"),
-        wc_type=body.get("wc_type", "machine"),
-        capacity_uom=body.get("capacity_uom", "H"),
-        labor_rate_per_hour=Decimal(str(body.get("labor_rate_per_hour", 0))),
-        machine_rate_per_hour=Decimal(str(body.get("machine_rate_per_hour", 0))),
-        direct_overhead_rate=Decimal(str(body.get("direct_overhead_rate", 0))),
-        capacity_hours_per_period=Decimal(str(body.get("capacity_hours_per_period", 0))),
-        cost_center_id=UUID(body["cost_center_id"]) if body.get("cost_center_id") else None,
-        is_active=body.get("is_active", True),
-        notes=body.get("notes"),
+        vendor_id=vid,
+        company_id=body.company_id,
+        code=code,
+        name=(body.name or code).strip(),
+        description=body.description,
+        wc_type=body.wc_type,
+        capacity_uom=body.capacity_uom,
+        labor_rate_per_hour=body.labor_rate_per_hour,
+        machine_rate_per_hour=body.machine_rate_per_hour,
+        direct_overhead_rate=body.direct_overhead_rate,
+        capacity_hours_per_period=body.capacity_hours_per_period,
+        cost_center_id=body.cost_center_id,
+        is_active=body.is_active,
+        notes=body.notes,
     )
     db.add(wc)
-    await db.commit()
+    await _commit(db)
     await db.refresh(wc)
     return {"id": str(wc.id), "code": wc.code, "name": wc.name}
 
 
 @router.patch("/work-centers/{wc_id}")
 async def update_work_center(
-    wc_id: str,
-    body: dict = Body(...),
+    wc_id: UUID,
+    body: WorkCenterUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: VendorUser = Depends(require_permission("finance.view")),
+    current_user: VendorUser = Depends(require_permission("finance.coa.manage")),
 ):
-    result = await db.execute(select(CoWorkCenter).where(
-        CoWorkCenter.id == UUID(wc_id),
-        CoWorkCenter.vendor_id == current_user.vendor_id,
-    ))
-    wc = result.scalar_one_or_none()
-    if not wc:
-        raise HTTPException(404, "Work center not found")
-    for field in ("name", "description", "wc_type", "capacity_uom", "notes", "is_active"):
-        if field in body:
-            setattr(wc, field, body[field])
-    for field in ("labor_rate_per_hour", "machine_rate_per_hour", "direct_overhead_rate", "capacity_hours_per_period"):
-        if field in body:
-            setattr(wc, field, Decimal(str(body[field])))
-    if "cost_center_id" in body:
-        wc.cost_center_id = UUID(body["cost_center_id"]) if body["cost_center_id"] else None
-    await db.commit()
+    wc = await _get_owned_work_center(db, current_user.vendor_id, wc_id)
+    data = body.model_dump(exclude_unset=True)
+    if data.get("cost_center_id"):
+        await _assert_owned(db, current_user.vendor_id, FinCostCenter, [data["cost_center_id"]], "Cost center")
+    for k, v in data.items():
+        if v is None and k not in ("cost_center_id", "description", "notes"):
+            continue  # never null out required columns
+        setattr(wc, k, v)
+    await _commit(db)
     return {"ok": True}
 
 
 @router.delete("/work-centers/{wc_id}", status_code=204)
 async def delete_work_center(
-    wc_id: str,
+    wc_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: VendorUser = Depends(require_permission("finance.view")),
+    current_user: VendorUser = Depends(require_permission("finance.coa.manage")),
 ):
-    result = await db.execute(select(CoWorkCenter).where(
-        CoWorkCenter.id == UUID(wc_id),
-        CoWorkCenter.vendor_id == current_user.vendor_id,
-    ))
-    wc = result.scalar_one_or_none()
-    if not wc:
-        raise HTTPException(404, "Not found")
+    wc = await _get_owned_work_center(db, current_user.vendor_id, wc_id)
     await db.delete(wc)
-    await db.commit()
+    await _commit(db)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -2804,437 +3234,415 @@ def _routing_out(r: CoRouting) -> dict:
     }
 
 
+def _routing_query():
+    return select(CoRouting).options(
+        selectinload(CoRouting.operations).selectinload(CoRoutingOperation.work_center)
+    )
+
+
+async def _get_owned_routing(db: AsyncSession, vendor_id: UUID, routing_id: UUID) -> CoRouting:
+    r = (
+        await db.execute(
+            _routing_query().where(CoRouting.id == routing_id, CoRouting.vendor_id == vendor_id)
+        )
+    ).scalar_one_or_none()
+    if not r:
+        raise HTTPException(status_code=404, detail="Routing not found")
+    return r
+
+
 @router.get("/routings")
 async def list_routings(
-    company_id: Optional[str] = Query(None),
-    product_id: Optional[str] = Query(None),
+    company_id: Optional[UUID] = Query(None),
+    product_id: Optional[UUID] = Query(None),
     status: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: VendorUser = Depends(require_permission("finance.view")),
 ):
-    q = (
-        select(CoRouting)
-        .options(selectinload(CoRouting.operations).selectinload(CoRoutingOperation.work_center))
-        .where(CoRouting.vendor_id == current_user.vendor_id)
-    )
+    q = _routing_query().where(CoRouting.vendor_id == current_user.vendor_id)
     if company_id:
-        q = q.where(CoRouting.company_id == UUID(company_id))
+        q = q.where(CoRouting.company_id == company_id)
     if product_id:
-        q = q.where(CoRouting.product_id == UUID(product_id))
+        q = q.where(CoRouting.product_id == product_id)
     if status:
         q = q.where(CoRouting.status == status)
-    q = q.order_by(CoRouting.code, CoRouting.version)
-    result = await db.execute(q)
+    result = await db.execute(q.order_by(CoRouting.code, CoRouting.version))
     return [_routing_out(r) for r in result.scalars().all()]
 
 
 @router.get("/routings/{routing_id}")
 async def get_routing(
-    routing_id: str,
+    routing_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: VendorUser = Depends(require_permission("finance.view")),
 ):
-    q = (
-        select(CoRouting)
-        .options(selectinload(CoRouting.operations).selectinload(CoRoutingOperation.work_center))
-        .where(CoRouting.id == UUID(routing_id), CoRouting.vendor_id == current_user.vendor_id)
-    )
-    result = await db.execute(q)
-    r = result.scalar_one_or_none()
-    if not r:
-        raise HTTPException(404, "Routing not found")
-    return _routing_out(r)
+    return _routing_out(await _get_owned_routing(db, current_user.vendor_id, routing_id))
 
 
 @router.post("/routings", status_code=201)
 async def create_routing(
-    body: dict = Body(...),
+    body: RoutingCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: VendorUser = Depends(require_permission("finance.view")),
+    current_user: VendorUser = Depends(require_permission("finance.coa.manage")),
 ):
-    company_id = body.get("company_id")
-    if not company_id:
-        raise HTTPException(400, "company_id required")
+    vid = current_user.vendor_id
+    await _require_company(db, vid, body.company_id)
+    await _assert_owned(db, vid, Product, [body.product_id], "Product")
+    if body.valid_from and body.valid_to and body.valid_to < body.valid_from:
+        raise HTTPException(status_code=422, detail="valid_to must not be before valid_from")
+    code = body.code.strip()
     r = CoRouting(
-        vendor_id=current_user.vendor_id,
-        company_id=UUID(company_id),
-        product_id=UUID(body["product_id"]) if body.get("product_id") else None,
-        code=body["code"],
-        name=body.get("name", body["code"]),
-        version=body.get("version", "1"),
-        status=body.get("status", "draft"),
-        valid_from=date.fromisoformat(body["valid_from"]) if body.get("valid_from") else None,
-        valid_to=date.fromisoformat(body["valid_to"]) if body.get("valid_to") else None,
-        uom=body.get("uom", "EA"),
-        lot_size=Decimal(str(body.get("lot_size", 1))),
-        notes=body.get("notes"),
+        vendor_id=vid,
+        company_id=body.company_id,
+        product_id=body.product_id,
+        code=code,
+        name=(body.name or code).strip(),
+        version=body.version,
+        status=body.status,
+        valid_from=body.valid_from,
+        valid_to=body.valid_to,
+        uom=body.uom,
+        lot_size=body.lot_size,
+        notes=body.notes,
     )
     db.add(r)
-    await db.commit()
+    await _commit(db)
     await db.refresh(r)
     return {"id": str(r.id), "code": r.code, "name": r.name, "version": r.version}
 
 
 @router.patch("/routings/{routing_id}")
 async def update_routing(
-    routing_id: str,
-    body: dict = Body(...),
+    routing_id: UUID,
+    body: RoutingUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: VendorUser = Depends(require_permission("finance.view")),
+    current_user: VendorUser = Depends(require_permission("finance.coa.manage")),
 ):
-    result = await db.execute(select(CoRouting).where(
-        CoRouting.id == UUID(routing_id), CoRouting.vendor_id == current_user.vendor_id,
-    ))
-    r = result.scalar_one_or_none()
-    if not r:
-        raise HTTPException(404, "Not found")
-    for field in ("name", "version", "status", "uom", "notes"):
-        if field in body:
-            setattr(r, field, body[field])
-    if "product_id" in body:
-        r.product_id = UUID(body["product_id"]) if body["product_id"] else None
-    if "lot_size" in body:
-        r.lot_size = Decimal(str(body["lot_size"]))
-    if "valid_from" in body:
-        r.valid_from = date.fromisoformat(body["valid_from"]) if body["valid_from"] else None
-    if "valid_to" in body:
-        r.valid_to = date.fromisoformat(body["valid_to"]) if body["valid_to"] else None
-    await db.commit()
+    r = await _get_owned_routing(db, current_user.vendor_id, routing_id)
+    data = body.model_dump(exclude_unset=True)
+    if data.get("product_id"):
+        await _assert_owned(db, current_user.vendor_id, Product, [data["product_id"]], "Product")
+    for k, v in data.items():
+        if v is None and k not in ("product_id", "valid_from", "valid_to", "notes"):
+            continue
+        setattr(r, k, v)
+    if r.valid_from and r.valid_to and r.valid_to < r.valid_from:
+        raise HTTPException(status_code=422, detail="valid_to must not be before valid_from")
+    await _commit(db)
     return {"ok": True}
 
 
 @router.delete("/routings/{routing_id}", status_code=204)
 async def delete_routing(
-    routing_id: str,
+    routing_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: VendorUser = Depends(require_permission("finance.view")),
+    current_user: VendorUser = Depends(require_permission("finance.coa.manage")),
 ):
-    result = await db.execute(select(CoRouting).where(
-        CoRouting.id == UUID(routing_id), CoRouting.vendor_id == current_user.vendor_id,
-    ))
-    r = result.scalar_one_or_none()
-    if not r:
-        raise HTTPException(404, "Not found")
+    r = await _get_owned_routing(db, current_user.vendor_id, routing_id)
     await db.delete(r)
-    await db.commit()
+    await _commit(db)
 
 
 # ── Routing Operations ────────────────────────────────────────────────────────
 
+async def _check_routing_op_refs(
+    db: AsyncSession, vendor_id: UUID, routing: CoRouting, data: dict[str, Any]
+) -> None:
+    wc_id = data.get("work_center_id")
+    if wc_id:
+        wc = await _get_owned_work_center(db, vendor_id, wc_id)
+        if wc.company_id != routing.company_id:
+            raise HTTPException(status_code=400, detail="Work center belongs to a different business unit")
+    await _assert_owned(db, vendor_id, CoActivityType, [data.get("activity_type_id")], "Activity type")
+
+
 @router.post("/routings/{routing_id}/operations", status_code=201)
 async def add_routing_operation(
-    routing_id: str,
-    body: dict = Body(...),
+    routing_id: UUID,
+    body: RoutingOperationCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: VendorUser = Depends(require_permission("finance.view")),
+    current_user: VendorUser = Depends(require_permission("finance.coa.manage")),
 ):
-    result = await db.execute(select(CoRouting).where(
-        CoRouting.id == UUID(routing_id), CoRouting.vendor_id == current_user.vendor_id,
-    ))
-    r = result.scalar_one_or_none()
-    if not r:
-        raise HTTPException(404, "Routing not found")
-    op = CoRoutingOperation(
-        routing_id=r.id,
-        work_center_id=UUID(body["work_center_id"]) if body.get("work_center_id") else None,
-        activity_type_id=UUID(body["activity_type_id"]) if body.get("activity_type_id") else None,
-        seq_no=int(body.get("seq_no", 10)),
-        operation_code=body.get("operation_code"),
-        description=body.get("description"),
-        setup_hrs=Decimal(str(body.get("setup_hrs", 0))),
-        run_hrs_per_unit=Decimal(str(body.get("run_hrs_per_unit", 0))),
-        teardown_hrs=Decimal(str(body.get("teardown_hrs", 0))),
-        machine_hrs_per_unit=Decimal(str(body.get("machine_hrs_per_unit", 0))),
-        labor_rate_override=Decimal(str(body["labor_rate_override"])) if body.get("labor_rate_override") else None,
-        machine_rate_override=Decimal(str(body["machine_rate_override"])) if body.get("machine_rate_override") else None,
-        direct_overhead_pct=Decimal(str(body.get("direct_overhead_pct", 0))),
-        notes=body.get("notes"),
-    )
+    r = await _get_owned_routing(db, current_user.vendor_id, routing_id)
+    await _check_routing_op_refs(db, current_user.vendor_id, r, body.model_dump())
+    op = CoRoutingOperation(routing_id=r.id, **body.model_dump())
     db.add(op)
-    await db.commit()
+    await _commit(db)
     await db.refresh(op)
     return {"id": str(op.id), "seq_no": op.seq_no}
 
 
+async def _get_owned_routing_op(
+    db: AsyncSession, vendor_id: UUID, routing_id: UUID, op_id: UUID
+) -> tuple[CoRouting, CoRoutingOperation]:
+    routing = await _get_owned_routing(db, vendor_id, routing_id)
+    op = next((o for o in routing.operations if o.id == op_id), None)
+    if not op:
+        raise HTTPException(status_code=404, detail="Operation not found")
+    return routing, op
+
+
 @router.patch("/routings/{routing_id}/operations/{op_id}")
 async def update_routing_operation(
-    routing_id: str,
-    op_id: str,
-    body: dict = Body(...),
+    routing_id: UUID,
+    op_id: UUID,
+    body: RoutingOperationUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: VendorUser = Depends(require_permission("finance.view")),
+    current_user: VendorUser = Depends(require_permission("finance.coa.manage")),
 ):
-    result = await db.execute(select(CoRoutingOperation).where(
-        CoRoutingOperation.id == UUID(op_id),
-        CoRoutingOperation.routing_id == UUID(routing_id),
-    ))
-    op = result.scalar_one_or_none()
-    if not op:
-        raise HTTPException(404, "Operation not found")
-    for field in ("operation_code", "description", "notes"):
-        if field in body:
-            setattr(op, field, body[field])
-    if "seq_no" in body:
-        op.seq_no = int(body["seq_no"])
-    if "work_center_id" in body:
-        op.work_center_id = UUID(body["work_center_id"]) if body["work_center_id"] else None
-    if "activity_type_id" in body:
-        op.activity_type_id = UUID(body["activity_type_id"]) if body["activity_type_id"] else None
-    for field in ("setup_hrs", "run_hrs_per_unit", "teardown_hrs", "machine_hrs_per_unit", "direct_overhead_pct"):
-        if field in body:
-            setattr(op, field, Decimal(str(body[field])))
-    for field in ("labor_rate_override", "machine_rate_override"):
-        if field in body:
-            setattr(op, field, Decimal(str(body[field])) if body[field] else None)
-    await db.commit()
+    routing, op = await _get_owned_routing_op(db, current_user.vendor_id, routing_id, op_id)
+    data = body.model_dump(exclude_unset=True)
+    await _check_routing_op_refs(db, current_user.vendor_id, routing, data)
+    nullable = {"work_center_id", "activity_type_id", "labor_rate_override", "machine_rate_override",
+                "operation_code", "description", "notes"}
+    for k, v in data.items():
+        if v is None and k not in nullable:
+            continue
+        setattr(op, k, v)
+    await _commit(db)
     return {"ok": True}
 
 
 @router.delete("/routings/{routing_id}/operations/{op_id}", status_code=204)
 async def delete_routing_operation(
-    routing_id: str,
-    op_id: str,
+    routing_id: UUID,
+    op_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: VendorUser = Depends(require_permission("finance.view")),
+    current_user: VendorUser = Depends(require_permission("finance.coa.manage")),
 ):
-    result = await db.execute(select(CoRoutingOperation).where(
-        CoRoutingOperation.id == UUID(op_id),
-        CoRoutingOperation.routing_id == UUID(routing_id),
-    ))
-    op = result.scalar_one_or_none()
-    if not op:
-        raise HTTPException(404, "Not found")
+    _, op = await _get_owned_routing_op(db, current_user.vendor_id, routing_id, op_id)
     await db.delete(op)
-    await db.commit()
+    await _commit(db)
 
 
 # ── Attach routing to product cost version ────────────────────────────────────
 
-@router.patch("/product-costs/{version_id}/routing")
-async def set_cost_version_routing(
-    version_id: str,
-    body: dict = Body(...),
-    db: AsyncSession = Depends(get_db),
-    current_user: VendorUser = Depends(require_permission("finance.view")),
-):
-    """Link / unlink a routing to a product cost version and re-calculate activity cost lines."""
-    result = await db.execute(
+# Lines generated from a routing / overhead pools start at these sequence numbers so they can be
+# regenerated without touching lines entered by hand.
+ROUTING_SEQ_BASE = 1000
+INDIRECT_SEQ_BASE = 2000
+
+_D0 = Decimal("0")
+
+
+def _dec(value: Any) -> Decimal:
+    return Decimal(str(value if value is not None else 0))
+
+
+async def _load_cost_version(
+    db: AsyncSession, vendor_id: UUID, version_id: UUID, *, editable: bool = False
+) -> CoProductCostVersion:
+    """Load a cost version (row-locked); with ``editable`` it must still be a draft (409 otherwise)."""
+    r = await db.execute(
         select(CoProductCostVersion)
         .options(selectinload(CoProductCostVersion.lines))
         .where(
-            CoProductCostVersion.id == UUID(version_id),
-            CoProductCostVersion.vendor_id == current_user.vendor_id,
+            CoProductCostVersion.id == version_id,
+            CoProductCostVersion.vendor_id == vendor_id,
         )
+        .with_for_update()
+        .execution_options(populate_existing=True)
     )
-    ver = result.scalar_one_or_none()
+    ver = r.scalar_one_or_none()
     if not ver:
-        raise HTTPException(404, "Cost version not found")
+        raise HTTPException(status_code=404, detail="Cost version not found")
+    if editable:
+        try:
+            assert_version_editable(ver)
+        except StateError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return ver
 
-    routing_id = body.get("routing_id")
-    ver.routing_id = UUID(routing_id) if routing_id else None
 
-    if routing_id:
-        # Load routing with operations + work centers
-        rq = (
-            select(CoRouting)
-            .options(selectinload(CoRouting.operations).selectinload(CoRoutingOperation.work_center))
-            .where(CoRouting.id == UUID(routing_id), CoRouting.vendor_id == current_user.vendor_id)
+def _is_routing_generated(ln: CoProductCostLine) -> bool:
+    lt = (ln.line_type or "").lower()
+    return lt == "direct_overhead" or (lt == "activity" and (ln.sequence or 0) >= ROUTING_SEQ_BASE)
+
+
+def _routing_cost_lines(routing: CoRouting) -> list[CoProductCostLine]:
+    """Build per-output-unit activity / direct-overhead cost lines from a routing."""
+    lot_size = _dec(routing.lot_size)
+    if lot_size <= 0:
+        lot_size = Decimal("1")
+
+    lines: list[CoProductCostLine] = []
+    seq = ROUTING_SEQ_BASE
+    for rop in sorted(routing.operations or [], key=lambda o: o.seq_no or 0):
+        wc = rop.work_center
+        labor_rate = (
+            _dec(rop.labor_rate_override)
+            if rop.labor_rate_override is not None
+            else _dec(wc.labor_rate_per_hour if wc else 0)
         )
-        rres = await db.execute(rq)
-        routing = rres.scalar_one_or_none()
+        machine_rate = (
+            _dec(rop.machine_rate_override)
+            if rop.machine_rate_override is not None
+            else _dec(wc.machine_rate_per_hour if wc else 0)
+        )
+        wc_overhead_rate = _dec(wc.direct_overhead_rate if wc else 0)
 
-        if routing:
-            # Remove existing activity/direct-overhead lines generated from routing
-            to_del = [ln for ln in ver.lines if ln.category in ("activity", "direct_overhead")]
-            for ln in to_del:
-                await db.delete(ln)
+        # Setup / teardown are per lot, run time is per unit.
+        labor_hrs = (_dec(rop.setup_hrs) + _dec(rop.teardown_hrs)) / lot_size + _dec(rop.run_hrs_per_unit)
+        machine_hrs = _dec(rop.machine_hrs_per_unit)
 
-            lot_size = float(routing.lot_size or 1)
-            seq = 1000
-            act_total = Decimal("0")
-            doh_total = Decimal("0")
+        labor_cost = labor_hrs * labor_rate
+        machine_cost = machine_hrs * machine_rate
+        direct_oh = (labor_cost + machine_cost) * _dec(rop.direct_overhead_pct) / Decimal("100") + (
+            machine_hrs * wc_overhead_rate
+        )
+        desc = rop.description or (wc.name if wc else f"Op {rop.seq_no}")
 
-            for rop in routing.operations:
-                wc = rop.work_center
-                labor_rate = Decimal(str(rop.labor_rate_override or (wc.labor_rate_per_hour if wc else 0)))
-                machine_rate = Decimal(str(rop.machine_rate_override or (wc.machine_rate_per_hour if wc else 0)))
-                doh_rate = Decimal(str(wc.direct_overhead_rate if wc else 0))
+        for label, qty, rate in (
+            ("labor", labor_hrs, labor_rate),
+            ("machine", machine_hrs, machine_rate),
+        ):
+            if qty * rate <= 0:
+                continue
+            lines.append(CoProductCostLine(
+                line_type="activity",
+                description=f"{desc} — {label}",
+                activity_type_id=rop.activity_type_id,
+                qty_per_output_unit=qty.quantize(Decimal("0.000001")),
+                unit_rate_planned=rate,
+                sequence=seq,
+            ))
+            seq += 1
 
-                setup = float(rop.setup_hrs or 0)
-                teardown = float(rop.teardown_hrs or 0)
-                run_per_unit = float(rop.run_hrs_per_unit or 0)
-                mach_per_unit = float(rop.machine_hrs_per_unit or 0)
+        if direct_oh > 0:
+            lines.append(CoProductCostLine(
+                line_type="direct_overhead",
+                description=f"{desc} — direct overhead",
+                qty_per_output_unit=Decimal("1"),
+                unit_rate_planned=direct_oh.quantize(Decimal("0.000001")),
+                sequence=seq,
+            ))
+            seq += 1
+    return lines
 
-                total_labor_hrs = Decimal(str(setup + teardown + run_per_unit * lot_size)) / Decimal(str(lot_size))
-                total_machine_hrs = Decimal(str(mach_per_unit))
 
-                labor_cost = total_labor_hrs * labor_rate
-                machine_cost = total_machine_hrs * machine_rate
-                total_direct = labor_cost + machine_cost
+@router.patch("/product-costs/{version_id}/routing")
+async def set_cost_version_routing(
+    version_id: UUID,
+    body: CostVersionRoutingIn,
+    db: AsyncSession = Depends(get_db),
+    current_user: VendorUser = Depends(require_permission("finance.coa.manage")),
+):
+    """Link / unlink a routing to a product cost version and regenerate its activity / direct-overhead lines."""
+    ver = await _load_cost_version(db, current_user.vendor_id, version_id, editable=True)
 
-                doh_pct = Decimal(str(rop.direct_overhead_pct or 0)) / Decimal("100")
-                doh_from_pct = total_direct * doh_pct
-                doh_from_rate = total_machine_hrs * doh_rate
-                direct_oh = doh_from_pct + doh_from_rate
+    routing: Optional[CoRouting] = None
+    if body.routing_id:
+        routing = (
+            await db.execute(
+                select(CoRouting)
+                .options(selectinload(CoRouting.operations).selectinload(CoRoutingOperation.work_center))
+                .where(CoRouting.id == body.routing_id, CoRouting.vendor_id == current_user.vendor_id)
+            )
+        ).scalar_one_or_none()
+        if not routing:
+            raise HTTPException(status_code=404, detail="Routing not found")
+        if routing.company_id != ver.company_id:
+            raise HTTPException(status_code=400, detail="Routing belongs to a different business unit")
+        if routing.product_id and routing.product_id != ver.product_id:
+            raise HTTPException(status_code=400, detail="Routing is defined for a different product")
 
-                desc = rop.description or (wc.name if wc else f"Op {rop.seq_no}")
+    ver.routing_id = routing.id if routing else None
 
-                if total_direct > 0:
-                    act_line = CoProductCostLine(
-                        version_id=ver.id,
-                        sequence=seq,
-                        category="activity",
-                        description=f"{desc} — labor/machine",
-                        qty_planned=Decimal(str(float(total_labor_hrs))),
-                        rate_planned=labor_rate + machine_rate,
-                        amount_planned=total_direct,
-                    )
-                    db.add(act_line)
-                    act_total += total_direct
-                    seq += 1
+    for ln in [x for x in ver.lines if _is_routing_generated(x)]:
+        ver.lines.remove(ln)  # delete-orphan removes the row
+    if routing:
+        for new_ln in _routing_cost_lines(routing):
+            ver.lines.append(new_ln)
 
-                if direct_oh > 0:
-                    doh_line = CoProductCostLine(
-                        version_id=ver.id,
-                        sequence=seq,
-                        category="direct_overhead",
-                        description=f"{desc} — direct overhead",
-                        qty_planned=Decimal("1"),
-                        rate_planned=direct_oh,
-                        amount_planned=direct_oh,
-                    )
-                    db.add(doh_line)
-                    doh_total += direct_oh
-                    seq += 1
-
-            ver.activity_total_planned = act_total
-            ver.direct_overhead_total_planned = doh_total
-
-    # Recalculate rolled_up_unit_cost
-    mat = sum(float(ln.amount_planned) for ln in ver.lines if ln.category == "material")
-    act = float(ver.activity_total_planned or 0)
-    doh = float(ver.direct_overhead_total_planned or 0)
-    ioh = float(ver.indirect_overhead_total_planned or 0)
-    ver.rolled_up_unit_cost = Decimal(str(mat + act + doh + ioh))
-
-    await db.commit()
-    return {"ok": True, "routing_id": routing_id, "rolled_up_unit_cost": str(ver.rolled_up_unit_cost)}
+    _rollup_version_totals(ver)
+    await _commit(db)
+    return {
+        "ok": True,
+        "routing_id": str(ver.routing_id) if ver.routing_id else None,
+        "activity": str(ver.activity_total_planned),
+        "direct_overhead": str(ver.direct_overhead_total_planned),
+        "rolled_up_unit_cost": str(ver.rolled_up_unit_cost),
+    }
 
 
 # ── Apply indirect overhead pools to product cost version ─────────────────────
 
 @router.post("/product-costs/{version_id}/apply-overhead")
 async def apply_overhead_to_cost_version(
-    version_id: str,
-    body: dict = Body(...),
+    version_id: UUID,
+    body: ApplyOverheadIn,
     db: AsyncSession = Depends(get_db),
-    current_user: VendorUser = Depends(require_permission("finance.view")),
+    current_user: VendorUser = Depends(require_permission("finance.coa.manage")),
 ):
     """Recalculate and apply indirect overhead pools onto a product cost version."""
-    result = await db.execute(
-        select(CoProductCostVersion)
-        .options(selectinload(CoProductCostVersion.lines))
-        .where(
-            CoProductCostVersion.id == UUID(version_id),
-            CoProductCostVersion.vendor_id == current_user.vendor_id,
-        )
+    ver = await _load_cost_version(db, current_user.vendor_id, version_id, editable=True)
+    if body.company_id and body.company_id != ver.company_id:
+        raise HTTPException(status_code=400, detail="company_id does not match the cost version")
+
+    pq = select(CoOverheadPool).where(
+        CoOverheadPool.vendor_id == current_user.vendor_id,
+        CoOverheadPool.company_id == ver.company_id,
+        CoOverheadPool.is_active.is_(True),
+        or_(CoOverheadPool.overhead_type == "indirect", CoOverheadPool.overhead_type.is_(None)),
     )
-    ver = result.scalar_one_or_none()
-    if not ver:
-        raise HTTPException(404, "Cost version not found")
+    if body.pool_ids:
+        pq = pq.where(CoOverheadPool.id.in_(body.pool_ids))
+    pools = (await db.execute(pq.order_by(CoOverheadPool.code))).scalars().all()
 
-    # Pools to apply — caller can pass specific pool_ids or we use all active indirect pools
-    pool_ids = body.get("pool_ids")
-    company_id = body.get("company_id") or str(ver.company_id)
+    # Drop previously applied indirect overhead, then size the bases from what remains.
+    for ln in [x for x in ver.lines if (x.line_type or "").lower() == "indirect_overhead"]:
+        ver.lines.remove(ln)
+    for ln in ver.lines:
+        _recalc_product_cost_line_amount(ln)
 
-    pq = (
-        select(CoOverheadPool, CoOverheadRate)
-        .outerjoin(
-            CoOverheadRate,
-            (CoOverheadRate.pool_id == CoOverheadPool.id) &
-            (CoOverheadRate.effective_from <= date.today()) &
-            ((CoOverheadRate.effective_to.is_(None)) | (CoOverheadRate.effective_to >= date.today())),
-        )
-        .where(
-            CoOverheadPool.company_id == UUID(company_id),
-            CoOverheadPool.is_active == True,
-        )
-    )
-    if pool_ids:
-        pq = pq.where(CoOverheadPool.id.in_([UUID(p) for p in pool_ids]))
-    pres = await db.execute(pq)
-    pool_rows = pres.all()
+    def _sum(line_type: str) -> Decimal:
+        return sum((_dec(x.amount_planned) for x in ver.lines if (x.line_type or "").lower() == line_type), _D0)
 
-    # Remove existing indirect overhead lines
-    to_del = [ln for ln in ver.lines if ln.category == "indirect_overhead"]
-    for ln in to_del:
-        await db.delete(ln)
+    mat_total = _sum("material")
+    act_total = _sum("activity")
+    doh_total = _sum("direct_overhead")
 
-    mat_total = sum(float(ln.amount_planned) for ln in ver.lines if ln.category == "material")
-    act_total = float(ver.activity_total_planned or 0)
-    doh_total = float(ver.direct_overhead_total_planned or 0)
-
-    ioh_total = Decimal("0")
-    seq = 2000
-
-    for pool, rate in pool_rows:
-        if not rate:
+    today = date.today()
+    seq = INDIRECT_SEQ_BASE
+    for pool in pools:
+        rate_val = await _rate_for_pool_on_date(db, pool.id, today)
+        if rate_val <= 0:
             continue
-        rate_val = float(rate.rate_per_unit or 0)
-        formula = getattr(pool, "formula_type", "fixed_rate") or "fixed_rate"
-        base_val = body.get("base_quantities", {}).get(str(pool.id))
-
-        amount = 0.0
-        description = f"{pool.name} — {formula}"
+        formula = pool.formula_type or "fixed_rate"
+        driver = body.base_quantities.get(str(pool.id))
 
         if formula == "pct_of_base":
-            alloc = pool.allocation_base
-            if alloc == "material_cost":
+            if pool.allocation_base == "material_cost":
                 base = mat_total
-            elif alloc == "direct_labor_cost":
+            elif pool.allocation_base == "direct_labor_cost":
                 base = act_total
             else:
                 base = mat_total + act_total + doh_total
-            amount = base * rate_val / 100.0
-        elif formula in ("per_machine_hour", "per_labor_hour", "per_unit"):
-            qty = float(base_val) if base_val is not None else 1.0
-            amount = qty * rate_val
+            amount = base * rate_val / Decimal("100")
         else:
-            # fixed_rate: rate × base_qty provided or 1
-            qty = float(base_val) if base_val is not None else 1.0
-            amount = qty * rate_val
+            # per_machine_hour | per_labor_hour | per_unit | fixed_rate: rate × driver quantity (default 1)
+            amount = (driver if driver is not None else Decimal("1")) * rate_val
 
         if amount <= 0:
             continue
 
-        ln = CoProductCostLine(
-            version_id=ver.id,
+        ver.lines.append(CoProductCostLine(
+            line_type="indirect_overhead",
+            description=f"{pool.name} — {formula}",
+            overhead_pool_id=pool.id,
+            qty_per_output_unit=Decimal("1"),
+            unit_rate_planned=amount.quantize(Decimal("0.000001")),
             sequence=seq,
-            category="indirect_overhead",
-            description=description,
-            qty_planned=Decimal("1"),
-            rate_planned=Decimal(str(amount)),
-            amount_planned=Decimal(str(amount)),
-        )
-        db.add(ln)
-        ioh_total += Decimal(str(amount))
+        ))
         seq += 1
 
-    ver.indirect_overhead_total_planned = ioh_total
-    total = (
-        Decimal(str(mat_total)) +
-        Decimal(str(act_total)) +
-        Decimal(str(doh_total)) +
-        ioh_total
-    )
-    ver.overhead_total_planned = Decimal(str(doh_total)) + ioh_total
-    ver.rolled_up_unit_cost = total
-    await db.commit()
+    _rollup_version_totals(ver)
+    await _commit(db)
     return {
         "ok": True,
-        "material": str(mat_total),
-        "activity": str(act_total),
-        "direct_overhead": str(doh_total),
-        "indirect_overhead": str(ioh_total),
-        "total": str(total),
+        "material": str(ver.material_total_planned),
+        "activity": str(ver.activity_total_planned),
+        "direct_overhead": str(ver.direct_overhead_total_planned),
+        "indirect_overhead": str(ver.indirect_overhead_total_planned),
+        "total": str(ver.rolled_up_unit_cost),
     }

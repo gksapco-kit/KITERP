@@ -85,7 +85,10 @@ async def recalculate_labor_cost(db: AsyncSession, vendor_id: UUID, order_id: UU
     has_ops = False
     for op, wc in rows:
         has_ops = True
-        rate = _dec(wc.cost_per_hour) if wc else Decimal("0")
+        if op.rate_applied is not None:
+            rate = _dec(op.rate_applied)  # frozen when the operation/order was completed
+        else:
+            rate = _dec(wc.cost_per_hour) if wc else Decimal("0")
         planned += _dec(op.planned_hours) * rate
         if op.actual_hours is not None:
             actual += _dec(op.actual_hours) * rate
@@ -96,3 +99,50 @@ async def recalculate_labor_cost(db: AsyncSession, vendor_id: UUID, order_id: UU
     order.planned_labor_cost = planned if has_ops else None
     order.actual_labor_cost = actual if has_ops else None
     await db.flush()
+
+
+async def freeze_operation_rates(db: AsyncSession, vendor_id: UUID, order_id: UUID) -> None:
+    """Stamp the current work-centre rate on every operation that has none yet, so a
+    completed order's labor cost no longer follows later rate changes."""
+    rows = (await db.execute(
+        select(ProductionOperation, WorkCenter)
+        .outerjoin(WorkCenter, ProductionOperation.work_center_id == WorkCenter.id)
+        .where(
+            ProductionOperation.production_order_id == order_id,
+            ProductionOperation.vendor_id == vendor_id,
+            ProductionOperation.rate_applied.is_(None),
+        )
+    )).all()
+    for op, wc in rows:
+        op.rate_applied = _dec(wc.cost_per_hour) if wc else Decimal("0")
+    await db.flush()
+
+
+async def unfreeze_operation_rates(db: AsyncSession, vendor_id: UUID, order_id: UUID) -> None:
+    """Re-opening an order: operations that were only frozen by the order completion
+    (not individually completed) follow the live work-centre rate again."""
+    rows = (await db.execute(
+        select(ProductionOperation).where(
+            ProductionOperation.production_order_id == order_id,
+            ProductionOperation.vendor_id == vendor_id,
+            ProductionOperation.status != "completed",
+        )
+    )).scalars().all()
+    for op in rows:
+        op.rate_applied = None
+    await db.flush()
+
+
+async def recalculate_labor_for_work_center(db: AsyncSession, vendor_id: UUID, work_center_id: UUID) -> int:
+    """A work-centre rate changed: refresh labor cost of every order that still uses the
+    live rate (operations with a frozen rate keep theirs). Returns orders refreshed."""
+    order_ids = (await db.execute(
+        select(ProductionOperation.production_order_id).where(
+            ProductionOperation.vendor_id == vendor_id,
+            ProductionOperation.work_center_id == work_center_id,
+            ProductionOperation.rate_applied.is_(None),
+        ).distinct()
+    )).scalars().all()
+    for oid in order_ids:
+        await recalculate_labor_cost(db, vendor_id, oid)
+    return len(order_ids)

@@ -1,8 +1,20 @@
 /**
  * Access matrix for platform staff job roles.
  * Source of truth for the User Roles screen (Admin nav + vendor-store handoff).
- * Keep aligned with backend `platform_staff.py` / `platform_vendor_access.py`
- * and frontend `DashboardLayout` / vendor directory gating.
+ * Keep aligned with backend `platform_job_role.py` (permission keys + built-in role
+ * defaults), `platform_staff.py` / `platform_vendor_access.py`, and frontend
+ * `adminAreas.ts` / `DashboardLayout` / vendor directory gating.
+ *
+ * Super Admin only (not grantable to support roles): Plans, All Templates, Support team,
+ * User Roles, Disputes, Table Data, Settings, Vendor App Builds, Contact Queries, and
+ * approving / rejecting / editing vendors.
+ *
+ * CRM / Finance / HR are granted per sub-module (`<module>.<slug>.view|manage`). The
+ * catalog and the module-specific built-in roles (CRM Manager, Finance Controller, HR
+ * Recruiter, ...) live in `backend/app/core/platform_modules.py` and
+ * `backend/app/models/platform_job_role.py` and are served to the User Roles screen by the
+ * API, so they are intentionally not duplicated in this matrix. The five original roles
+ * below keep full access to all three modules.
  */
 
 export type PlatformAccessTier = 'superuser' | 'support'
@@ -45,8 +57,7 @@ export const PLATFORM_ACCESS_MATRIX: PlatformJobRoleAccess[] = [
       'Account activity',
       'CRM Management',
       'Finance Management',
-      'HR Management',
-      'Careers',
+      'HR Management (incl. Recruitment / Careers)',
       'Disputes',
       'Table Data',
       'Settings',
@@ -77,8 +88,7 @@ export const PLATFORM_ACCESS_MATRIX: PlatformJobRoleAccess[] = [
       'Account activity',
       'CRM Management',
       'Finance Management',
-      'HR Management',
-      'Careers',
+      'HR Management (incl. Recruitment / Careers)',
     ],
     adminVendorActions: [
       'Browse business accounts (read-focused)',
@@ -104,8 +114,7 @@ export const PLATFORM_ACCESS_MATRIX: PlatformJobRoleAccess[] = [
       'Account activity',
       'CRM Management',
       'Finance Management',
-      'HR Management',
-      'Careers',
+      'HR Management (incl. Recruitment / Careers)',
     ],
     adminVendorActions: [
       'Browse business accounts',
@@ -131,8 +140,7 @@ export const PLATFORM_ACCESS_MATRIX: PlatformJobRoleAccess[] = [
       'Account activity',
       'CRM Management',
       'Finance Management',
-      'HR Management',
-      'Careers',
+      'HR Management (incl. Recruitment / Careers)',
     ],
     adminVendorActions: [
       'Browse business accounts',
@@ -158,12 +166,12 @@ export const PLATFORM_ACCESS_MATRIX: PlatformJobRoleAccess[] = [
       'Account activity',
       'CRM Management',
       'Finance Management',
-      'HR Management',
-      'Careers',
+      'HR Management (incl. Recruitment / Careers)',
     ],
     adminVendorActions: [
       'See only vendors assigned to them',
       'Open assigned vendor stores via admin handoff',
+      'Cannot create business accounts',
       'Cannot approve / reject vendors',
     ],
     vendorStoreAccess: {
@@ -188,8 +196,7 @@ export const PLATFORM_ACCESS_MATRIX: PlatformJobRoleAccess[] = [
       'Account activity',
       'CRM Management',
       'Finance Management',
-      'HR Management',
-      'Careers',
+      'HR Management (incl. Recruitment / Careers)',
     ],
     adminVendorActions: [
       'Browse all business accounts',

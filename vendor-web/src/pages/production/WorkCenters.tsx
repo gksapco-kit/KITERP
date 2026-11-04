@@ -5,6 +5,7 @@ import {
   useWorkCenters, useCreateWorkCenter, useUpdateWorkCenter, useDeleteWorkCenter,
 } from '@/hooks/useProductionOrders'
 import type { WorkCenterRecord } from '@/api/vendor'
+import { useHasPermission } from '@/hooks/usePermissions'
 
 const emptyDraft = { name: '', code: '', cost_per_hour: 0, capacity_per_day: '' as number | '' }
 
@@ -13,6 +14,7 @@ export default function ProductionWorkCentersPage() {
   const createWc = useCreateWorkCenter()
   const updateWc = useUpdateWorkCenter()
   const deleteWc = useDeleteWorkCenter()
+  const canManage = useHasPermission('production.manage')
 
   const [draft, setDraft] = useState(emptyDraft)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -47,6 +49,7 @@ export default function ProductionWorkCentersPage() {
 
       <div className="bg-card rounded-2xl border border-border overflow-hidden">
         {/* Add new */}
+        {canManage && (
         <div className="border-b border-border bg-muted/10 px-6 py-4">
           <div className="grid grid-cols-12 gap-2 items-end">
             <div className="col-span-4">
@@ -100,6 +103,7 @@ export default function ProductionWorkCentersPage() {
             </div>
           </div>
         </div>
+        )}
 
         {/* List */}
         {isLoading ? (
@@ -148,6 +152,7 @@ export default function ProductionWorkCentersPage() {
                         type="number"
                         min={0}
                         defaultValue={wc.cost_per_hour}
+                        disabled={!canManage}
                         onBlur={e => {
                           const v = parseFloat(e.target.value)
                           if (!Number.isNaN(v) && v !== wc.cost_per_hour) handleFieldUpdate(wc, { cost_per_hour: v })
@@ -160,6 +165,7 @@ export default function ProductionWorkCentersPage() {
                         type="number"
                         min={0}
                         defaultValue={wc.capacity_per_day ?? ''}
+                        disabled={!canManage}
                         placeholder="—"
                         onBlur={e => {
                           const raw = e.target.value
@@ -173,11 +179,13 @@ export default function ProductionWorkCentersPage() {
                       <input
                         type="checkbox"
                         checked={wc.is_active}
+                        disabled={!canManage}
                         onChange={e => handleFieldUpdate(wc, { is_active: e.target.checked })}
                         className="rounded border-input"
                       />
                     </td>
                     <td className="py-2 px-2">
+                      {canManage && (
                       <div className="flex items-center justify-center gap-2">
                         <button
                           onClick={() => setEditingId(isEditing ? null : wc.id)}
@@ -195,6 +203,7 @@ export default function ProductionWorkCentersPage() {
                           <Trash2 className="w-3.5 h-3.5 text-red-600" />
                         </button>
                       </div>
+                      )}
                     </td>
                   </tr>
                 )

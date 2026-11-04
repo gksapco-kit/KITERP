@@ -50,11 +50,12 @@ async def resolve_platform_job_role_permissions(
     """Return permission keys for a built-in or custom job role slug."""
     if not job_role:
         return []
+    from app.core.platform_modules import expand_platform_permissions
     from app.models.platform_job_role import BUILTIN_PLATFORM_JOB_ROLE_DEFS, PlatformJobRole
 
     builtin = BUILTIN_PLATFORM_JOB_ROLE_DEFS.get(job_role)
     if builtin:
-        return list(builtin["permissions"])
+        return expand_platform_permissions(builtin["permissions"])
 
     result = await db.execute(
         select(PlatformJobRole).where(
@@ -65,13 +66,14 @@ async def resolve_platform_job_role_permissions(
     row = result.scalar_one_or_none()
     if not row:
         return []
-    return list(row.permissions or [])
+    return expand_platform_permissions(row.permissions or [])
 
 
 async def is_valid_platform_job_role(db: AsyncSession, job_role: str) -> bool:
-    if job_role in PLATFORM_JOB_ROLES:
+    from app.models.platform_job_role import BUILTIN_PLATFORM_JOB_ROLE_DEFS, PlatformJobRole
+
+    if job_role in PLATFORM_JOB_ROLES or job_role in BUILTIN_PLATFORM_JOB_ROLE_DEFS:
         return True
-    from app.models.platform_job_role import PlatformJobRole
 
     result = await db.execute(
         select(PlatformJobRole.id).where(
@@ -103,6 +105,7 @@ async def is_relationship_manager_job_role(db: AsyncSession, job_role: Optional[
 
 async def list_assignable_job_roles(db: AsyncSession) -> list[dict]:
     """Built-in + active custom roles for dropdowns."""
+    from app.core.platform_modules import expand_platform_permissions
     from app.models.platform_job_role import BUILTIN_PLATFORM_JOB_ROLE_DEFS, PlatformJobRole
 
     items: list[dict] = []
@@ -112,7 +115,7 @@ async def list_assignable_job_roles(db: AsyncSession) -> list[dict]:
                 "slug": slug,
                 "name": meta["name"],
                 "description": meta.get("description"),
-                "permissions": list(meta["permissions"]),
+                "permissions": expand_platform_permissions(meta["permissions"]),
                 "is_builtin": True,
                 "is_active": True,
                 "id": None,
@@ -127,7 +130,7 @@ async def list_assignable_job_roles(db: AsyncSession) -> list[dict]:
                 "slug": row.slug,
                 "name": row.name,
                 "description": row.description,
-                "permissions": list(row.permissions or []),
+                "permissions": expand_platform_permissions(row.permissions or []),
                 "is_builtin": False,
                 "is_active": bool(row.is_active),
                 "id": str(row.id),

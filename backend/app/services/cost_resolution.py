@@ -102,7 +102,7 @@ async def resolve_product_cost(
         fixed_val = getattr(row, "cost_price_fixed", None) if row else None
 
     if method == "fixed":
-        return _make_fixed_product(fixed_val)
+        return await _make_fixed_product(fixed_val)
 
     if method == "standard":
         return await _standard_product(db, vendor_id, product_id)

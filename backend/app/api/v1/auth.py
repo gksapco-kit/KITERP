@@ -382,6 +382,19 @@ async def redeem_vendor_handoff(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
     await ensure_vendor_visible_to_platform_staff(user, vendor, db)
 
+    # Super Admin: full store access (empty override list = unscoped platform_staff session).
+    # Support staff: CRM / Finance / HR limited to their job role's sub-modules; the other
+    # store areas keep the existing platform_staff access. Re-evaluated on every handoff.
+    session_permissions: list[str] = []
+    if not getattr(user, "is_superuser", False):
+        from app.core.platform_modules import PLATFORM_SCOPED_MARKER, vendor_permissions_for
+        from app.utils.platform_staff import resolve_platform_job_role_permissions
+
+        role_perms = await resolve_platform_job_role_permissions(
+            db, getattr(user, "platform_staff_job_role", None)
+        )
+        session_permissions = [PLATFORM_SCOPED_MARKER, *vendor_permissions_for(role_perms)]
+
     vu_repo = VendorUserRepository(db)
     existing_rows = await vu_repo.list_all_for_vendor_and_user(vendor_id, user_id)
     if existing_rows:
@@ -390,7 +403,7 @@ async def redeem_vendor_handoff(
         vu.is_active = True
         vu.role = "platform_staff"
         vu.role_id = None
-        vu.permissions = []
+        vu.permissions = list(session_permissions)
         for dup in existing_rows[1:]:
             dup.is_active = False
     else:
@@ -399,7 +412,7 @@ async def redeem_vendor_handoff(
                 vendor_id=vendor_id,
                 user_id=user_id,
                 role="platform_staff",
-                permissions=[],
+                permissions=list(session_permissions),
                 is_active=True,
             )
         )
@@ -456,9 +469,9 @@ async def _build_me_payload(
 
     if has_platform_staff_access(user):
         if getattr(user, "is_superuser", False):
-            from app.models.platform_job_role import PLATFORM_ROLE_PERMISSIONS
+            from app.models.platform_job_role import ALL_PLATFORM_PERMISSIONS
 
-            data["platform_staff_permissions"] = list(PLATFORM_ROLE_PERMISSIONS)
+            data["platform_staff_permissions"] = list(ALL_PLATFORM_PERMISSIONS)
         else:
             data["platform_staff_permissions"] = await resolve_platform_job_role_permissions(
                 db, getattr(user, "platform_staff_job_role", None)

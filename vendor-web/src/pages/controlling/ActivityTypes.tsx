@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { useCompanies } from '@/hooks/useFinance'
 import { useActivityTypes, useCreateActivityType } from '@/hooks/useControlling'
 import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
+import { useHasPermission } from '@/hooks/usePermissions'
 import { Activity, ArrowLeft, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
@@ -29,6 +31,7 @@ export default function ActivityTypesPage() {
 
   const { data: activities = [], refetch } = useActivityTypes(activeCo || undefined)
   const createAct = useCreateActivityType()
+  const canManage = useHasPermission('finance.coa.manage')
 
   const [actForm, setActForm] = useState({ code: '', name: '', uom: 'H' })
 
@@ -45,8 +48,7 @@ export default function ActivityTypesPage() {
       setActForm({ code: '', name: '', uom: 'H' })
       refetch()
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { detail?: string } } }
-      toast.error(err.response?.data?.detail || 'Failed')
+      toast.error(extractApiError(e, 'Failed'))
     }
   }
 
@@ -80,7 +82,8 @@ export default function ActivityTypesPage() {
       </div>
 
       <div className={cardClass}>
-        <h2 className="font-semibold text-foreground">Add activity type</h2>
+        <h2 className="font-semibold text-foreground">{canManage ? 'Add activity type' : 'Activity types'}</h2>
+        {canManage && (
         <div className="flex flex-wrap items-end gap-2">
           <input
             placeholder="Code"
@@ -108,6 +111,7 @@ export default function ActivityTypesPage() {
             <Plus className="w-3 h-3" /> Add
           </Button>
         </div>
+        )}
         <ul className="max-h-[28rem] divide-y divide-border overflow-auto text-sm">
           {activities.length === 0 ? (
             <li className="py-6 text-center text-muted-foreground">No activity types yet.</li>

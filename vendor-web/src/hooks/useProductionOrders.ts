@@ -165,6 +165,7 @@ export function useUpdateWorkCenter() {
       vendorApi.updateWorkCenter(id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: workCenterKeys.all })
+      qc.invalidateQueries({ queryKey: productionOrderKeys.all })
       toast.success('Work center updated')
     },
     onError: apiError('Could not update work center'),
@@ -203,6 +204,9 @@ export function useCreateProductionOperation(orderId: string) {
     mutationFn: (data: Record<string, unknown>) => vendorApi.createProductionOperation(orderId, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: productionOperationKeys.list(orderId) })
+      // labor cost on the order changes with its routing
+      qc.invalidateQueries({ queryKey: productionOrderKeys.detail(orderId) })
+      qc.invalidateQueries({ queryKey: productionOrderKeys.all })
       toast.success('Operation added')
     },
     onError: apiError('Could not add operation'),
@@ -216,6 +220,9 @@ export function useUpdateProductionOperation(orderId: string) {
       vendorApi.updateProductionOperation(orderId, opId, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: productionOperationKeys.list(orderId) })
+      // labor cost on the order changes with its routing
+      qc.invalidateQueries({ queryKey: productionOrderKeys.detail(orderId) })
+      qc.invalidateQueries({ queryKey: productionOrderKeys.all })
     },
     onError: apiError('Could not update operation'),
   })
@@ -227,6 +234,9 @@ export function useDeleteProductionOperation(orderId: string) {
     mutationFn: (opId: string) => vendorApi.deleteProductionOperation(orderId, opId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: productionOperationKeys.list(orderId) })
+      // labor cost on the order changes with its routing
+      qc.invalidateQueries({ queryKey: productionOrderKeys.detail(orderId) })
+      qc.invalidateQueries({ queryKey: productionOrderKeys.all })
       toast.success('Operation removed')
     },
     onError: apiError('Could not remove operation'),
@@ -239,6 +249,9 @@ export function useReorderProductionOperations(orderId: string) {
     mutationFn: (ids: string[]) => vendorApi.reorderProductionOperations(orderId, ids),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: productionOperationKeys.list(orderId) })
+      // labor cost on the order changes with its routing
+      qc.invalidateQueries({ queryKey: productionOrderKeys.detail(orderId) })
+      qc.invalidateQueries({ queryKey: productionOrderKeys.all })
     },
     onError: apiError('Could not reorder operations'),
   })
@@ -250,6 +263,161 @@ export function useProductionAnalytics(params?: { store_id?: string; date_from?:
     queryFn: () => vendorApi.getProductionAnalytics(params),
     staleTime: 30_000,
   })
+}
+
+export function useProductionShortages(orderId: string | null, enabled = true) {
+  return useQuery({
+    queryKey: ['production-shortages', orderId],
+    queryFn: () => vendorApi.getProductionShortages(orderId!),
+    enabled: !!orderId && enabled,
+    staleTime: 10_000,
+  })
+}
+
+export function useCreateRequisitionFromShortages(orderId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => vendorApi.createRequisitionFromShortages(orderId),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: productionOrderKeys.detail(orderId) })
+      qc.invalidateQueries({ queryKey: ['production-shortages', orderId] })
+      toast.success(`Purchase requisition ${res.pr_number} created (${res.items} item${res.items === 1 ? '' : 's'})`)
+    },
+    onError: apiError('Could not create the purchase requisition'),
+  })
+}
+
+export function useProductRouting(productId: string | null) {
+  return useQuery({
+    queryKey: ['product-routing', productId],
+    queryFn: () => vendorApi.getProductRouting(productId!),
+    enabled: !!productId,
+    staleTime: 30_000,
+  })
+}
+
+export function useSaveProductRouting(productId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (steps: Parameters<typeof vendorApi.putProductRouting>[1]) => vendorApi.putProductRouting(productId, steps),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['product-routing', productId] })
+      toast.success('Standard routing saved')
+    },
+    onError: apiError('Could not save the routing'),
+  })
+}
+
+export function useProductionOutputs(orderId: string | null) {
+  return useQuery({
+    queryKey: ['production-outputs', orderId],
+    queryFn: () => vendorApi.getProductionOutputs(orderId!),
+    enabled: !!orderId,
+    staleTime: 5_000,
+  })
+}
+
+function invalidateAfterOutput(qc: ReturnType<typeof useQueryClient>, orderId: string) {
+  qc.invalidateQueries({ queryKey: ['production-outputs', orderId] })
+  qc.invalidateQueries({ queryKey: productionOrderKeys.detail(orderId) })
+  qc.invalidateQueries({ queryKey: productionOrderKeys.all })
+  qc.invalidateQueries({ queryKey: ['production-shortages', orderId] })
+}
+
+export function useRecordProductionOutput(orderId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { items: { product_id: string; qty: number }[]; notes?: string }) =>
+      vendorApi.recordProductionOutput(orderId, data),
+    onSuccess: () => {
+      invalidateAfterOutput(qc, orderId)
+      toast.success('Output received into stock')
+    },
+    onError: apiError('Could not record the output'),
+  })
+}
+
+export function useReverseProductionOutput(orderId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (outputId: string) => vendorApi.reverseProductionOutput(orderId, outputId),
+    onSuccess: () => {
+      invalidateAfterOutput(qc, orderId)
+      toast.success('Output reversed')
+    },
+    onError: apiError('Could not reverse the output'),
+  })
+}
+
+export function useWorkCenterLoad() {
+  return useQuery({
+    queryKey: [...workCenterKeys.all, 'load'],
+    queryFn: () => vendorApi.getWorkCenterLoad(),
+    staleTime: 30_000,
+  })
+}
+
+export function useProductionReconciliation() {
+  return useQuery({
+    queryKey: ['production-reconciliation'],
+    queryFn: () => vendorApi.getProductionReconciliation(),
+    staleTime: 15_000,
+  })
+}
+
+export function useRepairProductionReconciliation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => vendorApi.repairProductionReconciliation(),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ['production-reconciliation'] })
+      toast.success(`Released ${res.released_reservations} stale reservation(s)`)
+    },
+    onError: apiError('Could not repair'),
+  })
+}
+
+export function useProductionOrdersOfSalesOrder(salesOrderId: string) {
+  return useQuery({
+    queryKey: ['production-by-sales-order', salesOrderId],
+    queryFn: () => vendorApi.getProductionOrdersOfSalesOrder(salesOrderId),
+    enabled: !!salesOrderId,
+    retry: false, // 403/404 simply hides the card
+    staleTime: 15_000,
+  })
+}
+
+export function useCreateProductionFromSalesOrder(salesOrderId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { store_id?: string; shortfall_only?: boolean }) =>
+      vendorApi.createProductionFromSalesOrder(salesOrderId, body),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ['production-by-sales-order', salesOrderId] })
+      qc.invalidateQueries({ queryKey: productionOrderKeys.all })
+      toast.success(`Production order ${res.ref} drafted`)
+    },
+    onError: apiError('Could not create the production order'),
+  })
+}
+
+export function useProductionSchedule(orderId: string) {
+  const qc = useQueryClient()
+  const preview = useMutation({
+    mutationFn: (start?: string) => vendorApi.previewProductionSchedule(orderId, start),
+    onError: apiError('Could not build the schedule'),
+  })
+  const apply = useMutation({
+    mutationFn: (start?: string) => vendorApi.applyProductionSchedule(orderId, start),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: productionOperationKeys.list(orderId) })
+      qc.invalidateQueries({ queryKey: productionOrderKeys.detail(orderId) })
+      qc.invalidateQueries({ queryKey: [...workCenterKeys.all, 'load'] })
+      toast.success('Schedule saved on the operations')
+    },
+    onError: apiError('Could not save the schedule'),
+  })
+  return { preview, apply }
 }
 
 /** One-time migration from localStorage + refetch when store filter changes. */

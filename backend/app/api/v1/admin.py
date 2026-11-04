@@ -51,6 +51,7 @@ from app.utils.platform_staff import (
     PLATFORM_JOB_ROLE_RELATIONSHIP_MANAGER,
     is_relationship_manager_job_role,
     is_team_manager_job_role,
+    job_role_has_permission,
     is_valid_platform_job_role,
     list_assignable_job_roles,
     count_users_by_job_roles,
@@ -233,6 +234,13 @@ async def admin_create_vendor(
     Platform staff creates a vendor AND the vendor owner's user account in one step.
     Returns the vendor data plus the owner's login credentials.
     """
+    if not current_user.is_superuser and not await job_role_has_permission(
+        db, getattr(current_user, "platform_staff_job_role", None), "vendors.create"
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your role is not allowed to create business accounts.",
+        )
     user_repo = UserRepository(db)
     from app.services.sms_service import normalize_e164
 
@@ -1719,12 +1727,23 @@ async def list_platform_job_role_permissions(
         PLATFORM_ROLE_PERMISSION_LABELS,
     )
 
+    from app.core.platform_modules import MODULE_ORDER, module_structure
+
+    # Flat checkbox groups for admin areas / vendor store / hierarchy. CRM, Finance and HR are
+    # granted per sub-module and returned separately under "modules".
     grouped: dict[str, list] = {"admin": [], "vendors": [], "staff": []}
     for key in PLATFORM_ROLE_PERMISSIONS:
         module = key.split(".", 1)[0]
+        if module in MODULE_ORDER:
+            continue
         bucket = grouped.get(module, grouped.setdefault(module, []))
         bucket.append({"key": key, "label": PLATFORM_ROLE_PERMISSION_LABELS.get(key, key)})
-    return {"permissions": grouped, "all": PLATFORM_ROLE_PERMISSIONS}
+    return {
+        "permissions": grouped,
+        "modules": module_structure(),
+        "labels": PLATFORM_ROLE_PERMISSION_LABELS,
+        "all": PLATFORM_ROLE_PERMISSIONS,
+    }
 
 
 @router.get("/platform-job-roles")
@@ -1733,6 +1752,7 @@ async def list_platform_job_roles(
     current_user: User = Depends(get_current_platform_staff),
     db: AsyncSession = Depends(get_db),
 ):
+    from app.core.platform_modules import expand_platform_permissions
     from app.models.platform_job_role import BUILTIN_PLATFORM_JOB_ROLE_DEFS, PlatformJobRole
 
     # Only superusers may inspect inactive custom roles.
@@ -1752,7 +1772,7 @@ async def list_platform_job_roles(
                     "slug": row.slug,
                     "name": row.name,
                     "description": row.description,
-                    "permissions": list(row.permissions or []),
+                    "permissions": expand_platform_permissions(row.permissions or []),
                     "is_builtin": False,
                     "is_active": False,
                     "id": str(row.id),

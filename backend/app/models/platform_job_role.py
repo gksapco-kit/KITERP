@@ -8,28 +8,46 @@ from sqlalchemy import Boolean, Column, DateTime, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.sql import func
 
+from app.core.platform_modules import (
+    DERIVED_MODULE_KEYS,
+    module_grant,
+    module_permission_keys,
+    module_permission_labels,
+)
 from app.database import Base
 
 # Permissions that can be granted on a custom platform job role.
+#
+# Admin panel areas listed here are the ones support staff can actually be given in the
+# admin sidebar. Plans, All Templates, Disputes, Table Data, Settings, Support team,
+# User Roles and Vendor App Builds are Super Admin only (enforced by the admin pages and
+# API), so they are intentionally not grantable here.
+#
+# CRM / Finance / HR are granted per sub-module (``<module>.<slug>.view|manage``, see
+# ``app.core.platform_modules``). ``admin.crm`` / ``admin.finance`` / ``admin.hr`` are
+# derived from those and are not grantable themselves (legacy roles that only hold the
+# module key are expanded to full access when resolved).
 PLATFORM_ROLE_PERMISSIONS: list[str] = [
     # Admin panel areas
     "admin.dashboard",
     "admin.vendors",
     "admin.website_analytics",
     "admin.account_activity",
-    "admin.crm",
-    "admin.plans",
-    "admin.templates",
-    "admin.disputes",
-    "admin.table_data",
-    "admin.settings",
+    # CRM / Finance / HR sub-modules
+    *module_permission_keys(),
     # Business accounts / vendor store via admin
+    # (Approve / reject / edit vendors is Super Admin only, so it is not grantable.)
     "vendors.create",
-    "vendors.approve",
     "vendors.handoff",
     "vendors.scope_assigned",
     # Support hierarchy
     "staff.can_manage_team",
+]
+
+# Everything a Super Admin effectively holds (grantable keys + derived module keys).
+ALL_PLATFORM_PERMISSIONS: list[str] = [
+    *PLATFORM_ROLE_PERMISSIONS,
+    *DERIVED_MODULE_KEYS.values(),
 ]
 
 PLATFORM_ROLE_PERMISSION_LABELS: dict[str, str] = {
@@ -37,14 +55,11 @@ PLATFORM_ROLE_PERMISSION_LABELS: dict[str, str] = {
     "admin.vendors": "Business Accounts",
     "admin.website_analytics": "Website Analytics",
     "admin.account_activity": "Account activity",
-    "admin.crm": "CRM",
-    "admin.plans": "Plans",
-    "admin.templates": "All Templates",
-    "admin.disputes": "Disputes",
-    "admin.table_data": "Table Data",
-    "admin.settings": "Settings",
+    "admin.crm": "CRM Management",
+    "admin.finance": "Finance Management",
+    "admin.hr": "HR Management",
+    **module_permission_labels(),
     "vendors.create": "Create business accounts",
-    "vendors.approve": "Approve / reject vendors",
     "vendors.handoff": "Open vendor store via admin handoff",
     "vendors.scope_assigned": "Only assigned vendor stores (RM-style)",
     "staff.can_manage_team": "Can be selected as team manager (Reports to)",
@@ -57,6 +72,8 @@ SUPPORT_DEFAULT_PERMS: list[str] = [
     "admin.website_analytics",
     "admin.account_activity",
     "admin.crm",
+    "admin.finance",
+    "admin.hr",
     "vendors.create",
     "vendors.handoff",
 ]
@@ -86,6 +103,8 @@ BUILTIN_PLATFORM_JOB_ROLE_DEFS: dict[str, dict] = {
             "admin.website_analytics",
             "admin.account_activity",
             "admin.crm",
+            "admin.finance",
+            "admin.hr",
             "vendors.handoff",
             "vendors.scope_assigned",
         ],
@@ -99,6 +118,114 @@ BUILTIN_PLATFORM_JOB_ROLE_DEFS: dict[str, dict] = {
         ],
     },
 }
+
+# Roles that only work inside one module: they can find a store (Business Accounts) and open
+# it, and see/manage only the listed sub-modules of their module.
+_MODULE_ROLE_BASE: list[str] = ["admin.dashboard", "admin.vendors", "vendors.handoff"]
+
+
+def _module_role(name: str, description: str, permissions: list[str]) -> dict:
+    return {
+        "name": name,
+        "description": description,
+        "permissions": [*_MODULE_ROLE_BASE, *permissions],
+    }
+
+
+BUILTIN_PLATFORM_JOB_ROLE_DEFS.update(
+    {
+        # ── CRM ────────────────────────────────────────────────────────────
+        "crm_manager": _module_role(
+            "CRM Manager",
+            "Full access to every CRM sub-module.",
+            module_grant("crm", manage="all"),
+        ),
+        "crm_sales_executive": _module_role(
+            "CRM Sales Executive",
+            "Works contacts, leads, pipeline and tasks; read-only elsewhere in CRM.",
+            module_grant(
+                "crm",
+                view=["dashboard", "reports", "payment-followups", "tickets", "kb",
+                      "segments", "campaigns", "templates", "care-reminder", "number-ranges"],
+                manage=["contacts", "leads", "pipeline", "activities", "ai"],
+            ),
+        ),
+        "crm_support_agent": _module_role(
+            "CRM Support Agent",
+            "Handles tickets, knowledge base and customer contacts.",
+            module_grant(
+                "crm",
+                view=["dashboard", "leads", "pipeline", "reports"],
+                manage=["contacts", "tickets", "kb", "activities", "care-reminder"],
+            ),
+        ),
+        "crm_marketing": _module_role(
+            "CRM Marketing",
+            "Segments, email templates, campaigns and workflows.",
+            module_grant(
+                "crm",
+                view=["dashboard", "contacts", "leads", "reports"],
+                manage=["segments", "templates", "campaigns", "workflows", "ai"],
+            ),
+        ),
+        # ── Finance ────────────────────────────────────────────────────────
+        "finance_controller": _module_role(
+            "Finance Controller",
+            "Full access to every Finance sub-module.",
+            module_grant("finance", manage="all"),
+        ),
+        "finance_accountant": _module_role(
+            "Accountant",
+            "Day-to-day accounting; no posting controls or approvals.",
+            module_grant(
+                "finance",
+                view=["dashboard", "trial-balance", "statement-versions", "profit-centers",
+                      "fx-revaluation", "posting-rules", "parallel-ledgers", "field-rules",
+                      "reports-pnl", "reports-balance-sheet", "reports-cash-flow",
+                      "reports-cost-analysis", "reports-gl", "audit"],
+                manage=["coa", "journal", "ar", "open-items", "ap", "bank", "assets",
+                        "assets-reports", "assets-depreciation", "assets-gl-reconciliation",
+                        "budgets", "tax", "periods"],
+            ),
+        ),
+        "finance_viewer": _module_role(
+            "Finance Viewer",
+            "Read-only access to ledgers and financial reports.",
+            module_grant(
+                "finance",
+                view=["dashboard", "coa", "journal", "trial-balance", "statement-versions",
+                      "profit-centers", "parallel-ledgers", "reports-pnl",
+                      "reports-balance-sheet", "reports-cash-flow", "reports-cost-analysis",
+                      "reports-gl", "audit"],
+            ),
+        ),
+        # ── HR ─────────────────────────────────────────────────────────────
+        "hr_manager": _module_role(
+            "HR Manager",
+            "Full access to every HR sub-module.",
+            module_grant("hr", manage="all"),
+        ),
+        "hr_recruiter": _module_role(
+            "HR Recruiter",
+            "Recruitment and onboarding; read-only employee directory.",
+            module_grant(
+                "hr",
+                view=["employees", "departments", "designations"],
+                manage=["recruitment", "onboarding"],
+            ),
+        ),
+        "hr_payroll_officer": _module_role(
+            "HR Payroll Officer",
+            "Payroll, salary structures and attendance; read-only leave and employees.",
+            module_grant(
+                "hr",
+                view=["employees", "leaves", "leave-policies", "holidays", "departments",
+                      "designations"],
+                manage=["payroll", "salary", "attendance", "attendance-report"],
+            ),
+        ),
+    }
+)
 
 
 class PlatformJobRole(Base):

@@ -14,6 +14,8 @@ import type { ControllingArea } from '@/api/controlling'
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
+import { extractApiError } from '@/lib/errorMessages'
+import { useHasPermission } from '@/hooks/usePermissions'
 
 import { askConfirm } from '@/components/common/ConfirmProvider'
 const fieldClass =
@@ -22,8 +24,7 @@ const labelClass = 'flex flex-col gap-1 text-xs text-muted-foreground'
 const cardClass = 'rounded-xl border border-border bg-card p-4 space-y-3'
 
 function errMsg(e: unknown, fallback: string) {
-  const err = e as { response?: { data?: { detail?: string } } }
-  return err.response?.data?.detail || fallback
+  return extractApiError(e, fallback)
 }
 
 export default function ControllingAreasPage() {
@@ -33,6 +34,7 @@ export default function ControllingAreasPage() {
   const updateArea = useUpdateControllingArea()
   const deleteArea = useDeleteControllingArea()
   const assignCompany = useAssignCompanyToControllingArea()
+  const canManage = useHasPermission('finance.coa.manage')
 
   const areas = areasResp?.controlling_areas ?? []
 
@@ -113,6 +115,7 @@ export default function ControllingAreasPage() {
         </p>
       </div>
 
+      {canManage && (
       <div className={cardClass}>
         <h2 className="font-semibold text-foreground">Add controlling area</h2>
         <div className="flex flex-wrap items-end gap-2">
@@ -140,6 +143,7 @@ export default function ControllingAreasPage() {
           </Button>
         </div>
       </div>
+      )}
 
       <div className="space-y-4">
         {areas.length === 0 ? (
@@ -166,6 +170,7 @@ export default function ControllingAreasPage() {
                     )}
                     <span className="text-xs text-muted-foreground">{area.currency}</span>
                   </div>
+                  {canManage && (
                   <div className="flex items-center gap-2">
                     {!area.is_default && (
                       <Button type="button" size="sm" variant="outline" className="h-8" onClick={() => setDefault(area)}>
@@ -184,6 +189,7 @@ export default function ControllingAreasPage() {
                       <Trash2 className="w-3.5 h-3.5" />
                     </Button>
                   </div>
+                  )}
                 </div>
 
                 <div className="space-y-1.5">
@@ -204,7 +210,7 @@ export default function ControllingAreasPage() {
                   )}
                 </div>
 
-                {unassignable.length > 0 && (
+                {canManage && unassignable.length > 0 && (
                   <div className="flex items-end gap-2 pt-1">
                     <label className={cn(labelClass, 'flex-1')}>
                       Move a company into this area

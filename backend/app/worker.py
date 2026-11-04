@@ -39,6 +39,10 @@ try:
             "app.tasks.finance.finance_jobs",
             # Website tasks
             "app.tasks.websites.scheduled_publish",
+            # Real estate tasks
+            "app.tasks.realestate.jobs",
+            # Production tasks
+            "app.tasks.production_jobs",
         ],
     )
     celery_app.conf.update(
@@ -92,6 +96,21 @@ try:
         "websites-scheduled-publish-tick": {
             "task": "websites.scheduled_publish.tick",
             "schedule": 60.0,
+        },
+        # Real estate: expiry sweeps, ledger retries, opt-in rent / maintenance billing, alert digest (idempotent).
+        "realestate-daily": {
+            "task": "realestate.daily",
+            "schedule": 86400,
+        },
+        # Real estate: deliver queued customer emails / SMS (demands, receipts, overdue reminders).
+        "realestate-outbox": {
+            "task": "realestate.outbox",
+            "schedule": 60.0,
+        },
+        # Production: daily digest of overdue / due-soon orders and ledger mismatches (report only).
+        "production-daily": {
+            "task": "production.daily",
+            "schedule": 86400,
         },
     }
 

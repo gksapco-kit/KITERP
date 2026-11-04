@@ -49,6 +49,28 @@ class WorkCenter(Base):
     )
 
 
+class ProductRoutingStep(Base):
+    """Standard routing of a finished product. When a production order for the product is
+    confirmed (and has no operations yet) these steps are copied onto it as operations, with
+    planned hours = setup_hours + hours_per_unit x ordered quantity."""
+    __tablename__ = "product_routing_step"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
+    product_id = Column(UUID(as_uuid=True), ForeignKey("product.id", ondelete="CASCADE"), nullable=False, index=True)
+    work_center_id = Column(UUID(as_uuid=True), ForeignKey("work_center.id", ondelete="SET NULL"), nullable=True)
+    sequence = Column(Integer, nullable=False, default=0)
+    name = Column(String(200), nullable=False)
+    setup_hours = Column(Numeric(10, 2), nullable=False, default=0)
+    hours_per_unit = Column(Numeric(10, 4), nullable=False, default=0)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("idx_routing_step_product", "vendor_id", "product_id", "sequence"),
+    )
+
+
 class ProductionOperation(Base):
     """One routing step of a production order (e.g. Cutting -> Stitching -> QC -> Packing)."""
     __tablename__ = "production_operation"
@@ -66,6 +88,9 @@ class ProductionOperation(Base):
 
     planned_hours = Column(Numeric(10, 2), nullable=True, default=0)
     actual_hours = Column(Numeric(10, 2), nullable=True)
+    # Work-centre hourly rate frozen when the operation completes (or its order is completed).
+    # While NULL the live work-centre rate applies.
+    rate_applied = Column(Numeric(12, 2), nullable=True)
 
     # Scheduling (feeds the operation-level timeline; the order-level Gantt uses target_date instead).
     planned_start = Column(DateTime(timezone=True), nullable=True)

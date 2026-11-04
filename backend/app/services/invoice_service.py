@@ -1,4 +1,6 @@
 import logging
+import uuid
+from decimal import Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func as sqlfunc, and_, or_
 from uuid import UUID
@@ -42,33 +44,44 @@ async def _try_generate_einvoice(db, invoice, vendor=None):
         log.exception("e-invoice auto-generate failed for invoice %s", getattr(invoice, "id", None))
 
 
-# Finance GL posting (non-blocking — failures logged but don't break invoice flow)
+# Finance GL posting (non-blocking: failures are queued in fin_posting_failure for Finance to retry)
 async def _try_post_invoice(db, vendor_id, invoice):
-    try:
-        from app.services.finance.posting import post_event
-        await post_event(db, vendor_id, "invoice", invoice.id, {
-            "total": float(invoice.total or 0),
-            "cgst": float(getattr(invoice, "cgst_amount", None) or 0),
-            "sgst": float(getattr(invoice, "sgst_amount", None) or 0),
-            "igst": float(getattr(invoice, "igst_amount", None) or 0),
-            "customer_id": invoice.customer_id,
-            "entry_date": invoice.created_at.date() if invoice.created_at else None,
-            "narration": f"Invoice {invoice.invoice_number}",
-        })
-    except Exception:
-        log.exception("Finance GL: failed to post invoice %s", invoice.id)
+    """Post invoice to GL. Credit notes use 'credit_note' source type (reversed entries)."""
+    from app.services.finance.safe_posting import safe_post
+    inv_type = getattr(invoice, "invoice_type", "invoice") or "invoice"
+    source_type = "credit_note" if inv_type == "credit_note" else "invoice"
+    entry_date = invoice.invoice_date or (invoice.created_at.date() if invoice.created_at else date.today())
+    return await safe_post(db, vendor_id, source_type, invoice.id, {
+        "total": Decimal(str(invoice.total or 0)),
+        "cgst": Decimal(str(getattr(invoice, "cgst_amount", None) or 0)),
+        "sgst": Decimal(str(getattr(invoice, "sgst_amount", None) or 0)),
+        "igst": Decimal(str(getattr(invoice, "igst_amount", None) or 0)),
+        "customer_id": invoice.customer_id,
+        "entry_date": entry_date,
+        "narration": f"{inv_type.replace('_', ' ').title()} {invoice.invoice_number}",
+    })
+
+
+def payment_source_id(invoice_id, amount_paid_after) -> uuid.UUID:
+    """
+    Deterministic GL source id for ONE payment against an invoice.
+
+    post_event keeps a single live entry per (source_type, source_id); using the
+    invoice id for every payment made a second partial payment void the first.
+    Keying on the cumulative amount paid makes each payment distinct yet idempotent.
+    """
+    return uuid.uuid5(invoice_id, f"payment:{Decimal(str(amount_paid_after)):.2f}")
+
 
 async def _try_post_payment(db, vendor_id, invoice, amount):
-    try:
-        from app.services.finance.posting import post_event
-        await post_event(db, vendor_id, "payment", invoice.id, {
-            "amount": amount,
+    from app.services.finance.safe_posting import safe_post
+    return await safe_post(
+        db, vendor_id, "payment", payment_source_id(invoice.id, invoice.amount_paid or 0), {
+            "amount": Decimal(str(amount)),
             "customer_id": invoice.customer_id,
             "entry_date": date.today(),
             "narration": f"Payment for Invoice {invoice.invoice_number}",
         })
-    except Exception:
-        log.exception("Finance GL: failed to post payment for invoice %s", invoice.id)
 
 
 class InvoiceService:
@@ -274,6 +287,11 @@ class InvoiceService:
         self.db.add(invoice)
         await self.db.commit()
         await self.db.refresh(invoice)
+        # Post to GL for non-draft, non-estimate invoices (best-effort, non-blocking)
+        if invoice.invoice_type not in ("estimate",) and invoice.status not in ("draft",):
+            await _try_post_invoice(self.db, vendor_id, invoice)
+            # _try_post_invoice only flushes inside a savepoint; persist the JE.
+            await self.db.commit()
         await _try_generate_einvoice(self.db, invoice, vendor)
         await self.db.commit()
         await self.db.refresh(invoice)
@@ -357,9 +375,10 @@ class InvoiceService:
         else:
             invoice.status = "partially_paid"
 
+        # Post GL entry within the same transaction so subledger and ledger stay in sync
+        await _try_post_payment(self.db, vendor_id, invoice, amount)
         await self.db.commit()
         await self.db.refresh(invoice)
-        await _try_post_payment(self.db, vendor_id, invoice, amount)
 
         # Phase-8: reduce credit outstanding when a pay_later order's invoice is paid
         if invoice.order_id and invoice.status == "paid":
@@ -508,6 +527,15 @@ class InvoiceService:
         )
         return result.scalar_one_or_none()
 
+    async def _post_new_invoice_to_gl(self, vendor_id: UUID, invoice: Invoice) -> None:
+        """GL-post an invoice created by an order/booking flow, plus any payment already received."""
+        if invoice.invoice_type in ("estimate",) or invoice.status in ("draft",):
+            return
+        await _try_post_invoice(self.db, vendor_id, invoice)
+        paid = Decimal(str(invoice.amount_paid or 0))
+        if paid > 0:
+            await _try_post_payment(self.db, vendor_id, invoice, paid)
+
     async def create_from_order(self, order: Order, auto_commit: bool = True) -> Invoice | None:
         """Auto-generate an invoice when an order is confirmed."""
         existing = await self.get_by_order_id(order.id, order.vendor_id)
@@ -628,6 +656,8 @@ class InvoiceService:
             is_inter_state=is_inter_state,
         )
         self.db.add(invoice)
+        await self.db.flush()
+        await self._post_new_invoice_to_gl(order.vendor_id, invoice)
         if auto_commit:
             await self.db.commit()
             await self.db.refresh(invoice)
@@ -874,6 +904,8 @@ class InvoiceService:
             notes=f"Booking: {booking.booking_number}",
         )
         self.db.add(invoice)
+        await self.db.flush()
+        await self._post_new_invoice_to_gl(booking.vendor_id, invoice)
         if auto_commit:
             await self.db.commit()
             await self.db.refresh(invoice)

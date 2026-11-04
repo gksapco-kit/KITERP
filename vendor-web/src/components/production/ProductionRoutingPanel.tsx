@@ -4,6 +4,7 @@ import {
   CircleDashed, MinusCircle, Wrench,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useHasPermission } from '@/hooks/usePermissions'
 import { Select } from '@/components/ui/select'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import {
@@ -27,9 +28,12 @@ function fmtHours(n: number | null | undefined) {
 
 interface ProductionRoutingPanelProps {
   orderId: string
+  /** True when the order is completed/cancelled — routing is then read-only. */
+  readOnly?: boolean
 }
 
-export function ProductionRoutingPanel({ orderId }: ProductionRoutingPanelProps) {
+export function ProductionRoutingPanel({ orderId, readOnly = false }: ProductionRoutingPanelProps) {
+  const canEdit = useHasPermission('production.manage') && !readOnly
   const { data: operations = [], isLoading } = useProductionOperations(orderId)
   const { data: workCenters = [] } = useWorkCenters({ is_active: true })
   const createOp = useCreateProductionOperation(orderId)
@@ -82,7 +86,8 @@ export function ProductionRoutingPanel({ orderId }: ProductionRoutingPanelProps)
   }
 
   return (
-    <div className="space-y-3">
+    // A disabled fieldset disables every input/button/select trigger inside it at once.
+    <fieldset disabled={!canEdit} className="min-w-0 space-y-3 border-0 p-0 m-0 disabled:opacity-90">
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">
           Routing steps this order flows through. Actual hours Ã— work center rate feed the labor cost roll-up.
@@ -248,7 +253,7 @@ export function ProductionRoutingPanel({ orderId }: ProductionRoutingPanelProps)
         </div>
       )}
 
-      {showWorkCenters && <WorkCenterManagerModal onClose={() => setShowWorkCenters(false)} />}
-    </div>
+      {canEdit && showWorkCenters && <WorkCenterManagerModal onClose={() => setShowWorkCenters(false)} />}
+    </fieldset>
   )
 }

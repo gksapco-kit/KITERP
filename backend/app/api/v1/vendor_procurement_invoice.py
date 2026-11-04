@@ -449,20 +449,52 @@ async def post_vendor_invoice(
     # Build a simple aggregate vendor-bill payload so the existing
     # _handle_vendor_bill logic can create the AP journal entry.
     gl_payload = {
-        "subtotal": float(inv.subtotal or 0),
-        "tax_amount": float(inv.tax_amount or 0),
-        "total": float(inv.total or 0),
+        "subtotal": Decimal(str(inv.subtotal or 0)),
+        "tax_amount": Decimal(str(inv.tax_amount or 0)),
+        "total": Decimal(str(inv.total or 0)),
         "supplier_id": str(inv.supplier_id),
+        # book in the document's accounting period, not "today"
+        "entry_date": inv.posting_date or inv.invoice_date,
         "narration": f"AP Invoice {inv.invoice_number}",
     }
+    from app.services.finance.safe_posting import safe_post
+    je = await safe_post(db, vendor_id, "vendor_bill", inv.id, gl_payload,
+                         created_by_id=vendor_user.id)
+    if je is not None:
+        inv.journal_entry_id = je.id
+
+    # ── Mirror to FinVendorBill so AP subledger stays in sync ─────────────
+    # This allows the finance AP module to track payment status and aging
+    # without duplicating the GL entry (we reference the same journal_entry_id).
     try:
-        je = await post_event(db, vendor_id, "vendor_bill", inv.id, gl_payload,
-                              created_by_id=vendor_user.id)
-        if je is not None:
-            inv.journal_entry_id = je.id
+        async with db.begin_nested():
+            from app.models.finance import FinVendorBill
+            from sqlalchemy import select as _sel
+            _existing = (await db.execute(
+                _sel(FinVendorBill).where(
+                    FinVendorBill.vendor_id == vendor_id,
+                    FinVendorBill.bill_no == inv.invoice_number,
+                )
+            )).scalar_one_or_none()
+            if _existing is None:
+                _fin_bill = FinVendorBill(
+                    id=inv.id,            # same UUID for traceability
+                    vendor_id=vendor_id,
+                    supplier_id=inv.supplier_id,
+                    bill_no=inv.invoice_number,
+                    bill_date=getattr(inv, "invoice_date", None) or datetime.now(timezone.utc).date(),
+                    due_date=getattr(inv, "due_date", None),
+                    subtotal=inv.subtotal or 0,
+                    tax_amount=inv.tax_amount or 0,
+                    total=inv.total or 0,
+                    balance_due=inv.total or 0,
+                    status="open",
+                    journal_entry_id=inv.journal_entry_id,
+                )
+                db.add(_fin_bill)
     except Exception:
         log.exception(
-            "GL posting failed for vendor invoice %s — invoice posted without journal entry",
+            "Failed to mirror procurement invoice %s to FinVendorBill — AP aging may be incomplete",
             inv.id,
         )
 

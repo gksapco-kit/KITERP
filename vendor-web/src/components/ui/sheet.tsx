@@ -57,6 +57,8 @@ function isOutsideLayerTarget(target: EventTarget | null): boolean {
   if (target.closest(`[${THEME_SELECT_MENU_ATTR}]`)) return true
   // Legacy custom portals (ModalOverlay)
   if (target.closest('[data-kiterp-portal-modal]')) return true
+  // Supplier and other typeaheads portal to document.body
+  if (target.closest('[data-kiterp-typeahead-menu]')) return true
   // Nested Radix Dialog content (image picker) — not this sheet
   const dialog = target.closest('[role="dialog"]')
   return Boolean(dialog && !dialog.hasAttribute('data-kiterp-sheet-content'))

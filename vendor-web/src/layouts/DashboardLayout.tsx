@@ -7,7 +7,7 @@ import { Outlet, NavLink, useLocation, Link, useNavigate, Navigate } from 'react
 import {
   LayoutDashboard, ShoppingCart, Package, Wrench, Warehouse,
   Users, Settings, LogOut, Store, MessageSquare, MessageSquareText,
-  UsersRound, ShieldCheck, Receipt, FileText, Tag, BarChart3, CreditCard, LayoutTemplate,
+  UsersRound, ShieldCheck, AlertTriangle, Receipt, FileText, Tag, BarChart3, CreditCard, LayoutTemplate,
   FolderTree, Truck, ClipboardList, Calendar, Bell, List, PackageSearch, FileCheck, ArrowRightLeft,
   ChevronDown, ChevronRight, Check, Menu, FilePlus, Factory, PieChart,
   UserCog, Clock, Plane, DollarSign, Award, Building2, FileSignature, Dumbbell, Car, Ticket,
@@ -176,6 +176,7 @@ import {
   isSubscriptionsNavVisible,
   isProjectsNavVisible,
   isRentalsNavVisible,
+  isRealEstateNavVisible,
 } from '@/lib/vendorModuleSettings'
 import {
   DndContext,
@@ -594,6 +595,7 @@ const SECTION_PERMISSION_NAMESPACES: Record<string, string[]> = {
   'master-data': ['masterdata'],
   crm: ['crm'],
   rental: ['rentals'],
+  realestate: ['realestate'],
   production: ['production'],
   pharma: ['pharma'],
   restaurant: ['restaurant'],
@@ -753,6 +755,38 @@ const allSections: NavSection[] = [
     ],
   },
   {
+    id: 'realestate',
+    title: 'Real Estate',
+    icon: Building2,
+    items: [
+      { to: '/realestate', icon: LayoutDashboard, label: 'Overview', requiresPermission: 'realestate.view', groupLabel: 'Land & sales', groupColor: 'blue' },
+      { to: '/realestate/property', icon: Building2, label: 'Property Management', requiresPermission: 'realestate.view' },
+      { to: '/realestate/land', icon: MapPin, label: 'Land Bank & Acquisition', requiresPermission: 'realestate.view' },
+      { to: '/realestate/sales', icon: Target, label: 'Sales & CRM', requiresPermission: 'realestate.view' },
+      { to: '/realestate/booking', icon: ClipboardCheck, label: 'Booking & Allotment', requiresPermission: 'realestate.view' },
+      { to: '/realestate/customers', icon: Users, label: 'Customer Management', requiresPermission: 'realestate.view' },
+      { to: '/realestate/brokers', icon: Contact2, label: 'Broker Management', requiresPermission: 'realestate.view' },
+      { to: '/realestate/collections', icon: Wallet2, label: 'Payment & Collections', requiresPermission: 'realestate.view', groupLabel: 'Money & compliance', groupColor: 'emerald' },
+      { to: '/realestate/finance', icon: Landmark, label: 'Finance & Accounting', requiresPermission: 'realestate.view' },
+      { to: '/realestate/tax', icon: Percent, label: 'Tax & Compliance', requiresPermission: 'realestate.view' },
+      { to: '/realestate/legal', icon: Scale, label: 'Legal & Documentation', requiresPermission: 'realestate.view' },
+      { to: '/realestate/projectmgmt', icon: FolderKanban, label: 'Project Management', requiresPermission: 'realestate.view', groupLabel: 'Build', groupColor: 'amber' },
+      { to: '/realestate/construction', icon: Wrench, label: 'Construction', requiresPermission: 'realestate.view' },
+      { to: '/realestate/procurement', icon: ShoppingCart, label: 'Procurement', requiresPermission: 'realestate.view' },
+      { to: '/realestate/inventory', icon: Boxes, label: 'Material & Inventory', requiresPermission: 'realestate.view' },
+      { to: '/realestate/contractors', icon: Briefcase, label: 'Contractor Management', requiresPermission: 'realestate.view' },
+      { to: '/realestate/handover', icon: Award, label: 'Handover & Possession', requiresPermission: 'realestate.view', groupLabel: 'After sale', groupColor: 'rose' },
+      { to: '/realestate/care', icon: LifeBuoy, label: 'Customer Care', requiresPermission: 'realestate.view' },
+      { to: '/realestate/leasing', icon: FileSignature, label: 'Leasing & Rentals', requiresPermission: 'realestate.view', groupLabel: 'Operate', groupColor: 'violet' },
+      { to: '/realestate/facility', icon: Warehouse, label: 'Facility Management', requiresPermission: 'realestate.view' },
+      { to: '/realestate/society', icon: UsersRound, label: 'Society Management', requiresPermission: 'realestate.view' },
+      { to: '/realestate/assets', icon: HardDrive, label: 'Asset Management', requiresPermission: 'realestate.view' },
+      { to: '/realestate/workforce', icon: UserCog, label: 'HR & Workforce', requiresPermission: 'realestate.view' },
+      { to: '/realestate/reports', icon: BarChart3, label: 'Reports & Analytics', requiresPermission: 'realestate.view', groupLabel: 'Insights', groupColor: 'indigo' },
+      { to: '/realestate/admin', icon: Settings2, label: 'Administration', requiresPermission: 'realestate.view' },
+    ],
+  },
+  {
     id: 'production',
     title: 'Production Management',
     icon: Factory,
@@ -893,6 +927,7 @@ const allSections: NavSection[] = [
       // ── Governance
       { to: '/finance/approvals', icon: ClipboardCheck, label: 'Approvals', requiresPermission: 'finance.controls.approve', requiresFinanceMode: 'advanced', groupLabel: 'Governance', groupColor: 'blue' },
       { to: '/finance/audit', icon: ShieldCheck, label: 'Audit Log', requiresPermission: 'finance.audit.view', requiresFinanceMode: 'advanced' },
+      { to: '/finance/posting-health', icon: AlertTriangle, label: 'Posting Health', requiresPermission: 'finance.audit.view', requiresFinanceMode: 'advanced' },
       { to: '/finance/tax', icon: CircleDollarSign, label: 'Tax Returns', requiresPermission: 'finance.tax.manage', requiresFinanceMode: 'advanced' },
       { to: '/finance/tax-codes', icon: CircleDollarSign, label: 'Tax Codes', requiresPermission: 'finance.tax.view' },
     ],
@@ -2161,6 +2196,7 @@ export default function DashboardLayout() {
     () => isRentalsNavVisible(vendorSettings),
     [vendorSettings],
   )
+  const realestateNavVisible = useMemo(() => isRealEstateNavVisible(vendorSettings), [vendorSettings])
 
   const canViewOrders = isOwnerOrAdmin || permissions.includes('orders.view')
   const { data: orderStats } = useOrderStats(sessionReady && canViewOrders)
@@ -2219,6 +2255,7 @@ export default function DashboardLayout() {
           if (section.id === 'production' && !productionNavVisible) return false
           if (section.id === 'pharma' && !pharmaNavVisible) return false
           if (section.id === 'rental' && !rentalNavVisible) return false
+          if (section.id === 'realestate' && !realestateNavVisible) return false
           if (
             section.id === 'restaurant' &&
             !isRestaurantNavVisible(vendorSettings, vendor?.offering_type, planFeatures)
@@ -2235,7 +2272,7 @@ export default function DashboardLayout() {
     [
       filterItem,
       hrNavVisible, financeNavVisible, crmNavVisible, commissionNavVisible,
-      controllingNavVisible, productionNavVisible, pharmaNavVisible, rentalNavVisible,
+      controllingNavVisible, productionNavVisible, pharmaNavVisible, rentalNavVisible, realestateNavVisible,
       vendorSettings, vendor?.offering_type, planFeatures,
     ],
   )

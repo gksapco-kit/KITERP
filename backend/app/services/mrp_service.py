@@ -7,11 +7,12 @@ requirements identically.
 """
 from __future__ import annotations
 
+from datetime import date
 from decimal import Decimal, ROUND_CEILING
 from typing import Optional, List
 from uuid import UUID
 
-from sqlalchemy import select, func as sqlfunc
+from sqlalchemy import or_, select, func as sqlfunc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.mrp import ProductBOMItem
@@ -50,9 +51,13 @@ async def explode_bom(
     db: AsyncSession,
     vendor_id: UUID,
     items: List[dict],
+    as_of: Optional[date] = None,
 ) -> dict[str, dict]:
     """
     Multi-level recursive BOM explosion.
+
+    Only BOM lines effective on ``as_of`` (default: today) count, and by-product lines are
+    outputs, not requirements, so they are skipped.
 
     `items` is a list of {"product_id": str, "qty": Decimal, "name": Optional[str]}
     representing the top-level products being produced/ordered.
@@ -71,6 +76,7 @@ async def explode_bom(
     of recursing forever; a depth cap provides a hard backstop.
     """
     component_requirements: dict[str, dict] = {}
+    ref_date = as_of or date.today()
 
     async def _expand(product_id_str: str, qty: Decimal, source_name: str, path: tuple[str, ...], depth: int) -> None:
         if depth > MAX_BOM_DEPTH:
@@ -90,6 +96,9 @@ async def explode_bom(
             select(ProductBOMItem).where(
                 ProductBOMItem.vendor_id == vendor_id,
                 ProductBOMItem.product_id == pid,
+                ProductBOMItem.is_byproduct.is_(False),
+                or_(ProductBOMItem.valid_from.is_(None), ProductBOMItem.valid_from <= ref_date),
+                or_(ProductBOMItem.valid_to.is_(None), ProductBOMItem.valid_to >= ref_date),
             )
         )
         bom_items = bom_result.scalars().all()
@@ -104,6 +113,9 @@ async def explode_bom(
         next_path = path + (product_id_str,)
         for bom_item in bom_items:
             needed = qty * bom_item.qty_per_unit
+            scrap = Decimal(str(bom_item.scrap_pct or 0))
+            if scrap:
+                needed = needed * (Decimal("1") + scrap / Decimal("100"))
             await _expand(str(bom_item.component_id), needed, source_name, next_path, depth + 1)
 
     def _accumulate(cid: str, qty: Decimal, source_name: str, depth: int, no_bom: bool) -> None:

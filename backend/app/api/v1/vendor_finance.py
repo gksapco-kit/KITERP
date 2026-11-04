@@ -13,7 +13,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Response, Body
 from decimal import Decimal
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_vendor_user, require_permission, require_any_permission, get_db
@@ -57,21 +57,48 @@ from app.schemas.finance.journal import (
 from app.models.controlling import CoOrderCostLine
 from app.models.finance import (
     FinCompany, FinCostCenter, FinProject, FinIntercompanyPartner,
-    FinAccount, FinVendorBill,
+    FinAccount, FinVendorBill, FinJournalEntry, FinJournalLine,
+    FinFiscalYear, FinPeriod, FinNumberRange, FinBankAccount,
 )
+from app.models.vendor import Vendor
 from app.services.controlling.budget_control import (
     BudgetExceededError,
     assert_budget_allows,
 )
 from app.models.project import Project
 from app.models.store import Store
-from app.schemas.finance.vendor_bill import VendorBillCreate, VendorBillUpdate
+from app.schemas.finance.vendor_bill import (
+    VendorBillCreate, VendorBillUpdate,
+    VendorPaymentCreate, PaymentRunCreate,
+    PaymentApplicationCreate,
+    BankAccountCreate, BankAccountUpdate,
+    TaxCodeCreate, TaxCodeUpdate,
+)
 from sqlalchemy import select, or_, func
 from sqlalchemy.exc import IntegrityError
+
+from app.models.finance import (  # noqa: E402
+    FinExchangeRate, FinBankStatement, FinBankStatementLine, FinBankReconciliation,
+    FinBudget, FinBudgetLine, FinForecast, FinForecastLine, FinTaxReturn, FinLoan,
+    FinInvestment, FinInvestmentValuation, FinApprovalPolicy, FinStatementVersion,
+    FinStatementNode, FinStatementNodeAcct,
+)
+from app.services.finance.body_guard import coerce_body  # noqa: E402
 
 log = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+async def _assert_tenant_rows(db: AsyncSession, vendor_id, model, ids, label: str) -> None:
+    """Every referenced id must exist and belong to this tenant (blocks cross-tenant FK injection)."""
+    wanted = {UUID(str(i)) for i in ids if i}
+    if not wanted:
+        return
+    r = await db.execute(select(model.id).where(model.id.in_(wanted), model.vendor_id == vendor_id))
+    found = {row[0] for row in r.all()}
+    if found != wanted:
+        raise HTTPException(404, f"{label} not found")
 
 
 def _d(obj) -> dict:
@@ -150,7 +177,8 @@ async def create_account(
     vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    acc = await FinCOARepo(db).create_account(vu.vendor_id, body)
+    data = coerce_body(FinAccount, body, "create")
+    acc = await FinCOARepo(db).create_account(vu.vendor_id, data)
     await db.commit()
     return _d(acc)
 
@@ -165,7 +193,7 @@ async def update_account(
     acc = await repo.get_account(account_id, vu.vendor_id)
     if not acc:
         raise HTTPException(404, "Account not found")
-    acc = await repo.update_account(acc, body)
+    acc = await repo.update_account(acc, coerce_body(FinAccount, body, "update"))
     await db.commit()
     return _d(acc)
 
@@ -327,17 +355,33 @@ async def list_periods(
     return [_d(p) for p in periods]
 
 
+@router.get("/periods/{period_id}/close-checklist")
+async def period_close_checklist(
+    period_id: UUID,
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services.finance.period_control import close_checklist
+    period = await FinCOARepo(db).get_period(period_id, vu.vendor_id)
+    if not period:
+        raise HTTPException(404, "Period not found")
+    return await close_checklist(db, vu.vendor_id, period)
+
+
 @router.post("/periods/{period_id}/close")
 async def close_period(
     period_id: UUID,
     vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    repo = FinCOARepo(db)
-    period = await repo.get_period(period_id, vu.vendor_id)
+    from app.services.finance import period_control
+    period = await FinCOARepo(db).get_period(period_id, vu.vendor_id)
     if not period:
         raise HTTPException(404, "Period not found")
-    period = await repo.close_period(period, vu.id)
+    try:
+        period = await period_control.close_period(db, vu.vendor_id, period, vu.id)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
     await db.commit()
     return _d(period)
 
@@ -348,29 +392,38 @@ async def lock_period(
     vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    repo = FinCOARepo(db)
-    p = await repo.get_period(period_id, vu.vendor_id)
+    from app.services.finance import period_control
+    p = await FinCOARepo(db).get_period(period_id, vu.vendor_id)
     if not p:
         raise HTTPException(404, "Period not found")
     try:
-        p = await repo.lock_period(p)
+        p = await period_control.lock_period(db, vu.vendor_id, p, vu.id)
     except ValueError as e:
         raise HTTPException(400, str(e))
     await db.commit()
     return _d(p)
 
 
+class PeriodReopenRequest(BaseModel):
+    reason: str = Field("", max_length=500)
+
+
 @router.post("/periods/{period_id}/reopen")
 async def reopen_period(
     period_id: UUID,
+    body: Optional[PeriodReopenRequest] = None,
     vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    repo = FinCOARepo(db)
-    p = await repo.get_period(period_id, vu.vendor_id)
+    from app.services.finance import period_control
+    p = await FinCOARepo(db).get_period(period_id, vu.vendor_id)
     if not p:
         raise HTTPException(404, "Period not found")
-    p = await repo.reopen_period(p)
+    try:
+        p = await period_control.reopen_period(
+            db, vu.vendor_id, p, vu.id, reason=(body.reason if body else ""))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
     await db.commit()
     return _d(p)
 
@@ -497,7 +550,7 @@ async def create_exchange_rate(
     vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    er = await FinCOARepo(db).create_exchange_rate(vu.vendor_id, body)
+    er = await FinCOARepo(db).create_exchange_rate(vu.vendor_id, coerce_body(FinExchangeRate, body, "create"))
     await db.commit()
     return _d(er)
 
@@ -599,9 +652,14 @@ async def post_journal_entry(
     return _d(je)
 
 
+class VoidJERequest(BaseModel):
+    reason: Optional[str] = None
+
+
 @router.post("/journal-entries/{je_id}/void")
 async def void_journal_entry(
     je_id: UUID,
+    body: VoidJERequest = VoidJERequest(),
     vu: VendorUser = Depends(require_permission("finance.journal.post")),
     db: AsyncSession = Depends(get_db),
 ):
@@ -609,21 +667,55 @@ async def void_journal_entry(
     je = await repo.get_entry(je_id, vu.vendor_id)
     if not je:
         raise HTTPException(404, "Journal entry not found")
-    je = await repo.void_entry(je)
+    if je.status == "void":
+        raise HTTPException(400, "Journal entry is already void")
+    try:
+        je = await repo.void_entry(je, voided_by_id=vu.id, reason=body.reason or "")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
     await db.commit()
     return _d(je)
 
 
+class ManualJournalLine(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    account_id: UUID
+    debit: Decimal = Field(default=Decimal("0"), ge=0)
+    credit: Decimal = Field(default=Decimal("0"), ge=0)
+    narration: Optional[str] = None
+
+    @model_validator(mode="after")
+    def _one_side(self):
+        if (self.debit > 0) == (self.credit > 0):
+            raise ValueError("each line needs exactly one of debit or credit greater than zero")
+        return self
+
+
+class ManualJournalRequest(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    lines: list[ManualJournalLine] = Field(min_length=2)
+    narration: Optional[str] = None
+    entry_date: Optional[date] = None
+
+    @model_validator(mode="after")
+    def _balanced(self):
+        dr = sum((ln.debit for ln in self.lines), Decimal("0"))
+        cr = sum((ln.credit for ln in self.lines), Decimal("0"))
+        if abs(dr - cr) > Decimal("0.01"):
+            raise ValueError(f"journal is not balanced (debit {dr} vs credit {cr})")
+        return self
+
+
 @router.post("/journal/manual")
 async def manual_journal(
-    body: dict,
+    body: ManualJournalRequest,
     vu: VendorUser = Depends(require_permission("finance.journal.post")),
     db: AsyncSession = Depends(get_db),
 ):
     """Post a manual journal entry directly via the posting engine."""
     import uuid as _uuid
     je = await post_event(db, vu.vendor_id, "manual", _uuid.uuid4(),
-                          body, created_by_id=vu.id)
+                          body.model_dump(exclude_none=True), created_by_id=vu.id)
     if not je:
         raise HTTPException(422, "Could not post journal — check that COA accounts exist")
     await db.commit()
@@ -974,6 +1066,8 @@ async def search_reference_docs(
 async def trial_balance(
     from_date: Optional[date] = None,
     to_date: Optional[date] = None,
+    company_id: Optional[UUID] = None,
+    include_zero_balance: bool = False,
     vu: VendorUser = Depends(require_permission("finance.reports.view")),
     db: AsyncSession = Depends(get_db),
 ):
@@ -982,6 +1076,8 @@ async def trial_balance(
         vu.vendor_id,
         from_date or date(today.year, 4, 1),
         to_date or today,
+        company_id=company_id,
+        include_zero_balance=include_zero_balance,
     )
     return data
 
@@ -1108,11 +1204,16 @@ async def ar_aging(
 
 @router.post("/ar/apply-payment")
 async def apply_payment(
-    body: dict,
+    body: PaymentApplicationCreate,
     vu: VendorUser = Depends(require_permission("finance.ar.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    app = await FinARRepo(db).apply_payment(vu.vendor_id, body)
+    data = body.model_dump()
+    data["created_by_id"] = vu.id
+    try:
+        app = await FinARRepo(db).apply_payment(vu.vendor_id, data)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
     await db.commit()
     return _d(app)
 
@@ -1338,8 +1439,10 @@ async def create_fsv_node(
     db: AsyncSession = Depends(get_db),
 ):
     from app.models.finance import FinStatementNode as _N
+    await _assert_tenant_rows(db, vu.vendor_id, FinStatementVersion, [version_id], "Statement version")
     allowed = {"parent_id", "name", "node_type", "sort_order", "sign_flip", "bold", "indent_level"}
-    data = {k: v for k, v in body.items() if k in allowed}
+    data = coerce_body(_N, body, "create", allow=allowed, exempt=("version_id",))
+    await _assert_tenant_rows(db, vu.vendor_id, _N, [data.get("parent_id")], "Parent node")
     node = _N(id=__import__("uuid").uuid4(), version_id=version_id, vendor_id=vu.vendor_id, **data)
     db.add(node)
     await db.commit()
@@ -1387,6 +1490,8 @@ async def add_fsv_node_account(
     db: AsyncSession = Depends(get_db),
 ):
     from app.models.finance import FinStatementNodeAcct as _A
+    await _assert_tenant_rows(db, vu.vendor_id, FinStatementNode, [node_id], "Node")
+    await _assert_tenant_rows(db, vu.vendor_id, FinAccount, [body.get("account_id")], "Account")
     a = _A(
         id=__import__("uuid").uuid4(),
         node_id=node_id,
@@ -1480,7 +1585,19 @@ async def create_bill(
     for ln in body.lines:
         await _resolve_pm_project(db, vu.vendor_id, ln.pm_project_id)
 
+    from app.models.procurement import Supplier as _Sup
+    sup = (await db.execute(select(_Sup).where(
+        _Sup.id == body.supplier_id, _Sup.vendor_id == vu.vendor_id))).scalar_one_or_none()
+    if sup is None:
+        raise HTTPException(400, "Supplier not found for this vendor")
+
     data = body.model_dump()
+    # Split GST by head when the caller did not (needed for GSTR-3B ITC by head)
+    if data.get("tax_amount") and all(data.get(k) is None for k in ("cgst_amount", "sgst_amount", "igst_amount")):
+        from app.services.finance.gst import infer_itc_split
+        own = await db.get(Vendor, vu.vendor_id)
+        split = infer_itc_split(data["tax_amount"], getattr(sup, "gstin", None), getattr(own, "gstin", None))
+        data["cgst_amount"], data["sgst_amount"], data["igst_amount"] = split["cgst"], split["sgst"], split["igst"]
     repo = FinAPRepo(db)
     bill = await repo.create_bill(vu.vendor_id, data)
     await db.commit()
@@ -1596,30 +1713,35 @@ async def post_bill(
                 fin_pid = header_fin_project_id
             bill_line_specs.append({
                 "account_id": str(ln.account_id),
-                "amount": float(ln.line_total or (ln.quantity or 1) * (ln.unit_price or 0)),
+                "amount": Decimal(str(ln.line_total or (ln.quantity or 1) * (ln.unit_price or 0))),
                 "narration": ln.description or f"Vendor Bill {bill.bill_no}",
                 "cost_center_id": str(ln.cost_center_id) if ln.cost_center_id else None,
                 "project_id": str(fin_pid) if fin_pid else None,
             })
         gl_payload = {
             "bill_lines": bill_line_specs,
-            "tax_amount": float(bill.tax_amount or 0),
-            "total": float(bill.total or 0),
+            "tax_amount": Decimal(str(bill.tax_amount or 0)),
+            "total": Decimal(str(bill.total or 0)),
             "supplier_id": bill.supplier_id,
+            "entry_date": bill.bill_date,
             "narration": f"Vendor Bill {bill.bill_no}",
+            "tds_amount": bill.tds_amount or 0, "tds_section": bill.tds_section,
         }
     else:
         gl_payload = {
-            "subtotal": float(bill.subtotal or 0),
-            "tax_amount": float(bill.tax_amount or 0),
-            "total": float(bill.total or 0),
+            "subtotal": Decimal(str(bill.subtotal or 0)),
+            "tax_amount": Decimal(str(bill.tax_amount or 0)),
+            "total": Decimal(str(bill.total or 0)),
             "supplier_id": bill.supplier_id,
+            "entry_date": bill.bill_date,
             "narration": f"Vendor Bill {bill.bill_no}",
             "project_id": str(header_fin_project_id) if header_fin_project_id else None,
+            "tds_amount": bill.tds_amount or 0, "tds_section": bill.tds_section,
         }
 
-    je = await post_event(db, vu.vendor_id, "vendor_bill", bill.id, gl_payload,
-                          created_by_id=vu.id)
+    from app.services.finance.safe_posting import safe_post
+    je = await safe_post(db, vu.vendor_id, "vendor_bill", bill.id, gl_payload,
+                         created_by_id=vu.id)
     if je:
         bill.journal_entry_id = je.id
 
@@ -1674,25 +1796,52 @@ async def post_bill(
         ocl.amount_actual = Decimal(str(ocl.amount_actual or 0)) + amount
 
     await db.commit()
-    return _d(bill)
+    out = _d(bill)
+    out["gl_posted"] = je is not None
+    if je is None:
+        out["gl_warning"] = ("Bill saved but NOT posted to the ledger; see Finance > "
+                             "Posting issues to fix and retry.")
+    return out
 
 
 @router.post("/ap/payments", status_code=201)
 async def record_vendor_payment(
-    body: dict,
+    body: VendorPaymentCreate,
     vu: VendorUser = Depends(require_permission("finance.ap.manage")),
     db: AsyncSession = Depends(get_db),
 ):
     repo = FinAPRepo(db)
-    vp = await repo.record_vendor_payment(vu.vendor_id, body)
-    await post_event(db, vu.vendor_id, "vendor_payment", vp.id, {
-        "amount": float(vp.amount),
+    data = body.model_dump(exclude_none=True)
+    data["created_by_id"] = vu.id
+    try:
+        vp = await repo.record_vendor_payment(vu.vendor_id, data)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+    # Resolve the GL account behind the paying bank account (if one was chosen)
+    bank_gl_id = None
+    if body.bank_account_id:
+        ba = await FinBankRepo(db).get_bank_account(body.bank_account_id, vu.vendor_id)
+        bank_gl_id = ba.gl_account_id if ba else None
+
+    from app.services.finance.safe_posting import safe_post
+    je = await safe_post(db, vu.vendor_id, "vendor_payment", vp.id, {
+        "amount": vp.amount,
         "supplier_id": vp.supplier_id,
-        "bank_account_gl_id": body.get("bank_account_gl_id"),
-        "narration": f"Vendor Payment {vp.reference_no or ''}",
+        "bank_account_gl_id": bank_gl_id,
+        "entry_date": vp.payment_date,
+        "narration": f"Vendor Payment {vp.reference_no or ''}".strip(),
     }, created_by_id=vu.id)
+    if je is not None:
+        vp.journal_entry_id = je.id
+
     await db.commit()
-    return _d(vp)
+    out = _d(vp)
+    out["gl_posted"] = je is not None
+    if je is None:
+        out["gl_warning"] = ("Payment saved but NOT posted to the ledger; see Finance > "
+                             "Posting issues to fix and retry.")
+    return out
 
 
 @router.get("/ap/aging")
@@ -1716,11 +1865,11 @@ async def list_payment_runs(
 
 @router.post("/ap/payment-runs", status_code=201)
 async def create_payment_run(
-    body: dict,
+    body: PaymentRunCreate,
     vu: VendorUser = Depends(require_permission("finance.ap.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    run = await FinAPRepo(db).create_payment_run(vu.vendor_id, body)
+    run = await FinAPRepo(db).create_payment_run(vu.vendor_id, body.model_dump(exclude_none=True))
     await db.commit()
     return _d(run)
 
@@ -1740,18 +1889,18 @@ async def list_bank_accounts(
 
 @router.post("/bank/accounts", status_code=201)
 async def create_bank_account(
-    body: dict,
+    body: BankAccountCreate,
     vu: VendorUser = Depends(require_permission("finance.bank.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    acc = await FinBankRepo(db).create_bank_account(vu.vendor_id, body)
+    acc = await FinBankRepo(db).create_bank_account(vu.vendor_id, body.model_dump(exclude_none=True))
     await db.commit()
     return _d(acc)
 
 
 @router.put("/bank/accounts/{ba_id}")
 async def update_bank_account(
-    ba_id: UUID, body: dict,
+    ba_id: UUID, body: BankAccountUpdate,
     vu: VendorUser = Depends(require_permission("finance.bank.manage")),
     db: AsyncSession = Depends(get_db),
 ):
@@ -1759,7 +1908,7 @@ async def update_bank_account(
     acc = await repo.get_bank_account(ba_id, vu.vendor_id)
     if not acc:
         raise HTTPException(404, "Bank account not found")
-    acc = await repo.update_bank_account(acc, body)
+    acc = await repo.update_bank_account(acc, body.model_dump(exclude_none=True))
     await db.commit()
     return _d(acc)
 
@@ -1780,9 +1929,33 @@ async def create_statement(
     vu: VendorUser = Depends(require_permission("finance.bank.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    stmt = await FinBankRepo(db).create_statement(vu.vendor_id, body)
+    data = coerce_body(FinBankStatement, body, "create", skip=("lines",))
+    data["lines"] = [
+        coerce_body(FinBankStatementLine, ln, "create", exempt=("statement_id",))
+        for ln in (body.get("lines") or [])
+    ]
+    await _assert_tenant_rows(db, vu.vendor_id, FinBankAccount, [data.get("bank_account_id")], "Bank account")
+    stmt = await FinBankRepo(db).create_statement(vu.vendor_id, data)
     await db.commit()
     return _d(stmt)
+
+
+_CSV_MAX_BYTES = 5 * 1024 * 1024   # 5 MB hard limit
+
+# Indian bank CSV column name aliases (covers SBI, HDFC, ICICI, Axis, Kotak etc.)
+_DATE_COLS    = ["Date", "Txn Date", "Transaction Date", "Value Date", "date"]
+_DESC_COLS    = ["Description", "Narration", "Particulars", "Remarks", "description"]
+_DEBIT_COLS   = ["Debit", "DR", "Withdrawal", "Withdrawal Amt (Dr)", "debit"]
+_CREDIT_COLS  = ["Credit", "CR", "Deposit", "Deposit Amt (Cr)", "credit"]
+_BALANCE_COLS = ["Balance", "Closing Balance", "Running Balance", "balance"]
+_REF_COLS     = ["Chq./Ref. No.", "Ref No.", "Cheque No", "Reference No", "reference"]
+
+def _first_col(row: dict, aliases: list[str]) -> str:
+    for a in aliases:
+        v = row.get(a, "")
+        if v and str(v).strip():
+            return str(v).strip()
+    return ""
 
 
 @router.post("/bank/statements/upload-csv")
@@ -1792,35 +1965,134 @@ async def upload_statement_csv(
     vu: VendorUser = Depends(require_permission("finance.bank.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    """Parse a CSV bank statement and create lines."""
-    content = await file.read()
-    text = content.decode("utf-8-sig")
-    reader = csv.DictReader(io.StringIO(text))
+    """
+    Parse a CSV bank statement and create lines.
+    - Supports Indian bank CSV formats (SBI, HDFC, ICICI, Axis, Kotak).
+    - Enforces 5 MB file size limit.
+    - Detects and skips duplicate lines (same date + amount + reference already imported).
+    """
+    from app.models.finance import FinBankAccount as _FBA, FinBankStatementLine as _SL
+
+    # Verify the bank account belongs to this vendor
+    ba = (await db.execute(
+        select(_FBA).where(_FBA.id == bank_account_id, _FBA.vendor_id == vu.vendor_id)
+    )).scalar_one_or_none()
+    if not ba:
+        raise HTTPException(404, "Bank account not found")
+
+    # Read with size guard
+    content = await file.read(_CSV_MAX_BYTES + 1)
+    if len(content) > _CSV_MAX_BYTES:
+        raise HTTPException(413, f"CSV file exceeds {_CSV_MAX_BYTES // (1024*1024)} MB limit.")
+
+    # Try common encodings used by Indian banks
+    text = None
+    for enc in ("utf-8-sig", "utf-8", "cp1252", "latin-1"):
+        try:
+            text = content.decode(enc)
+            break
+        except UnicodeDecodeError:
+            continue
+    if text is None:
+        raise HTTPException(400, "Could not decode CSV file — please upload UTF-8 or Windows-1252 encoded files.")
+
+    # Strip common bank header preamble lines (non-CSV lines before headers)
+    csv_lines = [l for l in text.splitlines() if "," in l]
+    if not csv_lines:
+        raise HTTPException(400, "CSV has no recognisable data rows.")
+    reader = csv.DictReader(csv_lines)
+
+    # Pre-load existing statement lines for dedup (by transaction_date + amount + reference)
+    from app.models.finance import FinBankStatement as _ST
+    from decimal import Decimal as _CD
+    _Q = _CD("0.01")
+    existing_r = await db.execute(
+        select(_SL.transaction_date, _SL.debit, _SL.credit, _SL.reference)
+        .join(_ST, _ST.id == _SL.statement_id)
+        .where(
+            _ST.vendor_id == vu.vendor_id,
+            _ST.bank_account_id == bank_account_id,
+        )
+    )
+    existing_keys: set[tuple] = {
+        (str(r[0]),
+         str(_CD(str(r[1] or 0)).quantize(_Q)),
+         str(_CD(str(r[2] or 0)).quantize(_Q)),
+         str(r[3] or ""))
+        for r in existing_r.all()
+    }
+
     lines = []
+    skipped_dupes = 0
+    parse_errors = 0
     for row in reader:
-        # Try common column names
-        txn_date = row.get("Date") or row.get("date") or row.get("Transaction Date", "")
-        desc = row.get("Description") or row.get("Narration") or row.get("description", "")
-        debit = float(row.get("Debit", 0) or row.get("debit", 0) or 0)
-        credit = float(row.get("Credit", 0) or row.get("credit", 0) or 0)
-        bal = float(row.get("Balance", 0) or row.get("balance", 0) or 0)
-        if txn_date:
+        try:
+            txn_date_raw = _first_col(row, _DATE_COLS)
+            if not txn_date_raw:
+                continue
+            # Parse date — handle DD/MM/YYYY and YYYY-MM-DD and DD-MM-YYYY
+            for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y", "%m/%d/%Y", "%d %b %Y"):
+                try:
+                    txn_date = datetime.strptime(txn_date_raw.strip(), fmt).date()
+                    break
+                except ValueError:
+                    pass
+            else:
+                parse_errors += 1
+                log.warning("CSV: unparseable date '%s' — skipping row", txn_date_raw)
+                continue
+
+            desc = _first_col(row, _DESC_COLS)
+            ref  = _first_col(row, _REF_COLS) or ""
+
+            def _f(val: str) -> _CD:
+                if not val:
+                    return _CD("0")
+                cleaned = str(val).replace(",", "").replace("\u20b9", "").strip()
+                return _CD(cleaned or "0")
+
+            debit  = _f(_first_col(row, _DEBIT_COLS))
+            credit = _f(_first_col(row, _CREDIT_COLS))
+            bal    = _f(_first_col(row, _BALANCE_COLS))
+
+            # Dedup only against previously imported lines (identical rows
+            # inside one file are legitimate, e.g. two equal fees on one day).
+            key = (str(txn_date), str(debit.quantize(_Q)), str(credit.quantize(_Q)), ref)
+            if key in existing_keys:
+                skipped_dupes += 1
+                continue
+
             lines.append({
                 "transaction_date": txn_date,
                 "description": desc,
                 "debit": debit,
                 "credit": credit,
                 "balance": bal,
+                "reference": ref or None,
             })
+        except Exception:
+            parse_errors += 1
+            log.debug("CSV: failed to parse row %r", row)
+
+    if not lines and skipped_dupes == 0:
+        raise HTTPException(400, "No valid rows found in CSV. Check the file format.")
+
     data = {
-        "bank_account_id": str(bank_account_id),
-        "statement_date": str(date.today()),
+        "bank_account_id": bank_account_id,
+        "statement_date": date.today(),
+        "from_date": min((l["transaction_date"] for l in lines), default=None),
+        "to_date": max((l["transaction_date"] for l in lines), default=None),
         "source": "csv",
         "lines": lines,
     }
     stmt = await FinBankRepo(db).create_statement(vu.vendor_id, data)
     await db.commit()
-    return {"statement_id": str(stmt.id), "lines_imported": len(lines)}
+    return {
+        "statement_id": str(stmt.id),
+        "lines_imported": len(lines),
+        "duplicates_skipped": skipped_dupes,
+        "parse_errors": parse_errors,
+    }
 
 
 @router.get("/bank/reconciliations")
@@ -1839,22 +2111,39 @@ async def create_reconciliation(
     vu: VendorUser = Depends(require_permission("finance.bank.reconcile")),
     db: AsyncSession = Depends(get_db),
 ):
-    rec = await FinBankRepo(db).create_reconciliation(vu.vendor_id, body)
+    data = coerce_body(FinBankReconciliation, body, "create",
+                       protect=("status", "reconciled_at", "reconciled_by_id"))
+    await _assert_tenant_rows(db, vu.vendor_id, FinBankAccount, [data.get("bank_account_id")], "Bank account")
+    rec = await FinBankRepo(db).create_reconciliation(vu.vendor_id, data)
     await db.commit()
     return _d(rec)
+
+
+class AutoMatchRequest(BaseModel):
+    bank_account_id: UUID
+    date_tolerance_days: int = Field(default=5, ge=0, le=30)
 
 
 @router.post("/bank/reconciliations/{rec_id}/auto-match")
 async def auto_match_reconciliation(
     rec_id: UUID,
-    body: dict,
+    body: AutoMatchRequest,
     vu: VendorUser = Depends(require_permission("finance.bank.reconcile")),
     db: AsyncSession = Depends(get_db),
 ):
+    # Verify reconciliation belongs to this vendor
+    from app.models.finance import FinBankReconciliation as _Rec
+    rec = (await db.execute(
+        select(_Rec).where(_Rec.id == rec_id, _Rec.vendor_id == vu.vendor_id)
+    )).scalar_one_or_none()
+    if not rec:
+        raise HTTPException(404, "Reconciliation not found")
     matches = await FinBankRepo(db).auto_match(
-        vu.vendor_id, rec_id, body.get("bank_account_id"))
+        vu.vendor_id, rec_id, body.bank_account_id,
+        date_tolerance_days=body.date_tolerance_days,
+    )
     await db.commit()
-    return {"matched": len(matches)}
+    return {"matched": len(matches), "match_details": [str(m.id) for m in matches]}
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1877,7 +2166,11 @@ async def create_budget(
     vu: VendorUser = Depends(require_permission("finance.budget.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    b = await FinBudgetRepo(db).create_budget(vu.vendor_id, body)
+    data = coerce_body(FinBudget, body, "create", skip=("lines",))
+    data["lines"] = [coerce_body(FinBudgetLine, ln, "create", exempt=("budget_id",))
+                     for ln in (body.get("lines") or [])]
+    await _assert_tenant_rows(db, vu.vendor_id, FinAccount, [ln.get("account_id") for ln in data["lines"]], "Account")
+    b = await FinBudgetRepo(db).create_budget(vu.vendor_id, data)
     await db.commit()
     return _d(b)
 
@@ -1892,7 +2185,7 @@ async def update_budget(
     b = await repo.get_budget(budget_id, vu.vendor_id)
     if not b:
         raise HTTPException(404, "Budget not found")
-    b = await repo.update_budget(b, body)
+    b = await repo.update_budget(b, coerce_body(FinBudget, body, "update", skip=("lines",)))
     await db.commit()
     return _d(b)
 
@@ -1921,7 +2214,11 @@ async def create_forecast(
     vu: VendorUser = Depends(require_permission("finance.budget.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    f = await FinBudgetRepo(db).create_forecast(vu.vendor_id, body)
+    data = coerce_body(FinForecast, body, "create", skip=("lines",))
+    data["lines"] = [coerce_body(FinForecastLine, ln, "create", exempt=("forecast_id",))
+                     for ln in (body.get("lines") or [])]
+    await _assert_tenant_rows(db, vu.vendor_id, FinAccount, [ln.get("account_id") for ln in data["lines"]], "Account")
+    f = await FinBudgetRepo(db).create_forecast(vu.vendor_id, data)
     await db.commit()
     return _d(f)
 
@@ -1995,20 +2292,22 @@ async def create_asset(
         asset = await repo.create_asset(vu.vendor_id, body)
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
-    # GL posting is best-effort — asset registration must not fail if COA/periods aren't ready.
-    try:
-        async with db.begin_nested():
-            cat_accounts = await repo.get_category_accounts(asset)
-            await post_event(db, vu.vendor_id, "asset", asset.id, {
-                "cost": float(asset.purchase_cost),
-                "narration": f"Asset Acquisition: {asset.name}",
-                "store_id": asset.store_id,
-                **cat_accounts,
-            }, created_by_id=vu.id)
-    except Exception:
-        log.exception("Asset acquisition GL posting failed for asset %s", asset.id)
+    # Registration must not fail if COA/periods aren't ready — but a failed posting is queued
+    # (fin_posting_failure) and surfaced, never silently dropped.
+    cat_accounts = await repo.get_category_accounts(asset)
+    from app.services.finance.safe_posting import safe_post as _safe_post
+    je = await _safe_post(db, vu.vendor_id, "asset", asset.id, {
+        "cost": Decimal(str(asset.purchase_cost)),
+        "narration": f"Asset Acquisition: {asset.name}",
+        "store_id": asset.store_id,
+        **cat_accounts,
+    }, created_by_id=vu.id)
     await db.commit()
-    return _d(asset)
+    out = _d(asset)
+    out["gl_posted"] = je is not None
+    if je is None:
+        out["gl_warning"] = "Asset saved but the GL entry is pending — see Finance > Posting failures."
+    return out
 
 
 @router.post("/assets/from-bill", status_code=201)
@@ -2061,29 +2360,27 @@ async def create_maintenance(
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
 
-    cost = float(m.cost or 0)
+    cost = Decimal(str(m.cost or 0))
     if cost > 0:
-        # GL posting is best-effort — the maintenance record must persist even if posting fails.
-        try:
-            async with db.begin_nested():
-                if capitalize:
-                    asset.purchase_cost = float(asset.purchase_cost or 0) + cost
-                    asset.current_value = float(asset.current_value or 0) + cost
-                    cat_accounts = await repo.get_category_accounts(asset)
-                    je = await post_event(db, vu.vendor_id, "asset", m.id, {
-                        "cost": cost,
-                        "narration": f"Capitalized Maintenance: {asset.name}",
-                        **cat_accounts,
-                    }, created_by_id=vu.id)
-                else:
-                    je = await post_event(db, vu.vendor_id, "expense", m.id, {
-                        "amount": cost,
-                        "narration": f"Asset Maintenance: {asset.name}",
-                    }, created_by_id=vu.id)
-                if je:
-                    m.journal_entry_id = je.id
-        except Exception:
-            log.exception("Maintenance GL posting failed for maintenance %s", m.id)
+        # The maintenance record persists even if posting fails; failures are queued, not swallowed.
+        from app.services.finance.safe_posting import safe_post as _safe_post
+        if capitalize:
+            cat_accounts = await repo.get_category_accounts(asset)
+            je = await _safe_post(db, vu.vendor_id, "asset", m.id, {
+                "cost": cost,
+                "narration": f"Capitalized Maintenance: {asset.name}",
+                **cat_accounts,
+            }, created_by_id=vu.id)
+            if je:  # only grow the register when the ledger actually took the cost
+                asset.purchase_cost = Decimal(str(asset.purchase_cost or 0)) + cost
+                asset.current_value = Decimal(str(asset.current_value or 0)) + cost
+        else:
+            je = await _safe_post(db, vu.vendor_id, "expense", m.id, {
+                "amount": cost,
+                "narration": f"Asset Maintenance: {asset.name}",
+            }, created_by_id=vu.id)
+        if je:
+            m.journal_entry_id = je.id
     await db.commit()
     return _d(m)
 
@@ -2213,8 +2510,20 @@ async def run_depreciation(
     amount = await repo.calculate_depreciation(asset, units=Decimal(str(units)) if units is not None else None)
     if amount <= 0:
         raise HTTPException(400, "Calculated depreciation is zero — check useful life / capacity settings")
+    if asset.depreciation_method != "units_of_production":
+        from app.models.finance import FinAssetDepreciationEntry as _DepE
+        _month_start = date.today().replace(day=1)
+        already = (await db.execute(
+            select(_DepE.id).where(
+                _DepE.asset_id == asset.id, _DepE.depreciation_date >= _month_start,
+            ).limit(1)
+        )).first()
+        if already:
+            raise HTTPException(400, "Depreciation has already been run for this asset this month.")
     cat_accounts = await repo.get_category_accounts(asset)
-    je = await post_event(db, vu.vendor_id, "depreciation", asset.id, {
+    # One GL entry per depreciation run: a fixed (type, asset.id) key would make each
+    # run supersede the previous period's entry.
+    je = await post_event(db, vu.vendor_id, "depreciation", __import__("uuid").uuid4(), {
         "amount": float(amount),
         "narration": f"Depreciation: {asset.name}",
         **cat_accounts,
@@ -2242,9 +2551,9 @@ async def dispose_asset(
     cat_accounts = await repo.get_category_accounts(asset)
     method = body.get("disposal_method", "scrapped")
     je = await post_event(db, vu.vendor_id, "disposal", asset.id, {
-        "purchase_cost": float(asset.purchase_cost or 0),
-        "accum_dep": float(asset.accumulated_depreciation or 0),
-        "sale_price": float(body.get("sale_price", 0)),
+        "purchase_cost": Decimal(str(asset.purchase_cost or 0)),
+        "accum_dep": Decimal(str(asset.accumulated_depreciation or 0)),
+        "sale_price": Decimal(str(body.get("sale_price") or 0)),
         "narration": f"Asset Disposal ({method}): {asset.name}",
         **cat_accounts,
     }, created_by_id=vu.id)
@@ -2277,11 +2586,11 @@ async def list_tax_codes(
 
 @router.post("/tax/codes", status_code=201)
 async def create_tax_code(
-    body: dict,
+    body: TaxCodeCreate,
     vu: VendorUser = Depends(require_permission("finance.tax.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    tc = await FinTaxRepo(db).create_tax_code(vu.vendor_id, body)
+    tc = await FinTaxRepo(db).create_tax_code(vu.vendor_id, body.model_dump(exclude_none=True))
     await db.commit()
     return _d(tc)
 
@@ -2289,7 +2598,7 @@ async def create_tax_code(
 @router.put("/tax/codes/{tc_id}")
 async def update_tax_code(
     tc_id: UUID,
-    body: dict,
+    body: TaxCodeUpdate,
     vu: VendorUser = Depends(require_permission("finance.tax.manage")),
     db: AsyncSession = Depends(get_db),
 ):
@@ -2297,7 +2606,7 @@ async def update_tax_code(
     tc = await repo.get_tax_code(tc_id, vu.vendor_id)
     if not tc:
         raise HTTPException(404, "Tax code not found")
-    tc = await repo.update_tax_code(tc, body)
+    tc = await repo.update_tax_code(tc, body.model_dump(exclude_none=True))
     await db.commit()
     return _d(tc)
 
@@ -2333,7 +2642,12 @@ async def create_tax_return(
     vu: VendorUser = Depends(require_permission("finance.tax.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    tr = await FinTaxRepo(db).create_return(vu.vendor_id, body)
+    data = coerce_body(FinTaxReturn, body, "create",
+                       protect=("status", "computed_json", "total_tax_liability", "total_itc",
+                                "net_payable", "filing_reference", "filed_at", "filed_by_id"))
+    if data["period_end"] < data["period_start"]:
+        raise HTTPException(422, "period_end must not be before period_start")
+    tr = await FinTaxRepo(db).create_return(vu.vendor_id, data)
     await db.commit()
     return _d(tr)
 
@@ -2350,16 +2664,158 @@ async def compute_tax_return(
         raise HTTPException(404, "Tax return not found")
     if tr.return_type in ("GSTR1",):
         computed = await repo.compute_gstr1(vu.vendor_id, tr.period_start, tr.period_end)
+        update_data = {
+            "status": "computed",
+            "computed_json": computed,
+            "total_tax_liability": computed.get("net_tax", computed.get("total_tax", 0)),
+            "net_payable": computed.get("net_tax", computed.get("total_tax", 0)),
+        }
     elif tr.return_type in ("GSTR3B",):
         computed = await repo.compute_gstr3b(vu.vendor_id, tr.period_start, tr.period_end)
+        update_data = {
+            "status": "computed",
+            "computed_json": computed,
+            "total_tax_liability": computed.get("total_outward_tax", 0),
+            "total_itc": computed.get("itc_total", 0),
+            "net_payable": computed.get("total_net_payable", 0),
+        }
     else:
         computed = {"note": "Manual computation required for this return type"}
-    tr = await repo.update_return(tr, {"status": "computed", "computed_json": computed,
-                                       "total_tax_liability": computed.get("outward_tax_liability", 0),
-                                       "total_itc": computed.get("inward_itc", 0),
-                                       "net_payable": computed.get("net_payable", 0)})
+        update_data = {"status": "computed", "computed_json": computed}
+    tr = await repo.update_return(tr, update_data)
     await db.commit()
     return {"computed": computed}
+
+
+@router.get("/tax/returns/{tr_id}/gstr1-json")
+async def download_gstr1_json(
+    tr_id: UUID,
+    vu: VendorUser = Depends(require_permission("finance.tax.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Download GSTR-1 in GSTN-compatible JSON format.
+    The return must be in 'computed' or 'filed' status.
+    """
+    import json as _json
+    repo = FinTaxRepo(db)
+    tr = await repo.get_return(tr_id, vu.vendor_id)
+    if not tr:
+        raise HTTPException(404, "Tax return not found")
+    if tr.return_type != "GSTR1":
+        raise HTTPException(400, "This endpoint is only for GSTR-1 returns.")
+    if tr.status not in ("computed", "filed"):
+        raise HTTPException(400, "Compute the return before downloading. Current status: " + tr.status)
+    computed = tr.computed_json or {}
+    vendor = await db.get(Vendor, vu.vendor_id)
+    gstin = (getattr(vendor, "gstin", "") or computed.get("supplier_gstin") or "").strip()
+    if not gstin:
+        raise HTTPException(400, "Set your GSTIN in the business profile before exporting GSTR-1.")
+    from app.services.finance.gst import build_gstr1_json
+    gstn_json = build_gstr1_json(gstin, tr.period_start, computed)
+    content = _json.dumps(gstn_json, default=str, indent=2)
+    return Response(
+        content=content,
+        media_type="application/json",
+        headers={"Content-Disposition": f'attachment; filename="GSTR1_{tr.period_start}_{tr.period_end}.json"'},
+    )
+
+
+@router.get("/tax/tds-report")
+async def tds_report(
+    from_date: date = Query(...),
+    to_date: date = Query(...),
+    vu: VendorUser = Depends(require_permission("finance.tax.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    TDS / TCS summary report for the period.
+    Aggregates TDS deducted from:
+      - Payroll (salary TDS via _handle_payroll)
+      - Vendor payments (TDS on services/contracts)
+    Returns section-wise breakdowns for TDS returns (Form 26Q / 24Q).
+    """
+    from app.models.finance import FinJournalLine as _JL, FinJournalEntry as _JE, FinAccount as _FA
+    # Find TDS Payable accounts for this vendor
+    tds_accs_r = await db.execute(
+        select(FinAccount).where(
+            FinAccount.vendor_id == vu.vendor_id,
+            or_(
+                FinAccount.name.ilike("%tds payable%"),
+                FinAccount.name.ilike("%tds%"),
+            ),
+            FinAccount.account_type == "Liability",
+        )
+    )
+    tds_acc_ids = [a.id for a in tds_accs_r.scalars().all()]
+    if not tds_acc_ids:
+        return {
+            "period": f"{from_date} to {to_date}",
+            "total_tds_deducted": 0,
+            "by_source": [],
+            "note": "No TDS Payable accounts found. Configure TDS accounts in Chart of Accounts.",
+        }
+
+    r = await db.execute(
+        select(
+            FinJournalEntry.source_type,
+            func.coalesce(func.sum(FinJournalLine.credit), 0).label("tds_credited"),
+            func.coalesce(func.sum(FinJournalLine.debit), 0).label("tds_deposited"),
+        )
+        .join(FinJournalLine, FinJournalLine.journal_entry_id == FinJournalEntry.id)
+        .where(
+            FinJournalEntry.vendor_id == vu.vendor_id,
+            FinJournalEntry.status == "posted",
+            FinJournalEntry.entry_date >= from_date,
+            FinJournalEntry.entry_date <= to_date,
+            FinJournalLine.account_id.in_(tds_acc_ids),
+        )
+        .group_by(FinJournalEntry.source_type)
+    )
+    rows = r.mappings().all()
+    by_source = [
+        {"source": row["source_type"], "tds_deducted": float(row["tds_credited"]),
+         "tds_deposited": float(row["tds_deposited"])}
+        for row in rows
+    ]
+    total = sum(x["tds_deducted"] for x in by_source)
+    deposited = sum(x["tds_deposited"] for x in by_source)
+
+    # Section-wise (Form 26Q): from supplier bills that recorded a TDS section
+    sec_rows = (await db.execute(
+        select(
+            FinVendorBill.tds_section,
+            func.count(FinVendorBill.id).label("bills"),
+            func.coalesce(func.sum(FinVendorBill.subtotal), 0).label("base"),
+            func.coalesce(func.sum(FinVendorBill.tds_amount), 0).label("tds"),
+        ).where(
+            FinVendorBill.vendor_id == vu.vendor_id,
+            FinVendorBill.tds_section.isnot(None),
+            FinVendorBill.tds_amount > 0,
+            FinVendorBill.bill_date >= from_date,
+            FinVendorBill.bill_date <= to_date,
+            FinVendorBill.status.in_(["open", "partially_paid", "paid"]),
+            FinVendorBill.journal_entry_id.isnot(None),
+        ).group_by(FinVendorBill.tds_section).order_by(FinVendorBill.tds_section)
+    )).mappings().all()
+    by_section = [
+        {"section": r_["tds_section"], "bills": int(r_["bills"]),
+         "amount_paid_or_credited": float(r_["base"]), "tds_deducted": float(r_["tds"])}
+        for r_ in sec_rows
+    ]
+    section_total = sum(x["tds_deducted"] for x in by_section)
+    payroll_tds = next((x["tds_deducted"] for x in by_source if x["source"] == "payroll"), 0.0)
+    return {
+        "period": f"{from_date} to {to_date}",
+        "total_tds_deducted": round(total, 2),
+        "total_tds_deposited": round(deposited, 2),
+        "outstanding_to_deposit": round(total - deposited, 2),
+        "by_source": by_source,
+        "by_section": by_section + (
+            [{"section": "192", "bills": None, "amount_paid_or_credited": None,
+              "tds_deducted": round(payroll_tds, 2)}] if payroll_tds else []),
+        "unclassified": round(total - section_total - payroll_tds, 2),
+    }
 
 
 @router.post("/tax/returns/{tr_id}/file")
@@ -2372,13 +2828,20 @@ async def file_tax_return(
     tr = await repo.get_return(tr_id, vu.vendor_id)
     if not tr:
         raise HTTPException(404, "Tax return not found")
+    from datetime import timezone as _tz
+    if tr.status == "filed":
+        raise HTTPException(400, "Return is already filed")
+    if tr.status != "computed":
+        raise HTTPException(400, "Compute the return before filing it")
+    ref = str(body.get("filing_reference") or "").strip()[:100] or None
     tr = await repo.update_return(tr, {
         "status": "filed",
-        "filing_reference": body.get("filing_reference"),
-        "filed_at": datetime.utcnow(),
+        "filing_reference": ref,
+        "filed_at": datetime.now(_tz.utc),
         "filed_by_id": vu.id,
     })
     await db.commit()
+    await db.refresh(tr)   # server-side onupdate columns are expired after flush
     return _d(tr)
 
 
@@ -2390,19 +2853,23 @@ async def file_tax_return(
 async def profit_loss(
     from_date: date = Query(...),
     to_date: date = Query(...),
+    company_id: Optional[UUID] = Query(default=None),
     vu: VendorUser = Depends(require_permission("finance.reports.view")),
     db: AsyncSession = Depends(get_db),
 ):
-    return await FinReportRepo(db).profit_and_loss(vu.vendor_id, from_date, to_date)
+    return await FinReportRepo(db).profit_and_loss(
+        vu.vendor_id, from_date, to_date, company_id=company_id)
 
 
 @router.get("/reports/balance-sheet")
 async def balance_sheet(
     as_of: date = Query(default=None),
+    company_id: Optional[UUID] = Query(default=None),
     vu: VendorUser = Depends(require_permission("finance.reports.view")),
     db: AsyncSession = Depends(get_db),
 ):
-    return await FinReportRepo(db).balance_sheet(vu.vendor_id, as_of or date.today())
+    return await FinReportRepo(db).balance_sheet(
+        vu.vendor_id, as_of or date.today(), company_id=company_id)
 
 
 @router.get("/reports/cash-flow")
@@ -2479,13 +2946,18 @@ async def create_loan(
     db: AsyncSession = Depends(get_db),
 ):
     repo = FinCapitalRepo(db)
-    loan = await repo.create_loan(vu.vendor_id, body)
+    data = coerce_body(FinLoan, {k: v for k, v in body.items() if k != "generate_schedule"}, "create",
+                       protect=("outstanding_balance", "status"))
+    if data["principal"] <= 0:
+        raise HTTPException(422, "principal must be greater than zero")
+    await _assert_tenant_rows(db, vu.vendor_id, FinAccount, [data.get("gl_account_id")], "GL account")
+    loan = await repo.create_loan(vu.vendor_id, data)
     if body.get("generate_schedule"):
         await repo.generate_schedule(loan)
     # Post GL for disbursement
     await post_event(db, vu.vendor_id, "loan", loan.id, {
         "event": "disbursement",
-        "principal": float(loan.principal),
+        "principal": loan.principal,
         "loan_account_id": str(loan.gl_account_id) if loan.gl_account_id else None,
         "narration": f"Loan Disbursement: {loan.name}",
     }, created_by_id=vu.id)
@@ -2538,7 +3010,11 @@ async def create_investment(
     vu: VendorUser = Depends(require_permission("finance.capital.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    inv = await FinCapitalRepo(db).create_investment(vu.vendor_id, body)
+    data = coerce_body(FinInvestment, body, "create", protect=("current_value", "realized_gain_loss", "status"))
+    if data["amount_invested"] <= 0:
+        raise HTTPException(422, "amount_invested must be greater than zero")
+    await _assert_tenant_rows(db, vu.vendor_id, FinAccount, [data.get("gl_account_id")], "GL account")
+    inv = await FinCapitalRepo(db).create_investment(vu.vendor_id, data)
     await db.commit()
     return _d(inv)
 
@@ -2549,7 +3025,9 @@ async def add_valuation(
     vu: VendorUser = Depends(require_permission("finance.capital.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    val = await FinCapitalRepo(db).add_valuation(vu.vendor_id, inv_id, body)
+    data = coerce_body(FinInvestmentValuation, body, "create", exempt=("investment_id",),
+                       protect=("investment_id",))
+    val = await FinCapitalRepo(db).add_valuation(vu.vendor_id, inv_id, data)
     await db.commit()
     return _d(val)
 
@@ -2591,7 +3069,7 @@ async def create_policy(
     vu: VendorUser = Depends(require_permission("finance.controls.manage")),
     db: AsyncSession = Depends(get_db),
 ):
-    p = await FinControlsRepo(db).create_policy(vu.vendor_id, body)
+    p = await FinControlsRepo(db).create_policy(vu.vendor_id, coerce_body(FinApprovalPolicy, body, "create"))
     await db.commit()
     return _d(p)
 
@@ -2607,21 +3085,36 @@ async def list_approvals(
     return [_d(r) for r in requests]
 
 
+class ApprovalRequestCreate(BaseModel):
+    entity_type: str
+    entity_id: UUID
+    policy_id: Optional[UUID] = None
+    notes: Optional[str] = None
+
+
+class ApprovalActionBody(BaseModel):
+    step: int = 1
+    comments: Optional[str] = None
+
+
 @router.post("/controls/approvals", status_code=201)
 async def create_approval_request(
-    body: dict,
+    body: ApprovalRequestCreate,
     vu: VendorUser = Depends(require_permission("finance.view")),
     db: AsyncSession = Depends(get_db),
 ):
-    body["requested_by_id"] = str(vu.id)
-    req = await FinControlsRepo(db).create_request(vu.vendor_id, body)
+    data = body.model_dump(exclude_none=True)
+    data["requested_by_id"] = str(vu.id)
+    # Prevent callers from injecting status directly
+    data.pop("status", None)
+    req = await FinControlsRepo(db).create_request(vu.vendor_id, data)
     await db.commit()
     return _d(req)
 
 
 @router.post("/controls/approvals/{req_id}/approve")
 async def approve_request(
-    req_id: UUID, body: dict,
+    req_id: UUID, body: ApprovalActionBody = ApprovalActionBody(),
     vu: VendorUser = Depends(require_permission("finance.controls.approve")),
     db: AsyncSession = Depends(get_db),
 ):
@@ -2630,15 +3123,17 @@ async def approve_request(
     req = next((r for r in requests if r.id == req_id), None)
     if not req:
         raise HTTPException(404, "Approval request not found")
-    req = await repo.action_step(req, body.get("step", 1), vu.id, "approved",
-                                  body.get("comments"))
+    # Block self-approval
+    if req.requested_by_id and str(req.requested_by_id) == str(vu.id):
+        raise HTTPException(400, "You cannot approve your own approval request.")
+    req = await repo.action_step(req, body.step, vu.id, "approved", body.comments)
     await db.commit()
     return _d(req)
 
 
 @router.post("/controls/approvals/{req_id}/reject")
 async def reject_request(
-    req_id: UUID, body: dict,
+    req_id: UUID, body: ApprovalActionBody = ApprovalActionBody(),
     vu: VendorUser = Depends(require_permission("finance.controls.approve")),
     db: AsyncSession = Depends(get_db),
 ):
@@ -2647,8 +3142,10 @@ async def reject_request(
     req = next((r for r in requests if r.id == req_id), None)
     if not req:
         raise HTTPException(404, "Approval request not found")
-    req = await repo.action_step(req, body.get("step", 1), vu.id, "rejected",
-                                  body.get("comments"))
+    # Block self-rejection (same logic — prevents approval-bypass attacks)
+    if req.requested_by_id and str(req.requested_by_id) == str(vu.id):
+        raise HTTPException(400, "You cannot reject your own approval request.")
+    req = await repo.action_step(req, body.step, vu.id, "rejected", body.comments)
     await db.commit()
     return _d(req)
 
@@ -2699,7 +3196,7 @@ async def list_basic_transactions(
     txn_type: Optional[str] = None,
     skip: int = 0,
     limit: int = Query(200, le=500),
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.view")),
     db: AsyncSession = Depends(get_db),
 ):
     q = select(FinBasicTransaction).where(
@@ -2716,7 +3213,7 @@ async def list_basic_transactions(
 @router.post("/basic-transactions", status_code=201)
 async def create_basic_transaction(
     body: BasicTxnCreate,
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.journal.create")),
     db: AsyncSession = Depends(get_db),
 ):
     txn = FinBasicTransaction(
@@ -2739,7 +3236,7 @@ async def create_basic_transaction(
 async def update_basic_transaction(
     txn_id: UUID,
     body: BasicTxnUpdate,
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.journal.create")),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
@@ -2761,7 +3258,7 @@ async def update_basic_transaction(
 @router.delete("/basic-transactions/{txn_id}", status_code=204)
 async def delete_basic_transaction(
     txn_id: UUID,
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.journal.post")),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
@@ -2807,7 +3304,7 @@ class PostingKeyOut(PostingKeyCreate):
 
 @router.post("/posting-keys/seed", status_code=201)
 async def seed_posting_keys(
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
     await seed_default_posting_keys(db, vu.vendor_id)
@@ -2817,7 +3314,7 @@ async def seed_posting_keys(
 
 @router.get("/posting-keys")
 async def list_posting_keys(
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.view")),
     db: AsyncSession = Depends(get_db),
 ):
     rows = (await db.execute(
@@ -2831,7 +3328,7 @@ async def list_posting_keys(
 @router.post("/posting-keys", status_code=201)
 async def create_posting_key(
     body: PostingKeyCreate,
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
     pk = FinPostingKey(vendor_id=vu.vendor_id, **body.model_dump())
@@ -2844,7 +3341,7 @@ async def create_posting_key(
 @router.delete("/posting-keys/{pk_id}", status_code=204)
 async def delete_posting_key(
     pk_id: UUID,
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
     pk = (await db.execute(
@@ -2883,7 +3380,7 @@ class FieldStatusGroupOut(BaseModel):
 
 @router.post("/field-status-groups/seed", status_code=201)
 async def seed_fsg(
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
     mapping = await seed_default_field_status_groups(db, vu.vendor_id)
@@ -2893,7 +3390,7 @@ async def seed_fsg(
 
 @router.get("/field-status-groups")
 async def list_fsg(
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.view")),
     db: AsyncSession = Depends(get_db),
 ):
     rows = (await db.execute(
@@ -2919,7 +3416,7 @@ async def list_fsg(
 @router.post("/field-status-groups", status_code=201)
 async def create_fsg(
     body: FieldStatusGroupCreate,
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
     g = FinFieldStatusGroup(vendor_id=vu.vendor_id, code=body.code, name=body.name)
@@ -2935,7 +3432,7 @@ async def create_fsg(
 @router.delete("/field-status-groups/{group_id}", status_code=204)
 async def delete_fsg(
     group_id: UUID,
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
     g = (await db.execute(
@@ -2976,7 +3473,7 @@ class ToleranceGroupOut(ToleranceGroupCreate):
 
 @router.post("/tolerance-groups/seed", status_code=201)
 async def seed_tolerance_group(
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
     gid = await seed_default_tolerance_group(db, vu.vendor_id)
@@ -2986,7 +3483,7 @@ async def seed_tolerance_group(
 
 @router.get("/tolerance-groups")
 async def list_tolerance_groups(
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.view")),
     db: AsyncSession = Depends(get_db),
 ):
     rows = (await db.execute(
@@ -3000,7 +3497,7 @@ async def list_tolerance_groups(
 @router.post("/tolerance-groups", status_code=201)
 async def create_tolerance_group(
     body: ToleranceGroupCreate,
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
     tg = FinToleranceGroup(vendor_id=vu.vendor_id, **body.model_dump())
@@ -3014,7 +3511,7 @@ async def create_tolerance_group(
 async def update_tolerance_group(
     tg_id: UUID,
     body: ToleranceGroupCreate,
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
     tg = (await db.execute(
@@ -3035,7 +3532,7 @@ async def update_tolerance_group(
 @router.delete("/tolerance-groups/{tg_id}", status_code=204)
 async def delete_tolerance_group(
     tg_id: UUID,
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
     tg = (await db.execute(
@@ -3092,7 +3589,7 @@ class SegmentOut(SegmentCreate):
 
 @router.get("/profit-centers")
 async def list_profit_centers(
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.view")),
     db: AsyncSession = Depends(get_db),
 ):
     pcs = await _pcs.list_profit_centers(db, vu.vendor_id)
@@ -3102,7 +3599,7 @@ async def list_profit_centers(
 @router.post("/profit-centers", status_code=201)
 async def create_profit_center(
     body: ProfitCenterCreate,
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
     pc = await _pcs.create_profit_center(db, vu.vendor_id, **body.model_dump())
@@ -3115,7 +3612,7 @@ async def create_profit_center(
 async def update_profit_center(
     pc_id: UUID,
     body: ProfitCenterCreate,
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
     try:
@@ -3130,7 +3627,7 @@ async def update_profit_center(
 @router.delete("/profit-centers/{pc_id}", status_code=204)
 async def delete_profit_center(
     pc_id: UUID,
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
     try:
@@ -3144,7 +3641,7 @@ async def delete_profit_center(
 async def profit_center_pnl(
     from_date: date = Query(...),
     to_date: date = Query(...),
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.reports.view")),
     db: AsyncSession = Depends(get_db),
 ):
     return await _pcs.pnl_by_profit_center(db, vu.vendor_id, from_date, to_date)
@@ -3154,7 +3651,7 @@ async def profit_center_pnl(
 
 @router.get("/segments")
 async def list_segments(
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.view")),
     db: AsyncSession = Depends(get_db),
 ):
     segs = await _pcs.list_segments(db, vu.vendor_id)
@@ -3164,7 +3661,7 @@ async def list_segments(
 @router.post("/segments", status_code=201)
 async def create_segment(
     body: SegmentCreate,
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
     seg = await _pcs.create_segment(db, vu.vendor_id, **body.model_dump())
@@ -3176,7 +3673,7 @@ async def create_segment(
 @router.delete("/segments/{seg_id}", status_code=204)
 async def delete_segment(
     seg_id: UUID,
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
     try:
@@ -3190,7 +3687,7 @@ async def delete_segment(
 async def segment_pnl(
     from_date: date = Query(...),
     to_date: date = Query(...),
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.reports.view")),
     db: AsyncSession = Depends(get_db),
 ):
     return await _pcs.pnl_by_segment(db, vu.vendor_id, from_date, to_date)
@@ -3227,7 +3724,7 @@ class CarryForwardCreate(BaseModel):
 @router.post("/fx/rates", status_code=201)
 async def upsert_exchange_rate(
     body: ExchangeRateUpsert,
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
     er = await _fx.upsert_exchange_rate(
@@ -3247,7 +3744,7 @@ async def upsert_exchange_rate(
 async def list_exchange_rates(
     from_currency: Optional[str] = None,
     to_currency: Optional[str] = None,
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.view")),
     db: AsyncSession = Depends(get_db),
 ):
     from app.models.finance import FinExchangeRate
@@ -3271,7 +3768,7 @@ async def list_exchange_rates(
 @router.post("/fx/reval/simulate", status_code=201)
 async def simulate_fx_reval(
     body: FxRevalRunCreate,
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
     try:
@@ -3290,9 +3787,36 @@ async def simulate_fx_reval(
         raise HTTPException(400, str(e))
 
 
+@router.post("/fx/reval/{reval_run_id}/post", status_code=201)
+async def post_fx_reval(
+    reval_run_id: UUID,
+    vu: VendorUser = Depends(require_permission("finance.journal.post")),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Post a simulated FX revaluation run, creating the GL adjustment journal entry.
+    The run must be in 'simulated' status. After posting the status becomes 'posted'.
+    """
+    try:
+        run = await _fx.post_fx_reval(db, vu.vendor_id, reval_run_id, posted_by_id=vu.id)
+        await db.commit()
+        return {
+            "id": str(run.id),
+            "currency": run.currency,
+            "run_date": str(run.run_date),
+            "rate_used": str(run.rate_used),
+            "total_gain": str(run.total_gain),
+            "total_loss": str(run.total_loss),
+            "status": run.status,
+            "journal_entry_id": str(run.journal_entry_id) if run.journal_entry_id else None,
+        }
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
 @router.get("/fx/reval")
 async def list_reval_runs(
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.view")),
     db: AsyncSession = Depends(get_db),
 ):
     runs = await _fx.list_reval_runs(db, vu.vendor_id)
@@ -3310,7 +3834,7 @@ async def list_reval_runs(
 @router.post("/fx/carry-forward", status_code=201)
 async def run_carry_forward(
     body: CarryForwardCreate,
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
     results = await _fx.run_balance_carry_forward(
@@ -3323,7 +3847,7 @@ async def run_carry_forward(
 @router.get("/fx/carry-forward")
 async def list_carry_forwards(
     fiscal_year: Optional[int] = None,
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.view")),
     db: AsyncSession = Depends(get_db),
 ):
     cfs = await _fx.list_carry_forwards(db, vu.vendor_id, fiscal_year)
@@ -3368,7 +3892,7 @@ class ValidationRuleOut(ValidationRuleCreate):
 
 @router.get("/validations")
 async def list_validations(
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.controls.manage")),
     db: AsyncSession = Depends(get_db),
 ):
     rules = await _rules_svc.list_validation_rules(db, vu.vendor_id)
@@ -3378,7 +3902,7 @@ async def list_validations(
 @router.post("/validations", status_code=201)
 async def create_validation(
     body: ValidationRuleCreate,
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.controls.manage")),
     db: AsyncSession = Depends(get_db),
 ):
     rule = await _rules_svc.create_validation_rule(db, vu.vendor_id, **body.model_dump())
@@ -3391,7 +3915,7 @@ async def create_validation(
 async def update_validation(
     rule_id: UUID,
     body: ValidationRuleCreate,
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.controls.manage")),
     db: AsyncSession = Depends(get_db),
 ):
     try:
@@ -3406,7 +3930,7 @@ async def update_validation(
 @router.delete("/validations/{rule_id}", status_code=204)
 async def delete_validation(
     rule_id: UUID,
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.controls.manage")),
     db: AsyncSession = Depends(get_db),
 ):
     try:
@@ -3438,7 +3962,7 @@ class SubstitutionRuleOut(SubstitutionRuleCreate):
 
 @router.get("/substitutions")
 async def list_substitutions(
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.controls.manage")),
     db: AsyncSession = Depends(get_db),
 ):
     rules = await _rules_svc.list_substitution_rules(db, vu.vendor_id)
@@ -3448,7 +3972,7 @@ async def list_substitutions(
 @router.post("/substitutions", status_code=201)
 async def create_substitution(
     body: SubstitutionRuleCreate,
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.controls.manage")),
     db: AsyncSession = Depends(get_db),
 ):
     rule = await _rules_svc.create_substitution_rule(db, vu.vendor_id, **body.model_dump())
@@ -3460,7 +3984,7 @@ async def create_substitution(
 @router.delete("/substitutions/{rule_id}", status_code=204)
 async def delete_substitution(
     rule_id: UUID,
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.controls.manage")),
     db: AsyncSession = Depends(get_db),
 ):
     try:
@@ -3492,7 +4016,7 @@ class NumberRangeOut(NumberRangeCreate):
 @router.post("/number-ranges/seed", status_code=201)
 async def seed_number_ranges(
     fiscal_year: int = Query(...),
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
     created = await _rules_svc.seed_default_number_ranges(db, vu.vendor_id, fiscal_year)
@@ -3502,7 +4026,7 @@ async def seed_number_ranges(
 
 @router.get("/number-ranges")
 async def list_number_ranges(
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.view")),
     db: AsyncSession = Depends(get_db),
 ):
     nrs = await _rules_svc.list_number_ranges(db, vu.vendor_id)
@@ -3512,7 +4036,7 @@ async def list_number_ranges(
 @router.post("/number-ranges", status_code=201)
 async def create_number_range(
     body: NumberRangeCreate,
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
     nr = FinNumberRange(
@@ -3555,7 +4079,7 @@ class SplitRuleOut(BaseModel):
 
 @router.get("/split-rules")
 async def list_split_rules(
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.view")),
     db: AsyncSession = Depends(get_db),
 ):
     rules = await _spl.list_split_rules(db, vu.vendor_id)
@@ -3572,7 +4096,7 @@ async def list_split_rules(
 @router.post("/split-rules", status_code=201)
 async def create_split_rule(
     body: SplitRuleCreate,
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
     rule = await _spl.create_split_rule(
@@ -3591,7 +4115,7 @@ async def create_split_rule(
 @router.delete("/split-rules/{rule_id}", status_code=204)
 async def delete_split_rule(
     rule_id: UUID,
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
     try:
@@ -3604,10 +4128,17 @@ async def delete_split_rule(
 @router.post("/split-rules/apply/{journal_entry_id}", status_code=201)
 async def apply_split_to_entry(
     journal_entry_id: UUID,
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.journal.post")),
     db: AsyncSession = Depends(get_db),
 ):
     """Manually trigger splitting for an existing journal entry."""
+    # Verify the journal entry belongs to this vendor before splitting
+    from app.models.finance import FinJournalEntry as _FJE
+    je = (await db.execute(
+        select(_FJE).where(_FJE.id == journal_entry_id, _FJE.vendor_id == vu.vendor_id)
+    )).scalar_one_or_none()
+    if not je:
+        raise HTTPException(404, "Journal entry not found")
     items = await _spl.apply_document_splitting(db, vu.vendor_id, journal_entry_id)
     await db.commit()
     return {"split_items_created": len(items)}
@@ -3616,9 +4147,16 @@ async def apply_split_to_entry(
 @router.get("/split-items/{journal_entry_id}")
 async def get_split_items(
     journal_entry_id: UUID,
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.view")),
     db: AsyncSession = Depends(get_db),
 ):
+    # Verify the journal entry belongs to this vendor
+    from app.models.finance import FinJournalEntry as _FJE
+    je = (await db.execute(
+        select(_FJE).where(_FJE.id == journal_entry_id, _FJE.vendor_id == vu.vendor_id)
+    )).scalar_one_or_none()
+    if not je:
+        raise HTTPException(404, "Journal entry not found")
     items = await _spl.get_split_items(db, journal_entry_id)
     return [
         {
@@ -3674,7 +4212,7 @@ class LedgerLineCreate(BaseModel):
 
 @router.get("/ledgers")
 async def list_ledgers(
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.view")),
     db: AsyncSession = Depends(get_db),
 ):
     ledgers = await _pl.list_ledgers(db, vu.vendor_id)
@@ -3691,7 +4229,7 @@ async def list_ledgers(
 @router.post("/ledgers", status_code=201)
 async def create_ledger(
     body: LedgerCreate,
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
     ledger = await _pl.create_ledger(
@@ -3711,11 +4249,13 @@ async def create_ledger(
 async def update_ledger(
     ledger_id: UUID,
     body: dict,
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
     try:
-        ledger = await _pl.update_ledger(db, ledger_id, vu.vendor_id, **body)
+        allowed = {"name", "description", "is_leading", "currency", "is_active"}
+        ledger = await _pl.update_ledger(
+            db, ledger_id, vu.vendor_id, **{k: v for k, v in body.items() if k in allowed})
         await db.commit()
         await db.refresh(ledger)
         return {
@@ -3730,7 +4270,7 @@ async def update_ledger(
 @router.delete("/ledgers/{ledger_id}", status_code=204)
 async def delete_ledger(
     ledger_id: UUID,
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
     try:
@@ -3744,7 +4284,7 @@ async def delete_ledger(
 async def list_ledger_assignments(
     company_id: UUID | None = None,
     ledger_id: UUID | None = None,
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.view")),
     db: AsyncSession = Depends(get_db),
 ):
     items = await _pl.list_assignments(db, vu.vendor_id, company_id=company_id, ledger_id=ledger_id)
@@ -3760,7 +4300,7 @@ async def list_ledger_assignments(
 @router.post("/ledger-assignments", status_code=201)
 async def assign_ledger(
     body: LedgerAssignCreate,
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
     asgn = await _pl.assign_ledger(db, vu.vendor_id, body.ledger_id, body.company_id)
@@ -3772,7 +4312,7 @@ async def assign_ledger(
 @router.delete("/ledger-assignments/{assignment_id}", status_code=204)
 async def remove_ledger_assignment(
     assignment_id: UUID,
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
     try:
@@ -3785,10 +4325,24 @@ async def remove_ledger_assignment(
 @router.post("/ledger-lines", status_code=201)
 async def post_ledger_line(
     body: LedgerLineCreate,
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.journal.post")),
     db: AsyncSession = Depends(get_db),
 ):
     """Post or update a parallel-ledger override line for an existing journal line."""
+    # Verify the journal line belongs to this vendor
+    from app.models.finance import FinJournalLine as _FJL
+    jl = (await db.execute(
+        select(_FJL).where(_FJL.id == body.journal_line_id, _FJL.vendor_id == vu.vendor_id)
+    )).scalar_one_or_none()
+    if not jl:
+        raise HTTPException(404, "Journal line not found")
+    # Verify the ledger belongs to this vendor
+    from app.models.finance import FinLedger as _FLed
+    led = (await db.execute(
+        select(_FLed).where(_FLed.id == body.ledger_id, _FLed.vendor_id == vu.vendor_id)
+    )).scalar_one_or_none()
+    if not led:
+        raise HTTPException(404, "Ledger not found")
     row = await _pl.post_ledger_line(
         db,
         body.journal_line_id,
@@ -3812,9 +4366,21 @@ async def post_ledger_line(
 async def get_ledger_lines(
     journal_entry_id: UUID,
     ledger_id: UUID,
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.view")),
     db: AsyncSession = Depends(get_db),
 ):
+    # Verify both the journal entry and ledger belong to this vendor
+    from app.models.finance import FinJournalEntry as _FJE2, FinLedger as _FLed2
+    je_ok = (await db.execute(
+        select(_FJE2.id).where(_FJE2.id == journal_entry_id, _FJE2.vendor_id == vu.vendor_id)
+    )).scalar_one_or_none()
+    if not je_ok:
+        raise HTTPException(404, "Journal entry not found")
+    led_ok = (await db.execute(
+        select(_FLed2.id).where(_FLed2.id == ledger_id, _FLed2.vendor_id == vu.vendor_id)
+    )).scalar_one_or_none()
+    if not led_ok:
+        raise HTTPException(404, "Ledger not found")
     rows = await _pl.get_ledger_lines(db, journal_entry_id, ledger_id)
     return [
         {
@@ -3831,7 +4397,7 @@ async def get_ledger_lines(
 async def ledger_trial_balance(
     ledger_id: UUID,
     fiscal_year_id: UUID | None = None,
-    vu: VendorUser = Depends(get_current_vendor_user),
+    vu: VendorUser = Depends(require_permission("finance.reports.view")),
     db: AsyncSession = Depends(get_db),
 ):
     try:
@@ -4105,4 +4671,390 @@ async def preview_payment_term(
     }
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# OPENING BALANCE IMPORT  (Phase 10)
+# ─────────────────────────────────────────────────────────────────────────────
 
+class OpeningBalanceLine(BaseModel):
+    account_code: str
+    debit: Decimal = Decimal("0")
+    credit: Decimal = Decimal("0")
+    narration: Optional[str] = None
+
+
+class OpeningBalanceImport(BaseModel):
+    as_of_date: date
+    lines: list[OpeningBalanceLine]
+
+
+@router.post("/opening-balances/import", status_code=201)
+async def import_opening_balances(
+    body: OpeningBalanceImport,
+    vu: VendorUser = Depends(require_permission("finance.journal.post")),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Import opening balances as a single balanced GL journal entry.
+
+    Each line maps an account code to a debit or credit amount.
+    The total debits must equal total credits — if not, an error is returned.
+
+    This creates one journal entry of source_type='opening' dated to as_of_date.
+    Idempotent: re-posting the same opening entry date voids the previous one.
+    """
+    from app.models.finance import FinAccount as _FA
+    from decimal import Decimal as _D
+
+    if not body.lines:
+        raise HTTPException(400, "At least one line is required.")
+
+    total_dr = sum(_D(str(ln.debit)) for ln in body.lines)
+    total_cr = sum(_D(str(ln.credit)) for ln in body.lines)
+    if abs(total_dr - total_cr) > _D("0.01"):
+        raise HTTPException(400,
+            f"Opening balance import is unbalanced: "
+            f"total debit={total_dr} total credit={total_cr}. "
+            "Debits must equal credits."
+        )
+
+    # Resolve all account codes to IDs
+    resolved_lines = []
+    for ln in body.lines:
+        acc_r = await db.execute(
+            select(FinAccount).where(
+                FinAccount.vendor_id == vu.vendor_id,
+                FinAccount.code == ln.account_code.strip(),
+            )
+        )
+        acc = acc_r.scalar_one_or_none()
+        if acc is None:
+            raise HTTPException(400, f"Account code '{ln.account_code}' not found in your Chart of Accounts.")
+        resolved_lines.append({
+            "account_id": acc.id,
+            "debit": float(ln.debit),
+            "credit": float(ln.credit),
+            "narration": ln.narration or f"Opening Balance — {acc.code} {acc.name}",
+        })
+
+    # Post as a manual journal entry dated to as_of_date
+    try:
+        je = await post_event(
+            db,
+            vu.vendor_id,
+            "opening",
+            vu.vendor_id,  # use vendor_id as source_id for the opening entry (idempotent per vendor)
+            {
+                "lines": resolved_lines,
+                "entry_date": body.as_of_date.isoformat(),
+                "narration": f"Opening Balances as of {body.as_of_date}",
+            },
+            created_by_id=vu.id,
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+    if je is None:
+        raise HTTPException(400, "Opening balance import failed — check Chart of Accounts and fiscal period setup.")
+
+    await db.commit()
+    return {
+        "journal_entry_id": str(je.id),
+        "entry_no": je.entry_no,
+        "total_debit": str(je.total_debit),
+        "total_credit": str(je.total_credit),
+        "lines_imported": len(body.lines),
+        "as_of_date": str(body.as_of_date),
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GO-LIVE VALIDATION (Phase 10)
+# Runs a series of pre-go-live checks and returns a readiness report.
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.get("/go-live-check")
+async def go_live_check(
+    vu: VendorUser = Depends(require_permission("finance.audit.view")),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Run a pre-go-live readiness check on the finance module.
+    Returns a list of checks with pass/fail status and remediation advice.
+    """
+    from app.models.finance import (
+        FinAccount, FinFiscalYear, FinPeriod, FinJournalEntry,
+        FinNumberRange, FinVendorBill, FinBankAccount,
+    )
+    from sqlalchemy import func as sqlfunc
+
+    checks = []
+
+    def _check(name: str, ok: bool, detail: str, remedy: str = "") -> dict:
+        return {"check": name, "status": "pass" if ok else "fail", "detail": detail, "remedy": remedy}
+
+    # 1. Chart of Accounts exists
+    coa_count = (await db.execute(
+        select(sqlfunc.count(FinAccount.id)).where(FinAccount.vendor_id == vu.vendor_id)
+    )).scalar() or 0
+    checks.append(_check(
+        "Chart of Accounts",
+        coa_count >= 10,
+        f"{coa_count} accounts in COA.",
+        remedy="Go to Finance → Setup → Chart of Accounts and seed default accounts." if coa_count < 10 else "",
+    ))
+
+    # 2. Open fiscal year
+    fy_r = await db.execute(
+        select(FinFiscalYear).where(
+            FinFiscalYear.vendor_id == vu.vendor_id,
+            FinFiscalYear.status == "open",
+        ).limit(1)
+    )
+    fy = fy_r.scalar_one_or_none()
+    checks.append(_check(
+        "Open Fiscal Year",
+        fy is not None,
+        f"{'Fiscal year ' + fy.name + ' is open.' if fy else 'No open fiscal year found.'}",
+        remedy="" if fy else "Create a fiscal year under Finance → Setup → Fiscal Years.",
+    ))
+
+    # 3. At least one open accounting period
+    period_r = await db.execute(
+        select(FinPeriod).where(
+            FinPeriod.vendor_id == vu.vendor_id,
+            FinPeriod.status == "open",
+        ).limit(1)
+    )
+    period = period_r.scalar_one_or_none()
+    checks.append(_check(
+        "Open Accounting Period",
+        period is not None,
+        "At least one period is open." if period else "No open accounting period.",
+        remedy="" if period else "Open a period under Finance → Setup → Accounting Periods.",
+    ))
+
+    # 4. Opening balances imported
+    ob_r = await db.execute(
+        select(sqlfunc.count(FinJournalEntry.id)).where(
+            FinJournalEntry.vendor_id == vu.vendor_id,
+            FinJournalEntry.source_type == "opening",
+            FinJournalEntry.status == "posted",
+        )
+    )
+    ob_count = ob_r.scalar() or 0
+    checks.append(_check(
+        "Opening Balances",
+        ob_count > 0,
+        f"{ob_count} opening balance journal(s) posted.",
+        remedy="" if ob_count > 0 else "Import opening balances via Finance → Setup → Import Opening Balances.",
+    ))
+
+    # 5. GL is balanced (trial balance check: total Dr == total Cr for all posted entries)
+    tb_r = await db.execute(
+        select(
+            sqlfunc.coalesce(sqlfunc.sum(FinJournalLine.debit), 0).label("dr"),
+            sqlfunc.coalesce(sqlfunc.sum(FinJournalLine.credit), 0).label("cr"),
+        )
+        .join(FinJournalEntry, FinJournalLine.journal_entry_id == FinJournalEntry.id)
+        .where(
+            FinJournalEntry.vendor_id == vu.vendor_id,
+            FinJournalEntry.status == "posted",
+        )
+    )
+    tb_row = tb_r.mappings().one_or_none()
+    dr_total = float(tb_row["dr"] if tb_row else 0)
+    cr_total = float(tb_row["cr"] if tb_row else 0)
+    gl_diff = abs(dr_total - cr_total)
+    checks.append(_check(
+        "GL Trial Balance",
+        gl_diff < 0.01,
+        f"Total Dr={dr_total:.2f} Cr={cr_total:.2f} diff={gl_diff:.4f}.",
+        remedy="" if gl_diff < 0.01 else "Investigate unbalanced entries in Finance → Journal Entries.",
+    ))
+
+    # 6. Number ranges configured
+    nr_r = await db.execute(
+        select(sqlfunc.count(FinNumberRange.id)).where(FinNumberRange.vendor_id == vu.vendor_id)
+    )
+    nr_count = nr_r.scalar() or 0
+    checks.append(_check(
+        "Document Number Ranges",
+        nr_count > 0,
+        f"{nr_count} number range(s) configured.",
+        remedy="" if nr_count > 0 else "Configure number ranges under Finance → Setup → Number Ranges.",
+    ))
+
+    # 7. Bank accounts linked to GL accounts
+    ba_r = await db.execute(
+        select(sqlfunc.count(FinBankAccount.id)).where(
+            FinBankAccount.vendor_id == vu.vendor_id,
+            FinBankAccount.gl_account_id.isnot(None),
+        )
+    )
+    ba_linked = ba_r.scalar() or 0
+    checks.append(_check(
+        "Bank Accounts Linked to GL",
+        ba_linked > 0,
+        f"{ba_linked} bank account(s) linked to GL accounts.",
+        remedy="" if ba_linked > 0 else "Link bank accounts to GL accounts under Finance → Bank → Accounts.",
+    ))
+
+    passed = sum(1 for c in checks if c["status"] == "pass")
+    return {
+        "vendor_id": str(vu.vendor_id),
+        "total_checks": len(checks),
+        "passed": passed,
+        "failed": len(checks) - passed,
+        "ready_for_go_live": passed == len(checks),
+        "checks": checks,
+    }
+
+
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PHASE 12 — Posting completeness: readiness, failure queue, unposted documents
+# ─────────────────────────────────────────────────────────────────────────────
+
+class RepostRequest(BaseModel):
+    doc_type: str = Field(..., pattern="^(invoice|vendor_bill|vendor_payment)$")
+    doc_id: UUID
+
+
+@router.get("/setup/posting-readiness")
+async def posting_readiness_report(
+    vu: VendorUser = Depends(require_permission("finance.audit.view")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Dry-run every posting handler against the tenant's chart of accounts (nothing is written)."""
+    from app.services.finance.safe_posting import posting_readiness
+    items = await posting_readiness(db, vu.vendor_id)
+    return {
+        "ready": all(i["ready"] for i in items),
+        "items": items,
+        "remedy": "Use POST /setup/ensure-accounts to add any missing default accounts.",
+    }
+
+
+@router.post("/setup/ensure-accounts")
+async def ensure_default_accounts_endpoint(
+    vu: VendorUser = Depends(require_permission("finance.controls.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Add any default account that is missing from an existing chart (never duplicates or edits)."""
+    from app.services.finance.coa_seeder import ensure_default_accounts
+    added = await ensure_default_accounts(db, vu.vendor_id)
+    await db.commit()
+    return {"added_codes": added, "count": len(added)}
+
+
+@router.get("/posting-failures")
+async def list_posting_failures(
+    status: str = Query("open", pattern="^(open|resolved|ignored|all)$"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
+    vu: VendorUser = Depends(require_permission("finance.audit.view")),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.models.finance import FinPostingFailure
+    q = select(FinPostingFailure).where(FinPostingFailure.vendor_id == vu.vendor_id)
+    if status != "all":
+        q = q.where(FinPostingFailure.status == status)
+    rows = (await db.execute(
+        q.order_by(FinPostingFailure.created_at.desc()).offset(skip).limit(limit)
+    )).scalars().all()
+    return [
+        {
+            "id": str(r.id), "source_type": r.source_type, "source_id": str(r.source_id),
+            "reference": r.reference, "amount": float(r.amount or 0), "error": r.error,
+            "attempts": r.attempts, "status": r.status,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+            "last_attempt_at": r.last_attempt_at.isoformat() if r.last_attempt_at else None,
+        }
+        for r in rows
+    ]
+
+
+@router.post("/posting-failures/retry-all")
+async def retry_all_posting_failures(
+    vu: VendorUser = Depends(require_permission("finance.journal.post")),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.models.finance import FinPostingFailure
+    from app.services.finance.safe_posting import retry_failure
+    rows = (await db.execute(
+        select(FinPostingFailure).where(
+            FinPostingFailure.vendor_id == vu.vendor_id, FinPostingFailure.status == "open",
+        ).order_by(FinPostingFailure.created_at).limit(200)
+    )).scalars().all()
+    resolved = still_open = 0
+    for r in rows:
+        res = await retry_failure(db, r, created_by_id=vu.id)
+        if res["status"] == "resolved":
+            resolved += 1
+        else:
+            still_open += 1
+    await db.commit()
+    return {"attempted": len(rows), "resolved": resolved, "still_open": still_open}
+
+
+@router.post("/posting-failures/{failure_id}/retry")
+async def retry_posting_failure(
+    failure_id: UUID,
+    vu: VendorUser = Depends(require_permission("finance.journal.post")),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.models.finance import FinPostingFailure
+    from app.services.finance.safe_posting import retry_failure
+    row = (await db.execute(select(FinPostingFailure).where(
+        FinPostingFailure.id == failure_id, FinPostingFailure.vendor_id == vu.vendor_id,
+    ))).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(404, "Posting failure not found")
+    res = await retry_failure(db, row, created_by_id=vu.id)
+    await db.commit()
+    return res
+
+
+@router.post("/posting-failures/{failure_id}/ignore")
+async def ignore_posting_failure(
+    failure_id: UUID,
+    vu: VendorUser = Depends(require_permission("finance.controls.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Mark a failure as intentionally not posted (kept for audit)."""
+    from app.models.finance import FinPostingFailure
+    row = (await db.execute(select(FinPostingFailure).where(
+        FinPostingFailure.id == failure_id, FinPostingFailure.vendor_id == vu.vendor_id,
+    ))).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(404, "Posting failure not found")
+    row.status = "ignored"
+    await db.commit()
+    return {"status": "ignored"}
+
+
+@router.get("/posting/unposted")
+async def unposted_documents(
+    from_date: Optional[date] = None,
+    vu: VendorUser = Depends(require_permission("finance.audit.view")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Invoices, vendor bills and vendor payments that have no live journal entry."""
+    from app.services.finance.posting_audit import find_unposted
+    return await find_unposted(db, vu.vendor_id, from_date=from_date)
+
+
+@router.post("/posting/repost")
+async def repost_document_endpoint(
+    body: RepostRequest,
+    vu: VendorUser = Depends(require_permission("finance.journal.post")),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services.finance.posting_audit import repost_document
+    try:
+        res = await repost_document(db, vu.vendor_id, body.doc_type, body.doc_id, created_by_id=vu.id)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    await db.commit()
+    return res

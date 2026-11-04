@@ -35,8 +35,11 @@ def run_depreciation_task(self):
     from app.models.vendor import Vendor
     from app.repositories.finance.finance_repo import FinAssetRepo
     from app.services.finance.posting import post_event
+    from app.services.finance.job_lock import try_job_lock
+    import uuid
 
     async def _run():
+        from app.models.finance import FinAssetDepreciationEntry
         async with AsyncSessionLocal() as db:
             try:
                 r = await db.execute(
@@ -44,24 +47,66 @@ def run_depreciation_task(self):
                 )
                 vendors = r.scalars().all()
                 total_processed = 0
+                today = date.today()
+                # Depreciation period: current calendar month
+                period_start = today.replace(day=1)
                 for vendor in vendors:
                     try:
+                        if not await try_job_lock(db, "depreciation", vendor.id):
+                            log.info("Depreciation already running for vendor %s — skipping", vendor.id)
+                            continue
                         repo = FinAssetRepo(db)
                         assets = await repo.list_assets(vendor.id, status="active")
                         for asset in assets:
+                            # Idempotency guard: skip if already depreciated this month
+                            existing = (await db.execute(
+                                select(FinAssetDepreciationEntry.id).where(
+                                    FinAssetDepreciationEntry.asset_id == asset.id,
+                                    FinAssetDepreciationEntry.depreciation_date >= period_start,
+                                ).limit(1)
+                            )).first()
+                            if existing:
+                                log.debug(
+                                    "Depreciation already run for asset %s in %s — skipping",
+                                    asset.id, period_start,
+                                )
+                                continue
+                            # Check accumulated depreciation has not fully expensed the asset
+                            book_val = asset.current_value or 0
+                            salvage = asset.salvage_value or 0
+                            if float(book_val) <= float(salvage):
+                                log.debug("Asset %s fully depreciated — skipping", asset.id)
+                                continue
                             amount = await repo.calculate_depreciation(asset)
                             if amount > 0:
-                                je = await post_event(db, vendor.id, "depreciation", asset.id, {
-                                    "amount": float(amount),
-                                    "narration": f"Monthly Depreciation: {asset.name}",
-                                })
-                                await repo.record_depreciation(
-                                    vendor.id, asset, amount,
-                                    je_id=je.id if je else None
-                                )
+                                try:
+                                    cat_accounts = await repo.get_category_accounts(asset)
+                                    async with db.begin_nested():
+                                        # One key per asset per month: re-running the job for the
+                                        # same month re-uses it, next month gets a new entry.
+                                        je = await post_event(
+                                            db, vendor.id, "depreciation",
+                                            uuid.uuid5(asset.id, f"dep:{period_start:%Y-%m}"), {
+                                                "amount": float(amount),
+                                                "entry_date": today,
+                                                "narration": f"Monthly Depreciation: {asset.name}",
+                                                **cat_accounts,
+                                            })
+                                        if je is None:
+                                            # No GL accounts configured: do not record a
+                                            # depreciation that has no ledger entry.
+                                            raise ValueError("depreciation accounts not configured")
+                                        await repo.record_depreciation(
+                                            vendor.id, asset, amount,
+                                            period_id=je.period_id, je_id=je.id,
+                                        )
+                                except Exception:
+                                    log.exception("Depreciation GL failed for asset %s", asset.id)
+                                    continue
                                 total_processed += 1
                         await db.commit()
                     except Exception:
+                        await db.rollback()
                         log.exception("Depreciation failed for vendor %s", vendor.id)
                 log.info("Depreciation run complete: %d entries created", total_processed)
             except Exception:
@@ -81,10 +126,11 @@ def snapshot_aging_task(self):
     Scheduled: daily at 2 AM.
     """
     import asyncio
-    from sqlalchemy import select
+    from sqlalchemy import select, delete
     from app.database import AsyncSessionLocal
     from app.models.vendor import Vendor
     from app.models.finance import FinArAgingSnapshot, FinApAgingSnapshot
+    from app.services.finance.job_lock import try_job_lock
     from app.repositories.finance.finance_repo import FinARRepo, FinAPRepo
     import uuid
 
@@ -96,6 +142,15 @@ def snapshot_aging_task(self):
                 today = date.today()
                 for vendor in vendors:
                     try:
+                        if not await try_job_lock(db, "aging_snapshot", vendor.id):
+                            continue
+                        # Idempotent: replace today's snapshot instead of appending duplicates
+                        await db.execute(delete(FinArAgingSnapshot).where(
+                            FinArAgingSnapshot.vendor_id == vendor.id,
+                            FinArAgingSnapshot.snapshot_date == today))
+                        await db.execute(delete(FinApAgingSnapshot).where(
+                            FinApAgingSnapshot.vendor_id == vendor.id,
+                            FinApAgingSnapshot.snapshot_date == today))
                         # AR
                         ar_buckets = await FinARRepo(db).ar_aging(vendor.id, today)
                         for bucket in ar_buckets:
@@ -138,6 +193,7 @@ def snapshot_aging_task(self):
                             db.add(snap)
                         await db.commit()
                     except Exception:
+                        await db.rollback()
                         log.exception("Aging snapshot failed for vendor %s", vendor.id)
             except Exception:
                 log.exception("Aging snapshot task failed")
@@ -152,14 +208,32 @@ def snapshot_aging_task(self):
 @shared_task(name="finance.process_recurring_journals", bind=True, max_retries=3)
 def process_recurring_journals_task(self):
     """
-    Daily: check recurring journal templates and create new JEs if due.
+    Daily: create the journal for every recurring template that is due.
+
+    * Each run posts under a deterministic id (template + run date), so a retry or a
+      second worker can never create the same occurrence twice.
+    * Missed occurrences (e.g. worker down for a week) are caught up, oldest first,
+      dated on their original run date (bounded per template per run).
+    * A failed posting does NOT advance the template: it is queued in
+      fin_posting_failure and retried on the next run.
     """
     import asyncio
+    import uuid
     from sqlalchemy import select
+    from dateutil.relativedelta import relativedelta
     from app.database import AsyncSessionLocal
     from app.models.finance import FinRecurringTemplate
-    from app.services.finance.posting import post_event
-    import uuid
+    from app.services.finance.safe_posting import safe_post
+    from app.services.finance.job_lock import try_job_lock
+
+    freq_map = {
+        "daily": relativedelta(days=1),
+        "weekly": relativedelta(weeks=1),
+        "monthly": relativedelta(months=1),
+        "quarterly": relativedelta(months=3),
+        "yearly": relativedelta(years=1),
+    }
+    MAX_CATCHUP = 12
 
     async def _run():
         async with AsyncSessionLocal() as db:
@@ -172,32 +246,40 @@ def process_recurring_journals_task(self):
                     )
                 )
                 templates = r.scalars().all()
-                for tmpl in templates:
-                    try:
-                        await post_event(db, tmpl.vendor_id, "manual", uuid.uuid4(), {
-                            "lines": tmpl.template_lines or [],
-                            "narration": f"Recurring: {tmpl.name}",
-                            "entry_date": today,
-                        })
-                        # Advance next_run_date
-                        from dateutil.relativedelta import relativedelta
-                        freq_map = {
-                            "daily": relativedelta(days=1),
-                            "weekly": relativedelta(weeks=1),
-                            "monthly": relativedelta(months=1),
-                            "quarterly": relativedelta(months=3),
-                            "yearly": relativedelta(years=1),
-                        }
-                        delta = freq_map.get(tmpl.frequency, relativedelta(months=1))
-                        tmpl.next_run_date = (tmpl.next_run_date or today) + delta
-                        if tmpl.end_date and tmpl.next_run_date > tmpl.end_date:
-                            tmpl.is_active = False
-                        await db.commit()
-                        log.info("Processed recurring journal template %s", tmpl.id)
-                    except Exception:
-                        log.exception("Failed to process recurring template %s", tmpl.id)
             except Exception:
                 log.exception("Recurring journal task failed")
+                return
+            for tmpl in templates:
+                try:
+                    if not await try_job_lock(db, f"recurring:{tmpl.id}", tmpl.vendor_id):
+                        continue
+                    delta = freq_map.get(tmpl.frequency, relativedelta(months=1))
+                    for _ in range(MAX_CATCHUP):
+                        run_date = tmpl.next_run_date or today
+                        if run_date > today:
+                            break
+                        je = await safe_post(
+                            db, tmpl.vendor_id, "manual",
+                            uuid.uuid5(tmpl.id, f"recurring:{run_date.isoformat()}"),
+                            {
+                                "lines": tmpl.template_lines or [],
+                                "narration": f"Recurring: {tmpl.name}",
+                                "entry_date": run_date,
+                            },
+                        )
+                        if je is None:
+                            log.warning("Recurring template %s not posted for %s (queued for retry)",
+                                        tmpl.id, run_date)
+                            break
+                        tmpl.next_run_date = run_date + delta
+                        if tmpl.end_date and tmpl.next_run_date > tmpl.end_date:
+                            tmpl.is_active = False
+                            break
+                    await db.commit()
+                    log.info("Processed recurring journal template %s", tmpl.id)
+                except Exception:
+                    await db.rollback()
+                    log.exception("Failed to process recurring template %s", tmpl.id)
 
     asyncio.run(_run())
 
@@ -229,11 +311,15 @@ def close_period_task(self, vendor_id: str, period_id: str, closed_by_id: str):
                 )
                 period = r.scalar_one_or_none()
                 if period and period.status == "open":
-                    from app.repositories.finance.finance_repo import FinCOARepo
-                    await FinCOARepo(db).close_period(period, uuid.UUID(closed_by_id))
+                    from app.services.finance.period_control import close_period
+                    await close_period(db, uuid.UUID(vendor_id), period, uuid.UUID(closed_by_id))
                     await db.commit()
                     log.info("Period %s closed for vendor %s", period_id, vendor_id)
+            except ValueError as exc:
+                await db.rollback()
+                log.warning("Period %s NOT closed for vendor %s: %s", period_id, vendor_id, exc)
             except Exception:
+                await db.rollback()
                 log.exception("Period close failed for period %s", period_id)
 
     asyncio.run(_run())
@@ -286,6 +372,7 @@ def precompute_tax_returns_task(self):
                             await db.commit()
                             log.info("Pre-computed tax return %s", tr.id)
                         except Exception:
+                            await db.rollback()
                             log.exception("Failed to pre-compute tax return %s", tr.id)
             except Exception:
                 log.exception("Tax precompute task failed")

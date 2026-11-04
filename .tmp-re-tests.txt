@@ -1,0 +1,606 @@
+﻿...........................s.FF......................................... [ 56%]
+.................................................sssssss                 [100%]
+================================== FAILURES ===================================
+___________ test_integration_secrets_are_encrypted_in_the_database ____________
+tests\test_realestate_phase11.py:53: in test_integration_secrets_are_encrypted_in_the_database
+    raw = await _raw_config(db_session, integ["id"])
+tests\test_realestate_phase11.py:22: in _raw_config
+    {"i": str(integration_id)})).scalar_one()
+C:\Users\mslav\AppData\Local\Programs\Python\Python314\Lib\site-packages\sqlalchemy\engine\result.py:1481: in scalar_one
+    return self._only_one_row(
+C:\Users\mslav\AppData\Local\Programs\Python\Python314\Lib\site-packages\sqlalchemy\engine\result.py:772: in _only_one_row
+    raise exc.NoResultFound(
+E   sqlalchemy.exc.NoResultFound: No row was found when one was required
+------------------------------ Captured log call ------------------------------
+WARNING  app.core.encryption:encryption.py:36 CRM_ENCRYPTION_KEY not set; using derived key for development. Set CRM_ENCRYPTION_KEY in production environments.
+________ test_legacy_plaintext_secrets_are_encrypted_by_the_daily_job _________
+tests\test_realestate_phase11.py:84: in test_legacy_plaintext_secrets_are_encrypted_by_the_daily_job
+    assert (await _raw_config(db_session, integ["id"]))["api_key"] == "legacy-key"
+tests\test_realestate_phase11.py:22: in _raw_config
+    {"i": str(integration_id)})).scalar_one()
+C:\Users\mslav\AppData\Local\Programs\Python\Python314\Lib\site-packages\sqlalchemy\engine\result.py:1481: in scalar_one
+    return self._only_one_row(
+C:\Users\mslav\AppData\Local\Programs\Python\Python314\Lib\site-packages\sqlalchemy\engine\result.py:772: in _only_one_row
+    raise exc.NoResultFound(
+E   sqlalchemy.exc.NoResultFound: No row was found when one was required
+============================== warnings summary ===============================
+app\schemas\vendor_product.py:700
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\vendor_product.py:700: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class PriceRuleResponse(BaseModel):
+
+..\..\..\..\Users\mslav\AppData\Local\Programs\Python\Python314\Lib\site-packages\fastapi\routing.py:211: 8530 warnings
+  C:\Users\mslav\AppData\Local\Programs\Python\Python314\Lib\site-packages\fastapi\routing.py:211: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    is_coroutine = asyncio.iscoroutinefunction(dependant.call)
+
+app\schemas\controlling.py:32
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\controlling.py:32: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class ActivityTypeOut(BaseModel):
+
+app\schemas\controlling.py:73
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\controlling.py:73: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class OverheadPoolOut(BaseModel):
+
+app\schemas\controlling.py:88
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\controlling.py:88: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class OverheadRateOut(BaseModel):
+
+app\schemas\controlling.py:114
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\controlling.py:114: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class ProductCostLineOut(BaseModel):
+
+app\schemas\controlling.py:151
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\controlling.py:151: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class ProductCostVersionOut(BaseModel):
+
+app\schemas\controlling.py:211
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\controlling.py:211: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class OrderOperationOut(BaseModel):
+
+app\schemas\controlling.py:238
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\controlling.py:238: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class CoGlMappingOut(BaseModel):
+
+app\schemas\controlling.py:265
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\controlling.py:265: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class CoCostBookingOut(BaseModel):
+
+app\schemas\controlling.py:306
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\controlling.py:306: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class OrderCostLineOut(BaseModel):
+
+app\schemas\controlling.py:368
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\controlling.py:368: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class ManufacturingOrderOut(BaseModel):
+
+app\schemas\controlling.py:495
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\controlling.py:495: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class ActivityConfirmationOut(BaseModel):
+
+app\schemas\controlling.py:540
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\controlling.py:540: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class GoodsMovementOut(BaseModel):
+
+app\schemas\controlling.py:587
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\controlling.py:587: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class CostAllocationOut(BaseModel):
+
+app\schemas\controlling.py:641
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\controlling.py:641: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class BudgetLineOut(BaseModel):
+
+app\schemas\controlling.py:685
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\controlling.py:685: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class VarianceRunOut(BaseModel):
+
+app\schemas\mrp.py:18
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\mrp.py:18: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class BOMItemOut(BaseModel):
+
+app\schemas\mrp.py:83
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\mrp.py:83: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class ReservationOut(BaseModel):
+
+app\api\v1\admin.py:95
+  C:\KIT ERP\Work Space\KITERP\backend\app\api\v1\admin.py:95: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class PlanResponse(BaseModel):
+
+app\api\v1\vendor_finance.py:3117
+  C:\KIT ERP\Work Space\KITERP\backend\app\api\v1\vendor_finance.py:3117: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class PostingKeyOut(PostingKeyCreate):
+
+app\api\v1\vendor_finance.py:3191
+  C:\KIT ERP\Work Space\KITERP\backend\app\api\v1\vendor_finance.py:3191: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class FieldStatusGroupOut(BaseModel):
+
+app\api\v1\vendor_finance.py:3287
+  C:\KIT ERP\Work Space\KITERP\backend\app\api\v1\vendor_finance.py:3287: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class ToleranceGroupOut(ToleranceGroupCreate):
+
+app\api\v1\vendor_finance.py:3386
+  C:\KIT ERP\Work Space\KITERP\backend\app\api\v1\vendor_finance.py:3386: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class ProfitCenterOut(ProfitCenterCreate):
+
+app\api\v1\vendor_finance.py:3400
+  C:\KIT ERP\Work Space\KITERP\backend\app\api\v1\vendor_finance.py:3400: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class SegmentOut(SegmentCreate):
+
+app\api\v1\vendor_finance.py:3705
+  C:\KIT ERP\Work Space\KITERP\backend\app\api\v1\vendor_finance.py:3705: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class ValidationRuleOut(ValidationRuleCreate):
+
+app\api\v1\vendor_finance.py:3775
+  C:\KIT ERP\Work Space\KITERP\backend\app\api\v1\vendor_finance.py:3775: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class SubstitutionRuleOut(SubstitutionRuleCreate):
+
+app\api\v1\vendor_finance.py:3828
+  C:\KIT ERP\Work Space\KITERP\backend\app\api\v1\vendor_finance.py:3828: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class NumberRangeOut(NumberRangeCreate):
+
+app\api\v1\vendor_finance.py:3888
+  C:\KIT ERP\Work Space\KITERP\backend\app\api\v1\vendor_finance.py:3888: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class SplitRuleOut(BaseModel):
+
+app\api\v1\vendor_finance.py:4011
+  C:\KIT ERP\Work Space\KITERP\backend\app\api\v1\vendor_finance.py:4011: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class LedgerOut(LedgerCreate):
+
+app\api\v1\vendor_finance.py:4286
+  C:\KIT ERP\Work Space\KITERP\backend\app\api\v1\vendor_finance.py:4286: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class PaymentTermStageOut(BaseModel):
+
+app\api\v1\vendor_finance.py:4303
+  C:\KIT ERP\Work Space\KITERP\backend\app\api\v1\vendor_finance.py:4303: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class PaymentTermDiscountOut(BaseModel):
+
+app\api\v1\vendor_finance.py:4317
+  C:\KIT ERP\Work Space\KITERP\backend\app\api\v1\vendor_finance.py:4317: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class PaymentTermOut(BaseModel):
+
+app\api\v1\vendor_finance.py:4338
+  C:\KIT ERP\Work Space\KITERP\backend\app\api\v1\vendor_finance.py:4338: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class PaymentTermOption(BaseModel):
+
+app\schemas\website.py:45
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\website.py:45: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class BlockOut(BaseModel):
+
+app\schemas\website.py:115
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\website.py:115: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class PageOut(BaseModel):
+
+app\schemas\website.py:228
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\website.py:228: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class SiteOut(BaseModel):
+
+app\schemas\website.py:273
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\website.py:273: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class SiteListItem(BaseModel):
+
+app\schemas\website.py:401
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\website.py:401: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class SiteRedirectOut(BaseModel):
+
+app\schemas\website.py:564
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\website.py:564: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class MediaOut(BaseModel):
+
+app\schemas\restaurant.py:19
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\restaurant.py:19: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class RestaurantZoneOut(BaseModel):
+
+app\schemas\restaurant.py:234
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\restaurant.py:234: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class RestaurantMenuCategoryOut(BaseModel):
+
+app\schemas\restaurant.py:248
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\restaurant.py:248: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class RestaurantMenuZoneLinkOut(BaseModel):
+
+app\schemas\restaurant.py:258
+  C:\KIT ERP\Work Space\KITERP\backend\app\schemas\restaurant.py:258: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class RestaurantMenuOut(BaseModel):
+
+app\api\v1\vendor_inventory_reports.py:37
+  C:\KIT ERP\Work Space\KITERP\backend\app\api\v1\vendor_inventory_reports.py:37: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    group_by: str = Query("category", regex="^(category|store|all)$"),
+
+app\api\v1\vendor_inventory_analytics.py:74
+  C:\KIT ERP\Work Space\KITERP\backend\app\api\v1\vendor_inventory_analytics.py:74: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    basis: str = Query("all_outbound", regex="^(all_outbound|sales)$",
+
+app\api\v1\vendor_inventory_analytics.py:76
+  C:\KIT ERP\Work Space\KITERP\backend\app\api\v1\vendor_inventory_analytics.py:76: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    group_by: str = Query("category", regex="^(category|all)$"),
+
+app\api\v1\vendor_inventory_analytics.py:98
+  C:\KIT ERP\Work Space\KITERP\backend\app\api\v1\vendor_inventory_analytics.py:98: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    bucket: str = Query("day", regex="^(day|week|month)$",
+
+app\api\v1\vendor_inventory_analytics.py:160
+  C:\KIT ERP\Work Space\KITERP\backend\app\api\v1\vendor_inventory_analytics.py:160: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    group_by: str = Query("store", regex="^(store|movement_type)$"),
+
+app\api\v1\vendor_procurement_analytics.py:77
+  C:\KIT ERP\Work Space\KITERP\backend\app\api\v1\vendor_procurement_analytics.py:77: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    group_by: str = Query("supplier", regex="^(supplier|material_type|branch|plant|item_category|account)$",
+
+app\api\v1\vendor_procurement_analytics.py:105
+  C:\KIT ERP\Work Space\KITERP\backend\app\api\v1\vendor_procurement_analytics.py:105: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    bucket: str = Query("month", regex="^(day|week|month)$",
+
+app\api\v1\vendor_procurement_analytics.py:148
+  C:\KIT ERP\Work Space\KITERP\backend\app\api\v1\vendor_procurement_analytics.py:148: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    doc_type: Optional[str] = Query(None, regex="^(PO|PR|Invoice)$",
+
+app\api\v1\vendor_procurement_analytics.py:230
+  C:\KIT ERP\Work Space\KITERP\backend\app\api\v1\vendor_procurement_analytics.py:230: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    match_status: Optional[str] = Query(None, regex="^(blocked_qty|blocked_price|partial)$",
+
+app\api\v1\vendor_procurement_analytics.py:276
+  C:\KIT ERP\Work Space\KITERP\backend\app\api\v1\vendor_procurement_analytics.py:276: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    return_reason: Optional[str] = Query(None,
+
+..\..\..\..\Users\mslav\AppData\Local\Programs\Python\Python314\Lib\site-packages\pytest_asyncio\plugin.py:168: 60693 warnings
+  C:\Users\mslav\AppData\Local\Programs\Python\Python314\Lib\site-packages\pytest_asyncio\plugin.py:168: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(obj) or inspect.isasyncgenfunction(obj)
+
+..\..\..\..\Users\mslav\AppData\Local\Programs\Python\Python314\Lib\site-packages\pytest_asyncio\plugin.py:423: 897 warnings
+  C:\Users\mslav\AppData\Local\Programs\Python\Python314\Lib\site-packages\pytest_asyncio\plugin.py:423: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(func)
+
+tests/test_realestate_phase1.py::test_meta_lists_modules_and_resources
+  C:\Users\mslav\AppData\Local\Programs\Python\Python314\Lib\site-packages\pytest_asyncio\plugin.py:985: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16
+    return asyncio.get_event_loop_policy()
+
+tests/test_realestate_phase1.py::test_meta_lists_modules_and_resources
+  C:\Users\mslav\AppData\Local\Programs\Python\Python314\Lib\site-packages\pytest_asyncio\plugin.py:739: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16
+    _restore_event_loop_policy(asyncio.get_event_loop_policy()),
+
+tests/test_realestate_phase1.py::test_meta_lists_modules_and_resources
+  C:\Users\mslav\AppData\Local\Programs\Python\Python314\Lib\site-packages\pytest_asyncio\plugin.py:749: DeprecationWarning: The event_loop fixture provided by pytest-asyncio has been redefined in
+  C:\KIT ERP\Work Space\KITERP\backend\tests\conftest.py:61
+  Replacing the event_loop fixture with a custom implementation is deprecated
+  and will lead to errors in the future.
+  If you want to request an asyncio event loop with a scope other than function
+  scope, use the "scope" argument to the asyncio mark when marking the tests.
+  If you want to return different types of event loops, use the event_loop_policy
+  fixture.
+  
+    warnings.warn(
+
+tests/test_realestate_phase1.py::test_meta_lists_modules_and_resources
+  C:\Users\mslav\AppData\Local\Programs\Python\Python314\Lib\site-packages\pytest_asyncio\plugin.py:754: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16
+    policy = asyncio.get_event_loop_policy()
+
+tests/test_realestate_phase1.py: 174 warnings
+tests/test_realestate_phase10.py: 63 warnings
+tests/test_realestate_phase11.py: 29 warnings
+tests/test_realestate_phase12.py: 54 warnings
+tests/test_realestate_phase13.py: 78 warnings
+tests/test_realestate_phase14.py: 2 warnings
+tests/test_realestate_phase2.py: 240 warnings
+tests/test_realestate_phase3.py: 155 warnings
+tests/test_realestate_phase4.py: 280 warnings
+tests/test_realestate_phase5.py: 240 warnings
+tests/test_realestate_phase6.py: 393 warnings
+tests/test_realestate_phase7.py: 222 warnings
+tests/test_realestate_phase8.py: 130 warnings
+  C:\Users\mslav\AppData\Local\Programs\Python\Python314\Lib\site-packages\starlette\_utils.py:40: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(obj) or (
+
+tests/test_realestate_phase1.py: 21 warnings
+tests/test_realestate_phase10.py: 8 warnings
+tests/test_realestate_phase11.py: 5 warnings
+tests/test_realestate_phase12.py: 10 warnings
+tests/test_realestate_phase13.py: 6 warnings
+tests/test_realestate_phase14.py: 2 warnings
+tests/test_realestate_phase2.py: 15 warnings
+tests/test_realestate_phase3.py: 10 warnings
+tests/test_realestate_phase4.py: 9 warnings
+tests/test_realestate_phase5.py: 5 warnings
+tests/test_realestate_phase6.py: 13 warnings
+tests/test_realestate_phase7.py: 11 warnings
+tests/test_realestate_phase8.py: 6 warnings
+tests/test_realestate_phase9.py: 7 warnings
+  <sys>:0: SAWarning: Can't sort tables for DROP; an unresolvable foreign key dependency exists between tables: store, vendor_user; and backend does not support ALTER.  To restore at least a partial sort, apply use_alter=True to ForeignKey and ForeignKeyConstraint objects involved in the cycle to mark these as known cycles that will be ignored.
+
+tests/test_realestate_phase1.py::test_publish_unit_creates_website_listing
+tests/test_realestate_phase1.py::test_publish_unit_creates_website_listing
+  C:\Users\mslav\AppData\Local\Programs\Python\Python314\Lib\site-packages\sqlalchemy\sql\schema.py:3624: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return util.wrap_callable(lambda ctx: fn(), fn)  # type: ignore
+
+tests/test_realestate_phase10.py::test_daily_job_retries_failed_ledger_postings
+tests/test_realestate_phase8.py::test_unposted_documents_are_logged_and_can_be_retried
+  C:\KIT ERP\Work Space\KITERP\backend\app\services\realestate\finance_bridge.py:114: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "store, vendor_user", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+    for table in Base.metadata.sorted_tables:
+
+tests/test_realestate_phase10.py::test_celery_beat_has_the_daily_realestate_job
+  C:\Users\mslav\AppData\Local\Programs\Python\Python314\Lib\site-packages\dateutil\tz\tz.py:37: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    EPOCH = datetime.datetime.utcfromtimestamp(0)
+
+tests/test_realestate_phase10.py: 2 warnings
+tests/test_realestate_phase5.py: 15 warnings
+tests/test_realestate_phase8.py: 23 warnings
+  C:\Users\mslav\AppData\Local\Programs\Python\Python314\Lib\site-packages\jose\jwt.py:311: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = timegm(datetime.utcnow().utctimetuple())
+
+tests/test_realestate_phase9.py::test_realestate_schema_bootstrap_is_idempotent_and_complete
+  C:\Users\mslav\AppData\Local\Programs\Python\Python314\Lib\site-packages\pytest_asyncio\plugin.py:801: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16
+    policy = asyncio.get_event_loop_policy()
+
+tests/test_realestate_phase9.py::test_realestate_schema_bootstrap_is_idempotent_and_complete
+  C:\Users\mslav\AppData\Local\Programs\Python\Python314\Lib\site-packages\pytest_asyncio\plugin.py:827: DeprecationWarning: 'asyncio.set_event_loop_policy' is deprecated and slated for removal in Python 3.16
+    asyncio.set_event_loop_policy(previous_policy)
+
+tests/test_realestate_phase9.py::test_realestate_schema_bootstrap_is_idempotent_and_complete
+  C:\Users\mslav\AppData\Local\Programs\Python\Python314\Lib\site-packages\pytest_asyncio\plugin.py:839: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16
+    policy = asyncio.get_event_loop_policy()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=================================== PASSES ====================================
+_________________ test_auto_billing_is_opt_in_and_idempotent __________________
+------------------------------ Captured log call ------------------------------
+WARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/3d3ce6ea-d65b-4f1d-85e7-edf498277340): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)
+________________ test_daily_job_retries_failed_ledger_postings ________________
+------------------------------ Captured log call ------------------------------
+WARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/480f2278-ed8d-4b2f-a61a-e6a510b2f03c): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/53b69694-2cc3-49a5-81f3-cc5d91a0c6a4): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)
+______________ test_one_failing_vendor_does_not_stop_the_others _______________
+------------------------------ Captured log call ------------------------------
+ERROR    app.services.realestate.scheduler:scheduler.py:164 Real-estate daily job failed for vendor 4a78c15a-4730-4229-9156-225b0b205804
+Traceback (most recent call last):
+  File "C:\KIT ERP\Work Space\KITERP\backend\app\services\realestate\scheduler.py", line 160, in run_daily
+    results[str(vid)] = await run_for_vendor(db, vid, today)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\KIT ERP\Work Space\KITERP\backend\tests\test_realestate_phase10.py", line 86, in boom
+    raise RuntimeError("simulated failure")
+RuntimeError: simulated failure
+_____________ test_portal_query_count_does_not_grow_with_bookings _____________
+------------------------------ Captured log call ------------------------------
+WARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/f9c64f28-b9bf-40cd-9768-4e9d8f030d0f): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/ba341750-42f8-4a6e-9f14-24166dcd3f11): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/6c4d4bb6-8af1-4893-bea5-4a8f34e89db3): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/2fa4d690-3d3d-4135-ba83-dfad650a6c6e): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)
+________ test_booking_summary_masks_customer_and_applicant_identifiers ________
+------------------------------ Captured log call ------------------------------
+WARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/6c92f56e-3db6-47d2-866e-4fb834a9ef1d): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/22634120-7e3e-42f2-993a-75649b7da9e2): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)
+___________ test_rera_withdrawal_is_limited_by_certified_completion ___________
+------------------------------ Captured log call ------------------------------
+WARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/cbd6b882-fb61-4dea-a542-578dd5373cd6): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (payment/2db80212-1e4d-48fa-bac3-1683366f9afd): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)
+___ test_delayed_payment_interest_is_simple_interest_on_the_overdue_amount ____
+------------------------------ Captured log call ------------------------------
+WARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/04c8a378-c506-432a-8167-7e98c412f2f3): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (payment/ab45deef-b52e-4358-bb2c-f613ffe85a9a): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)
+_____________________ test_sample_project_acceptance_run ______________________
+------------------------------ Captured log call ------------------------------
+WARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/aecd963d-5e96-4620-8ae8-3a5b975fe619): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (payment/78a3a9ba-1078-4af2-bd89-f431e0d8006d): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/ece99540-31d0-4537-8208-f1001a4e80d4): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (payment/2481bb64-2ff8-4515-8356-f7839ff64cf7): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)
+_________ test_nothing_is_queued_until_notifications_are_switched_on __________
+------------------------------ Captured log call ------------------------------
+WARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/74f7b740-6a27-4036-beb1-2ee2077b2146): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)
+_________ test_demand_and_receipt_messages_are_queued_then_delivered __________
+------------------------------ Captured log call ------------------------------
+WARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/4c80744c-21ca-4911-baab-74f22b8c11c8): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (payment/4d1b4590-39a6-4a4f-add4-84dcd37ce483): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)
+______ test_failed_delivery_is_retried_then_reported_and_can_be_requeued ______
+------------------------------ Captured log call ------------------------------
+WARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/2e18ba86-3255-45d1-ad25-55fdf4e2092b): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)
+_________ test_a_customer_without_contact_details_is_skipped_quietly __________
+------------------------------ Captured log call ------------------------------
+WARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/2b34e6b9-ba4c-4536-b40b-1e21cb084a6d): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)
+___ test_overdue_reminders_are_opt_in_and_not_repeated_within_the_interval ____
+------------------------------ Captured log call ------------------------------
+WARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/1ab71489-7b52-45ab-8dbd-72b2951fb2c0): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)
+_______________ test_schedule_is_built_and_first_demand_issued ________________
+------------------------------ Captured log call ------------------------------
+WARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/7166fe6a-2c28-4fae-8f0b-021b841bf875): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)
+______________ test_receipts_clearing_bounce_allocation_and_tds _______________
+------------------------------ Captured log call ------------------------------
+WARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/b52c733e-7aba-404b-b34f-5dad74a23075): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (payment/39e5fe96-4dc9-4ab3-9cc4-849716cae2f5): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (payment/6dc07b99-62c8-444b-9089-e53639657cfd): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/8fdadcc4-2527-4cc9-9153-2b0a04b43e48): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)
+___________________ test_cancel_demand_and_regenerate_guard ___________________
+------------------------------ Captured log call ------------------------------
+WARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/6f4c0484-8819-4adb-8266-3b843dd4892a): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/c3f7464e-6135-4440-8c97-57c84a5a3ff2): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (payment/43906fa2-8c5a-4ed9-a5dd-b40f601dc0b9): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)
+__________________________ test_overdue_and_interest __________________________
+------------------------------ Captured log call ------------------------------
+WARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/29100552-de9c-44f1-a82f-f10222cf5f6b): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)
+_______________________ test_milestone_triggers_demands _______________________
+------------------------------ Captured log call ------------------------------
+WARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/c7adb24b-eb10-4803-9a9b-d188498f61a7): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/07a5d425-77fd-4b27-bcbf-6e8466051706): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)
+___________ test_commission_settlement_and_clawback_on_cancellation ___________
+------------------------------ Captured log call ------------------------------
+WARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/5261aa80-7ed5-4807-aed2-4f3c9f391a7f): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.finance.posting:posting.py:1191 Commission GL accounts not found for vendor=858b4730-2034-4792-8ea2-a9fa6d3d3ee5 \u2014 skipping accrual JE\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (commission_accrual/ac5d94ad-c11e-417e-a1c1-ffa318d6321c): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.finance.posting:posting.py:1225 Commission Payable account not found for vendor=858b4730-2034-4792-8ea2-a9fa6d3d3ee5 \u2014 skipping payment JE\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (commission_payment/b9d8b334-4636-4940-93ff-477e8b2cb7c7): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)
+_ test_commission_waits_for_agreement_trigger_and_cancellation_reverses_unpaid _
+------------------------------ Captured log call ------------------------------
+WARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/464627d5-8c80-4809-88f0-bb60ee81def7): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.finance.posting:posting.py:1191 Commission GL accounts not found for vendor=2b34e339-8771-4893-98f4-b373c38e345c \u2014 skipping accrual JE\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (commission_accrual/9bf8315c-b1af-477f-b843-3cc7e33707dd): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/7655e22b-fe16-41b7-a13e-76d486f9a0ae): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)
+______________ test_settlement_needs_approval_when_rule_matches _______________
+------------------------------ Captured log call ------------------------------
+WARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/05721b65-966e-4cea-8a54-7cca52dd9974): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.finance.posting:posting.py:1191 Commission GL accounts not found for vendor=9895d360-1e80-4515-95d1-7a335875200f \u2014 skipping accrual JE\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (commission_accrual/fbc1f6f5-5ccc-4c24-a7e8-3c9adb7bdc39): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)
+_____________________ test_rera_account_withdrawal_limits _____________________
+------------------------------ Captured log call ------------------------------
+WARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/5a71770a-0111-4632-b944-0feb4f9b0467): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (payment/ad357f64-178a-4365-a941-24eefa8c49c6): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)
+____________________ test_tax_reconciliation_flags_issues _____________________
+------------------------------ Captured log call ------------------------------
+WARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/f5fea4e4-868a-4c19-a147-62081df2d092): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (payment/96488816-2a7d-4085-a134-4b8315568919): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)
+_________________ test_progress_via_endpoint_and_daily_report _________________
+------------------------------ Captured log call ------------------------------
+ERROR    uvicorn.error:main.py:256 Validation error on POST /api/v1/vendors/me/realestate/wbs/0525cdd8-280f-4aa5-bcc9-05199f92ece6/progress: [{'type': 'less_than_equal', 'loc': ('body', 'percent'), 'msg': 'Input should be less than or equal to 100', 'input': 120, 'ctx': {'le': Decimal('100')}, 'url': 'https://errors.pydantic.dev/2.13/v/less_than_equal'}]
+____________ test_milestone_achievement_triggers_customer_billing _____________
+------------------------------ Captured log call ------------------------------
+WARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/940478ac-a084-4ac4-8727-8ce038d24661): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/b5eec6ab-9f27-4c61-a2c6-23b0645d06f0): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)
+_____ test_grn_stock_weighted_average_issue_transfer_wastage_and_costing ______
+------------------------------ Captured log call ------------------------------
+WARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (vendor_bill/52dc9349-da8b-46a5-af1c-8e30b838dfb9): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (vendor_bill/a1b8da50-93ac-4571-a515-9ae54171c629): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (vendor_payment/52dc9349-da8b-46a5-af1c-8e30b838dfb9): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)
+_________ test_subcontract_ra_bills_retention_tds_advance_and_release _________
+------------------------------ Captured log call ------------------------------
+WARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (vendor_bill/2643182c-740e-4077-a0aa-ffc8169e7cc2): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (vendor_bill/d0aec4ca-2c37-46e3-a3c0-9e508d44497a): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (vendor_payment/2643182c-740e-4077-a0aa-ffc8169e7cc2): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (vendor_payment/34024643-e99c-47c2-b3bd-4e6a0fd04f61): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)
+________________ test_handover_gates_snags_dues_and_completion ________________
+------------------------------ Captured log call ------------------------------
+WARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/783b12d2-b986-4cdb-85a4-bb3e097f4dfe): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/5823baa6-8796-4c06-b79d-837ef68cccc3): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/dd64e64a-55a9-4eca-a529-929feeedcaa3): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (payment/146a267c-fc1b-44fa-9ab4-eb7276f2c6a8): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)
+__________________ test_oc_and_dues_waivers_and_cancellation __________________
+------------------------------ Captured log call ------------------------------
+WARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/82dc6f61-d656-420d-875c-313f37fea8f1): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/ebc813df-fcb2-4216-8a21-3415ba17897f): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/dcceb59b-f69b-4e63-8eab-c90e6e067467): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/f7a00713-c2b1-4886-992e-1f2eac080c3e): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/77ffc15a-8c77-4405-a21a-b1fbcbb04bd8): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)
+_______________ test_structural_claim_ticket_sla_and_lifecycle ________________
+------------------------------ Captured log call ------------------------------
+WARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/7e561c4d-1adb-4cf9-a19e-9beeeebb5c17): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/cd542037-75f7-4d3a-9a21-76be7ed9731b): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/a6d4e6e9-9e45-4008-a7d4-c055cbb511e9): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (payment/43d6c598-a1fc-48d2-befe-2c5012337973): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)
+__________________ test_feedback_validation_and_care_summary __________________
+------------------------------ Captured log call ------------------------------
+WARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/3fa7678b-a1ab-41cb-8fc8-e0ef17087eaa): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/1517dd80-74c6-443a-b59d-8d1c9ec60d96): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/73e680b4-7001-479d-a8b6-e06f4bc69f05): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (payment/d4893983-0883-4f56-8d33-18302fbe9156): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)
+___________ test_customer_portal_link_scope_tickets_and_revocation ____________
+------------------------------ Captured log call ------------------------------
+WARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/89f23fb4-7f66-4d8b-b9d8-465b430595d8): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/b5b73fc0-d1b0-423f-864a-07fbad35ea32): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/6c5fc870-54de-48e5-99e7-101362e0f0b7): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/20a8c921-92e6-4e58-902f-6f1b00282f9b): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)
+__________ test_rent_billing_proration_gst_idempotency_and_payments ___________
+------------------------------ Captured log call ------------------------------
+WARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/f02cc069-4fc1-42af-be38-99b29325bd74): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/7a80f683-7cbe-4213-8b1e-d1df09ef2265): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/5ed362eb-bcec-43af-a229-d9540c1c4e94): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/cc729c46-63b7-4976-a6e6-f440cf34fdaf): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/712e4bd9-0b85-4b46-b2c2-e0cc3b0b5eaf): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/af4f5ef9-52ad-4f27-a7d4-b0934e1846ca): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/ea53655a-b649-460c-a71b-aa25d9829bd3): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/1e299684-73d9-4537-b987-f2c5984d9ffe): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/ba18aa4f-2e43-42cc-9f73-96e49537d277): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/8c963cfd-afe7-42c3-bd62-f5efef5e77e4): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/945bba10-35b8-415c-ad3b-94adb96230c8): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/cbcba327-06fe-478e-9ded-fd5ddf47db34): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/8e482178-e323-40cd-b188-174133517db3): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/c0d141c9-d348-4921-9b44-36bbd1beaeb8): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/d552bc19-d459-43d1-9705-71538a3e0367): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/54494e7f-56ae-41e2-bc49-51181f510060): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/aa0f38e3-0742-4a33-ae05-707fe524011f): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/f75902f0-5759-41fc-8916-63ddd82fa076): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/29ae474a-4c8c-4abc-b420-bcb6e604f12a): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/22dccdc2-fc6d-4cd8-b206-bfe394d37137): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/4036914b-b4ea-4afd-b28a-7170bdcfd58c): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/ec1fd5e3-8c2d-4e36-ab6a-0547fe571f52): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/31c9af12-3577-45d7-abd9-a9ea79c785b4): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/6889b211-7808-4b09-adaf-3144a80490fa): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/b413b725-7a5a-40f8-93c0-df003309fbe7): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (payment/fbcee4cb-bca6-4fd7-bff3-27842a9881dc): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (payment/dffa6fd8-2779-4f2f-8c99-f25490593615): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)
+_______________ test_escalation_schedule_compounds_and_applies ________________
+------------------------------ Captured log call ------------------------------
+WARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/845ee35a-770b-42b2-8c8f-f8c62a9365bd): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/77ce9511-6ca0-4f6a-8123-867088b9eecb): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/1915b710-6519-465c-9439-3fcd37fa458b): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/54780bae-166b-448c-a013-72a70fcda602): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/7c2d39ad-75ea-4331-a614-7e8e5240c1ba): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/4adbffae-dd43-4af8-9f41-c7361b3b6742): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/c5491f7e-1afe-4270-a904-2241db15f350): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/3fade342-24ca-443a-9d1e-5deaecae8f86): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/7717215d-6a14-42a9-92b1-b04a5622cfca): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)
+_______ test_termination_lock_in_and_deposit_refund_with_dues_adjusted ________
+------------------------------ Captured log call ------------------------------
+WARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/b067840d-46bd-46ec-97d8-b6a799eced49): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/4ae9844a-9a4a-4049-bdc8-d77cca0dc7ac): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/0fa88c99-3dbe-4e71-96ae-225a9dc9769b): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/daeb7855-f179-4285-aede-a1ed75724585): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/30e01bd4-8231-4481-a8f7-d28b78c8ef80): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)
+___________________ test_bulk_monthly_billing_and_overview ____________________
+------------------------------ Captured log call ------------------------------
+WARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/6779c7a8-0494-4972-acce-1714e0a22501): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/68f18607-450f-4abb-9c30-9d5827af216f): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/e2cdead8-9e17-4db2-809d-efa9b03b9b1f): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/6479fe5f-772d-4945-a862-0c2eb7e12ece): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)
+_________ test_society_maintenance_billing_utilities_and_collections __________
+------------------------------ Captured log call ------------------------------
+WARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/a1e60180-0037-4314-88a7-c06b4a8db03b): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (payment/f5d958a7-9533-4a68-b08f-271baf90ce71): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (payment/fbbcfe6d-bdd3-45e7-b10b-4c6a0095ccf9): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/681a4aca-bbab-41cc-b0d3-0b92e3d4b358): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/7d117f53-91a9-4496-a498-c31572a610c2): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)
+___________ test_phase6_modules_resources_and_alerts_are_registered ___________
+------------------------------ Captured log call ------------------------------
+WARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/8fbf8208-f345-4bce-b461-777a05cde6f1): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/dff0095b-191c-47d0-aba7-2824c3c17c17): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/56532c13-ae32-496d-9787-76e3ee3b4dc3): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)
+_________________ test_bulk_and_mark_present_accept_partially _________________
+------------------------------ Captured log call ------------------------------
+ERROR    uvicorn.error:main.py:256 Validation error on POST /api/v1/vendors/me/realestate/labour-attendance/bulk: [{'type': 'too_short', 'loc': ('body', 'entries'), 'msg': 'List should have at least 1 item after validation, not 0', 'input': [], 'ctx': {'field_type': 'List', 'min_length': 1, 'actual_length': 0}, 'url': 'https://errors.pydantic.dev/2.13/v/too_short'}]
+______________ test_wage_sheet_amounts_deductions_and_lifecycle _______________
+------------------------------ Captured log call ------------------------------
+WARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (vendor_payment/d558bc1b-ad47-4167-ba1b-76c083ab3a1b): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)
+_________ test_portal_token_only_in_header_with_safe_headers_and_csp __________
+------------------------------ Captured log call ------------------------------
+WARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/b85e12fd-5a6c-417e-8d10-c78ab727e07a): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/c9d9855c-d0ed-45d6-aa76-2fe59e038289): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)
+_____________________ test_portal_writes_are_rate_limited _____________________
+------------------------------ Captured log call ------------------------------
+WARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/2afead5a-9225-4f82-8d66-22a86a71d83a): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/469dd03a-3e51-4b7e-ab8f-e70b903a96ee): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)
+____________ test_unposted_documents_are_logged_and_can_be_retried ____________
+------------------------------ Captured log call ------------------------------
+WARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/d7e24fb7-4cbb-4eab-8127-dc7c8e119605): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)\nWARNING  app.services.realestate.finance_bridge:finance_bridge.py:63 Real-estate GL posting skipped (invoice/e2ddd85b-ffb8-4012-8121-54741b9c72e9): General-ledger accounts for this document are not configured (Finance \u2192 Accounts / posting rules)
+=========================== short test summary info ===========================
+PASSED tests/test_realestate_phase1.py::test_meta_lists_modules_and_resources
+PASSED tests/test_realestate_phase1.py::test_project_auto_code_and_unit_generation
+PASSED tests/test_realestate_phase1.py::test_price_list_apply_updates_units
+PASSED tests/test_realestate_phase1.py::test_unit_status_cannot_be_set_manually
+PASSED tests/test_realestate_phase1.py::test_invalid_choice_and_cross_tenant_reference_rejected
+PASSED tests/test_realestate_phase1.py::test_lead_pipeline_conversion_and_followups
+PASSED tests/test_realestate_phase1.py::test_enquiry_to_lead_and_site_visit
+PASSED tests/test_realestate_phase1.py::test_quotation_cost_sheet
+PASSED tests/test_realestate_phase1.py::test_block_expiry_and_release
+PASSED tests/test_realestate_phase1.py::test_booking_allotment_cancellation_refund_flow
+PASSED tests/test_realestate_phase1.py::test_discount_requires_approval_then_confirms
+PASSED tests/test_realestate_phase1.py::test_rejected_approval_releases_unit
+PASSED tests/test_realestate_phase1.py::test_kyc_verification_updates_customer
+PASSED tests/test_realestate_phase1.py::test_agreement_draft_sign_register
+PASSED tests/test_realestate_phase1.py::test_publish_unit_creates_website_listing
+PASSED tests/test_realestate_phase1.py::test_audit_log_records_changes
+PASSED tests/test_realestate_phase1.py::test_rbac_on_lead_creation[staff-403]
+PASSED tests/test_realestate_phase1.py::test_rbac_on_lead_creation[cashier-403]
+PASSED tests/test_realestate_phase1.py::test_rbac_on_lead_creation[re_sales_executive-201]
+PASSED tests/test_realestate_phase1.py::test_rbac_on_lead_creation[re_legal-403]
+PASSED tests/test_realestate_phase1.py::test_numbering_sequences_are_unique_and_configurable
+PASSED tests/test_realestate_phase10.py::test_daily_job_frees_expired_blocks_and_expires_leases_and_warranties
+PASSED tests/test_realestate_phase10.py::test_auto_billing_is_opt_in_and_idempotent
+PASSED tests/test_realestate_phase10.py::test_daily_job_retries_failed_ledger_postings
+PASSED tests/test_realestate_phase10.py::test_one_failing_vendor_does_not_stop_the_others
+PASSED tests/test_realestate_phase10.py::test_celery_beat_has_the_daily_realestate_job
+PASSED tests/test_realestate_phase10.py::test_portal_query_count_does_not_grow_with_bookings
+PASSED tests/test_realestate_phase10.py::test_alembic_baseline_revision_is_chained_and_importable
+PASSED tests/test_realestate_phase11.py::test_pan_and_kyc_details_are_masked_without_the_pii_permission
+PASSED tests/test_realestate_phase11.py::test_booking_summary_masks_customer_and_applicant_identifiers
+PASSED tests/test_realestate_phase11.py::test_pii_permission_is_granted_only_where_needed
+PASSED tests/test_realestate_phase12.py::test_gst_on_residential_under_construction_5_percent
+PASSED tests/test_realestate_phase12.py::test_gst_on_affordable_housing_1_percent_and_commercial_18_percent
+PASSED tests/test_realestate_phase12.py::test_discount_can_never_exceed_the_price_and_rounding_is_to_paise
+PASSED tests/test_realestate_phase12.py::test_tds_194ia_threshold_and_rate
+PASSED tests/test_realestate_phase12.py::test_tds_194ia_uses_the_higher_of_price_and_stamp_duty_value
+PASSED tests/test_realestate_phase12.py::test_form_26qb_due_date_is_30_days_after_month_end
+PASSED tests/test_realestate_phase12.py::test_rera_reserve_is_70_percent
+PASSED tests/test_realestate_phase12.py::test_rera_withdrawal_is_limited_by_certified_completion
+PASSED tests/test_realestate_phase12.py::test_delayed_payment_interest_is_simple_interest_on_the_overdue_amount
+PASSED tests/test_realestate_phase12.py::test_sample_project_acceptance_run
+PASSED tests/test_realestate_phase13.py::test_nothing_is_queued_until_notifications_are_switched_on
+PASSED tests/test_realestate_phase13.py::test_demand_and_receipt_messages_are_queued_then_delivered
+PASSED tests/test_realestate_phase13.py::test_failed_delivery_is_retried_then_reported_and_can_be_requeued
+PASSED tests/test_realestate_phase13.py::test_a_customer_without_contact_details_is_skipped_quietly
+PASSED tests/test_realestate_phase13.py::test_overdue_reminders_are_opt_in_and_not_repeated_within_the_interval
+PASSED tests/test_realestate_phase13.py::test_outbox_job_is_scheduled_every_minute
+PASSED tests/test_realestate_phase14.py::test_health_alerts_stay_quiet_when_everything_is_fine
+PASSED tests/test_realestate_phase14.py::test_unposted_documents_and_stuck_or_failed_messages_raise_alerts
+PASSED tests/test_realestate_phase2.py::test_schedule_is_built_and_first_demand_issued
+PASSED tests/test_realestate_phase2.py::test_plan_must_total_100_percent
+PASSED tests/test_realestate_phase2.py::test_rera_caps_demands_before_agreement
+PASSED tests/test_realestate_phase2.py::test_receipts_clearing_bounce_allocation_and_tds
+PASSED tests/test_realestate_phase2.py::test_cancel_demand_and_regenerate_guard
+PASSED tests/test_realestate_phase2.py::test_overdue_and_interest
+PASSED tests/test_realestate_phase2.py::test_milestone_triggers_demands
+PASSED tests/test_realestate_phase2.py::test_commission_settlement_and_clawback_on_cancellation
+PASSED tests/test_realestate_phase2.py::test_commission_waits_for_agreement_trigger_and_cancellation_reverses_unpaid
+PASSED tests/test_realestate_phase2.py::test_settlement_needs_approval_when_rule_matches
+PASSED tests/test_realestate_phase2.py::test_incentive_tds_and_approval
+PASSED tests/test_realestate_phase2.py::test_commission_rule_validation
+PASSED tests/test_realestate_phase2.py::test_rera_account_withdrawal_limits
+PASSED tests/test_realestate_phase2.py::test_tax_reconciliation_flags_issues
+PASSED tests/test_realestate_phase2.py::test_new_buttons_available_for_custom_create_resources
+PASSED tests/test_realestate_phase3.py::test_parcel_area_conversion_and_numbering
+PASSED tests/test_realestate_phase3.py::test_landowner_shares_cannot_exceed_100
+PASSED tests/test_realestate_phase3.py::test_acquisition_lifecycle_with_title_and_payment_gates
+PASSED tests/test_realestate_phase3.py::test_payment_cancel_updates_totals_and_blocks_draft_payments
+PASSED tests/test_realestate_phase3.py::test_tds_194ia_on_land_purchase
+PASSED tests/test_realestate_phase3.py::test_jda_entitlement_allocation_and_completion
+PASSED tests/test_realestate_phase3.py::test_jda_termination_returns_units
+PASSED tests/test_realestate_phase3.py::test_statutory_approvals_expiry_alerts_and_readiness
+PASSED tests/test_realestate_phase3.py::test_land_summary_and_parcel_reject_reopen
+PASSED tests/test_realestate_phase3.py::test_land_and_legal_modules_in_meta
+PASSED tests/test_realestate_phase4.py::test_critical_path_float_and_cycle_detection
+PASSED tests/test_realestate_phase4.py::test_progress_via_endpoint_and_daily_report
+PASSED tests/test_realestate_phase4.py::test_milestone_achievement_triggers_customer_billing
+PASSED tests/test_realestate_phase4.py::test_work_order_quality_safety_and_inspection_workflows
+PASSED tests/test_realestate_phase4.py::test_boq_amount_and_budget_validation
+PASSED tests/test_realestate_phase4.py::test_requisition_rfq_comparison_award_and_po_approval
+PASSED tests/test_realestate_phase4.py::test_grn_stock_weighted_average_issue_transfer_wastage_and_costing
+PASSED tests/test_realestate_phase4.py::test_subcontract_ra_bills_retention_tds_advance_and_release
+PASSED tests/test_realestate_phase4.py::test_terminated_contract_and_cancelled_bill
+PASSED tests/test_realestate_phase5.py::test_handover_gates_snags_dues_and_completion
+PASSED tests/test_realestate_phase5.py::test_oc_and_dues_waivers_and_cancellation
+PASSED tests/test_realestate_phase5.py::test_structural_claim_ticket_sla_and_lifecycle
+PASSED tests/test_realestate_phase5.py::test_feedback_validation_and_care_summary
+PASSED tests/test_realestate_phase5.py::test_customer_portal_link_scope_tickets_and_revocation
+PASSED tests/test_realestate_phase6.py::test_lease_validation_activation_and_unit_lock
+PASSED tests/test_realestate_phase6.py::test_rent_billing_proration_gst_idempotency_and_payments
+PASSED tests/test_realestate_phase6.py::test_escalation_schedule_compounds_and_applies
+PASSED tests/test_realestate_phase6.py::test_termination_lock_in_and_deposit_refund_with_dues_adjusted
+PASSED tests/test_realestate_phase6.py::test_renewal_rolls_deposit_and_expiry_frees_the_unit
+PASSED tests/test_realestate_phase6.py::test_bulk_monthly_billing_and_overview
+PASSED tests/test_realestate_phase6.py::test_facility_work_orders_and_preventive_maintenance
+PASSED tests/test_realestate_phase6.py::test_utility_meter_readings_validate_and_compute
+PASSED tests/test_realestate_phase6.py::test_housekeeping_and_security_logs
+PASSED tests/test_realestate_phase6.py::test_society_maintenance_billing_utilities_and_collections
+PASSED tests/test_realestate_phase6.py::test_visitors_residents_and_notices
+PASSED tests/test_realestate_phase6.py::test_asset_depreciation_transfer_and_disposal
+PASSED tests/test_realestate_phase6.py::test_phase6_modules_resources_and_alerts_are_registered
+PASSED tests/test_realestate_phase7.py::test_site_assignment_links_hr_employee_and_blocks_overlap
+PASSED tests/test_realestate_phase7.py::test_labour_validation_release_and_attendance_rules
+PASSED tests/test_realestate_phase7.py::test_bulk_and_mark_present_accept_partially
+PASSED tests/test_realestate_phase7.py::test_wage_sheet_amounts_deductions_and_lifecycle
+PASSED tests/test_realestate_phase7.py::test_cancelling_a_wage_sheet_releases_the_days
+PASSED tests/test_realestate_phase7.py::test_wage_sheet_period_and_workforce_split
+PASSED tests/test_realestate_phase7.py::test_direct_labour_wages_feed_project_costing
+PASSED tests/test_realestate_phase7.py::test_workforce_overview_and_alerts
+PASSED tests/test_realestate_phase7.py::test_reports_return_the_layout_with_sensible_numbers
+PASSED tests/test_realestate_phase7.py::test_phase7_modules_and_resources_are_registered
+PASSED tests/test_realestate_phase7.py::test_integration_cannot_be_enabled_without_its_settings
+PASSED tests/test_realestate_phase8.py::test_integration_secrets_are_masked_and_kept_out_of_the_audit_log
+PASSED tests/test_realestate_phase8.py::test_integrations_need_admin_to_read
+PASSED tests/test_realestate_phase8.py::test_portal_token_only_in_header_with_safe_headers_and_csp
+PASSED tests/test_realestate_phase8.py::test_portal_writes_are_rate_limited
+PASSED tests/test_realestate_phase8.py::test_unposted_documents_are_logged_and_can_be_retried
+PASSED tests/test_realestate_phase8.py::test_supplier_quotes_cannot_be_deleted_after_the_rfq_is_awarded
+SKIPPED [1] tests\test_realestate_phase10.py:139: needs TEST_DATABASE_URL pointing at a PostgreSQL test database
+SKIPPED [1] tests\test_realestate_phase9.py:52: needs TEST_DATABASE_URL pointing at a PostgreSQL test database
+SKIPPED [1] tests\test_realestate_phase9.py:71: needs TEST_DATABASE_URL pointing at a PostgreSQL test database
+SKIPPED [1] tests\test_realestate_phase9.py:91: needs TEST_DATABASE_URL pointing at a PostgreSQL test database
+SKIPPED [1] tests\test_realestate_phase9.py:120: needs TEST_DATABASE_URL pointing at a PostgreSQL test database
+SKIPPED [1] tests\test_realestate_phase9.py:140: needs TEST_DATABASE_URL pointing at a PostgreSQL test database
+SKIPPED [1] tests\test_realestate_phase9.py:164: needs TEST_DATABASE_URL pointing at a PostgreSQL test database
+SKIPPED [1] tests\test_realestate_phase9.py:176: needs TEST_DATABASE_URL pointing at a PostgreSQL test database
+FAILED tests/test_realestate_phase11.py::test_integration_secrets_are_encrypted_in_the_database
+FAILED tests/test_realestate_phase11.py::test_legacy_plaintext_secrets_are_encrypted_by_the_daily_job
+2 failed, 118 passed, 8 skipped, 769 deselected, 72413 warnings in 1227.01s (0:20:27)

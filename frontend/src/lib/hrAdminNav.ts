@@ -1,13 +1,16 @@
 import type { LucideIcon } from 'lucide-react'
 import {
   Award,
+  BarChart3,
   Briefcase,
   Building2,
+  CalendarDays,
   Clock,
   DollarSign,
   FileSignature,
   GraduationCap,
   LifeBuoy,
+  MapPin,
   Megaphone,
   Plane,
   Receipt,
@@ -15,6 +18,7 @@ import {
   Target,
   UserCheck,
   UserCog,
+  Wallet,
 } from 'lucide-react'
 
 /** Mirrors vendor-web HR Management sidebar submenus. */
@@ -32,7 +36,11 @@ export type HrAdminNavItem = {
 export const HR_ADMIN_NAV_ITEMS: HrAdminNavItem[] = [
   { slug: 'employees', label: 'Employees', icon: UserCog, vendorPath: '/hr/employees' },
   { slug: 'attendance', label: 'Attendance', icon: Clock, vendorPath: '/hr/attendance' },
+  { slug: 'attendance-report', label: 'Attendance Report', icon: BarChart3, vendorPath: '/hr/attendance/report' },
+  { slug: 'tracking', label: 'Field Tracking', icon: MapPin, vendorPath: '/hr/tracking' },
   { slug: 'leaves', label: 'Leave Requests', icon: Plane, vendorPath: '/hr/leaves' },
+  { slug: 'leave-policies', label: 'Leave Policies', icon: ShieldAlert, vendorPath: '/hr/leaves/policies' },
+  { slug: 'holidays', label: 'Holidays', icon: CalendarDays, vendorPath: '/hr/leaves/holidays' },
   { slug: 'recruitment', label: 'Recruitment', icon: Briefcase, vendorPath: '/hr/recruitment' },
   { slug: 'onboarding', label: 'Onboarding', icon: UserCheck, vendorPath: '/hr/onboarding' },
   { slug: 'performance', label: 'Performance', icon: Target, vendorPath: '/hr/performance' },
@@ -42,6 +50,7 @@ export const HR_ADMIN_NAV_ITEMS: HrAdminNavItem[] = [
   { slug: 'expenses', label: 'Expense Claims', icon: Receipt, vendorPath: '/hr/expenses' },
   { slug: 'helpdesk', label: 'Helpdesk', icon: LifeBuoy, vendorPath: '/hr/helpdesk' },
   { slug: 'payroll', label: 'Payroll', icon: DollarSign, vendorPath: '/hr/payroll' },
+  { slug: 'salary', label: 'Salary Structures', icon: Wallet, vendorPath: '/hr/salary' },
   { slug: 'offers', label: 'Offer Letters', icon: FileSignature, vendorPath: '/hr/offers' },
   { slug: 'departments', label: 'Departments', icon: Building2, vendorPath: '/hr/departments' },
   { slug: 'designations', label: 'Designations', icon: Award, vendorPath: '/hr/designations' },

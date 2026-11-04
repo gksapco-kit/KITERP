@@ -212,12 +212,16 @@ export function SupplierTypeahead(props: Props) {
       ? createPortal(
           <div
             ref={menuRef}
-            className="fixed z-[220] overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-lg"
+            data-kiterp-typeahead-menu=""
+            className="pointer-events-auto fixed z-[220] overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-lg"
             style={{
               top: menuPos.top,
               left: menuPos.left,
               width: menuPos.width,
               maxHeight: menuPos.maxHeight,
+              // Radix modals set pointer-events:none on body. This menu is portaled
+              // there, so it would inherit that and ignore clicks inside a dialog.
+              pointerEvents: 'auto',
             }}
             onMouseDown={e => e.preventDefault()}
           >

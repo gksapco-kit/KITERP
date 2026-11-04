@@ -96,7 +96,9 @@ async def test_analytics_reports_completed_orders_and_cost(
 
     assert data["totals"]["orders"] == 2
     assert data["totals"]["completed"] == 1
-    assert data["totals"]["in_progress"] == 1
+    # Drafts are reported separately; only live (confirmed/in production/QC/hold) orders count as in progress.
+    assert data["totals"]["draft"] == 1
+    assert data["totals"]["in_progress"] == 0
     # 3 chairs x 4 bolts x cost_price(2) = 24
     assert data["cost"]["actual_material"] == pytest.approx(24.0)
     assert data["cost"]["planned_material"] == pytest.approx(24.0)

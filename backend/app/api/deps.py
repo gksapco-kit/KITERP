@@ -212,6 +212,19 @@ def get_effective_permissions(vendor_user: VendorUser) -> List[str]:
     """
     role = normalized_vendor_role(vendor_user)
 
+    # Support-staff handoff sessions are scoped: everything outside CRM / Finance / HR as
+    # before, plus only the module keys granted by the staff member's job role.
+    # Superusers and sessions without the marker keep full access.
+    if role == "platform_staff":
+        from app.core.platform_modules import PLATFORM_SCOPED_MARKER, is_vendor_module_permission
+
+        overrides = list(vendor_user.permissions or [])
+        if PLATFORM_SCOPED_MARKER in overrides:
+            scoped = {p for p in DEFAULT_ROLE_PERMISSIONS["platform_staff"]
+                      if not is_vendor_module_permission(p)}
+            scoped.update(p for p in overrides if p != PLATFORM_SCOPED_MARKER)
+            return list(scoped)
+
     # System role permissions
     if role in DEFAULT_ROLE_PERMISSIONS:
         base_perms = set(DEFAULT_ROLE_PERMISSIONS[role])

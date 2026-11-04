@@ -813,6 +813,107 @@ async def restore_batches_for_return(
     return details
 
 
+async def reverse_production_batches(
+    db: AsyncSession,
+    *,
+    vendor_id: UUID,
+    production_order_id: UUID,
+) -> list[str]:
+    """Undo the batch effects of ``post_production_completion`` for one order.
+
+    * Component lots issued to the order (``issue`` transactions) get their
+      consumed quantity returned to the same lot.
+    * Finished-goods lots created by the order are voided — but only if none of
+      their quantity has been consumed or reserved yet. Otherwise a ValueError is
+      raised so the order cannot be re-opened while its output is already
+      downstream (sold / issued / reserved).
+
+    Idempotent: transactions that already have a matching reversal are skipped.
+    Returns human-readable log lines.
+    """
+    lines: list[str] = []
+
+    # 1. Validate FG lots first, so we fail before touching anything.
+    fg_batches = (
+        await db.execute(
+            select(GoodsBatch).where(
+                GoodsBatch.vendor_id == vendor_id,
+                GoodsBatch.source_type == "production",
+                GoodsBatch.source_id == production_order_id,
+                GoodsBatch.is_active.is_(True),
+            )
+        )
+    ).scalars().all()
+    for fg in fg_batches:
+        used = Decimal(str(fg.quantity_consumed or 0)) + Decimal(str(fg.quantity_reserved or 0))
+        if used > 0:
+            raise ValueError(
+                f"Finished-goods batch {fg.batch_number} is already partly consumed or reserved "
+                f"({used}); it cannot be reversed."
+            )
+
+    # 2. Restore component lots.
+    txns = (
+        await db.execute(
+            select(BatchTransaction).where(
+                BatchTransaction.vendor_id == vendor_id,
+                BatchTransaction.source_type == "production",
+                BatchTransaction.source_id == production_order_id,
+                BatchTransaction.txn_type.in_(("issue", "issue_reversal")),
+            )
+        )
+    ).scalars().all()
+    reversed_ids = {
+        str((t.meta or {}).get("reverses")) for t in txns if t.txn_type == "issue_reversal"
+    }
+    for t in txns:
+        if t.txn_type != "issue" or str(t.id) in reversed_ids or not t.from_batch_id:
+            continue
+        batch = await db.get(GoodsBatch, t.from_batch_id)
+        if not batch:
+            continue
+        qty = Decimal(str(t.quantity))
+        batch.quantity_available = Decimal(str(batch.quantity_available or 0)) + qty
+        batch.quantity_consumed = max(Decimal("0"), Decimal(str(batch.quantity_consumed or 0)) - qty)
+        await record_batch_transaction(
+            db,
+            vendor_id=vendor_id,
+            txn_type="issue_reversal",
+            product_id=t.product_id,
+            quantity=qty,
+            source_type="production",
+            source_id=production_order_id,
+            to_batch_id=batch.id,
+            plant_id=t.plant_id,
+            quality_status=batch.quality_status,
+            meta={"batch_number": batch.batch_number, "reverses": str(t.id)},
+        )
+        lines.append(f"Restored {qty} to lot {batch.batch_number}")
+
+    # 3. Void FG lots.
+    for fg in fg_batches:
+        qty = Decimal(str(fg.quantity_available or 0))
+        fg.quantity_available = Decimal("0")
+        fg.is_active = False
+        await record_batch_transaction(
+            db,
+            vendor_id=vendor_id,
+            txn_type="produce_reversal",
+            product_id=fg.product_id,
+            quantity=qty,
+            source_type="production",
+            source_id=production_order_id,
+            from_batch_id=fg.id,
+            plant_id=fg.plant_id,
+            quality_status=fg.quality_status,
+            meta={"batch_number": fg.batch_number},
+        )
+        lines.append(f"Voided finished-goods lot {fg.batch_number}")
+
+    await db.flush()
+    return lines
+
+
 def _canonical_ts(dt: datetime) -> str:
     """UTC, fixed-precision timestamp so the digest survives a DB round-trip
     even on backends that do not preserve tzinfo."""

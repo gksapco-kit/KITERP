@@ -4,7 +4,7 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { Link } from 'react-router-dom'
-import { Plus, Trash2 } from 'lucide-react'
+import { Clock, Plus, Trash2 } from 'lucide-react'
 import { useCompanies } from '@/hooks/useFinance'
 import {
   useActivityConfirmations,
@@ -14,6 +14,8 @@ import {
   useActivityTypes,
 } from '@/hooks/useControlling'
 import { formatCurrency } from '@/lib/utils'
+import { extractApiError } from '@/lib/errorMessages'
+import { useHasPermission } from '@/hooks/usePermissions'
 import type { ActivityConfirmationOut } from '@/api/controlling'
 
 import { askConfirm } from '@/components/common/ConfirmProvider'
@@ -57,8 +59,13 @@ export default function ActivityConfirmationsPage() {
   const { data: orders = [] } = useManufacturingOrders({ company_id: activeCo || undefined })
   const { data: activityTypes = [] } = useActivityTypes(activeCo || undefined)
 
+  const canEdit = useHasPermission('finance.edit')
   const createMut = useCreateActivityConfirmation()
   const deleteMut = useDeleteActivityConfirmation()
+  // Actuals can only be booked on running orders (the API enforces this too).
+  const runningOrders = (orders as Array<{ id: string; status?: string }>).filter(o =>
+    ['released', 'in_progress'].includes(o.status ?? ''),
+  )
 
   const [form, setForm] = useState<CreateForm>({
     order_id: '',
@@ -95,23 +102,23 @@ export default function ActivityConfirmationsPage() {
       setShowCreate(false)
       setForm(f => ({ ...f, qty_confirmed: '', hours_confirmed: '', narration: '' }))
     } catch (err: unknown) {
-      const e2 = err as { response?: { data?: { detail?: string } } }
-      setError(e2?.response?.data?.detail ?? 'Failed to post confirmation')
+      setError(extractApiError(err, 'Failed to post confirmation'))
     }
   }
 
   const handleDelete = async (id: string) => {
-    if (!await askConfirm('Delete this activity confirmation?')) return
+    if (!await askConfirm('Reverse this activity confirmation? Hours and cost are taken back off the order.')) return
+    setError('')
     try {
       await deleteMut.mutateAsync(id)
     } catch (err: unknown) {
-      const e2 = err as { response?: { data?: { detail?: string } } }
-      setError(e2?.response?.data?.detail ?? 'Failed to delete')
+      setError(extractApiError(err, 'Failed to reverse confirmation'))
     }
   }
 
-  const totalHours = confirmations.reduce((s, c) => s + parseFloat((c as ActivityConfirmationOut).hours_confirmed), 0)
-  const totalCost = confirmations.reduce((s, c) => s + parseFloat((c as ActivityConfirmationOut).total_cost), 0)
+  const liveConfirmations = (confirmations as ActivityConfirmationOut[]).filter(c => c.status !== 'reversed')
+  const totalHours = liveConfirmations.reduce((s, c) => s + parseFloat(c.hours_confirmed), 0)
+  const totalCost = liveConfirmations.reduce((s, c) => s + parseFloat(c.total_cost), 0)
 
   return (
     <div className="mx-auto max-w-7xl space-y-3 p-3 md:p-4">
@@ -121,20 +128,22 @@ export default function ActivityConfirmationsPage() {
           {' · '}
           <Link to="/controlling" className="text-primary hover:underline">Controlling</Link>
         </p>
-        <button
-          type="button"
-          onClick={() => setShowCreate(true)}
-          className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-white hover:bg-primary/90"
-        >
-          <Plus className="h-3.5 w-3.5" /> Post Confirmation
-        </button>
+        {canEdit && (
+          <button
+            type="button"
+            onClick={() => setShowCreate(true)}
+            className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-white hover:bg-primary/90"
+          >
+            <Plus className="h-3.5 w-3.5" /> Post Confirmation
+          </button>
+        )}
       </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="rounded-xl border border-gray-200 bg-white p-4">
           <p className="text-xs text-gray-500 mb-1">Confirmations posted</p>
-          <p className="text-2xl font-bold text-gray-900">{confirmations.length}</p>
+          <p className="text-2xl font-bold text-gray-900">{liveConfirmations.length}</p>
         </div>
         <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
           <p className="text-xs text-blue-600 mb-1">Total hours confirmed</p>
@@ -218,7 +227,7 @@ export default function ActivityConfirmationsPage() {
                   </span>
                 </td>
                 <td className="px-4 py-3">
-                  {c.status === 'posted' && (
+                  {canEdit && c.status === 'posted' && (
                     <button onClick={() => handleDelete(c.id)} className="text-red-400 hover:text-red-600">
                       <Trash2 className="w-4 h-4 text-red-600" />
                     </button>
@@ -250,7 +259,7 @@ export default function ActivityConfirmationsPage() {
                     placeholder="— select order —"
                     options={[
                       { value: '', label: '— select order —' },
-                      ...(orders as Array<{ id: string; order_no: string; title?: string }>).map(o => ({
+                      ...(runningOrders as Array<{ id: string; order_no: string; title?: string }>).map(o => ({
                         value: String(o.id),
                         label: `${o.order_no}${o.title ? ` — ${o.title}` : ''}`,
                       })),

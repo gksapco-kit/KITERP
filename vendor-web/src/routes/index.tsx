@@ -11,6 +11,7 @@ import PreviewDraftStorePathRedirect from '@/pages/websites/PreviewDraftStorePat
 
 // Lazy page modules — keeps /login from transforming the entire app in Vite
 const Login = lazy(() => import('@/pages/auth/Login'))
+const RealEstatePortal = lazy(() => import('@/pages/realestate/Portal'))
 const VendorHandoff = lazy(() => import('@/pages/auth/Handoff'))
 const Register = lazy(() => import('@/pages/auth/Register'))
 const SignupWelcome = lazy(() => import('@/pages/auth/SignupWelcome'))
@@ -120,6 +121,8 @@ const ProductionSchedulePage = lazy(() => import('@/pages/production/Schedule'))
 const ProductionWorkCentersPage = lazy(() => import('@/pages/production/WorkCenters'))
 const ProductionMRPPage = lazy(() => import('@/pages/production/MRP'))
 const ProductionAnalyticsPage = lazy(() => import('@/pages/production/Analytics'))
+const RealEstateDashboardPage = lazy(() => import('@/pages/realestate/Dashboard'))
+const RealEstateModulePage = lazy(() => import('@/pages/realestate/ModulePage'))
 const PharmaOverviewPage = lazy(() => import('@/pages/pharma/Overview'))
 const PharmaSettingsPage = lazy(() => import('@/pages/pharma/Settings'))
 const PharmaSettingsBatchNumberingPage = lazy(() => import('@/pages/pharma/SettingsBatchNumbering'))
@@ -225,6 +228,7 @@ const FinanceCapital = lazy(() => import('@/pages/finance/Capital'))
 const FinanceApprovals = lazy(() => import('@/pages/finance/Approvals'))
 const FinanceAudit = lazy(() => import('@/pages/finance/AuditLog'))
 const FinancePeriodControl = lazy(() => import('@/pages/finance/PeriodControl'))
+const FinancePostingHealth = lazy(() => import('@/pages/finance/PostingHealth'))
 const FinanceFieldRuleConfig = lazy(() => import('@/pages/finance/FieldRuleConfig'))
 const FinancePaymentTerms = lazy(() => import('@/pages/finance/PaymentTerms'))
 const COLayout = lazy(() => import('@/layouts/COLayout'))
@@ -333,6 +337,11 @@ const appRoutes: RouteObject[] = [
     children: [{ index: true, element: <Login /> }],
   },
   {
+    // Public customer portal for real-estate buyers (private link token, no login)
+    path: '/portal/real-estate',
+    element: <RealEstatePortal />,
+  },
+  {
     path: '/auth/handoff',
     element: <AuthLayout />,
     children: [{ index: true, element: <VendorHandoff /> }],
@@ -419,6 +428,8 @@ const appRoutes: RouteObject[] = [
       { path: 'production/work-centers', element: <ProductionWorkCentersPage /> },
       { path: 'production/mrp', element: <ProductionMRPPage /> },
       { path: 'production/analytics', element: <ProductionAnalyticsPage /> },
+      { path: 'realestate', element: <RealEstateDashboardPage /> },
+      { path: 'realestate/:moduleId', element: <RealEstateModulePage /> },
       { path: 'pharma', element: <PharmaOverviewPage /> },
       { path: 'pharma/settings', element: <PharmaSettingsPage /> },
       { path: 'pharma/settings/batch-numbering', element: <PharmaSettingsBatchNumberingPage /> },
@@ -639,6 +650,7 @@ const appRoutes: RouteObject[] = [
       { path: 'finance/capital',                element: <FinanceCapital /> },
       { path: 'finance/approvals',              element: <FinanceApprovals /> },
       { path: 'finance/audit',                  element: <FinanceAudit /> },
+      { path: 'finance/posting-health',          element: <FinancePostingHealth /> },
       { path: 'finance/periods',                 element: <FinancePeriodControl /> },
       { path: 'finance/field-rules',            element: <FinanceFieldRuleConfig /> },
       { path: 'finance/payment-terms',          element: <FinancePaymentTerms /> },

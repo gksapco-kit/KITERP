@@ -26,6 +26,11 @@ ALL_PERMISSIONS = [
     "production.view", "production.manage",
     "pharma.view", "pharma.manage", "pharma.release", "pharma.audit",
     "pharma.quality.manage", "pharma.deviation.manage",
+    # Real estate
+    "realestate.view", "realestate.manage",
+    "realestate.sales", "realestate.booking", "realestate.collections",
+    "realestate.construction", "realestate.legal", "realestate.approve",
+    "realestate.admin", "realestate.pii",
     # Project management
     "projects.view", "projects.manage",
     "projects.costing.post",
@@ -136,6 +141,9 @@ DEFAULT_ROLE_PERMISSIONS = {
         "production.view", "production.manage",
         # pharma.release and pharma.audit require qa_officer — managers get view+manage only
         "pharma.view", "pharma.manage",
+        # Real estate: managers run day-to-day; approvals/admin stay with owner/admin
+        "realestate.view", "realestate.manage", "realestate.sales", "realestate.booking",
+        "realestate.collections", "realestate.construction", "realestate.legal", "realestate.pii",
         "projects.view", "projects.manage",
         "customers.view", "customers.manage",
         "reviews.view", "reviews.reply",
@@ -400,6 +408,38 @@ DEFAULT_ROLE_PERMISSIONS = {
         "controlling.period_close", "controlling.variance.view",
         "reports.view",
         "procurement.view", "procurement.invoice.verify", "procurement.invoice.approve",
+    ],
+    # ── Real estate specialist roles ─────────────────────────────────────────
+    "re_sales_executive": [
+        "dashboard.view",
+        "realestate.view", "realestate.sales", "realestate.booking",
+        "customers.view",
+        "reports.view",
+    ],
+    "re_crm_manager": [
+        "dashboard.view",
+        "realestate.view", "realestate.manage", "realestate.sales", "realestate.booking", "realestate.pii",
+        "customers.view", "customers.manage",
+        "crm.view", "crm.leads.manage", "crm.activities.manage", "crm.tickets.manage",
+        "reports.view",
+    ],
+    "re_site_engineer": [
+        "dashboard.view",
+        "realestate.view", "realestate.construction",
+        "inventory.view", "projects.view",
+        "reports.view",
+    ],
+    "re_accounts": [
+        "dashboard.view",
+        "realestate.view", "realestate.collections", "realestate.pii",
+        "finance.view", "finance.edit", "finance.ar.manage", "finance.ap.manage",
+        "finance.reports.view", "finance.tax.view",
+        "reports.view",
+    ],
+    "re_legal": [
+        "dashboard.view",
+        "realestate.view", "realestate.legal", "realestate.pii",
+        "reports.view",
     ],
     # Issued only via admin → vendor-web handoff; not inviteable from team UI.
     "platform_staff": ALL_PERMISSIONS,

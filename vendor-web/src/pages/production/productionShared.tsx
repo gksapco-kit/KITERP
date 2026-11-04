@@ -53,7 +53,14 @@ export type AuditAction =
   | 'file_attached'
   | 'file_removed'
   | 'item_added'
+  | 'items_updated'
   | 'priority_changed'
+  | 'inventory_posted'
+  | 'inventory_reversed'
+  | 'purchase_requisition_created'
+  | 'routing_applied'
+  | 'output_recorded'
+  | 'output_reversed'
 
 export interface AuditEvent {
   id: string
@@ -78,6 +85,11 @@ export interface ProductionOrder {
   items: POItem[]
   materials_reserved_at?: string | null
   inventory_posted_at?: string | null
+  /** What completion actually moved/booked (only on the single-order endpoint). */
+  inventory_posting?: {
+    costing?: { material: string; labor: string; total: string; unit_cost: string; labor_basis?: string }
+    accounting?: { status: 'posted' | 'skipped'; entry_no?: string; amount?: string; reason?: string }
+  } | null
   planned_material_cost?: number | null
   planned_labor_cost?: number | null
   actual_material_cost?: number | null
@@ -110,6 +122,23 @@ export const STATUS_CONFIG: Record<POStatus, { label: string; color: string; bg:
   on_hold:       { label: 'On Hold',      color: 'text-orange-700 dark:text-orange-300', bg: 'bg-orange-100 dark:bg-orange-950/50',  icon: PauseCircle },
   cancelled:     { label: 'Cancelled',    color: 'text-red-700 dark:text-red-300',    bg: 'bg-red-100 dark:bg-red-950/50',     icon: X },
 }
+
+/**
+ * Mirror of ALLOWED_TRANSITIONS in backend/app/services/production_lifecycle.py.
+ * The server is the authority — this only keeps the UI from offering impossible moves.
+ */
+export const ALLOWED_TRANSITIONS: Record<POStatus, POStatus[]> = {
+  draft:         ['confirmed', 'cancelled'],
+  confirmed:     ['draft', 'in_production', 'completed', 'on_hold', 'cancelled'],
+  in_production: ['confirmed', 'qc', 'completed', 'on_hold', 'cancelled'],
+  qc:            ['in_production', 'completed', 'on_hold', 'cancelled'],
+  on_hold:       ['confirmed', 'in_production', 'qc', 'cancelled'],
+  completed:     ['in_production', 'qc'],
+  cancelled:     ['draft', 'confirmed'],
+}
+
+/** Orders in these statuses are read-only except notes/attachments (re-open to edit). */
+export const TERMINAL_STATUSES: POStatus[] = ['completed', 'cancelled']
 
 export const PRIORITY_CONFIG: Record<Priority, { label: string; color: string; dot: string }> = {
   low:    { label: 'Low',    color: 'text-muted-foreground',   dot: 'bg-gray-400' },

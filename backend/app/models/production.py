@@ -54,6 +54,12 @@ class ProductionOrder(Base):
     materials_released_at = Column(DateTime(timezone=True), nullable=True)
     # Guards idempotent stock postings on completion; cleared if the order is re-opened.
     inventory_posted_at = Column(DateTime(timezone=True), nullable=True)
+    # Exact record of what the completion posting moved (store, per-bin component
+    # allocations, finished-goods lines). The reversal replays this, never the
+    # order's current fields. See app/services/production_inventory.py.
+    inventory_posting = Column(JSONB, nullable=True)
+    # Output received into stock before completion (see app/services/production_output.py).
+    partial_outputs = Column(JSONB, nullable=False, default=list)
 
     # Costing roll-up (Phase 7) — planned at confirm time, actual at completion.
     planned_material_cost = Column(Numeric(14, 2), nullable=True)

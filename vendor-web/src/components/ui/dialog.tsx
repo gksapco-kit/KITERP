@@ -12,6 +12,14 @@ function isNestedPortalModalTarget(target: EventTarget | null): boolean {
   return target instanceof Element && Boolean(target.closest('[data-kiterp-portal-modal]'))
 }
 
+function isTypeaheadMenuTarget(target: EventTarget | null): boolean {
+  return target instanceof Element && Boolean(target.closest('[data-kiterp-typeahead-menu]'))
+}
+
+function isDialogSafeOutsideTarget(target: EventTarget | null): boolean {
+  return isThemeSelectMenuTarget(target) || isNestedPortalModalTarget(target) || isTypeaheadMenuTarget(target)
+}
+
 const Dialog = DialogPrimitive.Root
 const DialogTrigger = DialogPrimitive.Trigger
 const DialogPortal = DialogPrimitive.Portal
@@ -52,11 +60,11 @@ const DialogContent = React.forwardRef<
         className,
       )}
       onPointerDownOutside={(e) => {
-        if (isThemeSelectMenuTarget(e.target) || isNestedPortalModalTarget(e.target)) e.preventDefault()
+        if (isDialogSafeOutsideTarget(e.target)) e.preventDefault()
         onPointerDownOutside?.(e)
       }}
       onInteractOutside={(e) => {
-        if (isThemeSelectMenuTarget(e.target) || isNestedPortalModalTarget(e.target)) e.preventDefault()
+        if (isDialogSafeOutsideTarget(e.target)) e.preventDefault()
         onInteractOutside?.(e)
       }}
       {...props}

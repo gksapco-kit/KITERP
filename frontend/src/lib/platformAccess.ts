@@ -32,7 +32,18 @@ export function isSuperuserAdmin(user: User | null | undefined): boolean {
   return !!user?.is_superuser
 }
 
-/** Create business accounts from the admin directory (superuser or platform support). */
+/**
+ * Superusers have every platform permission; support staff only the ones granted to
+ * their job role (`platform_staff_permissions` from `/me`).
+ */
+export function hasPlatformPermission(user: User | null | undefined, key: string): boolean {
+  if (!user) return false
+  if (user.is_superuser) return true
+  if (user.platform_staff_role !== 'support') return false
+  return !!user.platform_staff_permissions?.includes(key)
+}
+
+/** Create business accounts from the admin directory (superuser, or support with `vendors.create`). */
 export function canCreateBusinessAccounts(user: User | null | undefined): boolean {
-  return isPlatformStaff(user)
+  return hasPlatformPermission(user, 'vendors.create')
 }

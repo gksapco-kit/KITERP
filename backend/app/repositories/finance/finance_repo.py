@@ -236,20 +236,67 @@ class FinJournalRepo:
         return je
 
     async def post_entry(self, je: FinJournalEntry, posted_by_id: UUID) -> FinJournalEntry:
-        from datetime import datetime
+        from datetime import datetime, timezone
         je.status = "posted"
         je.posted_by_id = posted_by_id
-        je.posted_at = datetime.utcnow()
+        je.posted_at = datetime.now(timezone.utc)
         await self.db.flush()
         return je
 
-    async def void_entry(self, je: FinJournalEntry) -> FinJournalEntry:
+    async def void_entry(self, je: FinJournalEntry, voided_by_id: UUID = None,
+                         reason: str = "") -> FinJournalEntry:
+        """
+        Void a posted journal entry.
+        Checks that the entry's period is not locked or closed before voiding.
+        Records a FinAuditLog entry.
+        """
+        from app.models.finance import FinPeriod, FinAuditLog
+        import uuid as _uuid
+        from datetime import datetime, timezone
+
+        # Block voiding if the period is locked/closed
+        if je.period_id:
+            r = await self.db.execute(
+                select(FinPeriod).where(FinPeriod.id == je.period_id)
+            )
+            period = r.scalar_one_or_none()
+            if period and period.status in ("closed", "locked"):
+                raise ValueError(
+                    f"Cannot void journal entry {je.entry_no}: "
+                    f"accounting period is {period.status}. "
+                    "Reopen the period first or post a correcting entry in an open period."
+                )
+
         je.status = "void"
         await self.db.flush()
+
+        # Audit log
+        try:
+            log_entry = FinAuditLog(
+                id=_uuid.uuid4(),
+                vendor_id=je.vendor_id,
+                entity_type="journal_entry",
+                entity_id=je.id,
+                action="void",
+                performed_by_id=voided_by_id,
+                diff_json={"entry_no": je.entry_no, "reason": reason},
+            )
+            self.db.add(log_entry)
+            await self.db.flush()
+        except Exception:
+            # the void itself is already flushed; never lose it over a logging failure, but say so
+            import logging as _lg
+            _lg.getLogger(__name__).exception("audit log write failed for void of JE %s", je.id)
+
         return je
 
     async def trial_balance(self, vendor_id: UUID, from_date: date = None,
-                            to_date: date = None) -> list[dict]:
+                            to_date: date = None, company_id: UUID = None,
+                            include_zero_balance: bool = False) -> list[dict]:
+        """
+        Returns per-account trial balance for posted entries only.
+        Supports optional company_id filter for multi-company setups.
+        """
         q = (
             select(
                 FinAccount.id,
@@ -264,6 +311,7 @@ class FinJournalRepo:
             .join(FinJournalEntry, FinJournalLine.journal_entry_id == FinJournalEntry.id)
             .where(
                 FinAccount.vendor_id == vendor_id,
+                FinJournalEntry.vendor_id == vendor_id,   # belt-and-suspenders tenant guard
                 FinJournalEntry.status == "posted",
             )
         )
@@ -271,24 +319,31 @@ class FinJournalRepo:
             q = q.where(FinJournalEntry.entry_date >= from_date)
         if to_date:
             q = q.where(FinJournalEntry.entry_date <= to_date)
+        if company_id:
+            q = q.where(FinJournalEntry.company_id == company_id)
         q = q.group_by(FinAccount.id, FinAccount.code, FinAccount.name,
                        FinAccount.account_type, FinAccount.account_subtype)
         q = q.order_by(FinAccount.code)
         r = await self.db.execute(q)
         rows = r.mappings().all()
-        return [
-            {
+        result = []
+        for row in rows:
+            dr = float(row["total_debit"])
+            cr = float(row["total_credit"])
+            balance = dr - cr
+            if not include_zero_balance and dr == 0 and cr == 0:
+                continue
+            result.append({
                 "account_id": str(row["id"]),
                 "code": row["code"],
                 "name": row["name"],
                 "account_type": row["account_type"],
                 "account_subtype": row["account_subtype"],
-                "total_debit": float(row["total_debit"]),
-                "total_credit": float(row["total_credit"]),
-                "balance": float(row["total_debit"]) - float(row["total_credit"]),
-            }
-            for row in rows
-        ]
+                "total_debit": dr,
+                "total_credit": cr,
+                "balance": balance,
+            })
+        return result
 
     async def ledger_for_account(self, vendor_id: UUID, account_id: UUID,
                                  from_date: date = None, to_date: date = None) -> list[dict]:
@@ -464,7 +519,55 @@ class FinARRepo:
         return list(r.scalars().all())
 
     async def apply_payment(self, vendor_id: UUID, data: dict) -> FinCustomerPaymentApplication:
-        app = FinCustomerPaymentApplication(id=uuid.uuid4(), vendor_id=vendor_id, **data)
+        """
+        Apply (part of) a customer Payment to an Invoice.
+        Both documents must belong to this tenant; the amount may not exceed the
+        invoice's outstanding balance or the payment's unapplied amount.
+        """
+        from decimal import Decimal as _D
+        from app.models.invoice import Invoice as _Inv
+        from app.models.payment import Payment as _Pay
+
+        applied = _D(str(data["amount_applied"]))
+        if applied <= 0:
+            raise ValueError("Applied amount must be positive.")
+
+        inv = (await self.db.execute(select(_Inv).where(
+            _Inv.id == data["invoice_id"], _Inv.vendor_id == vendor_id,
+        ).with_for_update())).scalar_one_or_none()
+        if inv is None:
+            raise ValueError("Invoice not found for this vendor.")
+        pay = (await self.db.execute(select(_Pay).where(
+            _Pay.id == data["payment_id"], _Pay.vendor_id == vendor_id,
+        ).with_for_update())).scalar_one_or_none()
+        if pay is None:
+            raise ValueError("Payment not found for this vendor.")
+        if pay.status not in ("completed",):
+            raise ValueError(f"Payment is '{pay.status}'; only completed payments can be applied.")
+
+        prior_inv = (await self.db.execute(
+            select(func.coalesce(func.sum(FinCustomerPaymentApplication.amount_applied), 0))
+            .where(FinCustomerPaymentApplication.vendor_id == vendor_id,
+                   FinCustomerPaymentApplication.invoice_id == inv.id)
+        )).scalar() or 0
+        prior_pay = (await self.db.execute(
+            select(func.coalesce(func.sum(FinCustomerPaymentApplication.amount_applied), 0))
+            .where(FinCustomerPaymentApplication.vendor_id == vendor_id,
+                   FinCustomerPaymentApplication.payment_id == pay.id)
+        )).scalar() or 0
+
+        inv_outstanding = _D(str(inv.total or 0)) - _D(str(inv.amount_paid or 0)) - _D(str(prior_inv))
+        pay_unapplied = _D(str(pay.amount or 0)) - _D(str(prior_pay))
+        if applied > inv_outstanding:
+            raise ValueError(f"Applied amount {applied} exceeds invoice outstanding {inv_outstanding}.")
+        if applied > pay_unapplied:
+            raise ValueError(f"Applied amount {applied} exceeds unapplied payment amount {pay_unapplied}.")
+
+        app = FinCustomerPaymentApplication(
+            id=uuid.uuid4(), vendor_id=vendor_id,
+            payment_id=pay.id, invoice_id=inv.id, amount_applied=applied,
+            created_by_id=data.get("created_by_id"),
+        )
         self.db.add(app)
         await self.db.flush()
         return app
@@ -517,7 +620,8 @@ class FinAPRepo:
 
     async def post_bill(self, bill: FinVendorBill) -> FinVendorBill:
         bill.status = "open"
-        bill.balance_due = bill.total
+        # The supplier is owed the bill total less any TDS we deduct and deposit.
+        bill.balance_due = (bill.total or 0) - (bill.tds_amount or 0)
         await self.db.flush()
         return bill
 
@@ -531,29 +635,99 @@ class FinAPRepo:
         return list(r.scalars().all())
 
     async def create_payment_run(self, vendor_id: UUID, data: dict) -> FinPaymentRun:
-        items_data = data.pop("items", [])
-        run = FinPaymentRun(id=uuid.uuid4(), vendor_id=vendor_id, **data)
+        from decimal import Decimal as _D
+        items_data = data.get("items", []) or []
+        # Validate every bill belongs to this tenant, is payable and not over-allocated
+        total = _D("0")
+        clean_items = []
+        for item in items_data:
+            bill = await self.get_bill(item["bill_id"], vendor_id)
+            if bill is None:
+                raise ValueError(f"Bill {item['bill_id']} not found for this vendor.")
+            if bill.status not in ("open", "partially_paid"):
+                raise ValueError(f"Bill {bill.bill_no} is '{bill.status}' and cannot be paid.")
+            amt = _D(str(item["amount"]))
+            balance = _D(str(bill.balance_due if bill.balance_due is not None else bill.total or 0))
+            if amt > balance:
+                raise ValueError(
+                    f"Payment run amount {amt} exceeds balance {balance} on bill {bill.bill_no}.")
+            total += amt
+            clean_items.append({"bill_id": bill.id, "amount": amt})
+        if data.get("bank_account_id"):
+            ba = await self.db.execute(select(FinBankAccount).where(
+                FinBankAccount.id == data["bank_account_id"],
+                FinBankAccount.vendor_id == vendor_id))
+            if ba.scalar_one_or_none() is None:
+                raise ValueError("Bank account not found for this vendor.")
+        run_fields = {k: v for k, v in data.items()
+                      if k in {"name", "payment_date", "bank_account_id", "notes"}}
+        run = FinPaymentRun(id=uuid.uuid4(), vendor_id=vendor_id,
+                            total_amount=total, **run_fields)
         self.db.add(run)
         await self.db.flush()
-        for item in items_data:
-            ri = FinPaymentRunItem(id=uuid.uuid4(), run_id=run.id, **item)
-            self.db.add(ri)
+        for item in clean_items:
+            self.db.add(FinPaymentRunItem(id=uuid.uuid4(), run_id=run.id, **item))
         await self.db.flush()
         return run
 
     async def record_vendor_payment(self, vendor_id: UUID, data: dict) -> FinVendorPayment:
-        vp = FinVendorPayment(id=uuid.uuid4(), vendor_id=vendor_id, **data)
-        self.db.add(vp)
-        await self.db.flush()
-        # Update bill balance
-        if vp.bill_id:
+        """
+        Record an AP payment. All validation happens BEFORE anything is added
+        to the session so a rejected payment leaves no partial state.
+        """
+        from decimal import Decimal as _D
+        _SAFE_FIELDS = {
+            "bill_id", "supplier_id", "amount", "payment_date",
+            "payment_method", "reference_no", "bank_account_id", "notes",
+        }
+        safe = {k: v for k, v in data.items() if k in _SAFE_FIELDS}
+        amount = _D(str(safe["amount"]))
+        if amount <= 0:
+            raise ValueError("Payment amount must be positive.")
+
+        # Supplier must belong to this tenant
+        from app.models.procurement import Supplier as _Sup
+        sup = await self.db.execute(select(_Sup).where(
+            _Sup.id == safe["supplier_id"], _Sup.vendor_id == vendor_id))
+        if sup.scalar_one_or_none() is None:
+            raise ValueError("Supplier not found for this vendor.")
+        if safe.get("bank_account_id"):
+            ba = await self.db.execute(select(FinBankAccount).where(
+                FinBankAccount.id == safe["bank_account_id"],
+                FinBankAccount.vendor_id == vendor_id))
+            if ba.scalar_one_or_none() is None:
+                raise ValueError("Bank account not found for this vendor.")
+
+        bill = None
+        if safe.get("bill_id"):
             r = await self.db.execute(
-                select(FinVendorBill).where(FinVendorBill.id == vp.bill_id))
+                select(FinVendorBill).where(
+                    FinVendorBill.id == safe["bill_id"],
+                    FinVendorBill.vendor_id == vendor_id,   # cross-tenant guard
+                ).with_for_update()                         # serialise concurrent payments
+            )
             bill = r.scalar_one_or_none()
-            if bill:
-                bill.amount_paid = (bill.amount_paid or 0) + vp.amount
-                bill.balance_due = bill.total - bill.amount_paid
-                bill.status = "paid" if bill.balance_due <= 0 else "partially_paid"
+            if bill is None:
+                raise ValueError(f"Bill {safe['bill_id']} not found for this vendor.")
+            if bill.supplier_id != safe["supplier_id"]:
+                raise ValueError("Bill belongs to a different supplier.")
+            if bill.status not in ("open", "partially_paid"):
+                raise ValueError(f"Bill {bill.bill_no} is '{bill.status}' and cannot be paid.")
+            balance = _D(str(bill.balance_due if bill.balance_due is not None else (bill.total or 0)))
+            if amount > balance:
+                raise ValueError(
+                    f"Payment amount {amount} exceeds outstanding balance {balance} "
+                    f"on bill {bill.bill_no}. Use a credit-note for overpayments."
+                )
+
+        vp = FinVendorPayment(id=uuid.uuid4(), vendor_id=vendor_id, **safe)
+        self.db.add(vp)
+        if bill is not None:
+            paid = _D(str(bill.amount_paid or 0)) + amount
+            bill.amount_paid = paid
+            bill.balance_due = _D(str(bill.total or 0)) - paid
+            bill.status = "paid" if bill.balance_due <= 0 else "partially_paid"
+        await self.db.flush()
         return vp
 
     async def ap_aging(self, vendor_id: UUID, as_of: date = None) -> list[dict]:
@@ -661,45 +835,129 @@ class FinBankRepo:
         return list(r.scalars().all())
 
     async def auto_match(self, vendor_id: UUID, reconciliation_id: UUID,
-                         bank_account_id: UUID) -> list[FinReconciliationMatch]:
-        """Simple heuristic: match unreconciled statement lines to journal lines by amount+date."""
+                         bank_account_id: UUID,
+                         date_tolerance_days: int = 5) -> list[FinReconciliationMatch]:
+        """
+        Auto-match unreconciled statement lines to unreconciled GL journal lines.
+
+        Matching rules (in order of strictness):
+        1. Same amount (exact).
+        2. Correct direction: bank statement debit ↔ GL credit (cash out) and vice versa.
+        3. Date within ±date_tolerance_days of the GL entry date.
+        4. Same bank account (bank_account_id filter on both sides).
+
+        After matching:
+        - statement line and journal line are both marked is_reconciled=True.
+        - FinReconciliationMatch record created.
+        """
+        from datetime import timedelta
+
+        # Fetch unreconciled statement lines for THIS bank account only
         r1 = await self.db.execute(
-            select(FinBankStatementLine).where(
+            select(FinBankStatementLine)
+            .join(FinBankStatement, FinBankStatement.id == FinBankStatementLine.statement_id)
+            .where(
                 FinBankStatementLine.vendor_id == vendor_id,
+                FinBankStatement.vendor_id == vendor_id,
+                FinBankStatement.bank_account_id == bank_account_id,
                 FinBankStatementLine.is_reconciled == False,
             )
         )
         stmt_lines = r1.scalars().all()
 
-        r2 = await self.db.execute(
-            select(FinJournalLine).join(FinJournalEntry, FinJournalLine.journal_entry_id == FinJournalEntry.id)
-            .where(FinJournalLine.vendor_id == vendor_id, FinJournalEntry.status == "posted")
+        # Fetch unreconciled posted GL lines for this bank account
+        # The GL bank account is linked via FinBankAccount.gl_account_id
+        ba_r = await self.db.execute(
+            select(FinBankAccount).where(
+                FinBankAccount.id == bank_account_id,
+                FinBankAccount.vendor_id == vendor_id,
+            )
         )
-        jl_lines = r2.scalars().all()
+        ba = ba_r.scalar_one_or_none()
+        gl_account_id = ba.gl_account_id if ba else None
+
+        jl_where = [
+            FinJournalLine.vendor_id == vendor_id,
+            FinJournalEntry.status == "posted",
+            FinJournalLine.clearing_date.is_(None),  # not yet reconciled/cleared
+        ]
+        if gl_account_id:
+            jl_where.append(FinJournalLine.account_id == gl_account_id)
+
+        r2 = await self.db.execute(
+            select(FinJournalLine, FinJournalEntry.entry_date)
+            .join(FinJournalEntry, FinJournalLine.journal_entry_id == FinJournalEntry.id)
+            .where(*jl_where)
+        )
+        jl_rows = r2.all()
+
+        # Index GL lines by (rounded_amount, direction)
+        # direction: "cr" = cash received (GL credit = bank receipt), "dr" = cash out
+        from collections import defaultdict
+        _D = Decimal
+        jl_index: dict[tuple, list] = defaultdict(list)
+        for jl, entry_date in jl_rows:
+            if jl.credit and jl.credit > 0:
+                key = (round(_D(str(jl.credit)), 2), "cr")
+                jl_index[key].append((jl, entry_date))
+            if jl.debit and jl.debit > 0:
+                key = (round(_D(str(jl.debit)), 2), "dr")
+                jl_index[key].append((jl, entry_date))
 
         matches = []
-        jl_by_amount: dict[Decimal, list] = {}
-        for jl in jl_lines:
-            amt = jl.debit or jl.credit
-            jl_by_amount.setdefault(amt, []).append(jl)
+        used_jl_ids: set = set()
 
         for sl in stmt_lines:
-            amt = sl.debit or sl.credit
-            candidates = jl_by_amount.get(amt, [])
-            if candidates:
-                jl = candidates.pop(0)
-                match = FinReconciliationMatch(
-                    id=uuid.uuid4(),
-                    reconciliation_id=reconciliation_id,
-                    statement_line_id=sl.id,
-                    journal_line_id=jl.id,
-                    amount=amt,
-                    match_type="exact",
-                )
-                self.db.add(match)
-                sl.is_reconciled = True
-                sl.reconciliation_id = reconciliation_id
-                matches.append(match)
+            sl_date = sl.transaction_date
+            # Statement debit = cash out → matches GL credit
+            # Statement credit = cash in → matches GL debit
+            sl_dr = _D(str(sl.debit or 0))
+            sl_cr = _D(str(sl.credit or 0))
+
+            if sl_dr > 0:
+                # Cash out: look for GL credit of same amount
+                candidates = jl_index.get((round(sl_dr, 2), "cr"), [])
+                direction_match = "cr"
+            elif sl_cr > 0:
+                # Cash in: look for GL debit of same amount
+                candidates = jl_index.get((round(sl_cr, 2), "dr"), [])
+                direction_match = "dr"
+            else:
+                continue
+
+            best = None
+            for jl, entry_date in candidates:
+                if jl.id in used_jl_ids:
+                    continue
+                if sl_date and entry_date:
+                    delta = abs((sl_date - entry_date).days)
+                    if delta <= date_tolerance_days:
+                        best = jl
+                        break
+                else:
+                    best = jl   # no date info — take first available
+                    break
+
+            if best is None:
+                continue
+
+            used_jl_ids.add(best.id)
+            amt = sl_dr if sl_dr > 0 else sl_cr
+            match = FinReconciliationMatch(
+                id=uuid.uuid4(),
+                reconciliation_id=reconciliation_id,
+                statement_line_id=sl.id,
+                journal_line_id=best.id,
+                amount=amt,
+                match_type="auto_exact",
+            )
+            self.db.add(match)
+            sl.is_reconciled = True
+            sl.reconciliation_id = reconciliation_id
+            # Mark the GL line as reconciled (set clearing_date)
+            from datetime import date as _date
+            best.clearing_date = _date.today()
+            matches.append(match)
 
         await self.db.flush()
         return matches
@@ -1390,94 +1648,249 @@ class FinTaxRepo:
 
     async def compute_gstr1(self, vendor_id: UUID, period_start: date,
                             period_end: date) -> dict:
-        """Build GSTR-1 JSON from invoices raised within the given period."""
+        """
+        Build GSTR-1 data from invoices and credit notes raised in the period.
+
+        * Invoice date (not created_at) decides the period.
+        * Place of supply is normalised to the 2-digit GST state code.
+        * Tax is reported per rate (from the invoice lines).
+        * B2B -> by recipient GSTIN; B2CL -> inter-state B2C above the date-dependent
+          threshold; everything else B2CS aggregated by (supply type, state, rate).
+        * Credit notes: registered -> CDNR; large inter-state B2C -> CDNUR; small B2C
+          are netted into B2CS (negative).
+        * HSN summary is rate-wise and read from the JSONB line items.
+        * Totals are given for invoices, credit notes and net.
+        """
+        from decimal import Decimal as _D
+        from app.models.vendor import Vendor as _Vendor
+        from app.services.finance import gst as _gst
+
+        vendor = await self.db.get(_Vendor, vendor_id)
+        own_gstin = (getattr(vendor, "gstin", None) or "").strip()
+        own_state = _gst.gstin_state(own_gstin) or _gst.normalize_state_code(getattr(vendor, "state", None))
+
+        def _inv_date(inv) -> date:
+            raw = getattr(inv, "invoice_date", None) or getattr(inv, "created_at", None)
+            if raw is None:
+                return period_start   # last resort
+            return raw.date() if hasattr(raw, "date") else raw
+
         r = await self.db.execute(
             select(Invoice).where(
                 Invoice.vendor_id == vendor_id,
-                Invoice.invoice_type == "invoice",
+                Invoice.invoice_type.in_(["invoice", "credit_note"]),
                 Invoice.status.notin_(["draft", "void", "cancelled"]),
             )
         )
-        all_invoices = r.scalars().all()
-        b2b = []
-        b2c_large = []
-        b2c_small = []
-        period_invoices = []
-        for inv in all_invoices:
-            if not inv.created_at:
+        all_docs = r.scalars().all()
+
+        zero = _D("0")
+        b2b: list[dict] = []
+        b2cl: list[dict] = []
+        b2cs_map: dict[tuple, dict] = {}
+        b2b_cdns: list[dict] = []
+        b2cs_cdns: list[dict] = []
+        hsn_map: dict[tuple, dict] = {}
+        tot = {"inv": {"taxable": zero, "cgst": zero, "sgst": zero, "igst": zero, "count": 0},
+               "cn": {"taxable": zero, "cgst": zero, "sgst": zero, "igst": zero, "count": 0}}
+        issues: list[str] = []
+
+        def _fl(v):
+            return float(_gst.q2(v))
+
+        for inv in all_docs:
+            d = _inv_date(inv)
+            if not (period_start <= d <= period_end):
                 continue
-            inv_date = inv.created_at.date()
-            if not (period_start <= inv_date <= period_end):
-                continue
-            period_invoices.append(inv)
+            is_cn = (getattr(inv, "invoice_type", "invoice") == "credit_note")
+            sign = -1 if is_cn else 1
+
+            cgst = _D(str(inv.cgst_amount or 0))
+            sgst = _D(str(inv.sgst_amount or 0))
+            igst = _D(str(inv.igst_amount or 0))
+            taxable = _D(str(inv.taxable_amount if inv.taxable_amount is not None else (inv.subtotal or 0)))
+            total = _D(str(inv.total or 0))
+            gstin = (inv.customer_gstin or "").strip()
+
+            pos_code = _gst.normalize_state_code(inv.place_of_supply, gstin) or own_state
+            if not pos_code:
+                issues.append(f"{inv.invoice_number}: place of supply could not be determined")
+            inter = igst > 0 or bool(inv.is_inter_state) or bool(pos_code and own_state and pos_code != own_state)
+
+            rls = _gst.rate_lines(inv.items or [])
+            if not rls:   # no line detail: one synthetic line from the header
+                tax = cgst + sgst + igst
+                rate = ((tax / taxable) * 100).quantize(_D("0.01")) if taxable > 0 else zero
+                rls = [{"rate": rate, "taxable": taxable, "cgst": cgst, "sgst": sgst,
+                        "igst": igst, "cess": zero}]
+            rl_json = [{"rate": float(x["rate"]), "taxable": _fl(x["taxable"]), "cgst": _fl(x["cgst"]),
+                        "sgst": _fl(x["sgst"]), "igst": _fl(x["igst"]), "cess": _fl(x["cess"])} for x in rls]
+
             row = {
                 "invoice_number": inv.invoice_number,
-                "invoice_date": str(inv_date),
-                "total": float(inv.total or 0),
-                "taxable_value": float(inv.taxable_amount or 0),
-                "cgst": float(inv.cgst_amount or 0) if hasattr(inv, "cgst_amount") else 0,
-                "sgst": float(inv.sgst_amount or 0) if hasattr(inv, "sgst_amount") else 0,
-                "igst": float(inv.igst_amount or 0) if hasattr(inv, "igst_amount") else 0,
-                "place_of_supply": getattr(inv, "place_of_supply", None),
-                "customer_gstin": inv.customer_gstin,
+                "invoice_date": str(d),
+                "total": _fl(total), "taxable_value": _fl(taxable),
+                "cgst": _fl(cgst), "sgst": _fl(sgst), "igst": _fl(igst),
+                "place_of_supply": inv.place_of_supply or "",
+                "pos_code": pos_code, "customer_gstin": gstin,
+                "is_inter_state": inter, "rate_lines": rl_json,
             }
-            if inv.customer_gstin:
+
+            bucket = tot["cn" if is_cn else "inv"]
+            bucket["taxable"] += taxable; bucket["cgst"] += cgst
+            bucket["sgst"] += sgst; bucket["igst"] += igst; bucket["count"] += 1
+
+            large_b2c = inter and not gstin and total > _gst.b2cl_threshold(d)
+            if is_cn:
+                if gstin:
+                    b2b_cdns.append(row)
+                elif large_b2c:
+                    b2cs_cdns.append({**row, "report_in_cdnur": True})
+                else:
+                    b2cs_cdns.append({**row, "report_in_cdnur": False})
+            elif gstin:
                 b2b.append(row)
-            elif float(inv.total or 0) >= 250000:
-                b2c_large.append(row)
-            else:
-                b2c_small.append(row)
+            elif large_b2c:
+                b2cl.append(row)
+
+            # B2CS: small B2C invoices, minus small B2C credit notes
+            if not gstin and not large_b2c:
+                for x in rls:
+                    key = ("INTER" if inter else "INTRA", pos_code or "99", float(x["rate"]))
+                    agg = b2cs_map.setdefault(key, {
+                        "sply_ty": key[0], "pos_code": key[1], "rate": key[2],
+                        "taxable": zero, "cgst": zero, "sgst": zero, "igst": zero, "cess": zero})
+                    for f in ("taxable", "cgst", "sgst", "igst", "cess"):
+                        agg[f] += sign * x[f]
+
+            # HSN summary (rate-wise) from the JSONB line items
+            for it in (inv.items or []):
+                ln = _gst.line_tax(it)
+                hk = (ln["hsn"] or "UNDEF", ln["uqc"], ln["rate"])
+                h = hsn_map.setdefault(hk, {
+                    "hsn_sac": hk[0], "uqc": hk[1], "rate": float(hk[2]), "desc": ln["desc"],
+                    "quantity": zero, "taxable_value": zero, "cgst": zero, "sgst": zero,
+                    "igst": zero, "cess": zero, "total_value": zero})
+                h["quantity"] += sign * ln["qty"]
+                for f_out, f_in in (("taxable_value", "taxable"), ("cgst", "cgst"), ("sgst", "sgst"),
+                                    ("igst", "igst"), ("cess", "cess")):
+                    h[f_out] += sign * ln[f_in]
+                h["total_value"] += sign * (ln["taxable"] + ln["cgst"] + ln["sgst"] + ln["igst"] + ln["cess"])
+                if hk[0] == "UNDEF":
+                    issues.append(f"{inv.invoice_number}: line without HSN/SAC code")
+
+        def _net(f):
+            return tot["inv"][f] - tot["cn"][f]
+
+        b2cs = [{
+            "sply_ty": v["sply_ty"], "pos_code": v["pos_code"], "rate": v["rate"],
+            "place_of_supply": v["pos_code"], "taxable": _fl(v["taxable"]),
+            "taxable_value": _fl(v["taxable"]), "cgst": _fl(v["cgst"]), "sgst": _fl(v["sgst"]),
+            "igst": _fl(v["igst"]), "cess": _fl(v["cess"]),
+            "total": _fl(v["taxable"] + v["cgst"] + v["sgst"] + v["igst"] + v["cess"]),
+        } for v in b2cs_map.values()]
+        hsn_summary = [{
+            "hsn_sac": h["hsn_sac"], "uqc": h["uqc"], "rate": h["rate"], "desc": h["desc"],
+            "quantity": float(h["quantity"]), "taxable_value": _fl(h["taxable_value"]),
+            "cgst": _fl(h["cgst"]), "sgst": _fl(h["sgst"]), "igst": _fl(h["igst"]),
+            "cess": _fl(h["cess"]), "total_value": _fl(h["total_value"]),
+        } for h in hsn_map.values()]
+
+        inv_t, cn_t = tot["inv"], tot["cn"]
         return {
             "period": f"{period_start} to {period_end}",
-            "b2b": b2b,
-            "b2cl": b2c_large,
-            "b2cs": b2c_small,
-            "total_invoices": len(period_invoices),
-            "total_taxable": sum(float(i.taxable_amount or 0) for i in period_invoices),
-            "total_tax": sum(float(getattr(i, "total_tax_amount", i.tax_amount) or 0) for i in period_invoices),
+            "supplier_gstin": own_gstin,
+            "supplier_state_code": own_state,
+            "b2b": b2b, "b2cl": b2cl, "b2cs": b2cs,
+            "b2b_cdns": b2b_cdns, "b2cs_cdns": b2cs_cdns,
+            "hsn_summary": hsn_summary,
+            "total_invoices": inv_t["count"], "total_credit_notes": cn_t["count"],
+            # invoices only (as filed in the invoice tables)
+            "total_taxable": _fl(inv_t["taxable"]), "total_cgst": _fl(inv_t["cgst"]),
+            "total_sgst": _fl(inv_t["sgst"]), "total_igst": _fl(inv_t["igst"]),
+            "total_tax": _fl(inv_t["cgst"] + inv_t["sgst"] + inv_t["igst"]),
+            # credit notes
+            "cn_taxable": _fl(cn_t["taxable"]), "cn_cgst": _fl(cn_t["cgst"]),
+            "cn_sgst": _fl(cn_t["sgst"]), "cn_igst": _fl(cn_t["igst"]),
+            # net outward liability = invoices - credit notes (feeds GSTR-3B 3.1)
+            "net_taxable": _fl(_net("taxable")), "net_cgst": _fl(_net("cgst")),
+            "net_sgst": _fl(_net("sgst")), "net_igst": _fl(_net("igst")),
+            "net_tax": _fl(_net("cgst") + _net("sgst") + _net("igst")),
+            "data_issues": issues[:100],
         }
 
     async def compute_gstr3b(self, vendor_id: UUID, period_start: date,
                              period_end: date) -> dict:
-        from app.models.procurement_invoice import VendorInvoice as ProcurementVendorInvoice
+        """
+        GSTR-3B: outward liability (net of credit notes), eligible ITC by head, and
+        net payable after set-off in the order prescribed by Sections 49/49A/49B.
+        ITC comes only from bills posted to the ledger whose supplier has a GSTIN.
+        """
+        from decimal import Decimal as _D
+        from app.models.procurement import Supplier as _Supplier
+        from app.models.vendor import Vendor as _Vendor
+        from app.services.finance import gst as _gst
 
         gstr1 = await self.compute_gstr1(vendor_id, period_start, period_end)
-        total_outward_tax = gstr1["total_tax"]
+        out = {"igst": _D(str(gstr1["net_igst"])), "cgst": _D(str(gstr1["net_cgst"])),
+               "sgst": _D(str(gstr1["net_sgst"]))}
+        total_outward_tax = out["igst"] + out["cgst"] + out["sgst"]
 
-        # ITC from Finance AP bills
+        own = await self.db.get(_Vendor, vendor_id)
+        own_gstin = getattr(own, "gstin", None)
+
         r = await self.db.execute(
-            select(func.coalesce(func.sum(FinVendorBill.tax_amount), 0))
+            select(FinVendorBill, _Supplier.gstin)
+            .join(_Supplier, _Supplier.id == FinVendorBill.supplier_id)
             .where(
+                _Supplier.gstin.isnot(None),
+                _Supplier.gstin != "",
                 FinVendorBill.vendor_id == vendor_id,
                 FinVendorBill.bill_date >= period_start,
                 FinVendorBill.bill_date <= period_end,
-                FinVendorBill.status != "void",
+                FinVendorBill.status.in_(["open", "partially_paid", "paid"]),
+                FinVendorBill.journal_entry_id.isnot(None),
             )
         )
-        fin_itc = float(r.scalar() or 0)
+        itc = {"igst": _D("0"), "cgst": _D("0"), "sgst": _D("0")}
+        bills = 0
+        for bill, sup_gstin in r.all():
+            bills += 1
+            c, s_, i = (_D(str(bill.cgst_amount)) if bill.cgst_amount is not None else None,
+                        _D(str(bill.sgst_amount)) if bill.sgst_amount is not None else None,
+                        _D(str(bill.igst_amount)) if bill.igst_amount is not None else None)
+            if c is None and s_ is None and i is None:
+                split = _gst.infer_itc_split(_D(str(bill.tax_amount or 0)), sup_gstin, own_gstin)
+            else:
+                split = {"cgst": c or _D("0"), "sgst": s_ or _D("0"), "igst": i or _D("0")}
+            for h in itc:
+                itc[h] += split[h]
+        itc_total = itc["igst"] + itc["cgst"] + itc["sgst"]
 
-        # ITC from Procurement AP invoices (posted only — avoids double-counting if
-        # a procurement invoice is also linked to a Finance bill via journal entry)
-        r2 = await self.db.execute(
-            select(func.coalesce(func.sum(ProcurementVendorInvoice.tax_amount), 0))
-            .where(
-                ProcurementVendorInvoice.vendor_id == vendor_id,
-                ProcurementVendorInvoice.invoice_date >= period_start,
-                ProcurementVendorInvoice.invoice_date <= period_end,
-                ProcurementVendorInvoice.status == "posted",
-            )
-        )
-        proc_itc = float(r2.scalar() or 0)
-
-        itc = fin_itc + proc_itc
+        so = _gst.gst_setoff(out, itc)
+        pay = so["payable"]
         return {
             "period": f"{period_start} to {period_end}",
-            "outward_tax_liability": total_outward_tax,
-            "inward_itc": itc,
-            "inward_itc_fin_bills": fin_itc,
-            "inward_itc_procurement": proc_itc,
-            "net_payable": max(0, total_outward_tax - itc),
-            "total_taxable_turnover": gstr1["total_taxable"],
+            # 3.1 Outward taxable supplies (net of credit notes)
+            "outward_taxable": gstr1.get("net_taxable", 0),
+            "outward_cgst": float(_gst.q2(out["cgst"])),
+            "outward_sgst": float(_gst.q2(out["sgst"])),
+            "outward_igst": float(_gst.q2(out["igst"])),
+            "total_outward_tax": float(_gst.q2(total_outward_tax)),
+            # 4 ITC available
+            "itc_bills": bills,
+            "itc_total": float(_gst.q2(itc_total)),
+            "itc_cgst": float(_gst.q2(itc["cgst"])),
+            "itc_sgst": float(_gst.q2(itc["sgst"])),
+            "itc_igst": float(_gst.q2(itc["igst"])),
+            # 6.1 Net tax payable after ITC set-off
+            "net_cgst_payable": float(pay["cgst"]),
+            "net_sgst_payable": float(pay["sgst"]),
+            "net_igst_payable": float(pay["igst"]),
+            "total_net_payable": float(pay["cgst"] + pay["sgst"] + pay["igst"]),
+            "itc_carry_forward": {h: float(v) for h, v in so["itc_carry_forward"].items()},
+            "total_taxable_turnover": gstr1.get("net_taxable", 0),
+            "data_issues": gstr1.get("data_issues", []),
         }
 
 
@@ -1486,8 +1899,14 @@ class FinReportRepo:
         self.db = db
 
     async def _account_balance(self, vendor_id: UUID, account_type: str,
-                                from_date: date, to_date: date) -> dict[str, float]:
-        r = await self.db.execute(
+                                from_date: date, to_date: date,
+                                company_id: UUID = None) -> dict[str, float]:
+        """
+        Return per-account balances (dr - cr) for the given type and date range.
+        All computations happen in the database — only summary rows are returned.
+        company_id filter is applied when provided.
+        """
+        q = (
             select(
                 FinAccount.id,
                 FinAccount.name,
@@ -1506,58 +1925,120 @@ class FinReportRepo:
             )
             .group_by(FinAccount.id, FinAccount.name, FinAccount.account_subtype)
         )
+        if company_id:
+            q = q.where(FinJournalEntry.company_id == company_id)
+        r = await self.db.execute(q)
         return {
             row["id"]: {
                 "id": str(row["id"]),
                 "name": row["name"],
                 "subtype": row["account_subtype"],
+                # raw balance: positive = more debits, negative = more credits
                 "balance": float(row["dr"]) - float(row["cr"]),
             }
             for row in r.mappings().all()
         }
 
     async def profit_and_loss(self, vendor_id: UUID,
-                              from_date: date, to_date: date) -> dict:
-        income = await self._account_balance(vendor_id, "Income", from_date, to_date)
-        expense = await self._account_balance(vendor_id, "Expense", from_date, to_date)
-        total_income = sum(abs(v["balance"]) for v in income.values())
-        total_expense = sum(abs(v["balance"]) for v in expense.values())
+                              from_date: date, to_date: date,
+                              company_id: UUID = None) -> dict:
+        """
+        P&L for the period. Income accounts have natural credit balances:
+        (debit - credit) is negative for income — we negate it for reporting.
+        Expense accounts have natural debit balances: (debit - credit) is positive.
+        We always report both as positive amounts in the statement.
+        """
+        income_raw = await self._account_balance(vendor_id, "Income", from_date, to_date,
+                                                 company_id=company_id)
+        expense_raw = await self._account_balance(vendor_id, "Expense", from_date, to_date,
+                                                  company_id=company_id)
+
+        def _signed_income(v: dict) -> dict:
+            """Income accounts: natural credit balance → negate (dr-cr) to get positive income."""
+            raw = v["balance"]   # dr - cr, normally negative for income accounts
+            amount = -raw        # positive = revenue earned, negative = returns/contra
+            return {**v, "amount": amount, "balance": amount}
+
+        def _signed_expense(v: dict) -> dict:
+            """Expense accounts: natural debit balance → (dr-cr) is positive."""
+            amount = v["balance"]  # dr - cr, positive for normal expenses
+            return {**v, "amount": amount, "balance": amount}
+
+        income_lines = [_signed_income(v) for v in income_raw.values()]
+        expense_lines = [_signed_expense(v) for v in expense_raw.values()]
+
+        total_income = sum(v["amount"] for v in income_lines)
+        total_expense = sum(v["amount"] for v in expense_lines)
+        gross_profit = total_income - sum(
+            v["amount"] for v in expense_lines
+            if (v.get("subtype") or "").upper() in ("COGS", "COST OF GOODS SOLD")
+        )
+
         return {
             "period": f"{from_date} to {to_date}",
-            "income": list(income.values()),
-            "expenses": list(expense.values()),
-            "total_income": total_income,
-            "total_expenses": total_expense,
-            "net_profit": total_income - total_expense,
+            "income": income_lines,
+            "expenses": expense_lines,
+            "total_income": round(total_income, 2),
+            "total_expenses": round(total_expense, 2),
+            "gross_profit": round(gross_profit, 2),
+            "net_profit": round(total_income - total_expense, 2),
         }
 
-    async def balance_sheet(self, vendor_id: UUID, as_of: date) -> dict:
+    async def balance_sheet(self, vendor_id: UUID, as_of: date,
+                            company_id: UUID = None) -> dict:
         """
-        Returns a Current/Non-Current classified shape (matches the BalanceSheet.tsx
-        report page). Assets/liabilities of subtype "Current Asset" / "Current
-        Liability" go into the current buckets; everything else (Fixed Asset,
-        Investments, Long-term Liability, ungrouped) is treated as non-current.
+        Returns a Current/Non-Current classified balance sheet.
+
+        Sign convention (double-entry):
+          - Asset accounts: natural DEBIT balance → (dr - cr) is positive → report as positive
+          - Liability/Equity accounts: natural CREDIT balance → (dr - cr) is negative → report as positive
+          - Contra accounts (accumulated depreciation, contra-equity) have opposite signs
+
+        Retained earnings = cumulative net income up to as_of minus dividends.
+        Opening retained earnings are read from the Equity "Retained Earnings" account;
+        if not found, P&L net income from inception is folded in.
         """
-        assets = await self._account_balance(vendor_id, "Asset", date(2000, 1, 1), as_of)
-        liabilities = await self._account_balance(vendor_id, "Liability", date(2000, 1, 1), as_of)
-        equity = await self._account_balance(vendor_id, "Equity", date(2000, 1, 1), as_of)
+        # All history up to as_of (inception date chosen conservatively)
+        _INCEPTION = date(1970, 1, 1)
+        assets_raw = await self._account_balance(vendor_id, "Asset", _INCEPTION, as_of,
+                                                 company_id=company_id)
+        liab_raw = await self._account_balance(vendor_id, "Liability", _INCEPTION, as_of,
+                                               company_id=company_id)
+        equity_raw = await self._account_balance(vendor_id, "Equity", _INCEPTION, as_of,
+                                                 company_id=company_id)
 
-        def _line(v: dict) -> dict:
-            return {"id": v["id"], "name": v["name"], "amount": abs(v["balance"])}
+        # Compute retained earnings from P&L (income - expense since inception)
+        income_raw = await self._account_balance(vendor_id, "Income", _INCEPTION, as_of,
+                                                 company_id=company_id)
+        expense_raw = await self._account_balance(vendor_id, "Expense", _INCEPTION, as_of,
+                                                  company_id=company_id)
+        # Income: (dr-cr) is negative for normal credits → negate
+        total_income = sum(-v["balance"] for v in income_raw.values())
+        total_expense = sum(v["balance"] for v in expense_raw.values())
+        retained_earnings = total_income - total_expense
 
-        current_assets = [_line(v) for v in assets.values() if v.get("subtype") == "Current Asset"]
-        non_current_assets = [_line(v) for v in assets.values() if v.get("subtype") != "Current Asset"]
-        current_liabilities = [_line(v) for v in liabilities.values() if v.get("subtype") == "Current Liability"]
-        non_current_liabilities = [_line(v) for v in liabilities.values() if v.get("subtype") != "Current Liability"]
-        equity_lines = [_line(v) for v in equity.values()]
+        def _asset_line(v: dict) -> dict:
+            """Assets: normal debit balance → report as-is."""
+            return {"id": v["id"], "name": v["name"], "subtype": v.get("subtype", ""), "amount": round(v["balance"], 2)}
 
-        total_current_assets = sum(l["amount"] for l in current_assets)
-        total_non_current_assets = sum(l["amount"] for l in non_current_assets)
-        total_current_liabilities = sum(l["amount"] for l in current_liabilities)
-        total_non_current_liabilities = sum(l["amount"] for l in non_current_liabilities)
-        total_assets = total_current_assets + total_non_current_assets
-        total_liabilities = total_current_liabilities + total_non_current_liabilities
-        total_equity = sum(l["amount"] for l in equity_lines)
+        def _liab_equity_line(v: dict) -> dict:
+            """Liabilities/Equity: normal credit balance → negate (dr-cr) to get positive."""
+            return {"id": v["id"], "name": v["name"], "subtype": v.get("subtype", ""), "amount": round(-v["balance"], 2)}
+
+        current_assets = [_asset_line(v) for v in assets_raw.values() if v.get("subtype") == "Current Asset"]
+        non_current_assets = [_asset_line(v) for v in assets_raw.values() if v.get("subtype") != "Current Asset"]
+        current_liabilities = [_liab_equity_line(v) for v in liab_raw.values() if v.get("subtype") == "Current Liability"]
+        non_current_liabilities = [_liab_equity_line(v) for v in liab_raw.values() if v.get("subtype") != "Current Liability"]
+        equity_lines = [_liab_equity_line(v) for v in equity_raw.values()]
+
+        total_current_assets = round(sum(l["amount"] for l in current_assets), 2)
+        total_non_current_assets = round(sum(l["amount"] for l in non_current_assets), 2)
+        total_current_liabilities = round(sum(l["amount"] for l in current_liabilities), 2)
+        total_non_current_liabilities = round(sum(l["amount"] for l in non_current_liabilities), 2)
+        total_assets = round(total_current_assets + total_non_current_assets, 2)
+        total_liabilities = round(total_current_liabilities + total_non_current_liabilities, 2)
+        total_equity_explicit = round(sum(l["amount"] for l in equity_lines), 2)
+        total_equity = round(total_equity_explicit + retained_earnings, 2)
 
         return {
             "as_of": str(as_of),
@@ -1570,10 +2051,12 @@ class FinReportRepo:
             "total_current_liabilities": total_current_liabilities,
             "total_non_current_liabilities": total_non_current_liabilities,
             "equity": equity_lines,
-            "total_assets": total_assets,
-            "total_liabilities": total_liabilities,
+            "retained_earnings": round(retained_earnings, 2),
             "total_equity": total_equity,
-            "check": total_assets - total_liabilities - total_equity,
+            "total_liabilities": total_liabilities,
+            "total_assets": total_assets,
+            # Accounting equation check: should be ~0.00 if GL is balanced
+            "check": round(total_assets - total_liabilities - total_equity, 2),
         }
 
     async def cash_flow(self, vendor_id: UUID, from_date: date, to_date: date) -> dict:

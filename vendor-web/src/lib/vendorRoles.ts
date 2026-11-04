@@ -57,6 +57,11 @@ export const ROLE_BADGE_COLORS: Record<string, string> = {
   waiter: 'bg-fuchsia-100 text-fuchsia-700',
   kitchen_staff: 'bg-red-100 text-red-700',
   finance_controller: 'bg-green-100 text-green-800',
+  re_sales_executive: 'bg-orange-100 text-orange-800',
+  re_crm_manager: 'bg-amber-100 text-amber-800',
+  re_site_engineer: 'bg-stone-100 text-stone-700',
+  re_accounts: 'bg-teal-100 text-teal-800',
+  re_legal: 'bg-zinc-100 text-zinc-700',
   // Custom roles reuse the project_manager hue, so the ring keeps the two tellable apart.
   custom: 'bg-indigo-100 text-indigo-700 ring-1 ring-inset ring-indigo-400',
 }

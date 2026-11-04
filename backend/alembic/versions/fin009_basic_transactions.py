@@ -11,7 +11,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 revision = 'fin009'
-down_revision = None
+down_revision = 'fin008_audit_month_split'   # fixed: was None (second root), now chained correctly
 branch_labels = None
 depends_on = None
 

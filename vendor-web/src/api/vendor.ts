@@ -155,6 +155,11 @@ export interface BOMItemRecord {
   component_sku?: string | null
   component_uom?: string | null
   qty_per_unit: number
+  scrap_pct?: number
+  valid_from?: string | null
+  valid_to?: string | null
+  is_byproduct?: boolean
+  cost_share_pct?: number
   notes?: string | null
   created_at?: string | null
 }
@@ -234,6 +239,131 @@ export interface ProductionOperationRecord {
   notes?: string | null
   created_at?: string | null
   updated_at?: string | null
+}
+
+export interface ProductionShortage {
+  component_id: string
+  component_name: string
+  uom?: string | null
+  required: number
+  available: number
+  shortage: number
+  estimated_price: number
+}
+
+export interface ProductRoutingStepRecord {
+  id: string
+  product_id: string
+  sequence: number
+  name: string
+  work_center_id: string | null
+  setup_hours: number
+  hours_per_unit: number
+  notes?: string | null
+}
+
+export interface ProductionOutputSummary {
+  products: { product_id: string; name?: string | null; ordered: number; produced: number; remaining: number }[]
+  outputs: {
+    id: string
+    recorded_at?: string | null
+    actor?: string | null
+    notes?: string | null
+    qty: number
+    material?: string | null
+    goods: { product_id: string; name?: string | null; qty: number }[]
+  }[]
+}
+
+export interface WorkCenterLoadRow {
+  work_center_id: string
+  name: string
+  code?: string | null
+  open_hours: number
+  open_operations: number
+  capacity_per_day: number | null
+  days_of_work: number | null
+}
+
+export interface ProductionReconciliationIssue {
+  code: string
+  severity: 'error' | 'warning'
+  fixable: boolean
+  detail: string
+  order_id: string | null
+  ref: string | null
+}
+
+export interface ProductionReconciliation {
+  checked_at: string
+  total: number
+  errors: number
+  warnings: number
+  fixable: number
+  issues: ProductionReconciliationIssue[]
+}
+
+export interface ProductionFromSalesOrderResult {
+  id: string
+  ref: string
+  sales_order: string
+  items: { name: string; qty: number }[]
+  skipped: { name: string; reason: string }[]
+}
+
+export interface ProductionOrdersOfSalesOrder {
+  sales_order: string
+  total: number
+  items: { id: string; ref: string; status: string; progress: number }[]
+}
+
+export interface ProductionSchedulePlan {
+  start: string
+  finish: string | null
+  deadline: string | null
+  late_by_days: number | null
+  applied: boolean
+  steps: {
+    operation_id: string
+    name: string
+    work_center: string | null
+    planned_hours: number
+    start: string
+    end: string
+  }[]
+}
+
+export interface ProductionJobCard {
+  ref: string
+  type: string
+  status: string
+  priority: string | null
+  customer: string | null
+  sales_order: string | null
+  deadline: string | null
+  special_requirements: string | null
+  notes: string
+  items: { name: string | null; qty: number | null; produced: number }[]
+  operations: {
+    sequence: number
+    name: string
+    work_center: string | null
+    status: string
+    planned_hours: number
+    planned_start: string | null
+    planned_end: string | null
+  }[]
+  materials: {
+    component_id: string
+    name: string
+    sku: string | null
+    uom: string | null
+    required: number
+    already_issued: number
+    to_pick: number
+    on_hand: number
+    short: number
+  }[]
 }
 
 export interface ProductionAnalytics {
@@ -3798,7 +3928,16 @@ export const vendorApi = {
     return response.data
   },
 
-  putProductBOM: async (productId: string, items: Array<{ component_id: string; qty_per_unit: number; notes?: string | null }>): Promise<BOMItemRecord[]> => {
+  putProductBOM: async (productId: string, items: Array<{
+    component_id: string
+    qty_per_unit: number
+    scrap_pct?: number
+    valid_from?: string | null
+    valid_to?: string | null
+    is_byproduct?: boolean
+    cost_share_pct?: number
+    notes?: string | null
+  }>): Promise<BOMItemRecord[]> => {
     const response = await apiClient.put(`/vendors/me/products/${productId}/bom`, items)
     return response.data
   },
@@ -3885,6 +4024,90 @@ export const vendorApi = {
 
   getProductionAnalytics: async (params?: { store_id?: string; date_from?: string; date_to?: string }): Promise<ProductionAnalytics> => {
     const response = await apiClient.get('/vendors/me/production/analytics', { params })
+    return response.data
+  },
+
+  getProductionShortages: async (orderId: string): Promise<{ items: ProductionShortage[]; total: number }> => {
+    const response = await apiClient.get(`/vendors/me/production-orders/${orderId}/shortages`)
+    return response.data
+  },
+
+  createRequisitionFromShortages: async (orderId: string): Promise<{ id: string; pr_number: string; items: number }> => {
+    const response = await apiClient.post(`/vendors/me/production-orders/${orderId}/purchase-requisition`)
+    return response.data
+  },
+
+  getProductRouting: async (productId: string): Promise<{ items: ProductRoutingStepRecord[]; total: number }> => {
+    const response = await apiClient.get(`/vendors/me/products/${productId}/routing`)
+    return response.data
+  },
+
+  putProductRouting: async (
+    productId: string,
+    steps: Array<{ name: string; work_center_id?: string | null; setup_hours: number; hours_per_unit: number; notes?: string | null }>,
+  ): Promise<{ items: ProductRoutingStepRecord[]; total: number }> => {
+    const response = await apiClient.put(`/vendors/me/products/${productId}/routing`, steps)
+    return response.data
+  },
+
+  getProductionOutputs: async (orderId: string): Promise<ProductionOutputSummary> => {
+    const response = await apiClient.get(`/vendors/me/production-orders/${orderId}/outputs`)
+    return response.data
+  },
+
+  recordProductionOutput: async (
+    orderId: string,
+    data: { items: { product_id: string; qty: number }[]; notes?: string },
+  ): Promise<ProductionOutputSummary> => {
+    const response = await apiClient.post(`/vendors/me/production-orders/${orderId}/outputs`, data)
+    return response.data
+  },
+
+  reverseProductionOutput: async (orderId: string, outputId: string): Promise<ProductionOutputSummary> => {
+    const response = await apiClient.delete(`/vendors/me/production-orders/${orderId}/outputs/${outputId}`)
+    return response.data
+  },
+
+  getWorkCenterLoad: async (): Promise<{ items: WorkCenterLoadRow[]; unassigned_hours: number }> => {
+    const response = await apiClient.get('/vendors/me/work-centers/load')
+    return response.data
+  },
+
+  getProductionReconciliation: async (): Promise<ProductionReconciliation> => {
+    const response = await apiClient.get('/vendors/me/production/reconciliation')
+    return response.data
+  },
+
+  repairProductionReconciliation: async (): Promise<{ released_reservations: number }> => {
+    const response = await apiClient.post('/vendors/me/production/reconciliation/repair')
+    return response.data
+  },
+
+  createProductionFromSalesOrder: async (
+    salesOrderId: string,
+    body: { store_id?: string; shortfall_only?: boolean } = {},
+  ): Promise<ProductionFromSalesOrderResult> => {
+    const response = await apiClient.post(`/vendors/me/production-orders/from-sales-order/${salesOrderId}`, body)
+    return response.data
+  },
+
+  getProductionOrdersOfSalesOrder: async (salesOrderId: string): Promise<ProductionOrdersOfSalesOrder> => {
+    const response = await apiClient.get(`/vendors/me/production-orders/by-sales-order/${salesOrderId}`)
+    return response.data
+  },
+
+  previewProductionSchedule: async (orderId: string, start?: string): Promise<ProductionSchedulePlan> => {
+    const response = await apiClient.post(`/vendors/me/production-orders/${orderId}/schedule`, { start })
+    return response.data
+  },
+
+  applyProductionSchedule: async (orderId: string, start?: string): Promise<ProductionSchedulePlan> => {
+    const response = await apiClient.post(`/vendors/me/production-orders/${orderId}/schedule/apply`, { start })
+    return response.data
+  },
+
+  getProductionJobCard: async (orderId: string): Promise<ProductionJobCard> => {
+    const response = await apiClient.get(`/vendors/me/production-orders/${orderId}/job-card`)
     return response.data
   },
 

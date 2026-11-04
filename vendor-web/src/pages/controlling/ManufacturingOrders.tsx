@@ -11,6 +11,8 @@ import {
 } from '@/hooks/useControlling'
 import { formatCurrency } from '@/lib/utils'
 import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
+import { useHasPermission } from '@/hooks/usePermissions'
 import { ArrowLeft, Factory, Plus, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
@@ -39,6 +41,8 @@ export default function ControllingManufacturingOrdersPage() {
 
   const createMo = useCreateManufacturingOrder()
   const refreshPlanned = useRefreshOrderPlanned()
+  const canEdit = useHasPermission('finance.edit')
+  const canManage = useHasPermission('finance.coa.manage')
 
   const [showNew, setShowNew] = useState(false)
   const [varianceFor, setVarianceFor] = useState<string | undefined>()
@@ -69,8 +73,7 @@ export default function ControllingManufacturingOrdersPage() {
       setShowNew(false)
       refetch()
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { detail?: string } } }
-      toast.error(err.response?.data?.detail || 'Failed')
+      toast.error(extractApiError(e, 'Failed'))
     }
   }
 
@@ -80,8 +83,7 @@ export default function ControllingManufacturingOrdersPage() {
       toast.success('Planned lines refreshed from active standard cost')
       refetch()
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { detail?: string } } }
-      toast.error(err.response?.data?.detail || 'Refresh failed')
+      toast.error(extractApiError(e, 'Refresh failed'))
     }
   }
 
@@ -111,9 +113,11 @@ export default function ControllingManufacturingOrdersPage() {
               />
             </label>
           )}
-          <Button type="button" onClick={() => setShowNew(true)} className="gap-1">
-            <Plus className="w-4 h-4" /> New order
-          </Button>
+          {canEdit && (
+            <Button type="button" onClick={() => setShowNew(true)} className="gap-1">
+              <Plus className="w-4 h-4" /> New order
+            </Button>
+          )}
         </div>
       </div>
 
@@ -227,7 +231,12 @@ export default function ControllingManufacturingOrdersPage() {
                           size="sm"
                           variant="secondary"
                           className="gap-1"
-                          disabled={!o.product_id || refreshPlanned.isPending}
+                          disabled={
+                            !canManage ||
+                            !o.product_id ||
+                            refreshPlanned.isPending ||
+                            !['draft', 'released', 'in_progress'].includes(o.status)
+                          }
                           onClick={() => onRefreshPlanned(o.id)}
                         >
                           <RefreshCw className="w-3 h-3" /> Std plan

@@ -25,6 +25,14 @@ from app.models.vendor_user import VendorUser
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
+async def _make_supplier(db: AsyncSession, vendor_id: uuid.UUID):
+    from app.models.procurement import Supplier
+    sup = Supplier(id=uuid.uuid4(), vendor_id=vendor_id, name=f"Sup-{uuid.uuid4().hex[:6]}")
+    db.add(sup)
+    await db.flush()
+    return sup
+
+
 async def _make_active_project(db: AsyncSession, vendor_id: uuid.UUID) -> Project:
     from app.schemas.project import ProjectCreate
     from app.services.project_service import ProjectService
@@ -52,11 +60,11 @@ async def _make_company(db: AsyncSession, vendor_id: uuid.UUID) -> FinCompany:
 
 @pytest.mark.asyncio
 async def test_create_bill_invalid_pm_project_id_rejected(
-    client: AsyncClient, test_vendor: Vendor, test_vendor_user: VendorUser
+    client: AsyncClient, db_session: AsyncSession, test_vendor: Vendor, test_vendor_user: VendorUser
 ):
     """A bill referencing a non-existent pm_project_id should return 400."""
     payload = {
-        "supplier_id": str(uuid.uuid4()),
+        "supplier_id": str((await _make_supplier(db_session, test_vendor.id)).id),
         "bill_no": "BILL-001",
         "bill_date": "2026-01-01",
         "subtotal": 1000,
@@ -64,7 +72,7 @@ async def test_create_bill_invalid_pm_project_id_rejected(
         "total": 1180,
         "pm_project_id": str(uuid.uuid4()),  # does not exist
     }
-    resp = await client.post("/vendors/me/finance/ap/bills", json=payload)
+    resp = await client.post("/api/v1/vendors/me/finance/ap/bills", json=payload)
     assert resp.status_code == 400
 
 
@@ -75,7 +83,7 @@ async def test_create_bill_valid_pm_project_id_accepted(
     """A bill referencing a valid pm_project_id must be created successfully."""
     project = await _make_active_project(db_session, test_vendor.id)
     payload = {
-        "supplier_id": str(uuid.uuid4()),
+        "supplier_id": str((await _make_supplier(db_session, test_vendor.id)).id),
         "bill_no": "BILL-002",
         "bill_date": "2026-01-01",
         "subtotal": 500,
@@ -83,7 +91,7 @@ async def test_create_bill_valid_pm_project_id_accepted(
         "total": 500,
         "pm_project_id": str(project.id),
     }
-    resp = await client.post("/vendors/me/finance/ap/bills", json=payload)
+    resp = await client.post("/api/v1/vendors/me/finance/ap/bills", json=payload)
     assert resp.status_code == 201
     data = resp.json()
     assert data.get("pm_project_id") == str(project.id)
@@ -101,7 +109,7 @@ async def test_post_bill_rolls_up_actuals(
 
     # Create a bill referencing the project.
     payload = {
-        "supplier_id": str(uuid.uuid4()),
+        "supplier_id": str((await _make_supplier(db_session, test_vendor.id)).id),
         "bill_no": "BILL-003",
         "bill_date": "2026-01-01",
         "subtotal": 2000,
@@ -109,12 +117,12 @@ async def test_post_bill_rolls_up_actuals(
         "total": 2000,
         "pm_project_id": str(project.id),
     }
-    create_resp = await client.post("/vendors/me/finance/ap/bills", json=payload)
+    create_resp = await client.post("/api/v1/vendors/me/finance/ap/bills", json=payload)
     assert create_resp.status_code == 201
     bill_id = create_resp.json()["id"]
 
     # Post the bill.
-    post_resp = await client.post(f"/vendors/me/finance/ap/bills/{bill_id}/post")
+    post_resp = await client.post(f"/api/v1/vendors/me/finance/ap/bills/{bill_id}/post")
     assert post_resp.status_code == 200
 
     # Check actuals on the external cost line.
@@ -139,20 +147,21 @@ async def test_list_bills_pm_project_filter(
     """GET /ap/bills?pm_project_id=X should only return bills for that project."""
     project = await _make_active_project(db_session, test_vendor.id)
 
+    _sup = await _make_supplier(db_session, test_vendor.id)
     # Create two bills: one tagged, one not.
     tagged = {
-        "supplier_id": str(uuid.uuid4()), "bill_no": "TAGGED", "bill_date": "2026-01-01",
+        "supplier_id": str(_sup.id), "bill_no": "TAGGED", "bill_date": "2026-01-01",
         "subtotal": 100, "tax_amount": 0, "total": 100,
         "pm_project_id": str(project.id),
     }
     untagged = {
-        "supplier_id": str(uuid.uuid4()), "bill_no": "UNTAGGED", "bill_date": "2026-01-01",
+        "supplier_id": str(_sup.id), "bill_no": "UNTAGGED", "bill_date": "2026-01-01",
         "subtotal": 200, "tax_amount": 0, "total": 200,
     }
-    await client.post("/vendors/me/finance/ap/bills", json=tagged)
-    await client.post("/vendors/me/finance/ap/bills", json=untagged)
+    await client.post("/api/v1/vendors/me/finance/ap/bills", json=tagged)
+    await client.post("/api/v1/vendors/me/finance/ap/bills", json=untagged)
 
-    resp = await client.get(f"/vendors/me/finance/ap/bills?pm_project_id={project.id}")
+    resp = await client.get(f"/api/v1/vendors/me/finance/ap/bills?pm_project_id={project.id}")
     assert resp.status_code == 200
     data = resp.json()
     items = data if isinstance(data, list) else data.get("items", data)

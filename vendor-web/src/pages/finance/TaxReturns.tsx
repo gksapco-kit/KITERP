@@ -6,7 +6,10 @@ import {
   useTaxReturns, useCreateTaxReturn, useComputeTaxReturn, useFileTaxReturn,
   useTaxCodes, useCreateTaxCode, useUpdateTaxCode, useDeleteTaxCode,
 } from '@/hooks/useFinance'
-import { Plus, Calculator, Send, Pencil, Trash2, EyeOff, Eye } from 'lucide-react'
+import { Plus, Calculator, Send, Pencil, Trash2, EyeOff, Eye, Download } from 'lucide-react'
+import { toast } from 'sonner'
+import * as finApi from '@/api/finance'
+import TdsSectionReport from '@/components/finance/TdsSectionReport'
 
 const STATUS_COLORS: Record<string, string> = {
   draft: 'bg-gray-100 text-gray-600',
@@ -31,11 +34,11 @@ const TAX_TYPE_OPTIONS = ['GST', 'CGST', 'SGST', 'IGST', 'TDS', 'TCS', 'Income']
 type CodeForm = { code: string; name: string; tax_type: string; rate: string }
 
 interface Props {
-  defaultTab?: 'returns' | 'codes'
+  defaultTab?: 'returns' | 'codes' | 'tds'
 }
 
 export default function TaxReturns({ defaultTab = 'returns' }: Props) {
-  const [tab, setTab] = useState<'returns' | 'codes'>(defaultTab)
+  const [tab, setTab] = useState<'returns' | 'codes' | 'tds'>(defaultTab)
   const [showNew, setShowNew] = useState(false)
   const [returnForm, setReturnForm] = useState({ return_type: 'GSTR1', period_start: '', period_end: '', due_date: '', notes: '' })
   const [showCodeModal, setShowCodeModal] = useState(false)
@@ -98,7 +101,7 @@ export default function TaxReturns({ defaultTab = 'returns' }: Props) {
     <div className="mx-auto max-w-7xl space-y-3 p-3 md:p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="min-w-0 text-xs text-muted-foreground">
-          {tab === 'codes' ? 'GST / TDS tax codes used in Purchase Orders and invoices' : 'GST/TDS returns and tax codes'}
+          {tab === 'codes' ? 'GST / TDS tax codes used in Purchase Orders and invoices' : tab === 'tds' ? 'Section-wise TDS for Form 26Q (deducted vs deposited)' : 'GST/TDS returns and tax codes'}
         </p>
         <div className="flex shrink-0 gap-1.5">
           {tab === 'returns' && (
@@ -123,14 +126,14 @@ export default function TaxReturns({ defaultTab = 'returns' }: Props) {
       </div>
 
       <div className="flex gap-2">
-        {(['returns', 'codes'] as const).map(t => (
+        {(['returns', 'codes', 'tds'] as const).map(t => (
           <button
             key={t}
             type="button"
             onClick={() => setTab(t)}
             className={`rounded-lg border px-4 py-2 text-sm capitalize ${tab === t ? 'border-primary bg-primary text-white' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}
           >
-            {t === 'returns' ? 'Tax Returns' : 'Tax Codes'}
+            {t === 'returns' ? 'Tax Returns' : t === 'codes' ? 'Tax Codes' : 'TDS by section'}
           </button>
         ))}
       </div>
@@ -170,6 +173,22 @@ export default function TaxReturns({ defaultTab = 'returns' }: Props) {
                           <Calculator className="h-4 w-4" />
                         </button>
                       )}
+                      {r.return_type === 'GSTR1' && (r.status === 'computed' || r.status === 'filed') && (
+                        <button type="button" title="Download GSTN JSON" className="p-1 text-slate-600 hover:text-slate-900"
+                          onClick={async () => {
+                            try {
+                              const blob = await finApi.downloadGstr1Json(r.id)
+                              const url = URL.createObjectURL(blob)
+                              const a = document.createElement('a')
+                              a.href = url
+                              a.download = `GSTR1_${r.period_start}.json`
+                              a.click()
+                              URL.revokeObjectURL(url)
+                            } catch { toast.error('Could not export GSTR-1 JSON. Check your GSTIN in the business profile.') }
+                          }}>
+                          <Download className="h-4 w-4" />
+                        </button>
+                      )}
                       {r.status === 'computed' && (
                         <button
                           type="button"
@@ -189,6 +208,8 @@ export default function TaxReturns({ defaultTab = 'returns' }: Props) {
           </table>
         </div>
       )}
+
+      {tab === 'tds' && <TdsSectionReport />}
 
       {tab === 'codes' && (
         <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">

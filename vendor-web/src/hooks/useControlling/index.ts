@@ -224,6 +224,23 @@ export const usePostCogsIssue = () => {
   })
 }
 
+export const useReverseCogsIssue = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ orderId, reason }: { orderId: string; reason: string }) => api.reverseCogsIssue(orderId, reason),
+    onSuccess: (_, v) => invalidateMo(qc, v.orderId),
+  })
+}
+
+export const useReverseProductionCompletion = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ orderId, reason }: { orderId: string; reason: string }) =>
+      api.reverseProductionCompletion(orderId, reason),
+    onSuccess: (_, v) => invalidateMo(qc, v.orderId),
+  })
+}
+
 export const usePatchOrderCostLine = () => {
   const qc = useQueryClient()
   return useMutation({
@@ -422,6 +439,14 @@ export const usePostCostAllocation = () => {
   })
 }
 
+export const useReverseCostAllocation = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => api.reverseCostAllocation(id, reason),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['controlling', 'cost-allocations'] }),
+  })
+}
+
 export const useDeleteCostAllocation = () => {
   const qc = useQueryClient()
   return useMutation({
@@ -509,12 +534,31 @@ export const useCreateVarianceRun = () => {
 export const usePostVarianceRun = () => {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ runId, entry_date }: { runId: string; entry_date?: string }) =>
-      api.postVarianceRun(runId, entry_date ? { entry_date } : undefined),
+    mutationFn: ({ runId, entry_date, post_to_gl }: { runId: string; entry_date?: string; post_to_gl?: boolean }) =>
+      api.postVarianceRun(runId, { ...(entry_date ? { entry_date } : {}), ...(post_to_gl ? { post_to_gl } : {}) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['controlling', 'variance-runs'] })
       qc.invalidateQueries({ queryKey: ['controlling', 'dashboard'] })
     },
+  })
+}
+
+export const useReverseVarianceRun = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ runId, reason }: { runId: string; reason: string }) => api.reverseVarianceRun(runId, reason),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['controlling', 'variance-runs'] })
+      qc.invalidateQueries({ queryKey: ['controlling', 'dashboard'] })
+    },
+  })
+}
+
+export const useDeleteVarianceRun = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (runId: string) => api.deleteVarianceRun(runId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['controlling', 'variance-runs'] }),
   })
 }
 

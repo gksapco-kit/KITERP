@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any, List, Optional
+from typing import Any, List, Literal, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -53,6 +53,9 @@ class OverheadPoolCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     description: Optional[str] = None
     allocation_base: str = "labor_hours"
+    overhead_type: Literal["direct", "indirect"] = "indirect"
+    formula_type: Literal["fixed_rate", "pct_of_base", "per_machine_hour", "per_labor_hour", "per_unit"] = "fixed_rate"
+    formula_value: Decimal = Field(default=Decimal("0"), ge=0)
     is_active: bool = True
 
 
@@ -60,6 +63,11 @@ class OverheadPoolUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     allocation_base: Optional[str] = None
+    overhead_type: Optional[Literal["direct", "indirect"]] = None
+    formula_type: Optional[
+        Literal["fixed_rate", "pct_of_base", "per_machine_hour", "per_labor_hour", "per_unit"]
+    ] = None
+    formula_value: Optional[Decimal] = Field(default=None, ge=0)
     is_active: Optional[bool] = None
 
 
@@ -78,6 +86,9 @@ class OverheadPoolOut(BaseModel):
     name: str
     description: Optional[str]
     allocation_base: str
+    overhead_type: Optional[str] = "indirect"
+    formula_type: Optional[str] = "fixed_rate"
+    formula_value: Optional[Decimal] = Decimal("0")
     is_active: bool
     created_at: Optional[datetime]
 
@@ -123,6 +134,10 @@ class ProductCostLineOut(BaseModel):
     unit_rate_planned: Decimal
     amount_planned: Decimal
     sequence: int
+    # Costing-sheet aliases of line_type / qty_per_output_unit / unit_rate_planned (read by the UI).
+    category: Optional[str] = None
+    qty_planned: Optional[Decimal] = None
+    rate_planned: Optional[Decimal] = None
 
     class Config:
         from_attributes = True
@@ -134,7 +149,7 @@ class ProductCostVersionCreate(BaseModel):
     version_code: str = Field(min_length=1, max_length=40)
     valid_from: date
     valid_to: Optional[date] = None
-    status: str = "draft"
+    status: Literal["draft", "active"] = "draft"
     notes: Optional[str] = None
     extra: dict[str, Any] = Field(default_factory=dict)
     lines: List[ProductCostLineCreate] = Field(default_factory=list)
@@ -143,7 +158,7 @@ class ProductCostVersionCreate(BaseModel):
 class ProductCostVersionUpdate(BaseModel):
     valid_from: Optional[date] = None
     valid_to: Optional[date] = None
-    status: Optional[str] = None
+    status: Optional[Literal["draft", "active", "archived"]] = None
     notes: Optional[str] = None
     extra: Optional[dict[str, Any]] = None
 
@@ -160,6 +175,9 @@ class ProductCostVersionOut(BaseModel):
     material_total_planned: Decimal
     activity_total_planned: Decimal
     overhead_total_planned: Decimal
+    direct_overhead_total_planned: Decimal = Decimal("0")
+    indirect_overhead_total_planned: Decimal = Decimal("0")
+    routing_id: Optional[UUID] = None
     rolled_up_unit_cost: Decimal
     notes: Optional[str]
     extra: dict[str, Any]
@@ -244,6 +262,8 @@ class CoGlMappingOut(BaseModel):
     cogs_account_id: Optional[UUID] = None
     production_variance_account_id: Optional[UUID] = None
     raw_material_account_id: Optional[UUID] = None
+    absorption_account_id: Optional[UUID] = None
+    post_wip_to_gl: bool = False
     notes: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -259,6 +279,8 @@ class CoGlMappingUpsert(BaseModel):
     cogs_account_id: Optional[UUID] = None
     production_variance_account_id: Optional[UUID] = None
     raw_material_account_id: Optional[UUID] = None
+    absorption_account_id: Optional[UUID] = None
+    post_wip_to_gl: Optional[bool] = None
     notes: Optional[str] = None
 
 
@@ -274,6 +296,7 @@ class CoCostBookingOut(BaseModel):
     journal_entry_id: Optional[UUID] = None
     entry_date: Optional[date] = None
     narration: Optional[str] = None
+    status: str = "posted"
     extra: dict[str, Any] = Field(default_factory=dict)
     created_at: Optional[datetime] = None
 
@@ -283,6 +306,10 @@ class CoCostBookingOut(BaseModel):
 
 class CoSettlementPostIn(BaseModel):
     entry_date: Optional[date] = None
+
+
+class CoSettlementReverseIn(BaseModel):
+    reason: str = Field(min_length=3, max_length=500)
 
 
 # ── Manufacturing orders ─────────────────────────────────────────────────────
@@ -328,12 +355,14 @@ class ManufacturingOrderCreate(BaseModel):
     company_id: UUID
     order_no: Optional[str] = None
     title: Optional[str] = None
-    order_kind: str = "assembly"  # assembly | process | project | internal
-    status: str = "draft"
-    priority: str = "medium"
+    order_kind: Literal["assembly", "process", "project", "internal"] = "assembly"
+    # Orders are created in draft / released / in_progress; every later change goes through
+    # POST /manufacturing-orders/{id}/transition.
+    status: Literal["draft", "released", "in_progress"] = "draft"
+    priority: Literal["low", "medium", "high", "urgent"] = "medium"
     product_id: Optional[UUID] = None
-    qty_planned: Decimal = Field(default=Decimal("0"))
-    qty_delivered: Decimal = Field(default=Decimal("0"))
+    qty_planned: Decimal = Field(default=Decimal("0"), ge=0)
+    qty_delivered: Decimal = Field(default=Decimal("0"), ge=0)
     cost_center_id: Optional[UUID] = None
     project_id: Optional[UUID] = None
     ref_doc_type: Optional[str] = None
@@ -348,12 +377,11 @@ class ManufacturingOrderCreate(BaseModel):
 
 class ManufacturingOrderUpdate(BaseModel):
     title: Optional[str] = None
-    order_kind: Optional[str] = None
-    status: Optional[str] = None
-    priority: Optional[str] = None
+    order_kind: Optional[Literal["assembly", "process", "project", "internal"]] = None
+    priority: Optional[Literal["low", "medium", "high", "urgent"]] = None
     product_id: Optional[UUID] = None
-    qty_planned: Optional[Decimal] = None
-    qty_delivered: Optional[Decimal] = None
+    qty_planned: Optional[Decimal] = Field(default=None, ge=0)
+    qty_delivered: Optional[Decimal] = Field(default=None, ge=0)
     cost_center_id: Optional[UUID] = None
     project_id: Optional[UUID] = None
     ref_doc_type: Optional[str] = None
@@ -395,6 +423,7 @@ class ManufacturingOrderOut(BaseModel):
     production_completion_journal_id: Optional[UUID] = None
     cogs_issue_journal_id: Optional[UUID] = None
     settlement_status: Optional[str] = "none"
+    qty_cogs_posted: Decimal = Decimal("0")
     cost_bookings: List[CoCostBookingOut] = Field(default_factory=list)
 
     class Config:
@@ -470,26 +499,26 @@ class ActivityConfirmationCreate(BaseModel):
     activity_type_id: Optional[UUID] = None
     cost_center_id: Optional[UUID] = None
     confirmation_date: date
-    confirmation_type: str = "labor"
-    qty_confirmed: Decimal = Field(default=Decimal("0"))
-    hours_confirmed: Decimal = Field(default=Decimal("0"))
-    rate_per_hour: Decimal = Field(default=Decimal("0"))
-    scrap_qty: Decimal = Field(default=Decimal("0"))
-    yield_pct: Decimal = Field(default=Decimal("100"))
+    confirmation_type: Literal["labor", "machine", "setup", "other"] = "labor"
+    qty_confirmed: Decimal = Field(default=Decimal("0"), ge=0)
+    hours_confirmed: Decimal = Field(default=Decimal("0"), ge=0)
+    rate_per_hour: Decimal = Field(default=Decimal("0"), ge=0)
+    scrap_qty: Decimal = Field(default=Decimal("0"), ge=0)
+    yield_pct: Decimal = Field(default=Decimal("100"), ge=0, le=100)
     narration: Optional[str] = None
     extra: dict[str, Any] = Field(default_factory=dict)
 
 
 class ActivityConfirmationUpdate(BaseModel):
     confirmation_date: Optional[date] = None
-    confirmation_type: Optional[str] = None
-    qty_confirmed: Optional[Decimal] = None
-    hours_confirmed: Optional[Decimal] = None
-    rate_per_hour: Optional[Decimal] = None
-    scrap_qty: Optional[Decimal] = None
-    yield_pct: Optional[Decimal] = None
+    confirmation_type: Optional[Literal["labor", "machine", "setup", "other"]] = None
+    qty_confirmed: Optional[Decimal] = Field(default=None, ge=0)
+    hours_confirmed: Optional[Decimal] = Field(default=None, ge=0)
+    rate_per_hour: Optional[Decimal] = Field(default=None, ge=0)
+    scrap_qty: Optional[Decimal] = Field(default=None, ge=0)
+    yield_pct: Optional[Decimal] = Field(default=None, ge=0, le=100)
     narration: Optional[str] = None
-    status: Optional[str] = None
+    status: Optional[Literal["posted", "reversed"]] = None
 
 
 class ActivityConfirmationOut(BaseModel):
@@ -524,13 +553,13 @@ class ActivityConfirmationOut(BaseModel):
 class GoodsMovementCreate(BaseModel):
     company_id: UUID
     order_id: UUID
-    movement_type: str  # component_issue | component_return | fg_receipt | fg_receipt_reversal
+    movement_type: Literal["component_issue", "component_return", "fg_receipt", "fg_receipt_reversal"]
     posting_date: date
     product_id: Optional[UUID] = None
     description: Optional[str] = None
     uom: str = "EA"
-    qty: Decimal = Field(default=Decimal("0"))
-    unit_cost: Decimal = Field(default=Decimal("0"))
+    qty: Decimal = Field(default=Decimal("0"), ge=0)
+    unit_cost: Decimal = Field(default=Decimal("0"), ge=0)
     cost_center_id: Optional[UUID] = None
     storage_location: Optional[str] = None
     batch_no: Optional[str] = None
@@ -569,8 +598,8 @@ class GoodsMovementOut(BaseModel):
 
 class CostAllocationCreate(BaseModel):
     company_id: UUID
-    period_year: int
-    period_month: int
+    period_year: int = Field(ge=2000, le=2100)
+    period_month: int = Field(ge=1, le=12)
     allocation_cycle: Optional[str] = None
     sender_cost_center_id: Optional[UUID] = None
     receiver_cost_center_id: Optional[UUID] = None
@@ -578,8 +607,8 @@ class CostAllocationCreate(BaseModel):
     sender_account_id: Optional[UUID] = None
     receiver_account_id: Optional[UUID] = None
     allocation_method: str = "percentage"
-    allocation_value: Decimal = Field(default=Decimal("0"))
-    allocated_amount: Decimal = Field(default=Decimal("0"))
+    allocation_value: Decimal = Field(default=Decimal("0"), ge=0)
+    allocated_amount: Decimal = Field(default=Decimal("0"), ge=0)
     narration: Optional[str] = None
     extra: dict[str, Any] = Field(default_factory=dict)
 
@@ -621,20 +650,20 @@ class BudgetLineCreate(BaseModel):
     company_id: UUID
     order_id: UUID
     budget_type: str = "original"
-    category: str
+    category: Literal["material", "labor", "overhead", "other"]
     description: Optional[str] = None
-    fiscal_year: Optional[int] = None
-    period_month: Optional[int] = None
-    amount_budgeted: Decimal = Field(default=Decimal("0"))
+    fiscal_year: Optional[int] = Field(default=None, ge=2000, le=2100)
+    period_month: Optional[int] = Field(default=None, ge=1, le=12)
+    amount_budgeted: Decimal = Field(default=Decimal("0"), ge=0)
     currency: str = "USD"
     notes: Optional[str] = None
 
 
 class BudgetLineUpdate(BaseModel):
     budget_type: Optional[str] = None
-    category: Optional[str] = None
+    category: Optional[Literal["material", "labor", "overhead", "other"]] = None
     description: Optional[str] = None
-    amount_budgeted: Optional[Decimal] = None
+    amount_budgeted: Optional[Decimal] = Field(default=None, ge=0)
     notes: Optional[str] = None
 
 
@@ -675,8 +704,8 @@ class InternalOrderBudgetVsActualOut(BaseModel):
 
 class VarianceRunCreate(BaseModel):
     company_id: UUID
-    period_year: int
-    period_month: int
+    period_year: int = Field(ge=2000, le=2100)
+    period_month: int = Field(ge=1, le=12)
     run_type: str = "production_variance"
     run_date: date
     narration: Optional[str] = None
@@ -711,12 +740,119 @@ class VarianceRunOut(BaseModel):
 
 class VarianceRunPostIn(BaseModel):
     entry_date: Optional[date] = None
+    # Finished goods are valued at actual cost on completion, so a variance run is a
+    # reporting / lock step by default. Set true only to book the variance to the GL
+    # (companies that value stock at standard).
+    post_to_gl: bool = False
 
 
 # ── Status transitions ────────────────────────────────────────────────────────
 
+# ── Work centers & routings ───────────────────────────────────────────────────
+
+class WorkCenterCreate(BaseModel):
+    company_id: UUID
+    code: str = Field(min_length=1, max_length=50)
+    name: Optional[str] = Field(default=None, max_length=200)
+    description: Optional[str] = None
+    wc_type: Literal["machine", "labor", "outsource"] = "machine"
+    capacity_uom: str = Field(default="H", max_length=10)
+    labor_rate_per_hour: Decimal = Field(default=Decimal("0"), ge=0)
+    machine_rate_per_hour: Decimal = Field(default=Decimal("0"), ge=0)
+    direct_overhead_rate: Decimal = Field(default=Decimal("0"), ge=0)
+    capacity_hours_per_period: Decimal = Field(default=Decimal("0"), ge=0)
+    cost_center_id: Optional[UUID] = None
+    is_active: bool = True
+    notes: Optional[str] = None
+
+
+class WorkCenterUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=200)
+    description: Optional[str] = None
+    wc_type: Optional[Literal["machine", "labor", "outsource"]] = None
+    capacity_uom: Optional[str] = Field(default=None, max_length=10)
+    labor_rate_per_hour: Optional[Decimal] = Field(default=None, ge=0)
+    machine_rate_per_hour: Optional[Decimal] = Field(default=None, ge=0)
+    direct_overhead_rate: Optional[Decimal] = Field(default=None, ge=0)
+    capacity_hours_per_period: Optional[Decimal] = Field(default=None, ge=0)
+    cost_center_id: Optional[UUID] = None
+    is_active: Optional[bool] = None
+    notes: Optional[str] = None
+
+
+class RoutingCreate(BaseModel):
+    company_id: UUID
+    product_id: Optional[UUID] = None
+    code: str = Field(min_length=1, max_length=50)
+    name: Optional[str] = Field(default=None, max_length=200)
+    version: str = Field(default="1", max_length=20)
+    status: Literal["draft", "active", "obsolete"] = "draft"
+    valid_from: Optional[date] = None
+    valid_to: Optional[date] = None
+    uom: str = Field(default="EA", max_length=10)
+    lot_size: Decimal = Field(default=Decimal("1"), gt=0)
+    notes: Optional[str] = None
+
+
+class RoutingUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=200)
+    product_id: Optional[UUID] = None
+    version: Optional[str] = Field(default=None, max_length=20)
+    status: Optional[Literal["draft", "active", "obsolete"]] = None
+    valid_from: Optional[date] = None
+    valid_to: Optional[date] = None
+    uom: Optional[str] = Field(default=None, max_length=10)
+    lot_size: Optional[Decimal] = Field(default=None, gt=0)
+    notes: Optional[str] = None
+
+
+class RoutingOperationCreate(BaseModel):
+    work_center_id: Optional[UUID] = None
+    activity_type_id: Optional[UUID] = None
+    seq_no: int = Field(default=10, ge=0)
+    operation_code: Optional[str] = Field(default=None, max_length=50)
+    description: Optional[str] = Field(default=None, max_length=200)
+    setup_hrs: Decimal = Field(default=Decimal("0"), ge=0)
+    run_hrs_per_unit: Decimal = Field(default=Decimal("0"), ge=0)
+    teardown_hrs: Decimal = Field(default=Decimal("0"), ge=0)
+    machine_hrs_per_unit: Decimal = Field(default=Decimal("0"), ge=0)
+    labor_rate_override: Optional[Decimal] = Field(default=None, ge=0)
+    machine_rate_override: Optional[Decimal] = Field(default=None, ge=0)
+    direct_overhead_pct: Decimal = Field(default=Decimal("0"), ge=0, le=999)
+    notes: Optional[str] = None
+
+
+class RoutingOperationUpdate(BaseModel):
+    work_center_id: Optional[UUID] = None
+    activity_type_id: Optional[UUID] = None
+    seq_no: Optional[int] = Field(default=None, ge=0)
+    operation_code: Optional[str] = Field(default=None, max_length=50)
+    description: Optional[str] = Field(default=None, max_length=200)
+    setup_hrs: Optional[Decimal] = Field(default=None, ge=0)
+    run_hrs_per_unit: Optional[Decimal] = Field(default=None, ge=0)
+    teardown_hrs: Optional[Decimal] = Field(default=None, ge=0)
+    machine_hrs_per_unit: Optional[Decimal] = Field(default=None, ge=0)
+    labor_rate_override: Optional[Decimal] = Field(default=None, ge=0)
+    machine_rate_override: Optional[Decimal] = Field(default=None, ge=0)
+    direct_overhead_pct: Optional[Decimal] = Field(default=None, ge=0, le=999)
+    notes: Optional[str] = None
+
+
+class CostVersionRoutingIn(BaseModel):
+    """Link (or unlink with null) a routing to a product cost version."""
+    routing_id: Optional[UUID] = None
+
+
+class ApplyOverheadIn(BaseModel):
+    """Apply indirect overhead pools onto a product cost version."""
+    pool_ids: Optional[List[UUID]] = None
+    company_id: Optional[UUID] = None
+    # pool id (str) -> driver quantity (hours / units) for per_* and fixed_rate formulas
+    base_quantities: dict[str, Decimal] = Field(default_factory=dict)
+
+
 class OrderStatusTransitionIn(BaseModel):
-    status: str  # released | in_progress | completed | closed | cancelled
+    status: Literal["released", "in_progress", "completed", "closed", "cancelled"]
     notes: Optional[str] = None
 
 

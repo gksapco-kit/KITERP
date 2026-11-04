@@ -15,6 +15,8 @@ import {
   useDeleteBudgetLine,
 } from '@/hooks/useControlling'
 import { formatCurrency } from '@/lib/utils'
+import { extractApiError } from '@/lib/errorMessages'
+import { useHasPermission } from '@/hooks/usePermissions'
 
 const ORDER_KINDS = [
   { value: '', label: 'All internal' },
@@ -56,22 +58,29 @@ interface OrderRow {
   settlement_status: string
 }
 
-function BudgetPanel({ orderId, companyId }: { orderId: string; companyId: string }) {
+function BudgetPanel({ orderId, companyId, locked }: { orderId: string; companyId: string; locked: boolean }) {
   const { data: bva } = useBudgetVsActual(orderId)
   const { data: lines = [] } = useBudgetLines(orderId)
   const createMut = useCreateBudgetLine()
   const deleteMut = useDeleteBudgetLine()
+  const canManage = useHasPermission('finance.coa.manage') && !locked
+  const [panelError, setPanelError] = useState('')
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState({ category: 'material', amount_budgeted: '', description: '' })
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault()
-    await createMut.mutateAsync({
-      orderId,
-      data: { company_id: companyId, order_id: orderId, category: form.category, amount_budgeted: parseFloat(form.amount_budgeted || '0'), description: form.description },
-    })
-    setShowAdd(false)
-    setForm({ category: 'material', amount_budgeted: '', description: '' })
+    setPanelError('')
+    try {
+      await createMut.mutateAsync({
+        orderId,
+        data: { company_id: companyId, order_id: orderId, category: form.category, amount_budgeted: parseFloat(form.amount_budgeted || '0'), description: form.description },
+      })
+      setShowAdd(false)
+      setForm({ category: 'material', amount_budgeted: '', description: '' })
+    } catch (err: unknown) {
+      setPanelError(extractApiError(err, 'Failed to add budget line'))
+    }
   }
 
   return (
@@ -97,11 +106,14 @@ function BudgetPanel({ orderId, companyId }: { orderId: string; companyId: strin
 
       <div className="flex items-center justify-between">
         <h4 className="text-sm font-medium text-gray-700">Budget Lines</h4>
-        <button onClick={() => setShowAdd(true)}
-          className="text-xs text-primary hover:text-primary flex items-center gap-1">
-          <Plus className="w-3 h-3" /> Add Line
-        </button>
+        {canManage && (
+          <button onClick={() => setShowAdd(true)}
+            className="text-xs text-primary hover:text-primary flex items-center gap-1">
+            <Plus className="w-3 h-3" /> Add Line
+          </button>
+        )}
       </div>
+      {panelError && <p className="text-xs text-red-600">{panelError}</p>}
 
       {showAdd && (
         <form onSubmit={handleAdd} className="rounded-lg border border-primary/30 bg-accent p-3 space-y-2">
@@ -147,8 +159,19 @@ function BudgetPanel({ orderId, companyId }: { orderId: string; companyId: strin
                   <td className="px-3 py-2 text-right text-gray-900">{formatCurrency(parseFloat(bl.amount_budgeted))}</td>
                   <td className="px-3 py-2 text-gray-500">{bl.budget_type}</td>
                   <td className="px-3 py-2">
-                    <button onClick={() => deleteMut.mutate({ orderId, blId: bl.id })}
-                      className="text-red-400 hover:text-red-600 text-xs">×</button>
+                    {canManage && (
+                      <button
+                        onClick={() =>
+                          deleteMut.mutate(
+                            { orderId, blId: bl.id },
+                            { onError: err => setPanelError(extractApiError(err, 'Failed to delete budget line')) },
+                          )
+                        }
+                        className="text-red-400 hover:text-red-600 text-xs"
+                      >
+                        ×
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -182,6 +205,7 @@ export default function InternalOrdersPage() {
   })
 
   const createMut = useCreateManufacturingOrder()
+  const canEdit = useHasPermission('finance.edit')
   const [form, setForm] = useState({
     order_no: '',
     title: '',
@@ -210,8 +234,7 @@ export default function InternalOrdersPage() {
       setShowCreate(false)
       setForm({ order_no: '', title: '', order_kind: 'project', priority: 'medium', scheduled_start: '', scheduled_end: '', notes: '' })
     } catch (err: unknown) {
-      const e2 = err as { response?: { data?: { detail?: string } } }
-      setError(e2?.response?.data?.detail ?? 'Failed to create order')
+      setError(extractApiError(err, 'Failed to create order'))
     }
   }
 
@@ -229,12 +252,14 @@ export default function InternalOrdersPage() {
           <h1 className="text-2xl font-bold text-gray-900">Internal &amp; Project Orders</h1>
           <p className="text-sm text-gray-500 mt-0.5">Budget planning, actual cost tracking, and variance for internal orders</p>
         </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="ml-auto flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 text-sm font-medium"
-        >
-          <Plus className="w-4 h-4" /> New Order
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => setShowCreate(true)}
+            className="ml-auto flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 text-sm font-medium"
+          >
+            <Plus className="w-4 h-4" /> New Order
+          </button>
+        )}
       </div>
 
       {/* KPIs */}
@@ -337,7 +362,7 @@ export default function InternalOrdersPage() {
 
               {isExpanded && (
                 <div className="px-5 pb-5 border-t border-border bg-muted/25 pt-4">
-                  <BudgetPanel orderId={row.order_id} companyId={activeCo} />
+                  <BudgetPanel orderId={row.order_id} companyId={activeCo} locked={['closed', 'cancelled'].includes(row.status)} />
                 </div>
               )}
             </div>

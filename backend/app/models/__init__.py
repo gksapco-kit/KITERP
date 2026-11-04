@@ -95,7 +95,7 @@ from app.models.vendor_platform_audit import VendorPlatformAuditLog
 from app.models.platform_website_analytics import PlatformWebsitePageView
 from app.models.mrp import ProductBOMItem, StockReservation
 from app.models.production import ProductionOrder
-from app.models.production_routing import WorkCenter, ProductionOperation
+from app.models.production_routing import WorkCenter, ProductionOperation, ProductRoutingStep
 from app.models.store import Store, StoreInventory, ProductStore, ServiceStore
 from app.models.sales_area import SalesDivision, DistributionChannel, DeliveryChannel, SalesArea
 from app.models.storage_location import StorageLocation
@@ -151,7 +151,7 @@ from app.models.controlling import (
     CoManufacturingOrder, CoOrderCostLine, CoOrderOperation,
     CoGlMapping, CoCostBooking,
     CoActivityConfirmation, CoGoodsMovement,
-    CoCostAllocation, CoBudgetLine, CoVarianceRun,
+    CoCostAllocation, CoBudgetLine, CoVarianceRun, CoVarianceRunOrder, CoNumberSequence,
     CoWorkCenter, CoRouting, CoRoutingOperation,
 )
 from app.models.controlling_area import CoControllingArea
@@ -194,6 +194,9 @@ from app.models.finance import (
     FinApprovalPolicy, FinApprovalRequest, FinApprovalStep, FinAuditLog,
     FinBasicTransaction,
 )
+
+# Real Estate vertical (re_* tables)
+import app.models.realestate  # noqa: E402,F401
 
 __all__ = [
     "User",
@@ -343,6 +346,7 @@ __all__ = [
     "StockReservation",
     "WorkCenter",
     "ProductionOperation",
+    "ProductRoutingStep",
     "Store",
     "StoreInventory",
     "StorageLocation",
@@ -432,7 +436,7 @@ __all__ = [
     "CoManufacturingOrder", "CoOrderCostLine", "CoOrderOperation",
     "CoGlMapping", "CoCostBooking",
     "CoActivityConfirmation", "CoGoodsMovement",
-    "CoCostAllocation", "CoBudgetLine", "CoVarianceRun",
+    "CoCostAllocation", "CoBudgetLine", "CoVarianceRun", "CoVarianceRunOrder", "CoNumberSequence",
     # Commission
     "CommissionPayee", "CommissionPlan", "CommissionRule",
     "CommissionAssignment", "CommissionAccrual",

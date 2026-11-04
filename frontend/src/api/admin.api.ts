@@ -231,8 +231,30 @@ export interface PlatformJobRoleListResponse {
   builtin_slugs: string[]
 }
 
+/** `view_manage`: separate keys; `access`: one key (API needs manage even to read); `view_only`: read-only screen. */
+export type PlatformSubmoduleMode = 'view_manage' | 'access' | 'view_only'
+
+export interface PlatformSubmodule {
+  slug: string
+  label: string
+  mode: PlatformSubmoduleMode
+  view_key: string | null
+  manage_key: string | null
+}
+
+export interface PlatformModuleDef {
+  module: string
+  label: string
+  submodules: PlatformSubmodule[]
+}
+
 export interface PlatformJobRolePermissionsResponse {
+  /** Flat checkbox groups (admin areas, vendor store, hierarchy). */
   permissions: Record<string, PlatformJobRolePermission[]>
+  /** CRM / Finance / HR sub-module structure. */
+  modules: PlatformModuleDef[]
+  /** Label for every permission key. */
+  labels: Record<string, string>
   all: string[]
 }
 

@@ -1,6 +1,6 @@
 # app/models/mrp.py
 from sqlalchemy import (
-    Column, String, Text, DateTime, Numeric,
+    Column, String, Text, DateTime, Numeric, Date, Boolean,
     ForeignKey, Index
 )
 from sqlalchemy.dialects.postgresql import UUID
@@ -22,6 +22,15 @@ class ProductBOMItem(Base):
     product_id = Column(UUID(as_uuid=True), ForeignKey("product.id", ondelete="CASCADE"), nullable=False)
     component_id = Column(UUID(as_uuid=True), ForeignKey("product.id", ondelete="CASCADE"), nullable=False)
     qty_per_unit = Column(Numeric(12, 4), nullable=False)
+    # Expected loss on this component (cutting waste, spillage …) as a percentage of the
+    # net quantity: the order reserves/consumes qty_per_unit x (1 + scrap_pct / 100).
+    scrap_pct = Column(Numeric(6, 2), nullable=False, default=0, server_default="0")
+    # Effectivity window (NULL = open ended). Lets a new revision of a BOM be prepared in advance.
+    valid_from = Column(Date, nullable=True)
+    valid_to = Column(Date, nullable=True)
+    # By-product: an output of the production run, not a consumed component.
+    is_byproduct = Column(Boolean, nullable=False, default=False, server_default="false")
+    cost_share_pct = Column(Numeric(5, 2), nullable=False, default=0, server_default="0")
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

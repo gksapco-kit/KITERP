@@ -16,6 +16,8 @@ import {
 import { formatCurrency, cn } from '@/lib/utils'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
+import { useHasPermission } from '@/hooks/usePermissions'
 import { ArrowLeft, Boxes, RefreshCw, Plus, GitBranch, Layers, ChevronDown, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
@@ -50,6 +52,7 @@ export default function ControllingProductCostsPage() {
   const updateVer = useUpdateProductCost()
   const setRouting = useSetCostVersionRouting()
   const applyOverhead = useApplyOverheadToCostVersion()
+  const canManage = useHasPermission('finance.coa.manage')
 
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [showNew, setShowNew] = useState(false)
@@ -71,15 +74,14 @@ export default function ControllingProductCostsPage() {
         product_id: form.product_id,
         version_code: form.version_code,
         valid_from: form.valid_from,
-        status: form.status,
+        status: 'draft',
         lines: [],
       })
       toast.success('Cost version created')
       setShowNew(false)
       refetch()
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { detail?: string } } }
-      toast.error(err.response?.data?.detail || 'Failed to create')
+      toast.error(extractApiError(e, 'Failed to create'))
     }
   }
 
@@ -89,19 +91,27 @@ export default function ControllingProductCostsPage() {
       toast.success('BOM rolled up into material lines')
       refetch()
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { detail?: string } } }
-      toast.error(err.response?.data?.detail || 'Roll-up failed')
+      toast.error(extractApiError(e, 'Roll-up failed'))
     }
   }
 
   const setActive = async (id: string) => {
     try {
       await updateVer.mutateAsync({ id, data: { status: 'active' } })
-      toast.success('Marked active (set others per product as needed)')
+      toast.success('Version activated; other active versions of this product were archived')
       refetch()
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { detail?: string } } }
-      toast.error(err.response?.data?.detail || 'Update failed')
+      toast.error(extractApiError(e, 'Activation failed'))
+    }
+  }
+
+  const setArchived = async (id: string) => {
+    try {
+      await updateVer.mutateAsync({ id, data: { status: 'archived' } })
+      toast.success('Version archived')
+      refetch()
+    } catch (e: unknown) {
+      toast.error(extractApiError(e, 'Archive failed'))
     }
   }
 
@@ -131,9 +141,11 @@ export default function ControllingProductCostsPage() {
               />
             </label>
           )}
-          <Button type="button" onClick={() => setShowNew(true)} className="gap-1">
-            <Plus className="w-4 h-4" /> New version
-          </Button>
+          {canManage && (
+            <Button type="button" onClick={() => setShowNew(true)} className="gap-1">
+              <Plus className="w-4 h-4" /> New version
+            </Button>
+          )}
         </div>
       </div>
 
@@ -171,18 +183,9 @@ export default function ControllingProductCostsPage() {
                 className={fieldClass}
               />
             </label>
-            <label className={labelClass}>
-              Status
-              <Select
-                value={form.status}
-                onChange={v => setForm(f => ({ ...f, status: v }))}
-                className={fieldClass}
-                options={[
-                  { value: 'draft', label: 'draft' },
-                  { value: 'active', label: 'active' },
-                ]}
-              />
-            </label>
+            <p className="self-end pb-2 text-xs text-muted-foreground">
+              New versions start as draft. Add lines (BOM roll-up / routing), then activate.
+            </p>
           </div>
           <div className="flex flex-wrap gap-2 pt-1">
             <Button type="button" onClick={onCreate} disabled={createCost.isPending}>Create</Button>
@@ -256,13 +259,18 @@ export default function ControllingProductCostsPage() {
                           {formatCurrency(Number(v.rolled_up_unit_cost))}
                         </td>
                         <td className="px-4 py-3 text-right space-x-2">
-                          {v.status !== 'active' && (
-                            <Button type="button" size="sm" variant="outline" onClick={() => setActive(v.id)}>Set active</Button>
+                          {canManage && v.status === 'draft' && (
+                            <>
+                              <Button type="button" size="sm" variant="outline" onClick={e => { e.stopPropagation(); setActive(v.id) }}>Activate</Button>
+                              <Button type="button" size="sm" variant="secondary" className="gap-1"
+                                disabled={rollUp.isPending} onClick={e => { e.stopPropagation(); onRollUp(v.id) }}>
+                                <RefreshCw className="w-3 h-3" /> BOM roll-up
+                              </Button>
+                            </>
                           )}
-                          <Button type="button" size="sm" variant="secondary" className="gap-1"
-                            disabled={rollUp.isPending} onClick={() => onRollUp(v.id)}>
-                            <RefreshCw className="w-3 h-3" /> BOM roll-up
-                          </Button>
+                          {canManage && v.status === 'active' && (
+                            <Button type="button" size="sm" variant="outline" onClick={e => { e.stopPropagation(); setArchived(v.id) }}>Archive</Button>
+                          )}
                         </td>
                       </tr>
 
@@ -281,9 +289,11 @@ export default function ControllingProductCostsPage() {
                                 </div>
                                 <p className="text-xs text-muted-foreground">
                                   Select an active routing to auto-generate labor, machine and direct overhead lines.
+                                  {v.status !== 'draft' && ' Only draft versions can be changed.'}
                                 </p>
                                 <Select
                                   value={v.routing_id ?? ''}
+                                  disabled={!canManage || v.status !== 'draft'}
                                   className={cn(fieldClass, 'w-full px-3')}
                                   placeholder="— no routing —"
                                   options={[
@@ -298,7 +308,7 @@ export default function ControllingProductCostsPage() {
                                       await setRouting.mutateAsync({ versionId: v.id, routing_id: routingId || null })
                                       toast.success('Routing linked — activity cost lines updated')
                                       refetch()
-                                    } catch { toast.error('Failed to link routing') }
+                                    } catch (e) { toast.error(extractApiError(e, 'Failed to link routing')) }
                                   }}
                                 />
                                 {linkedRouting && (
@@ -331,13 +341,13 @@ export default function ControllingProductCostsPage() {
                                   </div>
                                 )}
                                 <Button type="button" size="sm" className="gap-1 w-full" variant="outline"
-                                  disabled={applyOverhead.isPending || indirectPools.length === 0}
+                                  disabled={!canManage || v.status !== 'draft' || applyOverhead.isPending || indirectPools.length === 0}
                                   onClick={async () => {
                                     try {
                                       const res = await applyOverhead.mutateAsync({ versionId: v.id, company_id: activeCo })
                                       toast.success(`Overhead applied — indirect OH: ${formatCurrency(Number(res.indirect_overhead))}`)
                                       refetch()
-                                    } catch { toast.error('Failed to apply overhead') }
+                                    } catch (e) { toast.error(extractApiError(e, 'Failed to apply overhead')) }
                                   }}>
                                   <RefreshCw className="w-3 h-3" /> Recalculate &amp; apply
                                 </Button>

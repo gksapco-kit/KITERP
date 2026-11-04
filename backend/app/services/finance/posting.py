@@ -12,8 +12,8 @@ from __future__ import annotations
 
 import uuid
 import logging
-from datetime import date, datetime
-from decimal import Decimal
+from datetime import date, datetime, timezone
+from decimal import Decimal, ROUND_HALF_UP
 from typing import Any, Optional
 from uuid import UUID
 
@@ -23,6 +23,7 @@ from sqlalchemy import select, and_, case
 from app.models.finance import (
     FinJournalEntry, FinJournalLine, FinAccount, FinPeriod, FinFiscalYear,
     FinFiscalYearCompany, FinCompany, FinApprovalPolicy, FinApprovalRequest,
+    FinAuditLog,
 )
 from app.services.finance import field_rules as _field_rules
 from app.services.finance import clearing as _clearing
@@ -31,6 +32,34 @@ from app.services.finance import rules_service as _rules
 from app.services.finance import split_service as _split
 
 log = logging.getLogger(__name__)
+
+_BALANCE_TOLERANCE = Decimal("0.01")
+
+
+async def _audit(
+    db: AsyncSession,
+    vendor_id: UUID,
+    entity_type: str,
+    entity_id: UUID,
+    action: str,
+    performed_by_id: Optional[UUID] = None,
+    diff_json: Optional[dict] = None,
+) -> None:
+    """Write an immutable audit-log entry."""
+    try:
+        entry = FinAuditLog(
+            id=uuid.uuid4(),
+            vendor_id=vendor_id,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            action=action,
+            performed_by_id=performed_by_id,
+            diff_json=diff_json or {},
+        )
+        db.add(entry)
+        await db.flush()
+    except Exception:
+        log.warning("audit log write failed for %s/%s action=%s", entity_type, entity_id, action)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # COA helpers — look up system accounts by their type/subtype
@@ -176,27 +205,95 @@ async def _resolve_draft_period(
     return await _get_or_create_period(db, vendor_id, entry_date, company_id)
 
 
-async def _next_entry_no(db: AsyncSession, vendor_id: UUID, source_type: str) -> str:
-    prefix_map = {
-        "invoice": "ARJ", "payment": "CRJ", "pos": "POS",
-        "vendor_bill": "APJ", "vendor_payment": "VPJ",
-        "payroll": "PAY", "expense": "EXP",
-        "asset": "AST", "depreciation": "DEP", "disposal": "DIS",
-        "loan": "LNJ", "investment": "INV", "fx": "FXJ",
-        "opening": "OPN", "closing": "CLJ", "manual": "MNL",
-        "commission_accrual": "CMJ", "commission_payment": "CMP",
-        "co_cost_booking": "COJ",
-    }
-    prefix = prefix_map.get(source_type, "JNL")
-    from sqlalchemy import func
-    r = await db.execute(
-        select(func.count()).select_from(FinJournalEntry).where(
-            FinJournalEntry.vendor_id == vendor_id,
-            FinJournalEntry.entry_no.like(f"{prefix}%"),
-        )
-    )
-    count = r.scalar() or 0
-    return f"{prefix}{str(count + 1).zfill(6)}"
+_SOURCE_TO_DOC_TYPE = {
+    "invoice": "DR", "credit_note": "DG", "sales_return": "RE",
+    "payment": "DZ", "pos": "DR",
+    "vendor_bill": "KR", "vendor_payment": "KZ",
+    "payroll": "SA", "expense": "SA",
+    "asset": "SA", "depreciation": "SA", "disposal": "SA",
+    "inventory_adjustment": "SA", "cogs": "SA",
+    "loan": "SA", "opening": "SA", "closing": "SA", "manual": "MNL",
+    "commission_accrual": "SA", "commission_payment": "SA",
+    "co_cost_booking": "SA", "fx": "SA",
+}
+
+_SOURCE_TO_PREFIX = {
+    "invoice": "ARJ", "credit_note": "CNJ", "sales_return": "SRJ",
+    "payment": "CRJ", "pos": "POS",
+    "vendor_bill": "APJ", "vendor_payment": "VPJ",
+    "payroll": "PAY", "expense": "EXP",
+    "asset": "AST", "depreciation": "DEP", "disposal": "DIS",
+    "inventory_adjustment": "INV", "cogs": "COG",
+    "loan": "LNJ", "investment": "INV", "fx": "FXJ",
+    "opening": "OPN", "closing": "CLJ", "manual": "MNL",
+    "commission_accrual": "CMJ", "commission_payment": "CMP",
+    "co_cost_booking": "COJ",
+}
+
+
+_DOC_TYPE_PREFIX = {
+    "DR": "ARJ", "DG": "CNJ", "RE": "SRJ", "DZ": "CRJ", "KR": "APJ", "KZ": "VPJ",
+    "SA": "JV", "MNL": "MNL",
+}
+
+
+def _fy_candidates(entry_date: Optional[date], fiscal_year: Optional[int]) -> list[int]:
+    """Number-range fiscal years to try: explicit, Indian FY (Apr-Mar) start year, calendar year."""
+    out: list[int] = []
+    if fiscal_year:
+        out.append(fiscal_year)
+    d = entry_date or date.today()
+    for y in (d.year if d.month >= 4 else d.year - 1, d.year):
+        if y not in out:
+            out.append(y)
+    return out
+
+
+async def _next_entry_no(db: AsyncSession, vendor_id: UUID, source_type: str,
+                         fiscal_year: Optional[int] = None,
+                         entry_date: Optional[date] = None) -> str:
+    """
+    Allocate the next document number from a row-locked FinNumberRange.
+
+    If the tenant has no range for this document type, one is created on first use
+    (unique constraint + savepoint make concurrent creation safe). The old
+    count-based fallback raced under concurrent posting and violated the unique
+    (vendor_id, entry_no) constraint.
+    """
+    from sqlalchemy.exc import IntegrityError
+    from app.models.finance import FinNumberRange
+
+    doc_type = _SOURCE_TO_DOC_TYPE.get(source_type, "SA")
+    candidates = _fy_candidates(entry_date, fiscal_year)
+
+    chosen: Optional[int] = None
+    for fy in candidates:
+        found = (await db.execute(
+            select(FinNumberRange.id).where(
+                FinNumberRange.vendor_id == vendor_id,
+                FinNumberRange.document_type == doc_type,
+                FinNumberRange.fiscal_year == fy,
+            )
+        )).first()
+        if found:
+            chosen = fy
+            break
+
+    if chosen is None:
+        chosen = candidates[0]
+        prefix = f"{_DOC_TYPE_PREFIX.get(doc_type, 'JV')}/{chosen}/"
+        try:
+            async with db.begin_nested():
+                db.add(FinNumberRange(
+                    id=uuid.uuid4(), vendor_id=vendor_id, document_type=doc_type,
+                    fiscal_year=chosen, number_from=1, number_to=999_999_999,
+                    current_number=1, prefix=prefix[:10], is_external=False,
+                ))
+                await db.flush()
+        except IntegrityError:
+            pass   # another transaction created it first — use theirs
+
+    return await _rules.next_document_number(db, vendor_id, doc_type, chosen)
 
 
 def _line(account: FinAccount, debit: Decimal = Decimal(0), credit: Decimal = Decimal(0),
@@ -222,51 +319,88 @@ def _line(account: FinAccount, debit: Decimal = Decimal(0), credit: Decimal = De
 # Core posting function
 # ─────────────────────────────────────────────────────────────────────────────
 
-async def post_event(
-    db: AsyncSession,
-    vendor_id: UUID,
-    source_type: str,
-    source_id: UUID,
-    payload: dict[str, Any],
-    created_by_id: Optional[UUID] = None,
-) -> Optional[FinJournalEntry]:
+async def _supersede_entry(db, vendor_id, existing, created_by_id) -> None:
     """
-    Create (or replace) a journal entry for a financial event.
+    Replace an already-posted entry because its source document was re-posted.
 
-    payload keys vary by source_type — see handler functions below.
-    Returns None if essential GL accounts are not configured.
+    * Period still open    -> void the old entry in place (it drops out of every
+      report, so the ledger carries only the replacement).
+    * Period closed/locked -> the old entry must stay untouched: post a dated
+      reversal in the current open period and link it via reversed_by_id.
+    Either way exactly one live entry remains per source document.
     """
-    # Check for existing JE with same source (idempotent)
-    existing_r = await db.execute(
-        select(FinJournalEntry).where(
-            FinJournalEntry.vendor_id == vendor_id,
-            FinJournalEntry.source_type == source_type,
-            FinJournalEntry.source_id == source_id,
-            FinJournalEntry.status == "posted",
-        )
-    )
-    existing = existing_r.scalar_one_or_none()
-    if existing:
-        # Void existing and re-post
+    period = None
+    if existing.period_id:
+        period = (await db.execute(
+            select(FinPeriod).where(FinPeriod.id == existing.period_id)
+        )).scalar_one_or_none()
+
+    if period is None or period.status == "open":
         existing.status = "void"
-        db.add(existing)
+        await db.flush()
+        await _audit(db, vendor_id, "journal_entry", existing.id, "superseded",
+                     performed_by_id=created_by_id,
+                     diff_json={"entry_no": existing.entry_no, "mode": "void"})
+        return
 
-    _raw_date = payload.get("entry_date") or date.today()
-    if isinstance(_raw_date, str):
-        from datetime import date as _date_cls
-        try:
-            _raw_date = _date_cls.fromisoformat(_raw_date)
-        except ValueError:
-            _raw_date = date.today()
-    entry_date: date = _raw_date
-    cid = payload.get("company_id") if isinstance(payload, dict) else None
-    if not cid:
-        cid = await _resolve_default_company(db, vendor_id)
-    period_id, fy_id = await _get_or_create_period(db, vendor_id, entry_date, cid)
-    entry_no = await _next_entry_no(db, vendor_id, source_type)
+    rev_date = date.today()
+    rev_period_id, rev_fy_id = await _get_or_create_period(
+        db, vendor_id, rev_date, existing.company_id)
+    if rev_period_id is None:
+        raise ValueError(
+            f"Cannot re-post: entry {existing.entry_no} is in a {period.status} period "
+            "and no open period exists for the reversal."
+        )
+    lines = (await db.execute(
+        select(FinJournalLine).where(FinJournalLine.journal_entry_id == existing.id)
+    )).scalars().all()
+    rev_je = FinJournalEntry(
+        id=uuid.uuid4(),
+        vendor_id=vendor_id,
+        company_id=existing.company_id,
+        entry_no=await _next_entry_no(db, vendor_id, existing.source_type),
+        entry_date=rev_date,
+        period_id=rev_period_id,
+        fiscal_year_id=rev_fy_id,
+        source_type=existing.source_type,
+        source_id=existing.source_id,
+        status="posted",
+        document_type=existing.document_type,
+        narration=f"REVERSAL of {existing.entry_no}: {existing.narration or ''}",
+        reference=existing.reference,
+        currency=existing.currency,
+        total_debit=existing.total_credit,
+        total_credit=existing.total_debit,
+        created_by_id=created_by_id,
+        posted_by_id=created_by_id,
+        posted_at=datetime.now(timezone.utc),
+        reverses_id=existing.id,
+    )
+    db.add(rev_je)
+    await db.flush()
+    for o in lines:
+        db.add(FinJournalLine(
+            id=uuid.uuid4(), journal_entry_id=rev_je.id, vendor_id=vendor_id,
+            account_id=o.account_id, debit=o.credit, credit=o.debit,
+            base_debit=o.base_credit, base_credit=o.base_debit,
+            currency=o.currency, fx_rate=o.fx_rate,
+            narration=f"REV: {o.narration or ''}", sequence=o.sequence,
+            cost_center_id=o.cost_center_id, project_id=o.project_id,
+            party_type=o.party_type, party_id=o.party_id, store_id=o.store_id,
+        ))
+    existing.reversed_by_id = rev_je.id
+    await db.flush()
+    await _audit(db, vendor_id, "journal_entry", existing.id, "reversed",
+                 performed_by_id=created_by_id,
+                 diff_json={"entry_no": existing.entry_no, "reversal_id": str(rev_je.id)})
 
-    handler_map = {
+
+def _handler_map() -> dict:
+    """source_type -> handler (resolved lazily; handlers are defined below)."""
+    return {
         "invoice": _handle_invoice,
+        "credit_note": _handle_credit_note,
+        "sales_return": _handle_sales_return,
         "payment": _handle_payment,
         "pos": _handle_pos,
         "vendor_bill": _handle_vendor_bill,
@@ -281,7 +415,55 @@ async def post_event(
         "commission_accrual": _handle_commission_accrual,
         "commission_payment": _handle_commission_payment,
         "co_cost_booking": _handle_co_cost_booking,
+        "inventory_adjustment": _handle_inventory_adjustment,
+        "cogs": _handle_cogs,
+        "fx": _handle_fx,
+        "opening": _handle_opening,
     }
+
+
+async def post_event(
+    db: AsyncSession,
+    vendor_id: UUID,
+    source_type: str,
+    source_id: UUID,
+    payload: dict[str, Any],
+    created_by_id: Optional[UUID] = None,
+) -> Optional[FinJournalEntry]:
+    """
+    Create (or replace) a journal entry for a financial event.
+
+    payload keys vary by source_type — see handler functions below.
+    Returns None if essential GL accounts are not configured.
+    """
+    # Check for an existing LIVE JE with same source (idempotent re-post).
+    # Reversal entries (reverses_id set) and already-reversed originals
+    # (reversed_by_id set) are excluded so repeated re-posts never see >1 row.
+    existing_r = await db.execute(
+        select(FinJournalEntry).where(
+            FinJournalEntry.vendor_id == vendor_id,
+            FinJournalEntry.source_type == source_type,
+            FinJournalEntry.source_id == source_id,
+            FinJournalEntry.status == "posted",
+            FinJournalEntry.reverses_id.is_(None),
+            FinJournalEntry.reversed_by_id.is_(None),
+        ).order_by(FinJournalEntry.created_at.desc())
+    )
+    existing = existing_r.scalars().first()
+
+    _raw_date = payload.get("entry_date") or date.today()
+    if isinstance(_raw_date, str):
+        from datetime import date as _date_cls
+        try:
+            _raw_date = _date_cls.fromisoformat(_raw_date)
+        except ValueError:
+            # never silently re-date a document to "today" — that books it in the wrong period
+            raise ValueError(f"Invalid entry_date {_raw_date!r}; expected YYYY-MM-DD") from None
+    entry_date: date = _raw_date
+    cid = payload.get("company_id") if isinstance(payload, dict) else None
+    if not cid:
+        cid = await _resolve_default_company(db, vendor_id)
+    handler_map = _handler_map()
     handler = handler_map.get(source_type)
     if not handler:
         log.warning("No posting handler for source_type=%s", source_type)
@@ -289,10 +471,32 @@ async def post_event(
 
     lines = await handler(db, vendor_id, payload)
     if not lines:
-        return None
+        return None  # essential GL accounts not configured: safe no-op
+
+    # Period guard (after the handler so an unconfigured tenant is a no-op)
+    period_id, fy_id = await _get_or_create_period(db, vendor_id, entry_date, cid)
+    if period_id is None:
+        raise ValueError(
+            f"No open accounting period found for {entry_date}. "
+            "Open or create a period before posting."
+        )
 
     total_debit = sum(ln.debit for ln in lines)
     total_credit = sum(ln.credit for ln in lines)
+
+    # ── Balance guard ─────────────────────────────────────────────────────────
+    if abs(total_debit - total_credit) > _BALANCE_TOLERANCE:
+        raise ValueError(
+            f"Auto-posting handler for '{source_type}' produced an unbalanced entry: "
+            f"Dr {total_debit} ≠ Cr {total_credit}. "
+            "Check that all required GL accounts are configured."
+        )
+
+    # ── Supersede the previous entry (only now that a replacement is ready) ──
+    if existing is not None:
+        await _supersede_entry(db, vendor_id, existing, created_by_id)
+
+    entry_no = await _next_entry_no(db, vendor_id, source_type, entry_date=entry_date)
 
     je = FinJournalEntry(
         id=uuid.uuid4(),
@@ -313,7 +517,7 @@ async def post_event(
         total_credit=total_credit,
         created_by_id=created_by_id,
         posted_by_id=created_by_id,
-        posted_at=datetime.utcnow(),
+        posted_at=datetime.now(timezone.utc),
     )
     db.add(je)
     await db.flush()
@@ -326,6 +530,11 @@ async def post_event(
     await _clearing.stamp_open_items(db, vendor_id, lines)
     # Apply document splitting rules if configured
     await _split.apply_document_splitting(db, vendor_id, je.id)
+
+    await _audit(db, vendor_id, "journal_entry", je.id, "posted",
+                 performed_by_id=created_by_id,
+                 diff_json={"source_type": source_type, "entry_no": entry_no,
+                            "total_debit": str(total_debit), "total_credit": str(total_credit)})
 
     log.info("Posted JE %s (%s) vendor=%s dr=%.2f cr=%.2f",
              entry_no, source_type, vendor_id, total_debit, total_credit)
@@ -368,6 +577,127 @@ async def _handle_invoice(db, vendor_id, payload):
     return lines
 
 
+async def _handle_credit_note(db, vendor_id, payload):
+    """
+    Credit Note — reversal of a sales invoice.
+    Dr Sales Revenue (and GST Output)  /  Cr AR
+    payload: {total, cgst, sgst, igst, customer_id, narration}
+    """
+    ar = await _find_account(db, vendor_id, "Asset", "Current Asset", "Accounts Receivable")
+    sales = await _find_account(db, vendor_id, "Income", "Operating Income", "Sales")
+    gst_out = await _find_account(db, vendor_id, "Liability", "Current Liability", "GST Output")
+
+    if not (ar and sales):
+        return None
+
+    total = Decimal(str(payload.get("total", 0)))
+    cgst = Decimal(str(payload.get("cgst", 0)))
+    sgst = Decimal(str(payload.get("sgst", 0)))
+    igst = Decimal(str(payload.get("igst", 0)))
+    tax = cgst + sgst + igst
+    revenue = total - tax
+
+    lines = [
+        _line(sales, debit=revenue, narration="Sales Reversal (CN)", vendor_id=vendor_id),
+        _line(ar, credit=total, narration="AR - Credit Note", vendor_id=vendor_id,
+              party_type="customer", party_id=payload.get("customer_id")),
+    ]
+    if tax > 0 and gst_out:
+        lines.append(_line(gst_out, debit=tax, narration="GST Output Reversal (CN)", vendor_id=vendor_id))
+    return lines
+
+
+async def _handle_sales_return(db, vendor_id, payload):
+    """
+    Sales Return — Dr Sales Revenue, Dr Inventory, Cr AR, Cr COGS Reversal.
+    payload: {total, cgst, sgst, igst, cogs_amount, customer_id, narration}
+    """
+    ar = await _find_account(db, vendor_id, "Asset", "Current Asset", "Accounts Receivable")
+    sales = await _find_account(db, vendor_id, "Income", "Operating Income", "Sales")
+    gst_out = await _find_account(db, vendor_id, "Liability", "Current Liability", "GST Output")
+    inventory = await _find_account(db, vendor_id, "Asset", "Current Asset", "Inventory")
+    cogs_acc = await _find_account(db, vendor_id, "Expense", "COGS", "Cost of Goods Sold")
+
+    if not (ar and sales):
+        return None
+
+    total = Decimal(str(payload.get("total", 0)))
+    cgst = Decimal(str(payload.get("cgst", 0)))
+    sgst = Decimal(str(payload.get("sgst", 0)))
+    igst = Decimal(str(payload.get("igst", 0)))
+    tax = cgst + sgst + igst
+    revenue = total - tax
+    cogs_amount = Decimal(str(payload.get("cogs_amount", 0)))
+
+    lines = [
+        _line(sales, debit=revenue, narration="Sales Reversal (Return)", vendor_id=vendor_id),
+        _line(ar, credit=total, narration="AR - Sales Return", vendor_id=vendor_id,
+              party_type="customer", party_id=payload.get("customer_id")),
+    ]
+    if tax > 0 and gst_out:
+        lines.append(_line(gst_out, debit=tax, narration="GST Reversal (Return)", vendor_id=vendor_id))
+    if cogs_amount > 0 and inventory and cogs_acc:
+        lines.append(_line(inventory, debit=cogs_amount, narration="Inventory Returned", vendor_id=vendor_id))
+        lines.append(_line(cogs_acc, credit=cogs_amount, narration="COGS Reversed", vendor_id=vendor_id))
+    return lines
+
+
+async def _handle_inventory_adjustment(db, vendor_id, payload):
+    """
+    Inventory write-up / write-down.
+    Dr Inventory / Cr Inventory Adjustment Expense (or vice-versa).
+    payload: {adjustment_amount (positive=gain, negative=loss), narration}
+    """
+    inventory = await _find_account(db, vendor_id, "Asset", "Current Asset", "Inventory")
+    adj_acc = await _find_account(db, vendor_id, "Expense", "Operating Expense", "Inventory Adjustment")
+    if not inventory:
+        return None
+
+    amount = Decimal(str(payload.get("adjustment_amount", 0)))
+    if amount == 0:
+        return None
+
+    if amount > 0:  # inventory gain
+        if not adj_acc:
+            adj_acc = await _find_account(db, vendor_id, "Income", "Other Income")
+        if not adj_acc:
+            return None
+        return [
+            _line(inventory, debit=amount, narration="Inventory Write-Up", vendor_id=vendor_id),
+            _line(adj_acc, credit=amount, narration="Inventory Gain", vendor_id=vendor_id),
+        ]
+    else:  # inventory loss
+        loss = abs(amount)
+        if not adj_acc:
+            return None
+        return [
+            _line(adj_acc, debit=loss, narration="Inventory Write-Down", vendor_id=vendor_id),
+            _line(inventory, credit=loss, narration="Inventory Loss", vendor_id=vendor_id),
+        ]
+
+
+async def _handle_cogs(db, vendor_id, payload):
+    """
+    COGS recognition on sale.
+    Dr COGS  /  Cr Inventory
+    payload: {cogs_amount, narration}
+    """
+    cogs_acc = await _find_account(db, vendor_id, "Expense", "COGS", "Cost of Goods Sold")
+    inventory = await _find_account(db, vendor_id, "Asset", "Current Asset", "Inventory")
+
+    if not (cogs_acc and inventory):
+        return None
+
+    amount = Decimal(str(payload.get("cogs_amount", 0)))
+    if amount <= 0:
+        return None
+
+    return [
+        _line(cogs_acc, debit=amount, narration="Cost of Goods Sold", vendor_id=vendor_id),
+        _line(inventory, credit=amount, narration="Inventory Consumed", vendor_id=vendor_id),
+    ]
+
+
 async def _handle_payment(db, vendor_id, payload):
     """
     Dr Bank/Cash  /  Cr AR
@@ -375,7 +705,8 @@ async def _handle_payment(db, vendor_id, payload):
     """
     bank_gl_id = payload.get("bank_account_gl_id")
     if bank_gl_id:
-        r = await db.execute(select(FinAccount).where(FinAccount.id == bank_gl_id))
+        r = await db.execute(select(FinAccount).where(
+            FinAccount.id == bank_gl_id, FinAccount.vendor_id == vendor_id))
         bank = r.scalar_one_or_none()
     else:
         bank = await _find_account(db, vendor_id, "Asset", "Current Asset", "Bank")
@@ -444,6 +775,18 @@ async def _handle_vendor_bill(db, vendor_id, payload):
     supplier_id = payload.get("supplier_id")
     narration = payload.get("narration", "Vendor Bill")
 
+    # TDS deducted at source (Sec 194x): the supplier is owed (total - TDS); the TDS
+    # is a liability to the government until deposited.
+    tds = Decimal(str(payload.get("tds_amount") or 0))
+    tds_acc = None
+    if tds > 0:
+        tds_acc = await _find_account(db, vendor_id, "Liability", "Current Liability", "TDS Payable")
+        if tds_acc is None:
+            raise ValueError("TDS is deducted on this bill but no 'TDS Payable' account exists.")
+        if tds >= total:
+            raise ValueError("TDS cannot be equal to or exceed the bill total.")
+    ap_credit = total - tds
+
     bill_lines = payload.get("bill_lines") or []
 
     if bill_lines:
@@ -460,7 +803,7 @@ async def _handle_vendor_bill(db, vendor_id, payload):
                 )
                 exp_acc = r.scalar_one_or_none()
             else:
-                exp_acc = await _find_account(db, vendor_id, "Expense", "Operating Expense", "Purchase")
+                exp_acc = await _find_account(db, vendor_id, "Expense", "COGS", "Purchase")
             if not exp_acc:
                 continue
             amt = Decimal(str(spec.get("amount", 0)))
@@ -483,20 +826,24 @@ async def _handle_vendor_bill(db, vendor_id, payload):
 
         subtotal = sum(ln.debit for ln in out)
         out.append(
-            _line(ap, credit=total, narration=f"AP - {narration}", vendor_id=vendor_id,
+            _line(ap, credit=ap_credit, narration=f"AP - {narration}", vendor_id=vendor_id,
                   party_type="supplier", party_id=supplier_id)
         )
         if tax > 0 and gst_in:
             out.append(_line(gst_in, debit=tax, narration="GST Input Credit", vendor_id=vendor_id))
+        if tds_acc is not None:
+            out.append(_line(tds_acc, credit=tds, narration=f"TDS Payable {payload.get('tds_section') or ''}".strip(),
+                             vendor_id=vendor_id, party_type="supplier", party_id=supplier_id))
         return out
 
     # Simple aggregate mode (backwards-compatible).
     exp_acc_id = payload.get("expense_account_id")
     if exp_acc_id:
-        r = await db.execute(select(FinAccount).where(FinAccount.id == exp_acc_id))
+        r = await db.execute(select(FinAccount).where(
+            FinAccount.id == exp_acc_id, FinAccount.vendor_id == vendor_id))
         expense = r.scalar_one_or_none()
     else:
-        expense = await _find_account(db, vendor_id, "Expense", "Operating Expense", "Purchase")
+        expense = await _find_account(db, vendor_id, "Expense", "COGS", "Purchase")
     if not expense:
         return None
 
@@ -509,11 +856,14 @@ async def _handle_vendor_bill(db, vendor_id, payload):
 
     lines = [
         exp_line,
-        _line(ap, credit=total, narration="AP - Vendor Bill", vendor_id=vendor_id,
+        _line(ap, credit=ap_credit, narration="AP - Vendor Bill", vendor_id=vendor_id,
               party_type="supplier", party_id=supplier_id),
     ]
     if tax > 0 and gst_in:
         lines.append(_line(gst_in, debit=tax, narration="GST Input Credit", vendor_id=vendor_id))
+    if tds_acc is not None:
+        lines.append(_line(tds_acc, credit=tds, narration=f"TDS Payable {payload.get('tds_section') or ''}".strip(),
+                           vendor_id=vendor_id, party_type="supplier", party_id=supplier_id))
     return lines
 
 
@@ -525,7 +875,8 @@ async def _handle_vendor_payment(db, vendor_id, payload):
     ap = await _find_account(db, vendor_id, "Liability", "Current Liability", "Accounts Payable")
     bank_gl_id = payload.get("bank_account_gl_id")
     if bank_gl_id:
-        r = await db.execute(select(FinAccount).where(FinAccount.id == bank_gl_id))
+        r = await db.execute(select(FinAccount).where(
+            FinAccount.id == bank_gl_id, FinAccount.vendor_id == vendor_id))
         bank = r.scalar_one_or_none()
     else:
         bank = await _find_account(db, vendor_id, "Asset", "Current Asset", "Bank")
@@ -542,25 +893,91 @@ async def _handle_vendor_payment(db, vendor_id, payload):
 
 async def _handle_payroll(db, vendor_id, payload):
     """
-    Dr Salary Expense  /  Cr Salary Payable + TDS Payable
-    payload: {gross_total, net_total, tds_total, narration}
+    Payroll GL posting with full Indian deductions.
+
+    Entries:
+      Dr Salary Expense (gross)
+      Cr Salary Payable       (net take-home)
+      Cr TDS Payable          (income tax deducted at source)
+      Cr PF Payable           (provident fund employee contribution)
+      Cr ESI Payable          (employee state insurance employee contribution)
+      Cr Prof Tax Payable     (professional tax)
+
+    Employer-side deductions (PF employer, ESI employer) are extra Dr Expense / Cr Payable entries.
+
+    payload: {
+        gross_total, net_total, tds_total,
+        pf_employee, pf_employer,
+        esi_employee, esi_employer,
+        professional_tax,
+        narration
+    }
     """
     salary_exp = await _find_account(db, vendor_id, "Expense", "Operating Expense", "Salary")
     salary_pay = await _find_account(db, vendor_id, "Liability", "Current Liability", "Salary Payable")
     tds_pay = await _find_account(db, vendor_id, "Liability", "Current Liability", "TDS Payable")
+    pf_pay = await _find_account(db, vendor_id, "Liability", "Current Liability", "PF Payable")
+    esi_pay = await _find_account(db, vendor_id, "Liability", "Current Liability", "ESI Payable")
+    pt_pay = await _find_account(db, vendor_id, "Liability", "Current Liability", "Professional Tax Payable")
+    pf_exp = await _find_account(db, vendor_id, "Expense", "Operating Expense", "PF Expense")
+    esi_exp = await _find_account(db, vendor_id, "Expense", "Operating Expense", "ESI Expense")
+
     if not (salary_exp and salary_pay):
         return None
 
     gross = Decimal(str(payload.get("gross_total", 0)))
     net = Decimal(str(payload.get("net_total", 0)))
     tds = Decimal(str(payload.get("tds_total", 0)))
+    pf_emp = Decimal(str(payload.get("pf_employee", 0)))
+    pf_er = Decimal(str(payload.get("pf_employer", 0)))
+    esi_emp = Decimal(str(payload.get("esi_employee", 0)))
+    esi_er = Decimal(str(payload.get("esi_employer", 0)))
+    pt = Decimal(str(payload.get("professional_tax", 0)))
+
+    # Gross expense = salary gross + employer PF + employer ESI
+    total_dr = gross + pf_er + esi_er
 
     lines = [
         _line(salary_exp, debit=gross, narration="Salary Expense", vendor_id=vendor_id),
-        _line(salary_pay, credit=net, narration="Salary Payable", vendor_id=vendor_id),
+        _line(salary_pay, credit=net, narration="Net Salary Payable", vendor_id=vendor_id),
     ]
+    # Fail loudly (naming the account) instead of dropping a line and producing an
+    # unbalanced / silently incomplete entry.
+    _needed = [
+        (tds, tds_pay, "TDS Payable"),
+        (pf_emp, pf_pay, "PF Payable"), (pf_er, pf_pay, "PF Payable"), (pf_er, pf_exp, "PF Expense"),
+        (esi_emp, esi_pay, "ESI Payable"), (esi_er, esi_pay, "ESI Payable"), (esi_er, esi_exp, "ESI Expense"),
+        (pt, pt_pay, "Professional Tax Payable"),
+    ]
+    _missing = sorted({nm for amt, acc, nm in _needed if amt > 0 and acc is None})
+    if _missing:
+        raise ValueError(
+            "Payroll cannot be posted: missing GL account(s): " + ", ".join(_missing)
+            + ". Add them in Chart of Accounts."
+        )
+    # Any deduction not itemised above (loan/advance recovery, LWF, etc.) must still be
+    # credited somewhere or the entry would not balance.
+    other_ded = gross - net - tds - pf_emp - esi_emp - pt
+    if other_ded > Decimal("0.005"):
+        other_pay = await _find_account(db, vendor_id, "Liability", "Current Liability", "Other Payable")
+        lines.append(_line(other_pay or salary_pay, credit=other_ded,
+                           narration="Other Employee Deductions Payable", vendor_id=vendor_id))
+    # Employee deductions to liabilities
     if tds > 0 and tds_pay:
         lines.append(_line(tds_pay, credit=tds, narration="TDS Payable", vendor_id=vendor_id))
+    if pf_emp > 0 and pf_pay:
+        lines.append(_line(pf_pay, credit=pf_emp, narration="PF Payable (Employee)", vendor_id=vendor_id))
+    if esi_emp > 0 and esi_pay:
+        lines.append(_line(esi_pay, credit=esi_emp, narration="ESI Payable (Employee)", vendor_id=vendor_id))
+    if pt > 0 and pt_pay:
+        lines.append(_line(pt_pay, credit=pt, narration="Professional Tax Payable", vendor_id=vendor_id))
+    # Employer contributions (extra expense Dr / liability Cr)
+    if pf_er > 0 and pf_exp and pf_pay:
+        lines.append(_line(pf_exp, debit=pf_er, narration="PF Expense (Employer)", vendor_id=vendor_id))
+        lines.append(_line(pf_pay, credit=pf_er, narration="PF Payable (Employer)", vendor_id=vendor_id))
+    if esi_er > 0 and esi_exp and esi_pay:
+        lines.append(_line(esi_exp, debit=esi_er, narration="ESI Expense (Employer)", vendor_id=vendor_id))
+        lines.append(_line(esi_pay, credit=esi_er, narration="ESI Payable (Employer)", vendor_id=vendor_id))
     return lines
 
 
@@ -571,13 +988,15 @@ async def _handle_expense(db, vendor_id, payload):
     """
     exp_acc_id = payload.get("expense_account_id")
     if exp_acc_id:
-        r = await db.execute(select(FinAccount).where(FinAccount.id == exp_acc_id))
+        r = await db.execute(select(FinAccount).where(
+            FinAccount.id == exp_acc_id, FinAccount.vendor_id == vendor_id))
         expense = r.scalar_one_or_none()
     else:
         expense = await _find_account(db, vendor_id, "Expense", "Operating Expense")
     bank_gl_id = payload.get("bank_account_gl_id")
     if bank_gl_id:
-        r = await db.execute(select(FinAccount).where(FinAccount.id == bank_gl_id))
+        r = await db.execute(select(FinAccount).where(
+            FinAccount.id == bank_gl_id, FinAccount.vendor_id == vendor_id))
         bank = r.scalar_one_or_none()
     else:
         bank = await _find_account(db, vendor_id, "Asset", "Current Asset", "Cash")
@@ -598,13 +1017,15 @@ async def _handle_asset_acquisition(db, vendor_id, payload):
     """
     asset_acc_id = payload.get("asset_account_id")
     if asset_acc_id:
-        r = await db.execute(select(FinAccount).where(FinAccount.id == asset_acc_id))
+        r = await db.execute(select(FinAccount).where(
+            FinAccount.id == asset_acc_id, FinAccount.vendor_id == vendor_id))
         asset_acc = r.scalar_one_or_none()
     else:
         asset_acc = await _find_account(db, vendor_id, "Asset", "Fixed Asset")
     credit_acc_id = payload.get("credit_account_id")
     if credit_acc_id:
-        r = await db.execute(select(FinAccount).where(FinAccount.id == credit_acc_id))
+        r = await db.execute(select(FinAccount).where(
+            FinAccount.id == credit_acc_id, FinAccount.vendor_id == vendor_id))
         credit_acc = r.scalar_one_or_none()
     else:
         credit_acc = await _find_account(db, vendor_id, "Asset", "Current Asset", "Bank")
@@ -626,9 +1047,11 @@ async def _handle_depreciation(db, vendor_id, payload):
     dep_exp_id = payload.get("dep_expense_account_id")
     accum_id = payload.get("accum_dep_account_id")
     if dep_exp_id and accum_id:
-        r1 = await db.execute(select(FinAccount).where(FinAccount.id == dep_exp_id))
+        r1 = await db.execute(select(FinAccount).where(
+            FinAccount.id == dep_exp_id, FinAccount.vendor_id == vendor_id))
         dep_exp = r1.scalar_one_or_none()
-        r2 = await db.execute(select(FinAccount).where(FinAccount.id == accum_id))
+        r2 = await db.execute(select(FinAccount).where(
+            FinAccount.id == accum_id, FinAccount.vendor_id == vendor_id))
         accum = r2.scalar_one_or_none()
     else:
         dep_exp = await _find_account(db, vendor_id, "Expense", "Operating Expense", "Depreciation")
@@ -705,12 +1128,19 @@ async def _handle_loan(db, vendor_id, payload):
     payload: {event: 'disbursement'|'repayment', principal, interest, loan_account_id, bank_account_id, interest_account_id}
     """
     event = payload.get("event", "repayment")
-    loan_gl_id = payload.get("loan_account_id")
-    bank_gl_id = payload.get("bank_account_id")
-    interest_gl_id = payload.get("interest_account_id")
-    r1 = await db.execute(select(FinAccount).where(FinAccount.id == loan_gl_id)) if loan_gl_id else None
+    def _as_uuid(v):
+        if v is None or v == "":
+            return None
+        return v if isinstance(v, UUID) else UUID(str(v))
+
+    loan_gl_id = _as_uuid(payload.get("loan_account_id"))
+    bank_gl_id = _as_uuid(payload.get("bank_account_id"))
+    interest_gl_id = _as_uuid(payload.get("interest_account_id"))
+    r1 = await db.execute(select(FinAccount).where(
+        FinAccount.id == loan_gl_id, FinAccount.vendor_id == vendor_id)) if loan_gl_id else None
     loan_acc = r1.scalar_one_or_none() if r1 else await _find_account(db, vendor_id, "Liability", "Long-term Liability", "Loan")
-    r2 = await db.execute(select(FinAccount).where(FinAccount.id == bank_gl_id)) if bank_gl_id else None
+    r2 = await db.execute(select(FinAccount).where(
+        FinAccount.id == bank_gl_id, FinAccount.vendor_id == vendor_id)) if bank_gl_id else None
     bank = r2.scalar_one_or_none() if r2 else await _find_account(db, vendor_id, "Asset", "Current Asset", "Bank")
     if not (loan_acc and bank):
         return None
@@ -729,7 +1159,8 @@ async def _handle_loan(db, vendor_id, payload):
             _line(bank, credit=principal + interest, narration="Bank Payment - Loan EMI", vendor_id=vendor_id),
         ]
         if interest > 0:
-            r3 = await db.execute(select(FinAccount).where(FinAccount.id == interest_gl_id)) if interest_gl_id else None
+            r3 = await db.execute(select(FinAccount).where(
+                FinAccount.id == interest_gl_id, FinAccount.vendor_id == vendor_id)) if interest_gl_id else None
             int_acc = r3.scalar_one_or_none() if r3 else await _find_account(db, vendor_id, "Expense", "Operating Expense", "Interest")
             if int_acc:
                 lines.insert(1, _line(int_acc, debit=interest, narration="Interest Expense", vendor_id=vendor_id))
@@ -865,7 +1296,8 @@ async def _handle_commission_payment(db, vendor_id, payload):
 
     bank_account_id = payload.get("bank_account_id")
     if bank_account_id:
-        r = await db.execute(select(FinAccount).where(FinAccount.id == bank_account_id))
+        r = await db.execute(select(FinAccount).where(
+            FinAccount.id == bank_account_id, FinAccount.vendor_id == vendor_id))
         bank_acc = r.scalar_one_or_none()
     else:
         bank_acc = await _find_account(db, vendor_id, "Asset", "Bank")
@@ -884,6 +1316,87 @@ async def _handle_commission_payment(db, vendor_id, payload):
                narration=payload.get("narration", "Commission Payment"),
                vendor_id=vendor_id, store_id=store_id)
     return [dr, cr]
+
+
+async def _handle_fx(db, vendor_id, payload):
+    """
+    FX Revaluation adjustment entry.
+    Dr/Cr: FX Loss Expense / FX Gain Income  vs  Unrealised FX Adjustment (Balance Sheet)
+
+    payload: {
+        currency: str,
+        rate_used: float,
+        total_gain: float,
+        total_loss: float,
+        net_adjustment: float,       # positive = net gain, negative = net loss
+        entry_date: str,
+        narration: str,
+    }
+    """
+    net = Decimal(str(payload.get("net_adjustment", 0)))
+    gain = Decimal(str(payload.get("total_gain", 0)))
+    loss = Decimal(str(payload.get("total_loss", 0)))
+
+    if net == 0:
+        return None
+
+    # Look up FX P&L accounts
+    fx_gain_acc = await _find_account(db, vendor_id, "Income", "Other Income", "FX Gain")
+    if not fx_gain_acc:
+        fx_gain_acc = await _find_account(db, vendor_id, "Income", "Other Income")
+    fx_loss_acc = await _find_account(db, vendor_id, "Expense", "Other Expense", "FX Loss")
+    if not fx_loss_acc:
+        fx_loss_acc = await _find_account(db, vendor_id, "Expense", "Other Expense")
+    # Balance-sheet suspense for unrealised adjustments
+    fx_bs_acc = await _find_account(db, vendor_id, "Asset", "Current Asset", "FX Reval Suspense")
+    if not fx_bs_acc:
+        fx_bs_acc = await _find_account(db, vendor_id, "Liability", "Current Liability", "FX Reval Suspense")
+
+    narration = payload.get("narration", "FX Revaluation")
+    lines = []
+
+    if net > 0 and fx_gain_acc and fx_bs_acc:
+        # Net gain: Dr FX Suspense / Cr FX Gain
+        lines = [
+            _line(fx_bs_acc, debit=net, narration=narration, vendor_id=vendor_id),
+            _line(fx_gain_acc, credit=net, narration=narration, vendor_id=vendor_id),
+        ]
+    elif net < 0 and fx_loss_acc and fx_bs_acc:
+        # Net loss: Dr FX Loss / Cr FX Suspense
+        loss_amt = abs(net)
+        lines = [
+            _line(fx_loss_acc, debit=loss_amt, narration=narration, vendor_id=vendor_id),
+            _line(fx_bs_acc, credit=loss_amt, narration=narration, vendor_id=vendor_id),
+        ]
+    else:
+        log.warning("FX reval accounts not found for vendor=%s — cannot post FX JE", vendor_id)
+
+    return lines if lines else None
+
+
+async def _handle_opening(db, vendor_id, payload):
+    """
+    Opening-balance entry.
+    payload: {lines: [{account_id, debit, credit, narration}]}
+    Unlike manual entries, opening balances MAY hit reconciliation (AR/AP control)
+    accounts — that is how legacy receivables/payables are brought in.
+    Unknown accounts raise instead of being silently dropped.
+    """
+    lines = []
+    for ld in payload.get("lines", []):
+        r = await db.execute(select(FinAccount).where(
+            FinAccount.id == ld["account_id"], FinAccount.vendor_id == vendor_id))
+        acc = r.scalar_one_or_none()
+        if acc is None:
+            raise ValueError(f"Opening balance account {ld['account_id']} not found for this vendor.")
+        lines.append(_line(
+            acc,
+            debit=Decimal(str(ld.get("debit", 0))),
+            credit=Decimal(str(ld.get("credit", 0))),
+            narration=ld.get("narration", "Opening Balance"),
+            vendor_id=vendor_id,
+        ))
+    return lines if lines else None
 
 
 async def _handle_manual(db, vendor_id, payload):
@@ -923,7 +1436,8 @@ async def _handle_manual(db, vendor_id, payload):
         line_context = dict(ld)
         await _rules.run_validations(db, vendor_id, "line", line_context)
 
-        r = await db.execute(select(FinAccount).where(FinAccount.id == ld["account_id"]))
+        r = await db.execute(select(FinAccount).where(
+            FinAccount.id == ld["account_id"], FinAccount.vendor_id == vendor_id))
         acc = r.scalar_one_or_none()
         if acc:
             # Field Status Group enforcement
@@ -1119,8 +1633,14 @@ async def post_entry_with_approval_check(
 ) -> FinJournalEntry:
     """
     Post a draft JE, enforcing approval gate if required.
-    Raises ValueError if approval is pending/rejected.
+    Raises ValueError if the entry is not a draft, approval is pending/rejected,
+    or the accounting period is closed.
     """
+    if je.status != "draft":
+        raise ValueError(
+            f"Only draft journal entries can be posted (current status: '{je.status}')."
+        )
+
     if je.requires_approval:
         if not je.approval_request_id:
             raise ValueError("Journal entry requires approval but has no approval request.")
@@ -1133,11 +1653,30 @@ async def post_entry_with_approval_check(
                 f"Journal entry {je.entry_no} requires approval "
                 f"(current status: {req.status if req else 'unknown'})."
             )
+        # Segregation of duties (requester != approver) is enforced when the
+        # approval request is actioned, not when the approved entry is posted.
+
+    # Verify the target period is still open
+    if je.period_id:
+        period_r = await db.execute(
+            select(FinPeriod).where(FinPeriod.id == je.period_id)
+        )
+        period = period_r.scalar_one_or_none()
+        if period and period.status != "open":
+            raise ValueError(
+                f"Accounting period is {period.status}. "
+                "Reopen the period or change the entry date before posting."
+            )
 
     je.status = "posted"
     je.posted_by_id = posted_by_id
-    je.posted_at = datetime.utcnow()
+    je.posted_at = datetime.now(timezone.utc)
     await db.flush()
+
+    await _audit(db, je.vendor_id, "journal_entry", je.id, "posted",
+                 performed_by_id=posted_by_id,
+                 diff_json={"entry_no": je.entry_no, "total_debit": str(je.total_debit)})
+
     log.info("Posted JE %s vendor=%s by=%s", je.entry_no, je.vendor_id, posted_by_id)
     return je
 
@@ -1236,6 +1775,16 @@ async def update_journal_draft(
     )
     if fru:
         _field_rules.assert_journal_mandatory(je, fru)
+
+    # Re-run reconciliation guard and open-item stamping after line replacement
+    if payload.lines is not None:
+        new_lines_r = await db.execute(
+            select(FinJournalLine).where(FinJournalLine.journal_entry_id == je.id)
+        )
+        new_lines = list(new_lines_r.scalars().all())
+        new_account_ids = [ln.account_id for ln in new_lines]
+        await _guard_no_recon_accounts(db, je.vendor_id, new_account_ids)
+        await _clearing.stamp_open_items(db, je.vendor_id, new_lines)
 
     await db.flush()
     return je

@@ -11,8 +11,13 @@ import {
   useVarianceRuns,
   useCreateVarianceRun,
   usePostVarianceRun,
+  useReverseVarianceRun,
+  useDeleteVarianceRun,
 } from '@/hooks/useControlling'
 import { formatCurrency } from '@/lib/utils'
+import { extractApiError } from '@/lib/errorMessages'
+import { useHasPermission } from '@/hooks/usePermissions'
+import { askConfirm } from '@/components/common/ConfirmProvider'
 import type { VarianceRunOut } from '@/api/controlling'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -73,7 +78,10 @@ export default function PeriodEndPage() {
   const [runType, setRunType] = useState('production_variance')
   const [postRunId, setPostRunId] = useState<string | null>(null)
   const [entryDate, setEntryDate] = useState(new Date().toISOString().split('T')[0])
+  const [postToGl, setPostToGl] = useState(false)
   const [error, setError] = useState('')
+  const canEdit = useHasPermission('finance.edit')
+  const canPost = useHasPermission('finance.journal.post')
 
   useEscapeToClose(() => setShowCreateRun(false), showCreateRun)
 
@@ -91,6 +99,8 @@ export default function PeriodEndPage() {
 
   const createRunMut = useCreateVarianceRun()
   const postRunMut = usePostVarianceRun()
+  const reverseRunMut = useReverseVarianceRun()
+  const deleteRunMut = useDeleteVarianceRun()
 
   const handleCreateRun = async () => {
     setError('')
@@ -105,8 +115,7 @@ export default function PeriodEndPage() {
       })
       setShowCreateRun(false)
     } catch (err: unknown) {
-      const e2 = err as { response?: { data?: { detail?: string } } }
-      setError(e2?.response?.data?.detail ?? 'Failed to create variance run')
+      setError(extractApiError(err, 'Failed to create variance run'))
     }
   }
 
@@ -114,11 +123,36 @@ export default function PeriodEndPage() {
     if (!postRunId) return
     setError('')
     try {
-      await postRunMut.mutateAsync({ runId: postRunId, entry_date: entryDate || undefined })
+      await postRunMut.mutateAsync({ runId: postRunId, entry_date: entryDate || undefined, post_to_gl: postToGl })
       setPostRunId(null)
+      setPostToGl(false)
     } catch (err: unknown) {
-      const e2 = err as { response?: { data?: { detail?: string } } }
-      setError(e2?.response?.data?.detail ?? 'Failed to post variance run')
+      setError(extractApiError(err, 'Failed to post variance run'))
+    }
+  }
+
+  const handleReverseRun = async (runId: string) => {
+    const reason = window.prompt('Reverse this posted variance run? Its orders become available for a new run.\nReason (required):')
+    if (reason === null) return
+    if (reason.trim().length < 3) {
+      setError('A reason of at least 3 characters is required to reverse')
+      return
+    }
+    setError('')
+    try {
+      await reverseRunMut.mutateAsync({ runId, reason: reason.trim() })
+    } catch (err: unknown) {
+      setError(extractApiError(err, 'Failed to reverse variance run'))
+    }
+  }
+
+  const handleDeleteRun = async (runId: string) => {
+    if (!await askConfirm('Delete this open variance run?')) return
+    setError('')
+    try {
+      await deleteRunMut.mutateAsync(runId)
+    } catch (err: unknown) {
+      setError(extractApiError(err, 'Failed to delete variance run'))
     }
   }
 
@@ -253,12 +287,14 @@ export default function PeriodEndPage() {
       <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <h2 className="font-semibold text-gray-800">Variance Runs</h2>
-          <button
-            onClick={() => setShowCreateRun(true)}
-            className="flex items-center gap-2 bg-primary text-white px-3 py-1.5 rounded-lg hover:bg-primary/90 text-sm font-medium"
-          >
-            <Play className="w-3.5 h-3.5" /> Run Variance Calculation
-          </button>
+          {canEdit && (
+            <button
+              onClick={() => setShowCreateRun(true)}
+              className="flex items-center gap-2 bg-primary text-white px-3 py-1.5 rounded-lg hover:bg-primary/90 text-sm font-medium"
+            >
+              <Play className="w-3.5 h-3.5" /> Run Variance Calculation
+            </button>
+          )}
         </div>
         {vLoading ? (
           <div className="px-5 py-8 text-center text-gray-400 text-sm">Loading…</div>
@@ -305,14 +341,32 @@ export default function PeriodEndPage() {
                       }`}>{vr.status}</span>
                     </td>
                     <td className="px-4 py-3">
-                      {vr.status === 'open' && (
-                        <button
-                          onClick={() => setPostRunId(vr.id)}
-                          className="text-xs text-primary hover:text-primary flex items-center gap-1 whitespace-nowrap"
-                        >
-                          <Play className="w-3 h-3" /> Post to GL
-                        </button>
-                      )}
+                      <div className="flex items-center gap-3">
+                        {vr.status === 'open' && canPost && (
+                          <button
+                            onClick={() => setPostRunId(vr.id)}
+                            className="text-xs text-primary hover:text-primary flex items-center gap-1 whitespace-nowrap"
+                          >
+                            <Play className="w-3 h-3" /> Post
+                          </button>
+                        )}
+                        {vr.status === 'open' && canEdit && (
+                          <button
+                            onClick={() => handleDeleteRun(vr.id)}
+                            className="text-xs text-red-500 hover:text-red-700 whitespace-nowrap"
+                          >
+                            Delete
+                          </button>
+                        )}
+                        {vr.status === 'posted' && canPost && (
+                          <button
+                            onClick={() => handleReverseRun(vr.id)}
+                            className="text-xs text-amber-700 hover:text-amber-900 whitespace-nowrap"
+                          >
+                            Reverse
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 )
@@ -342,7 +396,8 @@ export default function PeriodEndPage() {
 
             </div>
             <p className="text-sm text-gray-500">
-              Calculates planned vs actual variances across all completed orders for {MONTHS[month - 1]} {year}.
+              Calculates planned vs actual variances for orders completed or closed in {MONTHS[month - 1]} {year} that are
+              not already covered by another active variance run.
             </p>
             <div>
               <Label className="block text-xs font-medium text-gray-600 mb-1">Run Type</Label>
@@ -370,10 +425,20 @@ export default function PeriodEndPage() {
       {postRunId && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-card border border-border text-foreground rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-            <h2 className="text-lg font-semibold text-gray-900">Post Variance to GL</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Post Variance Run</h2>
             <p className="text-sm text-gray-500">
-              This will post the variance amount to the production variance account in the general ledger.
+              Posting freezes the covered orders. Tick the option below to also journal the variance to the production
+              variance account.
             </p>
+            <label className="flex items-start gap-2 text-sm text-gray-700">
+              <input type="checkbox" className="mt-1" checked={postToGl} onChange={e => setPostToGl(e.target.checked)} />
+              <span>
+                Post a journal entry to the GL
+                <span className="block text-xs text-gray-500">
+                  Requires the production variance and COGS accounts in Finance Integration, and an open fiscal period.
+                </span>
+              </span>
+            </label>
             <div>
               <Label className="block text-xs font-medium text-gray-600 mb-1">Entry Date</Label>
               <input type="date" value={entryDate} onChange={e => setEntryDate(e.target.value)}
@@ -381,11 +446,11 @@ export default function PeriodEndPage() {
             </div>
             {error && <p className="text-sm text-red-600">{error}</p>}
             <div className="flex gap-3">
-              <button onClick={() => setPostRunId(null)}
+              <button onClick={() => { setPostRunId(null); setPostToGl(false) }}
                 className="btn-cancel flex-1 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium">Cancel</button>
               <button onClick={handlePostRun} disabled={postRunMut.isPending}
                 className="flex-1 bg-primary text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-primary/90 disabled:opacity-60">
-                {postRunMut.isPending ? 'Posting…' : 'Post to GL'}
+                {postRunMut.isPending ? 'Posting…' : postToGl ? 'Post and journal' : 'Post run'}
               </button>
             </div>
           </div>

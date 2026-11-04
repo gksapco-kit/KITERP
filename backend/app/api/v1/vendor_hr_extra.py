@@ -1972,17 +1972,14 @@ async def mark_expense_paid(
     await NotificationService(db).notify_expense_status(
         vu.vendor_id, e.id, e.claim_number or str(e.id)[:8], "paid",
     )
+    # Finance GL: post expense payment (failures are queued for Finance to retry)
+    from decimal import Decimal as _D
+    from app.services.finance.safe_posting import safe_post
+    await safe_post(db, vu.vendor_id, "expense", e.id, {
+        "amount": _D(str(e.amount or 0)),
+        "narration": f"Expense Claim {e.claim_number or str(e.id)[:8]}: {e.category or 'General'}",
+    }, created_by_id=vu.id)
     await db.commit()
-    # Finance GL: post expense payment
-    try:
-        from app.services.finance.posting import post_event
-        await post_event(db, vu.vendor_id, "expense", e.id, {
-            "amount": float(e.amount or 0),
-            "narration": f"Expense Claim {e.claim_number or str(e.id)[:8]}: {e.category or 'General'}",
-        })
-        await db.commit()
-    except Exception:
-        pass
     return _d(e)
 
 

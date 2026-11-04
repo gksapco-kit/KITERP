@@ -15,6 +15,8 @@ import {
   useUpdateOrderOperation,
   usePostProductionCompletion,
   usePostCogsIssue,
+  useReverseCogsIssue,
+  useReverseProductionCompletion,
   useTransitionOrderStatus,
   useBudgetVsActual,
   useBudgetLines,
@@ -24,6 +26,8 @@ import {
   useActivityConfirmations,
 } from '@/hooks/useControlling'
 import { formatCurrency } from '@/lib/utils'
+import { extractApiError } from '@/lib/errorMessages'
+import { useHasPermission } from '@/hooks/usePermissions'
 import { toast } from 'sonner'
 import { ArrowLeft, RefreshCw, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -62,6 +66,11 @@ export default function ManufacturingOrderDetailPage() {
   const patchOp = useUpdateOrderOperation()
   const postPc = usePostProductionCompletion()
   const postCogs = usePostCogsIssue()
+  const reverseCogs = useReverseCogsIssue()
+  const reversePc = useReverseProductionCompletion()
+  const canEdit = useHasPermission('finance.edit')
+  const canManage = useHasPermission('finance.coa.manage')
+  const canPost = useHasPermission('finance.journal.post')
 
   const [tab, setTab] = useState<Tab>('summary')
   const [showTransition, setShowTransition] = useState(false)
@@ -91,8 +100,7 @@ export default function ManufacturingOrderDetailPage() {
       toast.success('Order status updated')
       refetch()
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { detail?: string } } }
-      toast.error(e?.response?.data?.detail ?? 'Transition failed')
+      toast.error(extractApiError(err, 'Transition failed'))
     }
   }
 
@@ -114,9 +122,28 @@ export default function ManufacturingOrderDetailPage() {
       setShowBlForm(false)
       setBlForm({ category: 'material', amount_budgeted: '', description: '', budget_type: 'original' })
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { detail?: string } } }
-      toast.error(e?.response?.data?.detail ?? 'Failed to add budget line')
+      toast.error(extractApiError(err, 'Failed to add budget line'))
     }
+  }
+
+  const o = (order ?? {}) as Record<string, unknown>
+  const isMirror = o.ref_doc_type === 'production_order'
+  const closedStatus = ['completed', 'closed', 'cancelled'].includes(String(o.status ?? ''))
+  const pcPosted = Boolean(o.production_completion_journal_id)
+  const cogsQtyPosted = parseFloat(String(o.qty_cogs_posted ?? '0')) || 0
+  // Mirrors the API guards: no edits on mirror orders, closed orders or after the completion JE.
+  const editLocked = isMirror || closedStatus || pcPosted
+  const budgetLocked = isMirror || ['closed', 'cancelled'].includes(String(o.status ?? ''))
+
+  const askReason = (title: string): string | null => {
+    const r = window.prompt(`${title}\nReason (required):`)
+    if (r === null) return null
+    const t = r.trim()
+    if (t.length < 3) {
+      toast.error('A reason of at least 3 characters is required')
+      return null
+    }
+    return t
   }
 
   const fmt = (n: string | number) => formatCurrency(typeof n === 'string' ? parseFloat(n) : n)
@@ -157,15 +184,28 @@ export default function ManufacturingOrderDetailPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="gap-1"
-            onClick={() => setShowTransition(true)}
-          >
-            Transition Status
-          </Button>
+          {canEdit && !isMirror && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="gap-1"
+              onClick={() => setShowTransition(true)}
+            >
+              Transition Status
+            </Button>
+          )}
+          {isMirror && (
+            <span className="self-center rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
+              Mirror of a production order - read only
+            </span>
+          )}
+          {!isMirror && closedStatus && (
+            <span className="self-center rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+              {order.status} - locked
+            </span>
+          )}
+          {canManage && !editLocked && (<>
           <Button
             type="button"
             size="sm"
@@ -179,8 +219,7 @@ export default function ManufacturingOrderDetailPage() {
                 refetch()
                 refetchVar()
               } catch (e: unknown) {
-                const err = e as { response?: { data?: { detail?: string } } }
-                toast.error(err.response?.data?.detail || 'Failed')
+                toast.error(extractApiError(e, 'Failed'))
               }
             }}
           >
@@ -197,8 +236,7 @@ export default function ManufacturingOrderDetailPage() {
                 toast.success('Operations generated from standard')
                 refetch()
               } catch (e: unknown) {
-                const err = e as { response?: { data?: { detail?: string } } }
-                toast.error(err.response?.data?.detail || 'Failed')
+                toast.error(extractApiError(e, 'Failed'))
               }
             }}
           >
@@ -216,8 +254,7 @@ export default function ManufacturingOrderDetailPage() {
                 refetch()
                 refetchVar()
               } catch (e: unknown) {
-                const err = e as { response?: { data?: { detail?: string } } }
-                toast.error(err.response?.data?.detail || 'Failed')
+                toast.error(extractApiError(e, 'Failed'))
               }
             }}
           >
@@ -235,13 +272,13 @@ export default function ManufacturingOrderDetailPage() {
                 refetch()
                 refetchVar()
               } catch (e: unknown) {
-                const err = e as { response?: { data?: { detail?: string } } }
-                toast.error(err.response?.data?.detail || 'Failed')
+                toast.error(extractApiError(e, 'Failed'))
               }
             }}
           >
             Recalc OH
           </Button>
+          </>)}
         </div>
       </div>
 
@@ -272,6 +309,9 @@ export default function ManufacturingOrderDetailPage() {
               <span>
                 Status: <strong>{'settlement_status' in order ? String(order.settlement_status) : 'none'}</strong>
               </span>
+              <span>
+                COGS posted qty: <strong>{cogsQtyPosted}</strong> of {order.qty_delivered} delivered
+              </span>
               {'production_completion_journal_id' in order && order.production_completion_journal_id ? (
                 <span className="text-emerald-700">Production JE posted</span>
               ) : (
@@ -283,20 +323,20 @@ export default function ManufacturingOrderDetailPage() {
                 <span className="text-gray-500">No COGS JE yet</span>
               )}
             </div>
+            {canPost ? (
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
                 size="sm"
                 variant="secondary"
-                disabled={postPc.isPending}
+                disabled={postPc.isPending || pcPosted}
                 onClick={async () => {
                   try {
                     await postPc.mutateAsync({ orderId: id })
                     toast.success('Production completion posted')
                     refetch()
                   } catch (e: unknown) {
-                    const err = e as { response?: { data?: { detail?: string } } }
-                    toast.error(err.response?.data?.detail || 'Failed')
+                    toast.error(extractApiError(e, 'Failed'))
                   }
                 }}
               >
@@ -313,14 +353,58 @@ export default function ManufacturingOrderDetailPage() {
                     toast.success('COGS issue posted')
                     refetch()
                   } catch (e: unknown) {
-                    const err = e as { response?: { data?: { detail?: string } } }
-                    toast.error(err.response?.data?.detail || 'Failed')
+                    toast.error(extractApiError(e, 'Failed'))
                   }
                 }}
               >
                 Post COGS issue
               </Button>
+              {cogsQtyPosted > 0 && !isMirror && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={reverseCogs.isPending}
+                  onClick={async () => {
+                    const reason = askReason('Reverse the latest COGS issue journal?')
+                    if (!reason) return
+                    try {
+                      await reverseCogs.mutateAsync({ orderId: id, reason })
+                      toast.success('COGS issue reversed')
+                      refetch()
+                    } catch (e: unknown) {
+                      toast.error(extractApiError(e, 'Failed to reverse COGS issue'))
+                    }
+                  }}
+                >
+                  Reverse COGS issue
+                </Button>
+              )}
+              {pcPosted && !isMirror && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={reversePc.isPending}
+                  onClick={async () => {
+                    const reason = askReason('Reverse the production completion journal? The order becomes editable again.')
+                    if (!reason) return
+                    try {
+                      await reversePc.mutateAsync({ orderId: id, reason })
+                      toast.success('Production completion reversed')
+                      refetch()
+                    } catch (e: unknown) {
+                      toast.error(extractApiError(e, 'Failed to reverse production completion'))
+                    }
+                  }}
+                >
+                  Reverse production completion
+                </Button>
+              )}
             </div>
+            ) : (
+              <p className="text-xs text-gray-500">You do not have permission to post or reverse settlement journals.</p>
+            )}
             {'cost_bookings' in order &&
               Array.isArray(order.cost_bookings) &&
               order.cost_bookings.length > 0 && (
@@ -402,6 +486,7 @@ export default function ManufacturingOrderDetailPage() {
                     <td className="px-3 py-2 text-right">
                       <input
                         defaultValue={op.actual_hours}
+                        disabled={!canManage || editLocked}
                         className="w-20 rounded border border-gray-200 px-1 py-0.5 text-right text-sm"
                         onBlur={e => {
                           const v = e.target.value
@@ -413,7 +498,7 @@ export default function ManufacturingOrderDetailPage() {
                                 toast.success('Saved')
                                 refetch()
                               },
-                              onError: () => toast.error('Save failed'),
+                              onError: err => toast.error(extractApiError(err, 'Save failed')),
                             },
                           )
                         }}
@@ -460,6 +545,7 @@ export default function ManufacturingOrderDetailPage() {
                   <td className="px-3 py-2 text-right">
                     <input
                       defaultValue={ln.qty_actual}
+                      disabled={!canManage || editLocked}
                       className="w-24 rounded border border-gray-200 px-1 py-0.5 text-right text-sm"
                       onBlur={e => {
                         const v = e.target.value
@@ -472,7 +558,7 @@ export default function ManufacturingOrderDetailPage() {
                               refetch()
                               refetchVar()
                             },
-                            onError: () => toast.error('Failed'),
+                            onError: err => toast.error(extractApiError(err, 'Failed')),
                           },
                         )
                       }}
@@ -563,7 +649,9 @@ export default function ManufacturingOrderDetailPage() {
           )}
           <div className="flex items-center justify-between">
             <h3 className="font-medium text-gray-800">Budget Lines</h3>
-            <Button size="sm" variant="secondary" onClick={() => setShowBlForm(s => !s)}>+ Add Line</Button>
+            {canManage && !budgetLocked && (
+              <Button size="sm" variant="secondary" onClick={() => setShowBlForm(s => !s)}>+ Add Line</Button>
+            )}
           </div>
           {showBlForm && (
             <form onSubmit={handleAddBl} className="rounded-lg border border-primary/30 bg-accent p-4 space-y-3">
@@ -609,7 +697,7 @@ export default function ManufacturingOrderDetailPage() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {budgetLines.length === 0 && (
-                  <tr><td colSpan={5} className="px-4 py-6 text-center text-gray-400 text-sm">No budget lines. Add one above.</td></tr>
+                  <tr><td colSpan={5} className="px-4 py-6 text-center text-gray-400 text-sm">No budget lines.</td></tr>
                 )}
                 {budgetLines.map(bl => (
                   <tr key={bl.id} className="hover:bg-gray-50">
@@ -618,8 +706,20 @@ export default function ManufacturingOrderDetailPage() {
                     <td className="px-4 py-3 text-gray-600">{bl.description ?? '—'}</td>
                     <td className="px-4 py-3 text-right font-medium text-gray-900">{fmt(bl.amount_budgeted)}</td>
                     <td className="px-4 py-3">
-                      <button onClick={() => id && deleteBl.mutate({ orderId: id, blId: bl.id })}
-                        className="text-red-400 hover:text-red-600 text-xs">×</button>
+                      {canManage && !budgetLocked && (
+                        <button
+                          onClick={() =>
+                            id &&
+                            deleteBl.mutate(
+                              { orderId: id, blId: bl.id },
+                              { onError: err => toast.error(extractApiError(err, 'Failed to delete budget line')) },
+                            )
+                          }
+                          className="text-red-400 hover:text-red-600 text-xs"
+                        >
+                          ×
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

@@ -203,13 +203,15 @@ async def next_doc_number(
         await db.execute(
             text(
                 "INSERT INTO proc_document_sequence "
-                "  (id, vendor_id, store_id, prefix, last_value, width) "
-                "VALUES (:id, :vid, NULL, :pfx, :lv, :w) "
+                "  (id, vendor_id, store_id, prefix, last_value, width, number_from, number_to) "
+                "VALUES (:id, :vid, NULL, :pfx, :lv, :w, 1, 999999) "
                 "ON CONFLICT (vendor_id, store_scope, prefix) DO NOTHING"
             ),
             {
-                "id": str(uuid4()),
-                "vid": str(vendor_id),
+                # 32-char hex form is accepted by PostgreSQL's uuid type and matches
+                # how the SQLite test harness stores UUID columns.
+                "id": uuid4().hex,
+                "vid": UUID(str(vendor_id)).hex,
                 "pfx": prefix,
                 "lv": initial,
                 "w": width,

@@ -173,6 +173,88 @@ async def simulate_fx_reval(
     return run
 
 
+async def post_fx_reval(
+    db: AsyncSession,
+    vendor_id: UUID,
+    reval_run_id: UUID,
+    posted_by_id: UUID | None = None,
+) -> FinFxRevalRun:
+    """
+    Post the FX revaluation adjustment journal entry.
+
+    Creates:
+      - A FinJournalEntry of source_type="fx" with balanced Dr/Cr lines:
+          Dr   FX Loss Expense  (for adjustments < 0)
+          Cr   Unrealised FX Gain Income  (for adjustments > 0)
+        with the offsetting entry on each FX-denominated account.
+      - Marks the FinFxRevalRun as 'posted'.
+
+    Raises ValueError if the run is already posted or cancelled.
+    """
+    from app.services.finance.posting import post_event, _get_or_create_period
+    from app.models.finance import FinFxRevalLine
+
+    run = (await db.execute(
+        select(FinFxRevalRun).where(
+            FinFxRevalRun.id == reval_run_id,
+            FinFxRevalRun.vendor_id == vendor_id,
+        )
+    )).scalar_one_or_none()
+
+    if run is None:
+        raise ValueError(f"FX revaluation run {reval_run_id} not found for this vendor.")
+    if run.status == "posted":
+        raise ValueError(f"FX revaluation run {reval_run_id} is already posted.")
+    if run.status == "cancelled":
+        raise ValueError(f"FX revaluation run {reval_run_id} is cancelled and cannot be posted.")
+
+    reval_lines = (await db.execute(
+        select(FinFxRevalLine).where(FinFxRevalLine.reval_run_id == reval_run_id)
+    )).scalars().all()
+
+    if not reval_lines:
+        raise ValueError("No revaluation lines found — nothing to post.")
+
+    total_adjustment = sum(Decimal(str(rl.adjustment)) for rl in reval_lines)
+    if total_adjustment == 0:
+        run.status = "posted"
+        run.journal_entry_id = None
+        await db.flush()
+        return run
+
+    # Build GL payload for the aggregate entry
+    # The posting handler "fx" (mapped in post_event) handles the Dr/Cr split
+    gain = Decimal(str(run.total_gain or 0))
+    loss = Decimal(str(run.total_loss or 0))
+
+    je = await post_event(
+        db,
+        vendor_id,
+        "fx",
+        run.id,
+        {
+            "currency": run.currency,
+            "rate_used": float(run.rate_used),
+            "total_gain": float(gain),
+            "total_loss": float(loss),
+            "net_adjustment": float(total_adjustment),
+            "entry_date": run.run_date.isoformat(),
+            "narration": f"FX Revaluation {run.currency}/{run.run_date}",
+        },
+        created_by_id=posted_by_id,
+    )
+
+    run.status = "posted"
+    if je is not None:
+        run.journal_entry_id = je.id
+    await db.flush()
+    log.info(
+        "FX reval run %s posted → JE %s (gain=%s loss=%s)",
+        reval_run_id, je.id if je else None, gain, loss,
+    )
+    return run
+
+
 async def list_reval_runs(
     db: AsyncSession,
     vendor_id: UUID,

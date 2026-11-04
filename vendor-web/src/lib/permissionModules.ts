@@ -4,7 +4,7 @@ import {
   RefreshCw, Truck, Factory, Users as UsersIcon, MessageSquare, Settings, UserPlus,
   ShieldCheck, UserCog, Target, Landmark, Percent, UtensilsCrossed, Warehouse,
   ClipboardList, BarChart3, Globe, Store, Heart, FlaskConical, FolderKanban,
-  Gauge, Database, ScrollText, LayoutTemplate, Sliders, FileCheck2, Microscope,
+  Building2, Gauge, Database, ScrollText, LayoutTemplate, Sliders, FileCheck2, Microscope,
 } from 'lucide-react'
 
 /** Human-readable labels for permission module keys (prefix before the first dot). */
@@ -21,6 +21,7 @@ export const PERMISSION_MODULE_LABELS: Record<string, string> = {
   coupons: 'Coupons & Promos',
   subscriptions: 'Subscriptions',
   rentals: 'Rentals',
+  realestate: 'Real Estate',
   production: 'Production Orders',
   pharma: 'Pharma & Quality',
   projects: 'Projects',
@@ -59,6 +60,7 @@ export const PERMISSION_MODULE_ICONS: Record<string, ElementType> = {
   coupons: Tag,
   subscriptions: RefreshCw,
   rentals: Truck,
+  realestate: Building2,
   production: Factory,
   pharma: FlaskConical,
   projects: FolderKanban,

@@ -1670,21 +1670,45 @@ async def finalize_payroll(
     if not run:
         raise HTTPException(status_code=404, detail="Payroll run not found")
     run.status = "processed"
-    await db.commit()
-    # Finance GL: post payroll expense
+    # Finance GL: post payroll expense inside a savepoint so a GL failure
+    # does NOT silently commit the run status change.
     try:
-        from app.services.finance.posting import post_event
-        await post_event(db, vu.vendor_id, "payroll", run_id, {
-            "gross_total": float(run.total_gross or 0),
-            "net_total": float(run.total_net or 0),
-            "tds_total": 0,
-            "entry_date": run.pay_date if hasattr(run, "pay_date") else None,
-            "narration": f"Payroll Run {run.period_label if hasattr(run, 'period_label') else str(run_id)[:8]}",
-        })
-        await db.commit()
+        import calendar
+        from datetime import date as _date
+        from decimal import Decimal as _D
+        from sqlalchemy import select as _select
+        from app.models.hr import PayrollEntry
+        from app.services.finance.safe_posting import safe_post
+
+        # Aggregate the statutory components from the per-employee payslips.
+        entries = (await db.execute(
+            _select(PayrollEntry.deductions).where(PayrollEntry.payroll_run_id == run_id)
+        )).scalars().all()
+        keys = ("tds", "pf_employee", "pf_employer", "esi_employee", "esi_employer", "professional_tax")
+        totals = {k: _D("0") for k in keys}
+        for ded in entries:
+            for k in keys:
+                try:
+                    totals[k] += _D(str((ded or {}).get(k) or 0))
+                except Exception:
+                    pass
+        last_day = calendar.monthrange(run.year, run.month)[1]
+        await safe_post(db, vu.vendor_id, "payroll", run_id, {
+            "gross_total": _D(str(run.total_gross or 0)),
+            "net_total": _D(str(run.total_net or 0)),
+            "tds_total": totals["tds"],
+            "pf_employee": totals["pf_employee"],
+            "pf_employer": totals["pf_employer"],
+            "esi_employee": totals["esi_employee"],
+            "esi_employer": totals["esi_employer"],
+            "professional_tax": totals["professional_tax"],
+            "entry_date": _date(run.year, run.month, last_day),
+            "narration": f"Payroll {run.month:02d}/{run.year}",
+        }, created_by_id=vu.id)
     except Exception:
         import logging
         logging.getLogger(__name__).exception("Finance GL: failed to post payroll run %s", run_id)
+    await db.commit()
     return _d(run)
 
 

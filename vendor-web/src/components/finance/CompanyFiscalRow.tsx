@@ -7,6 +7,7 @@ import { Lock, Unlock, XCircle, Loader2, ChevronRight, ChevronDown } from 'lucid
 import { finKeys } from '@/hooks/useFinance'
 import { formatIsoDate, isAuditWindowAfterFyEnd } from '@/lib/fiscalYearPreview'
 import { toast } from 'sonner'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 
 import { askConfirm } from '@/components/common/ConfirmProvider'
 const STATUS: Record<string, { label: string; cls: string }> = {
@@ -92,18 +93,63 @@ export default function CompanyFiscalRow({
       ),
   })
 
+  const apiError = (e: unknown, fallback: string) => {
+    const d = (e as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
+    toast.error(typeof d === 'string' ? d : fallback, { duration: 12_000 })
+  }
   const closeMut = useMutation({
     mutationFn: (id: string) => api.closePeriod(id),
     onSuccess: () => { toast.success('Period closed'); invalidate() },
+    onError: e => apiError(e, 'Could not close the period'),
   })
   const lockMut = useMutation({
     mutationFn: (id: string) => api.lockPeriod(id),
     onSuccess: () => { toast.success('Period locked for posting'); invalidate() },
+    onError: e => apiError(e, 'Could not lock the period'),
   })
+  const [reopenTarget, setReopenTarget] = useState<{ id: string; name: string } | null>(null)
+  const [reopenReason, setReopenReason] = useState('')
   const reopenMut = useMutation({
-    mutationFn: (id: string) => api.reopenPeriod(id),
-    onSuccess: () => { toast.success('Period reopened'); invalidate() },
+    mutationFn: (v: { id: string; reason: string }) => api.reopenPeriod(v.id, v.reason),
+    onSuccess: () => {
+      toast.success('Period reopened (recorded in the audit log)')
+      setReopenTarget(null)
+      setReopenReason('')
+      invalidate()
+    },
+    onError: e => apiError(e, 'Could not reopen the period'),
   })
+
+  /** Run the server-side close checklist first: blockers stop the close, warnings are shown in the confirm. */
+  const requestClose = async (id: string) => {
+    let cl: api.CloseChecklist
+    try {
+      cl = await api.getCloseChecklist(id)
+    } catch (e) {
+      apiError(e, 'Could not run the close checklist')
+      return
+    }
+    if (!cl.can_close) {
+      toast.error(
+        'Cannot close yet: ' + cl.blockers.map(b => b.message).join(' '),
+        { duration: 20_000 },
+      )
+      return
+    }
+    const ok = await askConfirm({
+      title: 'Close this period?',
+      description: cl.warnings.length
+        ? (
+          <ul className="list-disc pl-5 space-y-1">
+            {cl.warnings.map(w => <li key={w.code}>{w.message}</li>)}
+          </ul>
+        )
+        : 'The checklist found no open items. You can still reopen it later with a recorded reason.',
+      variant: 'warning',
+      confirmLabel: 'Close period',
+    })
+    if (ok) closeMut.mutate(id)
+  }
 
   const commitAddAudit = useCallback(
     (silentIfIncomplete: boolean) => {
@@ -305,7 +351,7 @@ export default function CompanyFiscalRow({
                                     <button
                                       type="button"
                                       disabled={busy}
-                                      onClick={async () => { if (await askConfirm('Close this period? You can still reopen for corrections with admin rights.')) closeMut.mutate(p.id) }}
+                                      onClick={() => { void requestClose(p.id) }}
                                       className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-md border border-border bg-muted/40 text-foreground hover:bg-muted/60 disabled:opacity-50"
                                     >
                                       <XCircle className="w-3.5 h-3.5" />
@@ -317,7 +363,7 @@ export default function CompanyFiscalRow({
                                   <button
                                     type="button"
                                     disabled={busy}
-                                    onClick={async () => { if (await askConfirm('Reopen this period for new postings?')) reopenMut.mutate(p.id) }}
+                                    onClick={() => { setReopenTarget({ id: p.id, name: p.name }); setReopenReason('') }}
                                     className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-md border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-950/60 disabled:opacity-50"
                                   >
                                     <Unlock className="w-3.5 h-3.5" />
@@ -365,6 +411,41 @@ export default function CompanyFiscalRow({
             </>
           )}
         </div>
+      )}
+
+      {reopenTarget && (
+        <ModalOverlay onClose={() => setReopenTarget(null)} className="z-[100] bg-black/60 p-3">
+          <ModalPanel className="max-w-md !rounded-lg overflow-hidden">
+            <ModalHeader title={`Reopen ${reopenTarget.name}`} onClose={() => setReopenTarget(null)} />
+            <ModalBody className="space-y-2 px-4 pb-2">
+              <p className="text-sm text-muted-foreground">
+                Reopening lets users post into a period that was already closed or locked, which changes
+                reported figures. State why; it is stored in the audit log with your name.
+              </p>
+              <textarea
+                value={reopenReason}
+                onChange={e => setReopenReason(e.target.value)}
+                rows={3}
+                maxLength={500}
+                placeholder="e.g. Missed vendor bill from 28 Sep to be booked"
+                className="w-full rounded-md border border-input bg-background px-2.5 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </ModalBody>
+            <ModalFooter className="border-0 px-4 py-2.5">
+              <button type="button" onClick={() => setReopenTarget(null)} className="h-8 rounded-md border border-border px-3 text-sm">
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={reopenMut.isPending || reopenReason.trim().length < 5}
+                onClick={() => reopenMut.mutate({ id: reopenTarget.id, reason: reopenReason.trim() })}
+                className="h-8 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              >
+                {reopenMut.isPending ? 'Reopening…' : 'Reopen period'}
+              </button>
+            </ModalFooter>
+          </ModalPanel>
+        </ModalOverlay>
       )}
     </div>
   )

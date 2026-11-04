@@ -52,6 +52,9 @@ qrcode==8.2  # GST e-invoice signed QR on the printed invoice
 # HTML sanitisation for vendor-authored document templates
 nh3==0.3.7
 
+# Jinja2 for configurable print templates (sandboxed, autoescape)
+Jinja2>=3.1.4
+
 # Testing
 pytest==7.4.4
 pytest-asyncio==0.23.3

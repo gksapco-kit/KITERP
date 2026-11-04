@@ -13,6 +13,7 @@ import { DeliveryDocumentsPanel } from '@/components/orders/DeliveryDocumentsPan
 import { BillingDocumentsPanel } from '@/components/orders/BillingDocumentsPanel'
 import { OrderPartnersPanel } from '@/components/orders/OrderPartnersPanel'
 import { OrderPricingPanel } from '@/components/orders/OrderPricingPanel'
+import { SalesOrderProductionCard } from '@/components/production/ProductionPlanningExtras'
 import { CreditStatusPanel } from '@/components/orders/CreditStatusPanel'
 import { ShipModal } from '@/components/orders/ShipModal'
 import { CancelOrderModal } from '@/components/orders/CancelOrderModal'
@@ -437,6 +438,12 @@ function OrderDetailView() {
           {order.return_reason && <p className="text-gray-700 mt-2">{order.return_reason}</p>}
         </div>
       )}
+
+      {/* Make-to-order: draft production for this sales order (hidden without production access) */}
+      <SalesOrderProductionCard
+        salesOrderId={order.id}
+        closed={['cancelled', 'refunded', 'returned', 'exchanged', 'delivered'].includes(order.status)}
+      />
 
       {/* Initiate return/exchange CTA */}
       {canInitiateReturn && (

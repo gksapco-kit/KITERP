@@ -6,6 +6,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import defer
 
 from app.models.production import ProductionOrder
 
@@ -25,7 +26,14 @@ class ProductionOrderRepo:
         skip: int = 0,
         limit: int = 500,
     ) -> tuple[list[ProductionOrder], int]:
-        q = select(ProductionOrder).where(ProductionOrder.vendor_id == vendor_id)
+        # Attachments (base64), the audit trail and the posting snapshot are the heavy JSON
+        # columns and are not part of the list payload — do not even load them.
+        q = select(ProductionOrder).options(
+            defer(ProductionOrder.attachments),
+            defer(ProductionOrder.audit_log),
+            defer(ProductionOrder.inventory_posting),
+            defer(ProductionOrder.partial_outputs),
+        ).where(ProductionOrder.vendor_id == vendor_id)
         if store_id is not None:
             q = q.where(ProductionOrder.store_id == store_id)
         if type_filter:
@@ -44,13 +52,19 @@ class ProductionOrderRepo:
         rows = (await self.db.execute(q)).scalars().all()
         return list(rows), total
 
-    async def get(self, order_id: UUID, vendor_id: UUID) -> Optional[ProductionOrder]:
-        r = await self.db.execute(
-            select(ProductionOrder).where(
-                ProductionOrder.id == order_id,
-                ProductionOrder.vendor_id == vendor_id,
-            )
+    async def get(
+        self, order_id: UUID, vendor_id: UUID, *, for_update: bool = False,
+    ) -> Optional[ProductionOrder]:
+        """Fetch one order. ``for_update`` takes a row lock (no-op on SQLite) so that
+        concurrent transitions/edits/deletes of the same order are serialised and the
+        second one sees the committed result of the first."""
+        q = select(ProductionOrder).where(
+            ProductionOrder.id == order_id,
+            ProductionOrder.vendor_id == vendor_id,
         )
+        if for_update:
+            q = q.with_for_update()
+        r = await self.db.execute(q)
         return r.scalar_one_or_none()
 
     async def get_by_ref(self, vendor_id: UUID, ref: str) -> Optional[ProductionOrder]:

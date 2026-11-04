@@ -5,13 +5,17 @@ from sqlalchemy import select, delete, and_, func as sqlfunc
 from typing import Optional, List
 from uuid import UUID
 from decimal import Decimal
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from app.database import get_db
 from app.api.deps import get_current_active_user, get_current_vendor_id, require_permission
+from app.api.v1.production_access import production_view, production_manage
 from app.models.user import User
 from app.models.mrp import ProductBOMItem, StockReservation
+from app.models.production import ProductionOrder
+from app.models.store import Store
 from app.models.vendor_product import Product
+from app.services.production_lifecycle import LIVE_STATUSES
 from app.services.vendor_service import VendorService
 from app.services.mrp_service import (
     ceil_decimal,
@@ -25,7 +29,29 @@ from app.schemas.mrp import (
     ReservationCreate, ReservationOut,
 )
 
-router = APIRouter(dependencies=[Depends(require_permission("production.view"))])
+router = APIRouter(dependencies=[Depends(production_view)])
+
+
+PRODUCTION_ORDER_TYPE = "production_order"
+_PRODUCTION_MANAGED_MSG = (
+    "These reservations belong to a live production order and follow its status. "
+    "Move the order back to draft or cancel it to release them."
+)
+
+
+async def _is_live_production_order(db: AsyncSession, vendor_id: UUID, order_type: str, order_id: str) -> bool:
+    """True when the reservations belong to a production order that still holds materials.
+    Reservations of draft/cancelled/deleted orders stay releasable (stale-data cleanup)."""
+    if order_type != PRODUCTION_ORDER_TYPE:
+        return False
+    try:
+        oid = UUID(str(order_id))
+    except (ValueError, TypeError):
+        return False
+    status = (await db.execute(
+        select(ProductionOrder.status).where(ProductionOrder.id == oid, ProductionOrder.vendor_id == vendor_id)
+    )).scalar_one_or_none()
+    return status in LIVE_STATUSES
 
 
 # ── BOM helpers ───────────────────────────────────────────────────────────────
@@ -39,6 +65,11 @@ def _bom_to_dict(item: ProductBOMItem, component: Product) -> dict:
         "component_sku": component.sku if component else None,
         "component_uom": component.uom if component else None,
         "qty_per_unit": float(item.qty_per_unit),
+        "scrap_pct": float(item.scrap_pct or 0),
+        "valid_from": item.valid_from.isoformat() if item.valid_from else None,
+        "valid_to": item.valid_to.isoformat() if item.valid_to else None,
+        "is_byproduct": bool(item.is_byproduct),
+        "cost_share_pct": float(item.cost_share_pct or 0),
         "notes": item.notes,
         "created_at": item.created_at.isoformat() if item.created_at else None,
     }
@@ -83,19 +114,81 @@ async def get_product_bom(
     )
     items = result.scalars().all()
 
-    # Fetch component details
-    out = []
-    for item in items:
-        comp_result = await db.execute(select(Product).where(Product.id == item.component_id))
-        comp = comp_result.scalar_one_or_none()
-        out.append(_bom_to_dict(item, comp))
+    # Component details in one query
+    comps = {}
+    if items:
+        comps = {
+            p.id: p for p in (await db.execute(
+                select(Product).where(Product.id.in_([i.component_id for i in items]))
+            )).scalars().all()
+        }
+    return [_bom_to_dict(item, comps.get(item.component_id)) for item in items]
 
-    return out
+
+def _validate_bom_lines(items: List[BOMItemIn]) -> None:
+    """A component may repeat only as successive revisions: lines for the same component and
+    role must have non-overlapping validity windows. By-product cost shares cannot exceed 100%."""
+    far_past, far_future = date.min, date.max
+    seen: dict = {}
+    for i in items:
+        lo, hi = i.valid_from or far_past, i.valid_to or far_future
+        if hi < lo:
+            raise HTTPException(400, "A BOM line's 'valid to' date cannot be before its 'valid from' date")
+        seen.setdefault((i.component_id, bool(i.is_byproduct)), []).append((lo, hi))
+    for (cid, _), windows in seen.items():
+        windows.sort()
+        for (a_lo, a_hi), (b_lo, _b_hi) in zip(windows, windows[1:]):
+            if b_lo <= a_hi:
+                raise HTTPException(
+                    400,
+                    "A component can appear more than once only with non-overlapping validity dates; "
+                    "otherwise combine the quantities into one line",
+                )
+    today = date.today()
+    shares = sum((i.cost_share_pct for i in items
+                  if i.is_byproduct and (i.valid_from or far_past) <= today <= (i.valid_to or far_future)), Decimal("0"))
+    if shares > 100:
+        raise HTTPException(400, "By-product cost shares add up to more than 100%")
+
+
+async def _bom_cycle_path(
+    db: AsyncSession, vendor_id: UUID, product_id: UUID, component_ids: List[UUID],
+) -> Optional[List[UUID]]:
+    """Return a path product -> ... -> product if giving ``product_id`` these components
+    would make a product (indirectly) a component of itself, else None.
+
+    The product's current BOM is ignored (it is being replaced); every other
+    product's BOM is read in a single query."""
+    edges = (await db.execute(
+        select(ProductBOMItem.product_id, ProductBOMItem.component_id).where(
+            ProductBOMItem.vendor_id == vendor_id, ProductBOMItem.product_id != product_id,
+            ProductBOMItem.is_byproduct.is_(False),  # outputs are not material flow
+        )
+    )).all()
+    children: dict = {}
+    for parent, child in edges:
+        children.setdefault(parent, []).append(child)
+
+    for start in component_ids:
+        # Iterative DFS looking for product_id below `start`.
+        stack = [(start, [product_id, start])]
+        seen = {start}
+        while stack:
+            node, path = stack.pop()
+            if node == product_id:
+                return path
+            for nxt in children.get(node, []):
+                if nxt == product_id:
+                    return path + [nxt]
+                if nxt not in seen:
+                    seen.add(nxt)
+                    stack.append((nxt, path + [nxt]))
+    return None
 
 
 # ── PUT /products/{product_id}/bom ───────────────────────────────────────────
 
-@router.put("/products/{product_id}/bom", status_code=200)
+@router.put("/products/{product_id}/bom", status_code=200, dependencies=[Depends(production_manage)])
 async def replace_product_bom(
     product_id: UUID,
     items: List[BOMItemIn],
@@ -110,9 +203,34 @@ async def replace_product_bom(
     if not prod_result.scalar_one_or_none():
         raise HTTPException(404, "Product not found")
 
-    for item in items:
-        if item.component_id == product_id:
-            raise HTTPException(400, "A product cannot be a component of itself")
+    # ── Validate everything before touching the existing BOM ──
+    component_ids = [i.component_id for i in items]
+    if product_id in component_ids:
+        raise HTTPException(400, "A product cannot be a component or by-product of itself")
+    _validate_bom_lines(items)
+    material_ids = [i.component_id for i in items if not i.is_byproduct]
+
+    comps = {}
+    if component_ids:
+        comps = {
+            p.id: p for p in (await db.execute(
+                select(Product).where(Product.id.in_(component_ids), Product.vendor_id == vendor_id)
+            )).scalars().all()
+        }
+    for cid in component_ids:
+        if cid not in comps:
+            raise HTTPException(404, f"Component product {cid} not found")
+
+    cycle = await _bom_cycle_path(db, vendor_id, product_id, material_ids)
+    if cycle:
+        names = {
+            p.id: p.name for p in (await db.execute(select(Product).where(Product.id.in_(cycle)))).scalars().all()
+        }
+        raise HTTPException(
+            400,
+            "This BOM would make a product a component of itself: "
+            + " → ".join(names.get(pid, str(pid)) for pid in cycle),
+        )
 
     # Delete existing BOM
     await db.execute(
@@ -125,19 +243,18 @@ async def replace_product_bom(
     # Insert new rows
     new_items = []
     for item in items:
-        # Verify component belongs to vendor
-        comp_result = await db.execute(
-            select(Product).where(Product.id == item.component_id, Product.vendor_id == vendor_id)
-        )
-        comp = comp_result.scalar_one_or_none()
-        if not comp:
-            raise HTTPException(404, f"Component product {item.component_id} not found")
+        comp = comps[item.component_id]
 
         bom_item = ProductBOMItem(
             vendor_id=vendor_id,
             product_id=product_id,
             component_id=item.component_id,
             qty_per_unit=item.qty_per_unit,
+            scrap_pct=item.scrap_pct,
+            valid_from=item.valid_from,
+            valid_to=item.valid_to,
+            is_byproduct=item.is_byproduct,
+            cost_share_pct=item.cost_share_pct if item.is_byproduct else 0,
             notes=item.notes,
         )
         db.add(bom_item)
@@ -155,7 +272,7 @@ async def replace_product_bom(
 
 # ── POST /mrp/calculate ───────────────────────────────────────────────────────
 
-@router.post("/mrp/calculate")
+@router.post("/mrp/calculate")  # read-only calculation: view permission is enough
 async def calculate_mrp(
     body: MRPRequest,
     vendor_id: UUID = Depends(get_current_vendor_id),
@@ -245,6 +362,8 @@ async def list_reservations(
     order_id: Optional[str] = None,
     status: Optional[str] = None,
     store_id: Optional[UUID] = None,
+    limit: int = Query(500, ge=1, le=2000),
+    offset: int = Query(0, ge=0),
     vendor_id: UUID = Depends(get_current_vendor_id),
     db: AsyncSession = Depends(get_db),
 ):
@@ -260,21 +379,20 @@ async def list_reservations(
         q = q.where(StockReservation.store_id == store_id)
     q = q.order_by(StockReservation.created_at.desc())
 
-    result = await db.execute(q)
+    result = await db.execute(q.limit(limit).offset(offset))
     reservations = result.scalars().all()
 
-    out = []
-    for r in reservations:
-        prod_result = await db.execute(select(Product).where(Product.id == r.product_id))
-        prod = prod_result.scalar_one_or_none()
-        out.append(_resv_to_dict(r, prod.name if prod else None))
-
-    return out
+    names = {}
+    if reservations:
+        names = dict((await db.execute(
+            select(Product.id, Product.name).where(Product.id.in_({r.product_id for r in reservations}))
+        )).all())
+    return [_resv_to_dict(r, names.get(r.product_id)) for r in reservations]
 
 
 # ── POST /stock-reservations ──────────────────────────────────────────────────
 
-@router.post("/stock-reservations", status_code=201)
+@router.post("/stock-reservations", status_code=201, dependencies=[Depends(production_manage)])
 async def create_reservations(
     body: ReservationCreate,
     vendor_id: UUID = Depends(get_current_vendor_id),
@@ -283,6 +401,24 @@ async def create_reservations(
     """Create stock reservations for an order."""
     if not body.items:
         raise HTTPException(400, "No items to reserve")
+    if body.order_type == PRODUCTION_ORDER_TYPE:
+        raise HTTPException(
+            409,
+            "Production order materials are reserved automatically when the order is confirmed "
+            "and released when it is moved back to draft or cancelled.",
+        )
+
+    if body.store_id:
+        if not (await db.execute(
+            select(Store.id).where(Store.id == body.store_id, Store.vendor_id == vendor_id)
+        )).scalar_one_or_none():
+            raise HTTPException(400, "Invalid business unit for this vendor")
+    product_ids = {i.product_id for i in body.items}
+    found = set((await db.execute(
+        select(Product.id).where(Product.id.in_(product_ids), Product.vendor_id == vendor_id)
+    )).scalars().all())
+    if missing := product_ids - found:
+        raise HTTPException(404, f"Product not found: {', '.join(str(m) for m in sorted(missing, key=str))}")
 
     created = []
     for item in body.items:
@@ -316,7 +452,7 @@ async def create_reservations(
 
 # ── DELETE /stock-reservations/{id} ──────────────────────────────────────────
 
-@router.delete("/stock-reservations/{reservation_id}", status_code=200)
+@router.delete("/stock-reservations/{reservation_id}", status_code=200, dependencies=[Depends(production_manage)])
 async def release_reservation(
     reservation_id: UUID,
     vendor_id: UUID = Depends(get_current_vendor_id),
@@ -332,6 +468,8 @@ async def release_reservation(
     resv = result.scalar_one_or_none()
     if not resv:
         raise HTTPException(404, "Reservation not found")
+    if resv.status == "active" and await _is_live_production_order(db, vendor_id, resv.order_type, resv.order_id):
+        raise HTTPException(409, _PRODUCTION_MANAGED_MSG)
 
     resv.status = "released"
     resv.released_at = datetime.now(timezone.utc)
@@ -341,7 +479,7 @@ async def release_reservation(
 
 # ── DELETE /stock-reservations (bulk by order) ───────────────────────────────
 
-@router.delete("/stock-reservations", status_code=200)
+@router.delete("/stock-reservations", status_code=200, dependencies=[Depends(production_manage)])
 async def release_all_reservations(
     order_type: str = Query(...),
     order_id: str = Query(...),
@@ -349,6 +487,8 @@ async def release_all_reservations(
     db: AsyncSession = Depends(get_db),
 ):
     """Release all active reservations for a given order."""
+    if await _is_live_production_order(db, vendor_id, order_type, order_id):
+        raise HTTPException(409, _PRODUCTION_MANAGED_MSG)
     result = await db.execute(
         select(StockReservation).where(
             StockReservation.vendor_id == vendor_id,

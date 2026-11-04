@@ -13,7 +13,17 @@ import {
   useManufacturingOrders,
 } from '@/hooks/useControlling'
 import { formatCurrency } from '@/lib/utils'
+import { extractApiError } from '@/lib/errorMessages'
+import { useHasPermission } from '@/hooks/usePermissions'
 import type { GoodsMovementOut } from '@/api/controlling'
+
+// Component movements need a running order; FG receipts are also accepted after completion.
+const ORDER_STATUSES_FOR: Record<string, string[]> = {
+  component_issue: ['released', 'in_progress'],
+  component_return: ['released', 'in_progress'],
+  fg_receipt: ['released', 'in_progress', 'completed'],
+  fg_receipt_reversal: ['released', 'in_progress', 'completed'],
+}
 
 const MOVEMENT_TYPES = [
   { value: 'component_issue', label: 'Goods Issue — Component → Order', icon: ArrowDownToLine, color: 'red' },
@@ -50,6 +60,7 @@ interface CreateForm {
 
 export default function GoodsMovementsPage() {
   const { data: companies = [] } = useCompanies()
+  const canEdit = useHasPermission('finance.edit')
   const [companyId, setCompanyId] = useState('')
   const [movTypeFilter, setMovTypeFilter] = useState('')
   const [fromDate, setFromDate] = useState('')
@@ -106,8 +117,7 @@ export default function GoodsMovementsPage() {
       setShowCreate(false)
       setForm(f => ({ ...f, qty: '', description: '', batch_no: '' }))
     } catch (err: unknown) {
-      const e2 = err as { response?: { data?: { detail?: string } } }
-      setError(e2?.response?.data?.detail ?? 'Failed to create goods movement')
+      setError(extractApiError(err, 'Failed to post goods movement'))
     }
   }
 
@@ -118,13 +128,18 @@ export default function GoodsMovementsPage() {
       setReverseId(null)
       setReverseReason('')
     } catch (err: unknown) {
-      const e2 = err as { response?: { data?: { detail?: string } } }
-      setError(e2?.response?.data?.detail ?? 'Failed to reverse')
+      setReverseId(null)
+      setError(extractApiError(err, 'Failed to reverse goods movement'))
     }
   }
 
-  const total261 = movements.filter(m => m.movement_type === 'component_issue').reduce((s, m) => s + parseFloat(m.total_cost), 0)
-  const total101 = movements.filter(m => m.movement_type === 'fg_receipt').reduce((s, m) => s + parseFloat(m.total_cost), 0)
+  // Reversed documents no longer count; their counter-document is a separate movement type.
+  const live = movements.filter(m => m.status !== 'reversed')
+  const total261 = live.filter(m => m.movement_type === 'component_issue').reduce((s, m) => s + parseFloat(m.total_cost), 0)
+  const total101 = live.filter(m => m.movement_type === 'fg_receipt').reduce((s, m) => s + parseFloat(m.total_cost), 0)
+  const orderChoices = (orders as Array<{ id: string; order_no: string; title?: string; status?: string }>).filter(o =>
+    (ORDER_STATUSES_FOR[form.movement_type] ?? []).includes(o.status ?? ''),
+  )
 
   return (
     <div className="mx-auto max-w-7xl space-y-3 p-3 md:p-4">
@@ -134,20 +149,22 @@ export default function GoodsMovementsPage() {
           {' · '}
           <Link to="/controlling" className="text-primary hover:underline">Controlling</Link>
         </p>
-        <button
-          type="button"
-          onClick={() => setShowCreate(true)}
-          className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-white hover:bg-primary/90"
-        >
-          <Plus className="h-3.5 w-3.5" /> Post Movement
-        </button>
+        {canEdit && (
+          <button
+            type="button"
+            onClick={() => setShowCreate(true)}
+            className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-white hover:bg-primary/90"
+          >
+            <Plus className="h-3.5 w-3.5" /> Post Movement
+          </button>
+        )}
       </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="rounded-xl border border-gray-200 bg-white p-4">
           <p className="text-xs text-gray-500 mb-1">Total movements</p>
-          <p className="text-2xl font-bold text-gray-900">{movements.length}</p>
+          <p className="text-2xl font-bold text-gray-900">{live.length}</p>
         </div>
         <div className="rounded-xl border border-red-100 bg-red-50 p-4">
           <p className="text-xs text-red-600 mb-1">Component issues cost</p>
@@ -229,7 +246,7 @@ export default function GoodsMovementsPage() {
                   </span>
                 </td>
                 <td className="px-4 py-3">
-                  {gm.status === 'posted' && (
+                  {canEdit && gm.status === 'posted' && !(gm.extra as { reverses_id?: string } | undefined)?.reverses_id && (
                     <button
                       onClick={() => { setReverseId(gm.id); setReverseReason('') }}
                       className="text-xs text-amber-600 hover:text-amber-800 flex items-center gap-1"
@@ -273,7 +290,7 @@ export default function GoodsMovementsPage() {
                     placeholder="— select order —"
                     options={[
                       { value: '', label: '— select order —' },
-                      ...(orders as Array<{ id: string; order_no: string; title?: string }>).map(o => ({
+                      ...orderChoices.map(o => ({
                         value: o.id,
                         label: `${o.order_no}${o.title ? ` — ${o.title}` : ''}`,
                       })),

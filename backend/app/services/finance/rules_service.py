@@ -6,7 +6,10 @@ SAP equivalents: GGB0 / GGB1 / FBN1.
 """
 from __future__ import annotations
 
+import ast
 import logging
+import operator
+from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
@@ -18,23 +21,149 @@ from app.models.finance import FinNumberRange, FinSubstitutionRule, FinValidatio
 log = logging.getLogger(__name__)
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Expression evaluation helpers
+# Safe expression evaluator — AST-walking, NO eval()
 # ─────────────────────────────────────────────────────────────────────────────
+# Supports: literals, names from context, arithmetic (+−×÷%), comparisons,
+# boolean operators (and/or/not), ternary (x if c else y), None/True/False,
+# and a small set of whitelisted calls: abs, bool, float, int, len, max, min,
+# round, str.  Attribute access, subscripts and all other node types are blocked.
 
-# Allowed builtins for safe expression evaluation
-_SAFE_BUILTINS = {
-    "abs": abs, "bool": bool, "float": float, "int": int,
-    "len": len, "max": max, "min": min, "round": round, "str": str,
-    "True": True, "False": False, "None": None,
+_ALLOWED_CALLS = {
+    "abs": abs,
+    "bool": bool,
+    "float": float,
+    "int": int,
+    "len": len,
+    "max": max,
+    "min": min,
+    "round": round,
+    "str": str,
+}
+
+_BINOP_MAP: dict[type, Any] = {
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+    ast.Mod: operator.mod,
+    ast.Pow: operator.pow,
+    ast.FloorDiv: operator.floordiv,
+}
+
+_CMPOP_MAP: dict[type, Any] = {
+    ast.Eq: operator.eq,
+    ast.NotEq: operator.ne,
+    ast.Lt: operator.lt,
+    ast.LtE: operator.le,
+    ast.Gt: operator.gt,
+    ast.GtE: operator.ge,
+    ast.Is: operator.is_,
+    ast.IsNot: operator.is_not,
+    ast.In: lambda a, b: a in b,
+    ast.NotIn: lambda a, b: a not in b,
+}
+
+_UNARYOP_MAP: dict[type, Any] = {
+    ast.USub: operator.neg,
+    ast.UAdd: operator.pos,
+    ast.Not: operator.not_,
 }
 
 
+class _SafeEvalError(Exception):
+    pass
+
+
+def _eval_node(node: ast.AST, ctx: dict[str, Any]) -> Any:
+    if isinstance(node, ast.Constant):
+        return node.value
+
+    if isinstance(node, ast.Name):
+        name = node.id
+        if name == "None":
+            return None
+        if name == "True":
+            return True
+        if name == "False":
+            return False
+        if name in ctx:
+            return ctx[name]
+        raise _SafeEvalError(f"Unknown name: {name!r}")
+
+    if isinstance(node, ast.BinOp):
+        op_fn = _BINOP_MAP.get(type(node.op))
+        if not op_fn:
+            raise _SafeEvalError(f"Unsupported binary operator: {type(node.op).__name__}")
+        return op_fn(_eval_node(node.left, ctx), _eval_node(node.right, ctx))
+
+    if isinstance(node, ast.UnaryOp):
+        op_fn = _UNARYOP_MAP.get(type(node.op))
+        if not op_fn:
+            raise _SafeEvalError(f"Unsupported unary operator: {type(node.op).__name__}")
+        return op_fn(_eval_node(node.operand, ctx))
+
+    if isinstance(node, ast.Compare):
+        left = _eval_node(node.left, ctx)
+        for op, comparator in zip(node.ops, node.comparators):
+            op_fn = _CMPOP_MAP.get(type(op))
+            if not op_fn:
+                raise _SafeEvalError(f"Unsupported comparison: {type(op).__name__}")
+            right = _eval_node(comparator, ctx)
+            if not op_fn(left, right):
+                return False
+            left = right
+        return True
+
+    if isinstance(node, ast.BoolOp):
+        if isinstance(node.op, ast.And):
+            for v in node.values:
+                if not _eval_node(v, ctx):
+                    return False
+            return True
+        if isinstance(node.op, ast.Or):
+            for v in node.values:
+                if _eval_node(v, ctx):
+                    return True
+            return False
+        raise _SafeEvalError("Unsupported boolean operator")
+
+    if isinstance(node, ast.IfExp):
+        test = _eval_node(node.test, ctx)
+        return _eval_node(node.body, ctx) if test else _eval_node(node.orelse, ctx)
+
+    if isinstance(node, ast.Call):
+        if not isinstance(node.func, ast.Name):
+            raise _SafeEvalError("Only simple function calls allowed")
+        fn_name = node.func.id
+        fn = _ALLOWED_CALLS.get(fn_name)
+        if not fn:
+            raise _SafeEvalError(f"Function not allowed: {fn_name!r}")
+        args = [_eval_node(a, ctx) for a in node.args]
+        return fn(*args)
+
+    if isinstance(node, ast.Expression):
+        return _eval_node(node.body, ctx)
+
+    raise _SafeEvalError(f"Disallowed expression node: {type(node).__name__}")
+
+
 def _eval_expr(expr: str, context: dict[str, Any]) -> Any:
-    """Evaluate a simple Python expression in a restricted namespace."""
+    """
+    Safely evaluate a simple expression string against a context dict.
+    Uses an AST walker — eval() is NOT called.
+    Returns None on any error (parse error, unknown name, disallowed node, etc.).
+    """
     try:
-        return eval(expr, {"__builtins__": _SAFE_BUILTINS}, context)  # noqa: S307
+        tree = ast.parse(expr.strip(), mode="eval")
+        return _eval_node(tree, context)
+    except _SafeEvalError as exc:
+        log.warning("Expression blocked (%r): %s", expr, exc)
+        return None
+    except SyntaxError as exc:
+        log.warning("Expression syntax error (%r): %s", expr, exc)
+        return None
     except Exception as exc:
-        log.warning("Expression eval failed (%s): %s", expr, exc)
+        log.warning("Expression eval failed (%r): %s", expr, exc)
         return None
 
 

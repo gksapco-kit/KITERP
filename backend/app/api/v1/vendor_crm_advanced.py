@@ -381,7 +381,8 @@ async def chat_ws(websocket: WebSocket, conv_id: UUID,
         await websocket.close(code=4401)
         return
     payload = decode_token(token)
-    if not payload:
+    # Only real login (access) tokens: refresh / handoff / customer-portal tokens share the signing key.
+    if not payload or payload.get("type") != "access":
         await websocket.close(code=4401)
         return
     await _hub.join(conv_id, websocket)

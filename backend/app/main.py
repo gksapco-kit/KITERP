@@ -52,6 +52,7 @@ from app.database import (
     ensure_controlling_area_tables,
     ensure_production_materials_columns,
     ensure_production_routing_tables,
+    ensure_production_hardening_columns,
     ensure_user_contact_change_request_table,
     ensure_storefront_contact_query_table,
     ensure_platform_job_role_table,
@@ -59,6 +60,7 @@ from app.database import (
     ensure_storage_location_plant_nullable,
     ensure_product_soft_delete,
     ensure_pharma_schema,
+    ensure_realestate_schema,
 )
 from app.middleware.tenant import TenantMiddleware
 from app.middleware.audit import CrmAuditMiddleware
@@ -123,6 +125,7 @@ async def lifespan(app: FastAPI):
         await ensure_controlling_area_tables()
         await ensure_production_materials_columns()
         await ensure_production_routing_tables()
+        await ensure_production_hardening_columns()
         await ensure_user_contact_change_request_table()
         await ensure_storefront_contact_query_table()
         await ensure_platform_job_role_table()
@@ -130,6 +133,7 @@ async def lifespan(app: FastAPI):
         await ensure_storage_location_plant_nullable()
         await ensure_product_soft_delete()
         await ensure_pharma_schema()
+        await ensure_realestate_schema()
     await connect_redis()
     from app.services.email_service import email_is_configured, resolve_from_email, sendgrid_api_key, sendgrid_api_keys
 

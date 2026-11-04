@@ -8,7 +8,7 @@ const LS_SECTION_VERSION = 'kiterp.vendor.sidebar.section-order-version'
  * Bump when the built-in top-level module order changes.
  * Users below this version get the canonical order on next load (fixes stale prod localStorage).
  */
-export const SIDEBAR_SECTION_ORDER_VERSION = 4
+export const SIDEBAR_SECTION_ORDER_VERSION = 5
 
 /** Bump when a pinned item must move inside a module (saved placements otherwise keep the old slot). */
 export const SIDEBAR_NAV_PLACEMENTS_VERSION = 2
@@ -22,6 +22,7 @@ export const CANONICAL_SIDEBAR_SECTION_IDS = [
   'master-data',
   'crm',
   'rental',
+  'realestate',
   'production',
   'pharma',
   'restaurant',
@@ -37,6 +38,12 @@ export const CANONICAL_SIDEBAR_SECTION_IDS = [
  * Routes that must always appear under a given sidebar section.
  * (Users who customized nav before a link was added often only had it under System Configuration.)
  */
+const REALESTATE_MODULE_SLUGS = [
+  'property', 'land', 'sales', 'booking', 'customers', 'collections', 'leasing', 'projectmgmt', 'construction',
+  'procurement', 'inventory', 'contractors', 'finance', 'tax', 'legal', 'brokers', 'handover', 'care', 'facility',
+  'society', 'assets', 'workforce', 'reports', 'admin',
+]
+
 export const NAV_PINNED_SECTION_HOME: Record<string, string> = {
   '/websites': 'website-management',
   '/websites/seo': 'website-management',
@@ -50,6 +57,8 @@ export const NAV_PINNED_SECTION_HOME: Record<string, string> = {
   '/procurement/reports': 'procurement',
   '/inventory/analytics': 'inventory',
   '/procurement/goods': 'inventory',
+  '/realestate': 'realestate',
+  ...Object.fromEntries(REALESTATE_MODULE_SLUGS.map((s) => [`/realestate/${s}`, 'realestate'])),
   '/rental/dashboard': 'rental',
   '/rental/assets': 'rental',
   '/rental/bookings': 'rental',

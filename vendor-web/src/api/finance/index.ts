@@ -70,8 +70,18 @@ export const closePeriod = (periodId: string) =>
   axios.post(`${BASE}/periods/${periodId}/close`).then(r => r.data)
 export const lockPeriod = (periodId: string) =>
   axios.post(`${BASE}/periods/${periodId}/lock`).then(r => r.data)
-export const reopenPeriod = (periodId: string) =>
-  axios.post(`${BASE}/periods/${periodId}/reopen`).then(r => r.data)
+export const reopenPeriod = (periodId: string, reason = '') =>
+  axios.post(`${BASE}/periods/${periodId}/reopen`, { reason }).then(r => r.data)
+
+export interface CloseChecklistItem { code: string; count: number; message: string }
+export interface CloseChecklist {
+  period_id: string
+  can_close: boolean
+  blockers: CloseChecklistItem[]
+  warnings: CloseChecklistItem[]
+}
+export const getCloseChecklist = (periodId: string) =>
+  axios.get(`${BASE}/periods/${periodId}/close-checklist`).then(r => r.data as CloseChecklist)
 
 // ── GL field configuration ────────────────────────────────────────────────
 export const listFieldRules = (params?: { entity_type?: string }) =>
@@ -736,3 +746,68 @@ export const previewPaymentTerm = (
 
 
 
+
+// -- Posting health (failure queue, unposted documents, readiness) ----------------
+export interface PostingFailure {
+  id: string
+  source_type: string
+  source_id: string
+  reference: string | null
+  amount: number
+  error: string
+  attempts: number
+  status: 'open' | 'resolved' | 'ignored'
+  created_at: string | null
+  last_attempt_at: string | null
+}
+export interface UnpostedDoc {
+  id: string
+  number: string
+  date: string
+  amount: number
+  status: string
+  reason: string
+}
+export interface UnpostedReport {
+  invoice: UnpostedDoc[]
+  vendor_bill: UnpostedDoc[]
+  vendor_payment: UnpostedDoc[]
+  total: number
+}
+export interface ReadinessItem { source_type: string; ready: boolean; detail: string }
+export interface GoLiveCheck { check: string; status: 'pass' | 'fail'; detail: string; remedy: string }
+
+export const listPostingFailures = (status: 'open' | 'resolved' | 'ignored' | 'all' = 'open') =>
+  axios.get(`${BASE}/posting-failures`, { params: { status } }).then(r => r.data as PostingFailure[])
+export const retryPostingFailure = (id: string) =>
+  axios.post(`${BASE}/posting-failures/${id}/retry`).then(r => r.data as { status: string; error?: string })
+export const retryAllPostingFailures = () =>
+  axios.post(`${BASE}/posting-failures/retry-all`).then(r => r.data as { attempted: number; resolved: number; still_open: number })
+export const ignorePostingFailure = (id: string) =>
+  axios.post(`${BASE}/posting-failures/${id}/ignore`).then(r => r.data)
+export const listUnposted = (params?: { from_date?: string }) =>
+  axios.get(`${BASE}/posting/unposted`, { params }).then(r => r.data as UnpostedReport)
+export const repostDocument = (doc_type: 'invoice' | 'vendor_bill' | 'vendor_payment', doc_id: string) =>
+  axios.post(`${BASE}/posting/repost`, { doc_type, doc_id }).then(r => r.data as { posted: boolean; error?: string })
+export const getPostingReadiness = () =>
+  axios.get(`${BASE}/setup/posting-readiness`).then(r => r.data as { ready: boolean; items: ReadinessItem[]; remedy: string })
+export const ensureDefaultAccounts = () =>
+  axios.post(`${BASE}/setup/ensure-accounts`).then(r => r.data as { added_codes: string[]; count: number })
+export const getGoLiveCheck = () =>
+  axios.get(`${BASE}/go-live-check`).then(r => r.data as { passed: number; ready_for_go_live: boolean; checks: GoLiveCheck[] })
+
+// -- Statutory: TDS by section, GSTR-1 JSON ---------------------------------------
+export interface TdsReport {
+  period: string
+  total_tds_deducted: number
+  total_tds_deposited: number
+  outstanding_to_deposit: number
+  by_source: { source: string; tds_deducted: number; tds_deposited: number }[]
+  by_section: { section: string; bills: number | null; amount_paid_or_credited: number | null; tds_deducted: number }[]
+  unclassified: number
+  note?: string
+}
+export const getTdsReport = (params: { from_date: string; to_date: string }) =>
+  axios.get(`${BASE}/tax/tds-report`, { params }).then(r => r.data as TdsReport)
+export const downloadGstr1Json = (returnId: string) =>
+  axios.get(`${BASE}/tax/returns/${returnId}/gstr1-json`, { responseType: 'blob' }).then(r => r.data as Blob)

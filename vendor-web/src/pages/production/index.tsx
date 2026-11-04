@@ -8,6 +8,7 @@ import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { ModalBody, ModalCloseButton, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { useNavigate } from 'react-router-dom'
 import { useVendorStore } from '@/stores/vendorStore'
+import { useHasPermission } from '@/hooks/usePermissions'
 import { formatCurrency, cn, searchFieldInnerInputClassName, searchFieldShellClassName } from '@/lib/utils'
 import { toast } from 'sonner'
 import {
@@ -43,7 +44,6 @@ import {
   type Attachment,
   type ProductionOrder,
   genRef,
-  makeAudit,
   StatusBadge,
   TypeBadge,
   ProgressBar,
@@ -71,6 +71,7 @@ export default function ProductionOrdersPage() {
   const navigate = useNavigate()
   const { vendor, selectedStore } = useVendorStore()
   const storeId = selectedStore?.id
+  const canManage = useHasPermission('production.manage')
   useProductionOrdersBootstrap()
 
   // Business unit selected in the create form (scopes the catalog below).
@@ -397,7 +398,6 @@ export default function ProductionOrdersPage() {
     if (!createType) return
     if (!formItems.length) { toast.error('Add at least one item.'); return }
     const ref = formRef.trim() || genRef(createType)
-    const customerLabel = formCustomerName ? ` for ${formCustomerName}` : ''
     const payload: Record<string, unknown> = {
       ref,
       type: createType,
@@ -415,9 +415,7 @@ export default function ProductionOrdersPage() {
       notes: formNotes,
       attachments: formAttachments,
       stock_dispatches: [],
-      audit_log: [
-        makeAudit('created', `Order ${ref} created as Draft${customerLabel}`, { items: formItems.length, type: createType }),
-      ],
+      // audit trail is written by the server (actor = logged-in user)
       ...(createType === 'mto' ? {
         customer_id: selectedCustomerId || null,
         customer_name: formCustomerName,
@@ -462,10 +460,12 @@ export default function ProductionOrdersPage() {
               )}
             </p>
           </div>
-          <Button onClick={() => { setShowCreate(true); setCreateType(null) }}
-            className="bg-primary hover:bg-primary/90 text-white gap-1.5 shrink-0">
-            <Plus className="w-4 h-4" /> New Order
-          </Button>
+          {canManage && (
+            <Button onClick={() => { setShowCreate(true); setCreateType(null) }}
+              className="bg-primary hover:bg-primary/90 text-white gap-1.5 shrink-0">
+              <Plus className="w-4 h-4" /> New Order
+            </Button>
+          )}
         </div>
 
         {/* ── Stats ──────────────────────────────────────────────────────── */}
@@ -602,10 +602,16 @@ export default function ProductionOrdersPage() {
             <div className="bg-card rounded-2xl border border-border text-center py-20 text-gray-400">
               <Factory className="w-12 h-12 mx-auto mb-3 opacity-20" />
               <p className="font-semibold text-muted-foreground">No production orders yet</p>
-              <p className="text-sm mt-1">Click "New Order" to create your first MTO or MTS order.</p>
-              <Button onClick={() => { setShowCreate(true); setCreateType(null) }} className="mt-4 bg-primary hover:bg-primary/90 text-white gap-1.5 text-sm">
-                <Plus className="w-3.5 h-3.5" /> New Order
-              </Button>
+              {canManage ? (
+                <>
+                  <p className="text-sm mt-1">Click "New Order" to create your first MTO or MTS order.</p>
+                  <Button onClick={() => { setShowCreate(true); setCreateType(null) }} className="mt-4 bg-primary hover:bg-primary/90 text-white gap-1.5 text-sm">
+                    <Plus className="w-3.5 h-3.5" /> New Order
+                  </Button>
+                </>
+              ) : (
+                <p className="text-sm mt-1">You have view-only access to Production.</p>
+              )}
             </div>
           ) : filtered.map(order => {
             const totalDispatched = order.stock_dispatches.reduce((s, d) => s + d.qty, 0)

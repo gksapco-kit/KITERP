@@ -12,17 +12,20 @@ from decimal import Decimal
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.api.deps import get_current_vendor_id, require_permission
+from app.api.v1.production_access import production_view, production_manage
 from app.models.production import ProductionOrder
 from app.models.production_routing import ProductionOperation, WorkCenter
 from app.models.store import Store
 
-router = APIRouter(dependencies=[Depends(require_permission("production.view"))])
+router = APIRouter(dependencies=[Depends(production_view)])
+
+MAX_RANGE_DAYS = 366
 
 
 def _f(v) -> float:
@@ -39,15 +42,27 @@ async def production_analytics(
 ):
     date_to = date_to or datetime.now(timezone.utc).date()
     date_from = date_from or (date_to - timedelta(days=29))
+    if date_from > date_to:
+        raise HTTPException(400, "date_from must not be after date_to")
+    if (date_to - date_from).days > MAX_RANGE_DAYS:
+        raise HTTPException(400, f"The date range cannot exceed {MAX_RANGE_DAYS} days")
 
-    q = select(ProductionOrder).where(
+    # Only the columns the report needs: orders carry large JSON (items, base64 attachments,
+    # audit trail) that must not be loaded just to count them.
+    q = select(
+        ProductionOrder.id, ProductionOrder.ref, ProductionOrder.status, ProductionOrder.type,
+        ProductionOrder.store_id, ProductionOrder.created_at, ProductionOrder.target_date,
+        ProductionOrder.inventory_posted_at,
+        ProductionOrder.planned_material_cost, ProductionOrder.actual_material_cost,
+        ProductionOrder.planned_labor_cost, ProductionOrder.actual_labor_cost,
+    ).where(
         ProductionOrder.vendor_id == vendor_id,
-        ProductionOrder.created_at >= datetime.combine(date_from, datetime.min.time()),
-        ProductionOrder.created_at < datetime.combine(date_to + timedelta(days=1), datetime.min.time()),
+        ProductionOrder.created_at >= datetime.combine(date_from, datetime.min.time(), tzinfo=timezone.utc),
+        ProductionOrder.created_at < datetime.combine(date_to + timedelta(days=1), datetime.min.time(), tzinfo=timezone.utc),
     )
     if store_id:
         q = q.where(ProductionOrder.store_id == store_id)
-    orders = (await db.execute(q)).scalars().all()
+    orders = (await db.execute(q)).all()
 
     total = len(orders)
     by_status: dict[str, int] = defaultdict(int)
@@ -68,10 +83,14 @@ async def production_analytics(
         by_type[o.type] += 1
         trend[o.created_at.date().isoformat()]["created"] += 1
 
-        cost["planned_material"] += Decimal(str(o.planned_material_cost or 0))
-        cost["actual_material"] += Decimal(str(o.actual_material_cost or 0))
-        cost["planned_labor"] += Decimal(str(o.planned_labor_cost or 0))
-        cost["actual_labor"] += Decimal(str(o.actual_labor_cost or 0))
+        # Planned vs actual is only meaningful once an order has actually completed:
+        # comparing a plan against a half-finished order would show a false saving.
+        if o.status == "completed" and o.inventory_posted_at:
+            cost["planned_material"] += Decimal(str(o.planned_material_cost or 0))
+            cost["actual_material"] += Decimal(str(o.actual_material_cost or 0))
+            cost["planned_labor"] += Decimal(str(o.planned_labor_cost or 0))
+            cost["actual_labor"] += Decimal(str(o.actual_labor_cost if o.actual_labor_cost is not None
+                                                else (o.planned_labor_cost or 0)))
 
         store_key = str(o.store_id) if o.store_id else "unassigned"
         store_stats[store_key]["orders"] += 1
@@ -138,7 +157,8 @@ async def production_analytics(
             "orders": total,
             "completed": completed_count,
             "cancelled": by_status.get("cancelled", 0),
-            "in_progress": max(total - completed_count - by_status.get("cancelled", 0), 0),
+            "draft": by_status.get("draft", 0),
+            "in_progress": sum(by_status.get(s, 0) for s in ("confirmed", "in_production", "qc", "on_hold")),
             "on_time": on_time,
             "late": late,
             "on_time_rate": round(on_time / (on_time + late) * 100, 1) if (on_time + late) else None,
@@ -164,3 +184,35 @@ async def production_analytics(
             for k, v in sorted(store_stats.items(), key=lambda kv: kv[1]["orders"], reverse=True)
         ],
     }
+
+
+@router.get("/production/reconciliation")
+async def production_reconciliation(
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Read-only consistency report: orders vs stock ledger, reservations and journals."""
+    from app.services.production_reconcile import find_issues
+
+    issues = await find_issues(db, vendor_id)
+    return {
+        "checked_at": datetime.now(timezone.utc).isoformat(),
+        "total": len(issues),
+        "errors": sum(1 for i in issues if i["severity"] == "error"),
+        "warnings": sum(1 for i in issues if i["severity"] == "warning"),
+        "fixable": sum(1 for i in issues if i["fixable"]),
+        "issues": issues,
+    }
+
+
+@router.post("/production/reconciliation/repair", dependencies=[Depends(production_manage)])
+async def production_reconciliation_repair(
+    vendor_id: UUID = Depends(get_current_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Apply only the unambiguous fixes (release reservations of orders that hold no materials)."""
+    from app.services.production_reconcile import repair_safe_issues
+
+    result = await repair_safe_issues(db, vendor_id)
+    await db.commit()
+    return result

@@ -210,19 +210,21 @@ async def close_session(
     svc = POSService(db)
     try:
         s = await svc.close_session(UUID(session_id), vid, user.id, data.closing_cash, data.notes)
-        # Finance GL: post POS session totals
-        try:
-            from app.services.finance.posting import post_event
-            await post_event(db, vid, "pos", UUID(session_id), {
-                "cash_total": float(data.closing_cash or 0),
-                "card_total": 0,
-                "upi_total": 0,
-                "tax_total": 0,
+        # Finance GL: post the session's recorded takings (NOT the counted drawer
+        # cash, which includes the opening float). Failures are queued for Finance.
+        from decimal import Decimal as _D
+        from app.services.finance.safe_posting import safe_post
+        _sess_total = sum(_D(str(getattr(s, k, 0) or 0)) for k in ("cash_total", "card_total", "upi_total"))
+        if _sess_total > 0:
+            await safe_post(db, vid, "pos", UUID(session_id), {
+                "cash_total": _D(str(s.cash_total or 0)),
+                "card_total": _D(str(s.card_total or 0)),
+                "upi_total": _D(str(s.upi_total or 0)),
+                "tax_total": _D(str(s.total_tax or 0)),
+                "entry_date": s.session_date,
                 "narration": f"POS Session {session_id[:8]}",
-            })
-        except Exception:
-            import logging
-            logging.getLogger(__name__).exception("Finance GL: failed to post POS session %s", session_id)
+            }, created_by_id=None)
+            await db.commit()
         return JSONResponse(content=_session_dict(s))
     except ValueError as e:
         raise HTTPException(400, str(e))

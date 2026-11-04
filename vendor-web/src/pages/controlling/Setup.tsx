@@ -8,6 +8,8 @@ import {
   useCreateOverheadRate,
 } from '@/hooks/useControlling'
 import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
+import { useHasPermission } from '@/hooks/usePermissions'
 import { ArrowLeft, Layers, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
@@ -49,6 +51,7 @@ export default function ControllingSetupPage() {
 
   const createPool = useCreateOverheadPool()
   const createRate = useCreateOverheadRate()
+  const canManage = useHasPermission('finance.coa.manage')
 
   const [poolForm, setPoolForm] = useState({
     code: '', name: '', allocation_base: 'labor_hours',
@@ -75,8 +78,7 @@ export default function ControllingSetupPage() {
       setPoolForm({ code: '', name: '', allocation_base: 'labor_hours', overhead_type: 'indirect', formula_type: 'fixed_rate', formula_value: '0' })
       refP()
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { detail?: string } } }
-      toast.error(err.response?.data?.detail || 'Failed')
+      toast.error(extractApiError(e, 'Failed'))
     }
   }
 
@@ -93,8 +95,7 @@ export default function ControllingSetupPage() {
       toast.success('Rate added')
       refR()
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { detail?: string } } }
-      toast.error(err.response?.data?.detail || 'Failed')
+      toast.error(extractApiError(e, 'Failed'))
     }
   }
 
@@ -134,6 +135,7 @@ export default function ControllingSetupPage() {
               {' '}(period allocation) overhead pools with their absorption formula.
             </p>
           </div>
+          {canManage ? (
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
             <input
               placeholder="Code"
@@ -182,6 +184,9 @@ export default function ControllingSetupPage() {
               </Button>
             </div>
           </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">Read-only: you need the chart-of-accounts permission to change overhead setup.</p>
+          )}
           <ul className="max-h-56 divide-y divide-border overflow-auto text-sm">
             {pools.length === 0 ? (
               <li className="py-3 text-center text-muted-foreground">No overhead pools yet.</li>
@@ -215,6 +220,7 @@ export default function ControllingSetupPage() {
           {poolForRates && (
             <div className="space-y-2 border-t border-border bg-muted/20 pt-3">
               <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Rates for selected pool</h3>
+              {canManage && (
               <div className="grid grid-cols-[auto_auto_auto] gap-2 items-end">
                 <div className="space-y-0.5">
                   <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Effective From</p>
@@ -238,6 +244,7 @@ export default function ControllingSetupPage() {
                 </div>
                 <Button type="button" size="sm" onClick={addRate} className="h-10">Add rate</Button>
               </div>
+              )}
               <ul className="max-h-32 space-y-1 overflow-auto text-xs text-muted-foreground">
                 {rates.map((r: { id: string; effective_from: string; rate_per_unit: string | number }) => (
                   <li key={r.id} className="flex justify-between">

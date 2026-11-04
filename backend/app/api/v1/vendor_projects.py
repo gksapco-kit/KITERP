@@ -641,10 +641,9 @@ async def post_project_goods_movement(
             or (str(prod.name).strip() if prod.name else None)
         )
 
-    count_r = await db.execute(
-        select(func.count()).select_from(CoGoodsMovement).where(CoGoodsMovement.vendor_id == vu.vendor_id)
-    )
-    doc_no = f"GM{(count_r.scalar() or 0) + 1:06d}"
+    from app.services.controlling.numbering import next_goods_movement_no
+
+    doc_no = await next_goods_movement_no(db, vu.vendor_id)
 
     gm = CoGoodsMovement(
         id=_uuid_mod.uuid4(),
@@ -742,10 +741,9 @@ async def reverse_project_goods_movement(
     if not reverse_type:
         raise HTTPException(422, f"Cannot reverse movement_type '{gm.movement_type}'")
 
-    count_r = await db.execute(
-        select(func.count()).select_from(CoGoodsMovement).where(CoGoodsMovement.vendor_id == vu.vendor_id)
-    )
-    rev_doc_no = f"GM{(count_r.scalar() or 0) + 1:06d}"
+    from app.services.controlling.numbering import next_goods_movement_no
+
+    rev_doc_no = await next_goods_movement_no(db, vu.vendor_id)
     qty = Decimal(str(gm.qty or 0))
     total = Decimal(str(gm.total_cost or 0))
 

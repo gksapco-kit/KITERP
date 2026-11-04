@@ -15,7 +15,10 @@ from app.models.controlling_area import CoControllingArea
 from app.models.finance import FinCompany
 from app.schemas.controlling_area import ControllingAreaCreate, ControllingAreaUpdate
 
-router = APIRouter(dependencies=[Depends(require_permission("controlling.costcenter.manage"))])
+router = APIRouter(dependencies=[Depends(require_permission("controlling.view"))])
+
+# Writes additionally require the master-data permission.
+_MANAGE = [Depends(require_permission("controlling.costcenter.manage"))]
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -127,7 +130,7 @@ async def list_controlling_areas(
     return {"controlling_areas": out, "total": len(out)}
 
 
-@router.post("/controlling-areas", status_code=status.HTTP_201_CREATED)
+@router.post("/controlling-areas", status_code=status.HTTP_201_CREATED, dependencies=_MANAGE)
 async def create_controlling_area(
     data: ControllingAreaCreate,
     vendor_id: UUID = Depends(get_current_vendor_id),
@@ -159,7 +162,7 @@ async def create_controlling_area(
     return {"controlling_area": _area_to_dict(area), "message": "Controlling area created"}
 
 
-@router.put("/controlling-areas/{area_id}")
+@router.put("/controlling-areas/{area_id}", dependencies=_MANAGE)
 async def update_controlling_area(
     area_id: UUID,
     data: ControllingAreaUpdate,
@@ -200,7 +203,7 @@ async def update_controlling_area(
     return {"controlling_area": _area_to_dict(area), "message": "Controlling area updated"}
 
 
-@router.delete("/controlling-areas/{area_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/controlling-areas/{area_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=_MANAGE)
 async def delete_controlling_area(
     area_id: UUID,
     vendor_id: UUID = Depends(get_current_vendor_id),
@@ -234,7 +237,7 @@ async def list_controlling_area_companies(
     return {"companies": [_company_to_dict(c) for c in companies], "total": len(companies)}
 
 
-@router.put("/controlling-areas/{area_id}/companies/{company_id}")
+@router.put("/controlling-areas/{area_id}/companies/{company_id}", dependencies=_MANAGE)
 async def assign_company_to_controlling_area(
     area_id: UUID,
     company_id: UUID,

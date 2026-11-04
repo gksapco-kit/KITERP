@@ -2,7 +2,7 @@
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from uuid import UUID
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 
@@ -11,7 +11,15 @@ from decimal import Decimal
 class BOMItemIn(BaseModel):
     component_id: UUID
     qty_per_unit: Decimal = Field(gt=0, decimal_places=4)
+    scrap_pct: Decimal = Field(default=Decimal("0"), ge=0, le=100, decimal_places=2)
     notes: Optional[str] = None
+    # Effectivity: the line is used by orders confirmed on/after valid_from and on/before valid_to.
+    valid_from: Optional[date] = None
+    valid_to: Optional[date] = None
+    # A by-product is an output of the run (received into stock) rather than a consumed material;
+    # cost_share_pct is the share of the run's cost it carries (the main product keeps the rest).
+    is_byproduct: bool = False
+    cost_share_pct: Decimal = Field(default=Decimal("0"), ge=0, le=100, decimal_places=2)
 
 
 class BOMItemOut(BaseModel):

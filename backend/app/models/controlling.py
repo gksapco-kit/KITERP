@@ -199,6 +199,8 @@ class CoManufacturingOrder(Base):
     )
     settlement_status = Column(String(30), default="none")
     # none | production_posted | cogs_partial | cogs_closed
+    # Quantity already relieved from FG to COGS (supports incremental COGS postings).
+    qty_cogs_posted = Column(Numeric(18, 4), default=0, server_default="0", nullable=False)
 
     __table_args__ = (
         UniqueConstraint("vendor_id", "order_no", name="uq_co_mo_vendor_order_no"),
@@ -220,6 +222,11 @@ class CoGlMapping(Base):
     cogs_account_id = Column(UUID(as_uuid=True), ForeignKey("fin_account.id", ondelete="SET NULL"))
     production_variance_account_id = Column(UUID(as_uuid=True), ForeignKey("fin_account.id", ondelete="SET NULL"))
     raw_material_account_id = Column(UUID(as_uuid=True), ForeignKey("fin_account.id", ondelete="SET NULL"))
+    # Credit side for labour / machine / overhead absorbed into WIP via activity confirmations.
+    absorption_account_id = Column(UUID(as_uuid=True), ForeignKey("fin_account.id", ondelete="SET NULL"))
+    # When true, component issues and activity confirmations post Dr WIP journals as they happen
+    # ("WIP accumulation mode"). When false, GL is only touched at completion / COGS.
+    post_wip_to_gl = Column(Boolean, default=False, server_default="false", nullable=False)
     notes = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -245,6 +252,7 @@ class CoCostBooking(Base):
     journal_entry_id = Column(UUID(as_uuid=True), ForeignKey("fin_journal_entry.id", ondelete="SET NULL"))
     entry_date = Column(Date, nullable=True)
     narration = Column(Text)
+    status = Column(String(20), default="posted", server_default="posted", nullable=False)  # posted | reversed
     extra = Column(JSONB, default={})
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -268,7 +276,7 @@ class CoOrderOperation(Base):
     operation_code = Column(String(30), nullable=True)
     name = Column(String(200), nullable=False, default="Operation")
     activity_type_id = Column(UUID(as_uuid=True), ForeignKey("co_activity_type.id", ondelete="SET NULL"))
-    work_center_id = Column(UUID(as_uuid=True), ForeignKey("fin_cost_center.id", ondelete="SET NULL"))
+    work_center_id = Column(UUID(as_uuid=True), ForeignKey("co_work_center.id", ondelete="SET NULL"))
     planned_qty = Column(Numeric(18, 4), default=0)  # good output units for this step
     confirmed_qty = Column(Numeric(18, 4), default=0)
     scrap_qty = Column(Numeric(18, 4), default=0)
@@ -497,6 +505,40 @@ class CoVarianceRun(Base):
 
     __table_args__ = (
         Index("ix_co_vr_vendor_period", "vendor_id", "period_year", "period_month"),
+    )
+
+
+class CoVarianceRunOrder(Base):
+    """Orders covered by a variance run (an order can be settled in at most one posted run)."""
+    __tablename__ = "co_variance_run_order"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    run_id = Column(UUID(as_uuid=True), ForeignKey("co_variance_run.id", ondelete="CASCADE"), nullable=False, index=True)
+    order_id = Column(UUID(as_uuid=True), ForeignKey("co_manufacturing_order.id", ondelete="CASCADE"), nullable=False, index=True)
+    vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
+    planned = Column(Numeric(18, 4), default=0)
+    actual = Column(Numeric(18, 4), default=0)
+    variance = Column(Numeric(18, 4), default=0)
+    # False once the parent run is reversed, so the order becomes eligible again.
+    active = Column(Boolean, default=True, server_default="true", nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("run_id", "order_id", name="uq_co_vro_run_order"),
+        Index("ix_co_vro_order_active", "order_id", "active"),
+    )
+
+
+class CoNumberSequence(Base):
+    """Gapless per-vendor document counters (manufacturing orders, goods movements, ...)."""
+    __tablename__ = "co_number_sequence"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
+    seq_key = Column(String(40), nullable=False)
+    last_value = Column(Integer, nullable=False, default=0, server_default="0")
+
+    __table_args__ = (
+        UniqueConstraint("vendor_id", "seq_key", name="uq_co_number_sequence_vendor_key"),
     )
 
 

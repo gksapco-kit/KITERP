@@ -1,6 +1,7 @@
 import type { LucideIcon } from 'lucide-react'
 import {
   Briefcase,
+  Building2,
   Calendar,
   Factory,
   FolderKanban,
@@ -31,6 +32,7 @@ export type VendorModuleId =
   | 'subscriptions'
   | 'projects'
   | 'rentals'
+  | 'realestate'
 
 export type VendorModuleTile = {
   id: VendorModuleId
@@ -140,6 +142,13 @@ export const VENDOR_MODULE_TILES: VendorModuleTile[] = [
     icon: Truck,
     configurable: true,
   },
+  {
+    id: 'realestate',
+    label: 'Real Estate',
+    description: 'Property inventory, sales & CRM, bookings, collections, construction, leasing and facility management.',
+    icon: Building2,
+    configurable: true,
+  },
 ]
 
 export function offeringIncludes(
@@ -223,6 +232,11 @@ export function isRentalsNavVisible(settings: Record<string, unknown> | undefine
   return flagEnabled(settings, 'rentals_enabled')
 }
 
+/** Real Estate is opt-in: hidden until the vendor explicitly enables it. */
+export function isRealEstateNavVisible(settings: Record<string, unknown> | undefined | null): boolean {
+  return (settings as Record<string, unknown> | undefined)?.realestate_enabled === true
+}
+
 /** Short status line for module tiles */
 export function moduleEnabledStatus(
   moduleId: VendorModuleId,
@@ -292,6 +306,10 @@ export function moduleEnabledStatus(
     case 'rentals': {
       if (!flagEnabled(settings, 'rentals_enabled')) return { enabled: false }
       return { enabled: true, detail: 'Assets & bookings' }
+    }
+    case 'realestate': {
+      if (!isRealEstateNavVisible(settings)) return { enabled: false }
+      return { enabled: true, detail: 'Property & projects' }
     }
     default:
       return { enabled: false }

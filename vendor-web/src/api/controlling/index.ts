@@ -113,6 +113,8 @@ export type CoGlMapping = {
   cogs_account_id: string | null
   production_variance_account_id: string | null
   raw_material_account_id: string | null
+  absorption_account_id?: string | null
+  post_wip_to_gl?: boolean
   notes: string | null
   created_at?: string
   updated_at?: string
@@ -131,6 +133,12 @@ export const postProductionCompletion = (orderId: string, data?: { entry_date?: 
 
 export const postCogsIssue = (orderId: string, data?: { entry_date?: string }) =>
   axios.post(`${BASE}/manufacturing-orders/${orderId}/post-cogs-issue`, data ?? {}).then(r => r.data)
+
+export const reverseCogsIssue = (orderId: string, reason: string) =>
+  axios.post(`${BASE}/manufacturing-orders/${orderId}/reverse-cogs-issue`, { reason }).then(r => r.data)
+
+export const reverseProductionCompletion = (orderId: string, reason: string) =>
+  axios.post(`${BASE}/manufacturing-orders/${orderId}/reverse-production-completion`, { reason }).then(r => r.data)
 
 // ── Status transitions ────────────────────────────────────────────────────────
 
@@ -261,6 +269,9 @@ export const createCostAllocation = (data: Record<string, unknown>) =>
 export const postCostAllocation = (id: string, data?: { entry_date?: string }) =>
   axios.post(`${BASE}/cost-allocations/${id}/post`, data ?? {}).then(r => r.data as CostAllocationOut)
 
+export const reverseCostAllocation = (id: string, reason: string) =>
+  axios.post(`${BASE}/cost-allocations/${id}/reverse`, { reason }).then(r => r.data as CostAllocationOut)
+
 export const deleteCostAllocation = (id: string) =>
   axios.delete(`${BASE}/cost-allocations/${id}`).then(r => r.data)
 
@@ -347,8 +358,14 @@ export const listVarianceRuns = (params?: {
 export const createVarianceRun = (data: Record<string, unknown>) =>
   axios.post(`${BASE}/variance-runs`, data).then(r => r.data as VarianceRunOut)
 
-export const postVarianceRun = (runId: string, data?: { entry_date?: string }) =>
+export const postVarianceRun = (runId: string, data?: { entry_date?: string; post_to_gl?: boolean }) =>
   axios.post(`${BASE}/variance-runs/${runId}/post`, data ?? {}).then(r => r.data as VarianceRunOut)
+
+export const reverseVarianceRun = (runId: string, reason: string) =>
+  axios.post(`${BASE}/variance-runs/${runId}/reverse`, { reason }).then(r => r.data as VarianceRunOut)
+
+export const deleteVarianceRun = (runId: string) =>
+  axios.delete(`${BASE}/variance-runs/${runId}`).then(r => r.data)
 
 // ── Period-end report ─────────────────────────────────────────────────────────
 

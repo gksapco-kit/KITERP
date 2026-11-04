@@ -671,7 +671,8 @@ async def ensure_goods_movement_codes() -> None:
                     {"new": new, "old": old},
                 )
     except Exception:
-        pass
+        # Alembic co006 owns this change; surface (don't hide) a failure here.
+        logger.warning("ensure_goods_movement_codes: co_goods_movement widen/backfill skipped", exc_info=True)
 
 
 async def ensure_merchandising_tables() -> None:
@@ -3209,6 +3210,55 @@ async def ensure_production_routing_tables() -> None:
     logger.info("ensure_production_routing_tables: work_center/production_operation ready")
 
 
+async def ensure_production_hardening_columns() -> None:
+    """
+    Production hardening (Alembic prod010_production_hardening):
+      production_order.inventory_posting — exact record of the completion posting,
+      replayed by the reversal when an order is re-opened.
+      production_operation.rate_applied — work-centre hourly rate frozen when the
+      operation completes (or its order is completed), so later rate changes do
+      not rewrite history.
+      product_bom_item.scrap_pct — expected component loss added to the requirement.
+
+    Idempotent when that migration was not applied to the database in use.
+    """
+    if "postgresql" not in settings.DATABASE_URL.lower():
+        return
+
+    stmts = [
+        "ALTER TABLE production_order ADD COLUMN IF NOT EXISTS inventory_posting JSONB",
+        "ALTER TABLE production_operation ADD COLUMN IF NOT EXISTS rate_applied NUMERIC(12,2)",
+        "ALTER TABLE product_bom_item ADD COLUMN IF NOT EXISTS scrap_pct NUMERIC(6,2) NOT NULL DEFAULT 0",
+        # prod011: partial output, BOM effectivity and by-products
+        "ALTER TABLE production_order ADD COLUMN IF NOT EXISTS partial_outputs JSONB NOT NULL DEFAULT '[]'::jsonb",
+        "ALTER TABLE product_bom_item ADD COLUMN IF NOT EXISTS valid_from DATE",
+        "ALTER TABLE product_bom_item ADD COLUMN IF NOT EXISTS valid_to DATE",
+        "ALTER TABLE product_bom_item ADD COLUMN IF NOT EXISTS is_byproduct BOOLEAN NOT NULL DEFAULT FALSE",
+        "ALTER TABLE product_bom_item ADD COLUMN IF NOT EXISTS cost_share_pct NUMERIC(5,2) NOT NULL DEFAULT 0",
+        # prod011: standard routings
+        """
+        CREATE TABLE IF NOT EXISTS product_routing_step (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            vendor_id UUID NOT NULL REFERENCES vendor(id) ON DELETE CASCADE,
+            product_id UUID NOT NULL REFERENCES product(id) ON DELETE CASCADE,
+            work_center_id UUID REFERENCES work_center(id) ON DELETE SET NULL,
+            sequence INTEGER NOT NULL DEFAULT 0,
+            name VARCHAR(200) NOT NULL,
+            setup_hours NUMERIC(10,2) NOT NULL DEFAULT 0,
+            hours_per_unit NUMERIC(10,4) NOT NULL DEFAULT 0,
+            notes TEXT,
+            created_at TIMESTAMPTZ DEFAULT NOW()
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS idx_routing_step_product ON product_routing_step (vendor_id, product_id, sequence)",
+    ]
+    async with engine.begin() as conn:
+        for stmt in stmts:
+            await conn.execute(text(stmt))
+
+    logger.info("ensure_production_hardening_columns: production_order hardening columns ready")
+
+
 async def ensure_user_contact_change_request_table() -> None:
     """Contact change approval requests (email/phone) for verified vendor users."""
     if "postgresql" not in settings.DATABASE_URL.lower():
@@ -3298,6 +3348,21 @@ async def ensure_platform_job_role_table() -> None:
         """,
         "CREATE UNIQUE INDEX IF NOT EXISTS ix_platform_job_role_slug ON platform_job_role(slug)",
         "CREATE INDEX IF NOT EXISTS ix_platform_job_role_active ON platform_job_role(is_active)",
+        # One-time backfill: Finance / HR used to be visible to every support role without a
+        # permission key. Existing custom roles keep that access; later edits are respected.
+        "ALTER TABLE platform_job_role ADD COLUMN IF NOT EXISTS perms_schema INTEGER NOT NULL DEFAULT 1",
+        """
+        UPDATE platform_job_role
+        SET permissions = (
+                SELECT COALESCE(jsonb_agg(DISTINCT p), '[]'::jsonb)
+                FROM jsonb_array_elements_text(
+                    COALESCE(permissions, '[]'::jsonb) || '["admin.finance", "admin.hr"]'::jsonb
+                ) AS t(p)
+            ),
+            perms_schema = 2
+        WHERE perms_schema < 2
+        """,
+        "ALTER TABLE platform_job_role ALTER COLUMN perms_schema SET DEFAULT 2",
     ]
     async with engine.begin() as conn:
         for s in stmts:
@@ -3790,3 +3855,61 @@ async def ensure_pharma_schema() -> None:
         ))
 
     logger.info("ensure_pharma_schema: pharma manufacturing tables ready")
+
+
+async def ensure_realestate_schema() -> None:
+    """Create the Real Estate vertical tables (``re_*``). Idempotent (checkfirst).
+
+    Tables are declared in ``app.models.realestate``. Columns added to a model later are added to existing
+    ``re_*`` tables automatically (``realestate_add_missing_columns``); renames, type changes and drops still
+    need an explicit migration (see ``alembic/versions/re001_realestate_baseline.py``).
+    """
+    if "postgresql" not in settings.DATABASE_URL.lower():
+        return
+    import app.models  # noqa: F401  (loads vendor/customer/finance tables referenced by FKs)
+    import app.models.realestate  # noqa: F401
+
+    tables = [t for t in Base.metadata.sorted_tables if t.name.startswith("re_")]
+
+    def _create(sync_conn):
+        Base.metadata.create_all(sync_conn, tables=tables, checkfirst=True)
+        return realestate_add_missing_columns(sync_conn, tables)
+
+    async with engine.begin() as conn:
+        added = await conn.run_sync(_create)
+    logger.info("ensure_realestate_schema: %d real-estate tables ready (%d column(s) added)", len(tables), len(added))
+
+
+def realestate_add_missing_columns(sync_conn, tables) -> list[str]:
+    """Add columns that exist on a model but not yet in the database (additive, idempotent, never drops anything).
+
+    New columns are added as nullable. When the model has a plain (non-callable) default the existing rows are
+    back-filled with it and the NOT NULL constraint is applied afterwards.
+    Returns ``["table.column", ...]`` for what was added.
+    """
+    from sqlalchemy import inspect as sa_inspect
+    from sqlalchemy import text as sa_text
+    from sqlalchemy.schema import CreateColumn
+
+    insp = sa_inspect(sync_conn)
+    dialect = sync_conn.dialect
+    added: list[str] = []
+    for table in tables:
+        if not insp.has_table(table.name):
+            continue
+        have = {c["name"] for c in insp.get_columns(table.name)}
+        for col in table.columns:
+            if col.name in have:
+                continue
+            ddl = str(CreateColumn(col).compile(dialect=dialect))
+            nullable_ddl = ddl.replace(" NOT NULL", "")
+            sync_conn.execute(sa_text(f'ALTER TABLE "{table.name}" ADD COLUMN IF NOT EXISTS {nullable_ddl}'))
+            default = col.default.arg if col.default is not None and getattr(col.default, "is_scalar", False) else None
+            if not col.nullable and default is not None:
+                sync_conn.execute(sa_text(f'UPDATE "{table.name}" SET "{col.name}" = :d WHERE "{col.name}" IS NULL'), {"d": default})
+                sync_conn.execute(sa_text(f'ALTER TABLE "{table.name}" ALTER COLUMN "{col.name}" SET NOT NULL'))
+            elif not col.nullable:
+                logger.warning("re column %s.%s is NOT NULL in the model but has no default: left nullable in the database",
+                               table.name, col.name)
+            added.append(f"{table.name}.{col.name}")
+    return added

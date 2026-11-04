@@ -9,7 +9,7 @@ from app.api.v1 import (
     vendor_reports, vendor_sales_reports, vendor_template,
     vendor_bookings, vendor_projects, vendor_notifications, vendor_merchandising, vendor_loyalty,
     vendor_mrp, vendor_hr, vendor_hr_extra, vendor_stores, vendor_sales_area, vendor_message_config, vendor_production,
-    vendor_production_ops, vendor_production_analytics,
+    vendor_production_ops, vendor_production_analytics, vendor_production_planning,
     catalog, admin,     admin_website_templates, app_builds,
     store_auth, store_hr, store_cart, store_checkout, store_orders, store_notifications, store_reviews, store_coupons,
     store_bookings, store_wishlist, store_marketplace, store_subscriptions, store_rentals,
@@ -66,6 +66,8 @@ from app.api.v1 import (
     vendor_product_groups,
     vendor_yield,
 )
+
+from app.api.v1 import realestate as realestate_api  # noqa: E402
 
 api_router = APIRouter()
 
@@ -157,8 +159,11 @@ api_router.include_router(vendor_message_config.router, prefix="/vendors/me", ta
 api_router.include_router(vendor_production.router, prefix="/vendors/me", tags=["Production Orders"])
 api_router.include_router(vendor_pharma.router, prefix="/vendors/me/pharma", tags=["Pharmaceutical Manufacturing"])
 api_router.include_router(vendor_pharma_reports.router, prefix="/vendors/me/pharma-reports", tags=["Pharma Reporting Manager"])
+api_router.include_router(realestate_api.router, prefix="/vendors/me/realestate", tags=["Real Estate"])
+api_router.include_router(realestate_api.public_router, prefix="/public/realestate", tags=["Real Estate Portal (public)"])
 api_router.include_router(vendor_production_ops.router, prefix="/vendors/me", tags=["Production Routing"])
 api_router.include_router(vendor_production_analytics.router, prefix="/vendors/me", tags=["Production Analytics"])
+api_router.include_router(vendor_production_planning.router, prefix="/vendors/me", tags=["Production Planning"])
 api_router.include_router(vendor_marketplace.router, prefix="/vendors/me/marketplace", tags=["Vendor Marketplace"])
 api_router.include_router(vendor_subscriptions.router, prefix="/vendors/me/subscriptions", tags=["Customer Subscriptions"])
 api_router.include_router(vendor_rentals.router, prefix="/vendors/me/rentals", tags=["Rentals"])

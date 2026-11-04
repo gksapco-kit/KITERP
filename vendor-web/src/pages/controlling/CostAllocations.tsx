@@ -4,15 +4,18 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { Link } from 'react-router-dom'
-import { Plus, SendHorizonal, Trash2 } from 'lucide-react'
-import { useCompanies } from '@/hooks/useFinance'
+import { Plus, SendHorizonal, Trash2, Undo2 } from 'lucide-react'
+import { useAccounts, useCompanies } from '@/hooks/useFinance'
 import {
   useCostAllocations,
   useCreateCostAllocation,
   usePostCostAllocation,
   useDeleteCostAllocation,
+  useReverseCostAllocation,
 } from '@/hooks/useControlling'
 import { formatCurrency } from '@/lib/utils'
+import { extractApiError } from '@/lib/errorMessages'
+import { useHasPermission } from '@/hooks/usePermissions'
 import type { CostAllocationOut } from '@/api/controlling'
 
 import { askConfirm } from '@/components/common/ConfirmProvider'
@@ -33,6 +36,8 @@ interface CreateForm {
   allocation_value: string
   allocated_amount: string
   narration: string
+  sender_account_id: string
+  receiver_account_id: string
 }
 
 export default function CostAllocationsPage() {
@@ -61,6 +66,14 @@ export default function CostAllocationsPage() {
   const createMut = useCreateCostAllocation()
   const postMut = usePostCostAllocation()
   const deleteMut = useDeleteCostAllocation()
+  const reverseMut = useReverseCostAllocation()
+  const canEdit = useHasPermission('finance.edit')
+  const canPost = useHasPermission('finance.journal.post')
+  const { data: accounts = [] } = useAccounts()
+  const accountOptions = [
+    { value: '', label: '— select account —' },
+    ...(accounts as { id: string; code: string; name: string }[]).map(a => ({ value: a.id, label: `${a.code} — ${a.name}` })),
+  ]
 
   const [form, setForm] = useState<CreateForm>({
     allocation_cycle: '',
@@ -70,6 +83,8 @@ export default function CostAllocationsPage() {
     allocation_value: '',
     allocated_amount: '',
     narration: '',
+    sender_account_id: '',
+    receiver_account_id: '',
   })
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -85,21 +100,37 @@ export default function CostAllocationsPage() {
         allocation_value: parseFloat(form.allocation_value || '0'),
         allocated_amount: parseFloat(form.allocated_amount || '0'),
         narration: form.narration || undefined,
+        sender_account_id: form.sender_account_id || undefined,
+        receiver_account_id: form.receiver_account_id || undefined,
       })
       setShowCreate(false)
       setForm(f => ({ ...f, allocation_cycle: '', allocated_amount: '', narration: '' }))
     } catch (err: unknown) {
-      const e2 = err as { response?: { data?: { detail?: string } } }
-      setError(e2?.response?.data?.detail ?? 'Failed to create')
+      setError(extractApiError(err, 'Failed to create'))
     }
   }
 
   const handlePost = async (id: string) => {
+    setError('')
     try {
       await postMut.mutateAsync({ id })
     } catch (err: unknown) {
-      const e2 = err as { response?: { data?: { detail?: string } } }
-      setError(e2?.response?.data?.detail ?? 'Failed to post')
+      setError(extractApiError(err, 'Failed to post'))
+    }
+  }
+
+  const handleReverse = async (id: string) => {
+    const reason = window.prompt('Reverse this posted allocation?\nReason (required):')
+    if (reason === null) return
+    if (reason.trim().length < 3) {
+      setError('A reason of at least 3 characters is required to reverse')
+      return
+    }
+    setError('')
+    try {
+      await reverseMut.mutateAsync({ id, reason: reason.trim() })
+    } catch (err: unknown) {
+      setError(extractApiError(err, 'Failed to reverse'))
     }
   }
 
@@ -108,12 +139,11 @@ export default function CostAllocationsPage() {
     try {
       await deleteMut.mutateAsync(id)
     } catch (err: unknown) {
-      const e2 = err as { response?: { data?: { detail?: string } } }
-      setError(e2?.response?.data?.detail ?? 'Failed to delete')
+      setError(extractApiError(err, 'Failed to delete'))
     }
   }
 
-  const totalAllocated = (allocations as CostAllocationOut[]).reduce(
+  const totalAllocated = (allocations as CostAllocationOut[]).filter(a => a.status !== 'reversed').reduce(
     (s, a) => s + parseFloat(a.allocated_amount),
     0,
   )
@@ -126,13 +156,15 @@ export default function CostAllocationsPage() {
           {' · '}
           <Link to="/controlling" className="text-primary hover:underline">Controlling</Link>
         </p>
-        <button
-          type="button"
-          onClick={() => setShowCreate(true)}
-          className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-white hover:bg-primary/90"
-        >
-          <Plus className="h-3.5 w-3.5" /> New Allocation
-        </button>
+        {canEdit && (
+          <button
+            type="button"
+            onClick={() => setShowCreate(true)}
+            className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-white hover:bg-primary/90"
+          >
+            <Plus className="h-3.5 w-3.5" /> New Allocation
+          </button>
+        )}
       </div>
 
       {/* KPIs */}
@@ -235,17 +267,30 @@ export default function CostAllocationsPage() {
                   <div className="flex items-center gap-2">
                     {a.status === 'planned' && (
                       <>
-                        <button
-                          onClick={() => handlePost(a.id)}
-                          disabled={postMut.isPending}
-                          className="text-xs text-emerald-600 hover:text-emerald-800 flex items-center gap-1"
-                        >
-                          <SendHorizonal className="w-3 h-3" /> Post
-                        </button>
-                        <button onClick={() => handleDelete(a.id)} className="text-red-400 hover:text-red-600">
-                          <Trash2 className="w-3.5 h-3.5 text-red-600" />
-                        </button>
+                        {canPost && (
+                          <button
+                            onClick={() => handlePost(a.id)}
+                            disabled={postMut.isPending}
+                            className="text-xs text-emerald-600 hover:text-emerald-800 flex items-center gap-1"
+                          >
+                            <SendHorizonal className="w-3 h-3" /> Post
+                          </button>
+                        )}
+                        {canEdit && (
+                          <button onClick={() => handleDelete(a.id)} className="text-red-400 hover:text-red-600">
+                            <Trash2 className="w-3.5 h-3.5 text-red-600" />
+                          </button>
+                        )}
                       </>
+                    )}
+                    {a.status === 'posted' && canPost && (
+                      <button
+                        onClick={() => handleReverse(a.id)}
+                        disabled={reverseMut.isPending}
+                        className="text-xs text-amber-700 hover:text-amber-900 flex items-center gap-1"
+                      >
+                        <Undo2 className="w-3 h-3" /> Reverse
+                      </button>
                     )}
                   </div>
                 </td>
@@ -313,6 +358,29 @@ export default function CostAllocationsPage() {
                       className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm" />
                   </div>
                 </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground">Sender account (credit)</Label>
+                    <Select
+                      value={form.sender_account_id}
+                      onChange={v => setForm(f => ({ ...f, sender_account_id: v }))}
+                      className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm"
+                      placeholder="— select account —"
+                      options={accountOptions}
+                    />
+                  </div>
+                  <div>
+                    <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground">Receiver account (debit)</Label>
+                    <Select
+                      value={form.receiver_account_id}
+                      onChange={v => setForm(f => ({ ...f, receiver_account_id: v }))}
+                      className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm"
+                      placeholder="— select account —"
+                      options={accountOptions}
+                    />
+                  </div>
+                </div>
+                <p className="text-[11px] text-muted-foreground">Both accounts are required before the allocation can be posted to the GL.</p>
                 <div>
                   <Label className="mb-0.5 block text-[11px] font-medium text-muted-foreground">Narration</Label>
                   <input value={form.narration} onChange={e => setForm(f => ({ ...f, narration: e.target.value }))}

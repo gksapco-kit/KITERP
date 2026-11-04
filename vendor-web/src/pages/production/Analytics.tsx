@@ -1,6 +1,7 @@
 import { BarChart3 } from 'lucide-react'
 import { useVendorStore } from '@/stores/vendorStore'
 import { ProductionAnalyticsDashboard } from '@/components/production/ProductionAnalyticsDashboard'
+import { ReconciliationCard, WorkCenterLoadCard } from '@/components/production/ProductionPlanningPanels'
 
 export default function ProductionAnalyticsPage() {
   const { selectedStore } = useVendorStore()
@@ -17,6 +18,11 @@ export default function ProductionAnalyticsPage() {
       </div>
 
       <ProductionAnalyticsDashboard storeId={selectedStore?.id} />
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <WorkCenterLoadCard />
+        <ReconciliationCard />
+      </div>
     </div>
   )
 }

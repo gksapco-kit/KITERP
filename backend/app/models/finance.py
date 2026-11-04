@@ -82,6 +82,7 @@ class FinFiscalYearCompany(Base):
 class FinCostCenter(Base):
     """Cost centre / profit centre dimension for GL postings."""
     __tablename__ = "fin_cost_center"
+    __mapper_args__ = {"eager_defaults": True}   # fetch onupdate server values on flush (no lazy IO in _d())
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -237,6 +238,7 @@ class FinFieldRule(Base):
     scope: gl = tenant default, company = business unit, user = team member.
     """
     __tablename__ = "fin_field_rule"
+    __mapper_args__ = {"eager_defaults": True}   # fetch onupdate server values on flush (no lazy IO in _d())
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -280,6 +282,7 @@ class FinExchangeRate(Base):
 
 class FinJournalEntry(Base):
     __tablename__ = "fin_journal_entry"
+    __mapper_args__ = {"eager_defaults": True}   # fetch onupdate server values on flush (no lazy IO in _d())
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -492,6 +495,7 @@ class FinStatementVersion(Base):
     regulatory frameworks, management reporting, or tax purposes.
     """
     __tablename__ = "fin_statement_version"
+    __mapper_args__ = {"eager_defaults": True}   # fetch onupdate server values on flush (no lazy IO in _d())
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -969,6 +973,7 @@ class FinArAgingSnapshot(Base):
 class FinVendorBill(Base):
     """Supplier bill / vendor invoice (AP side)."""
     __tablename__ = "fin_vendor_bill"
+    __mapper_args__ = {"eager_defaults": True}   # fetch onupdate server values on flush (no lazy IO in _d())
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -986,6 +991,14 @@ class FinVendorBill(Base):
     notes = Column(Text)
     attachment_url = Column(String(500))
     currency = Column(String(3), default="INR")
+    # GST split of tax_amount (drives ITC by head in GSTR-3B); NULL = infer from GSTINs
+    cgst_amount = Column(Numeric(18, 2))
+    sgst_amount = Column(Numeric(18, 2))
+    igst_amount = Column(Numeric(18, 2))
+    # TDS deducted from the supplier on this bill (Sec 194x)
+    tds_section = Column(String(10))
+    tds_rate = Column(Numeric(6, 3))
+    tds_amount = Column(Numeric(18, 2), default=0)
     journal_entry_id = Column(UUID(as_uuid=True), ForeignKey("fin_journal_entry.id", ondelete="SET NULL"))
     # Project dimension: links this AP bill to a PM project for project cost tracking.
     pm_project_id = Column(UUID(as_uuid=True), ForeignKey("pm_project.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -1188,6 +1201,7 @@ class FinReconciliationMatch(Base):
 
 class FinBudget(Base):
     __tablename__ = "fin_budget"
+    __mapper_args__ = {"eager_defaults": True}   # fetch onupdate server values on flush (no lazy IO in _d())
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -1270,6 +1284,7 @@ class FinTaxCode(Base):
 
 class FinTaxReturn(Base):
     __tablename__ = "fin_tax_return"
+    __mapper_args__ = {"eager_defaults": True}   # fetch onupdate server values on flush (no lazy IO in _d())
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -1313,6 +1328,7 @@ class FinAssetCategory(Base):
 
 class FinAsset(Base):
     __tablename__ = "fin_asset"
+    __mapper_args__ = {"eager_defaults": True}   # fetch onupdate server values on flush (no lazy IO in _d())
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -1544,6 +1560,34 @@ class FinAuditLog(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
 
+class FinPostingFailure(Base):
+    """
+    An operational document (invoice, bill, payroll run …) whose GL posting failed or
+    was skipped. Operational flows never block on the ledger, so Finance works this
+    list instead: fix the cause (missing account, closed period) and retry.
+    """
+    __tablename__ = "fin_posting_failure"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_type = Column(String(40), nullable=False)
+    source_id = Column(UUID(as_uuid=True), nullable=False)
+    reference = Column(String(255))
+    amount = Column(Numeric(18, 2), default=0)
+    error = Column(Text)
+    payload = Column(JSONB)
+    attempts = Column(Integer, nullable=False, default=1)
+    status = Column(String(15), nullable=False, default="open", index=True)   # open | resolved | ignored
+    journal_entry_id = Column(UUID(as_uuid=True), ForeignKey("fin_journal_entry.id", ondelete="SET NULL"))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    last_attempt_at = Column(DateTime(timezone=True))
+    resolved_at = Column(DateTime(timezone=True))
+
+    __table_args__ = (
+        UniqueConstraint("vendor_id", "source_type", "source_id", name="uq_fin_posting_failure_source"),
+    )
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # BASIC FINANCE — lightweight transaction ledger for small businesses
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1551,6 +1595,7 @@ class FinAuditLog(Base):
 class FinBasicTransaction(Base):
     """Simple income / expense / salary / transfer entry — no double-entry needed."""
     __tablename__ = "fin_basic_transaction"
+    __mapper_args__ = {"eager_defaults": True}   # fetch onupdate server values on flush (no lazy IO in _d())
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -1578,6 +1623,7 @@ class FinPaymentTerm(Base):
     into scheduled portions; child discounts offer reductions for paying early.
     """
     __tablename__ = "fin_payment_term"
+    __mapper_args__ = {"eager_defaults": True}   # fetch onupdate server values on flush (no lazy IO in _d())
 
     id          = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     vendor_id   = Column(UUID(as_uuid=True), ForeignKey("vendor.id",        ondelete="CASCADE"),  nullable=False, index=True)

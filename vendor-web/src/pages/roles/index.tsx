@@ -101,6 +101,26 @@ const BUILTIN_ROLE_STYLES: Record<string, { container: string; header: string }>
     container: 'border-green-200 dark:border-green-600/30 bg-green-50 dark:bg-green-600/10',
     header: 'text-green-800 dark:text-green-300',
   },
+  re_sales_executive: {
+    container: 'border-orange-200 dark:border-orange-500/30 bg-orange-50 dark:bg-orange-500/10',
+    header: 'text-orange-700 dark:text-orange-200',
+  },
+  re_crm_manager: {
+    container: 'border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10',
+    header: 'text-amber-700 dark:text-amber-200',
+  },
+  re_site_engineer: {
+    container: 'border-stone-300 dark:border-stone-500/30 bg-stone-50 dark:bg-stone-500/10',
+    header: 'text-stone-700 dark:text-stone-200',
+  },
+  re_accounts: {
+    container: 'border-teal-200 dark:border-teal-500/30 bg-teal-50 dark:bg-teal-500/10',
+    header: 'text-teal-700 dark:text-teal-200',
+  },
+  re_legal: {
+    container: 'border-zinc-300 dark:border-zinc-500/30 bg-zinc-50 dark:bg-zinc-500/10',
+    header: 'text-zinc-700 dark:text-zinc-200',
+  },
   platform_staff: {
     container: 'border-gray-300 dark:border-gray-500/30 bg-gray-100 dark:bg-gray-500/10',
     header: 'text-gray-700 dark:text-gray-300',

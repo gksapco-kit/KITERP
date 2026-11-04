@@ -103,6 +103,11 @@ async def reserve_materials(db: AsyncSession, vendor_id: UUID, order: Production
 
     snapshot: list[dict[str, Any]] = []
     for cid, entry in component_requirements.items():
+        if entry["no_bom"]:
+            # A top-level product that has no BOM is simply produced from nothing
+            # we track; it must not become a requirement on itself (that would
+            # consume stock of the very goods being made).
+            continue
         comp = entry["product_obj"]
         product_id = UUID(cid)
         required_qty = entry["required_qty"]
@@ -115,7 +120,10 @@ async def reserve_materials(db: AsyncSession, vendor_id: UUID, order: Production
             order_type=ORDER_TYPE,
             order_id=str(order.id),
             store_id=order.store_id,
-            storage_location_id=order.output_storage_location_id,
+            # Component holds are business-unit level: raw materials may sit in any
+            # bin, and completion draws them down across bins. (The order's output
+            # location is where *finished goods* land, not where components are.)
+            storage_location_id=None,
             product_id=product_id,
             reserved_qty=reserve_qty,
             status="active",
@@ -160,5 +168,8 @@ async def release_materials(db: AsyncSession, vendor_id: UUID, order: Production
         resv.released_at = now
 
     order.materials_released_at = now
+    # Clear the "reserved" marker so a later re-confirmation takes a fresh BOM
+    # snapshot and creates new holds (reserve_materials is a no-op while it is set).
+    order.materials_reserved_at = None
     await db.flush()
     return order

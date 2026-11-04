@@ -31,6 +31,7 @@ from app.services.shared_stock import (
     shared_pool_unit,
     uses_shared_weight_stock,
 )
+from app.services.production_guards import product_production_blockers
 from app.services.vendor_service import VendorService
 from app.repositories.product_repo import ProductRepository
 from app.services.media_upload import save_media_file, detect_media_type
@@ -1102,13 +1103,24 @@ async def delete_product(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Only trashed products can be permanently deleted",
             )
+    elif product.deleted_at:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Product is already in trash",
+        )
+
+    # Production dependencies: deleting would silently change other products' BOMs
+    # or strand open production orders.
+    blockers = await product_production_blockers(db, vendor_id, product_id)
+    if blockers:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This product cannot be deleted: " + "; ".join(blockers) + ".",
+        )
+
+    if permanent:
         await repo.hard_delete(product)
     else:
-        if product.deleted_at:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Product is already in trash",
-            )
         await repo.soft_delete(product)
 
     await db.commit()

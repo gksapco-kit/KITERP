@@ -7,6 +7,8 @@ import { ArrowLeft, Landmark } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
+import { extractApiError } from '@/lib/errorMessages'
+import { useHasPermission } from '@/hooks/usePermissions'
 
 const fieldClass =
   'h-10 rounded-lg border border-input bg-background px-2 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring [color-scheme:dark]'
@@ -19,6 +21,7 @@ const GL_FIELDS = [
   ['cogs_account_id', 'Cost of goods sold'],
   ['production_variance_account_id', 'Production variance (optional)'],
   ['raw_material_account_id', 'Raw material (optional)'],
+  ['absorption_account_id', 'Cost absorption / applied (needed for WIP mode)'],
 ] as const
 
 export default function FinanceIntegrationPage() {
@@ -32,6 +35,7 @@ export default function FinanceIntegrationPage() {
   const { data: accounts = [] } = useAccounts()
   const { data: glMap, refetch: refGl } = useCoGlMapping(activeCo || undefined)
   const putGl = usePutCoGlMapping()
+  const canManage = useHasPermission('finance.coa.manage')
 
   const [glForm, setGlForm] = useState({
     wip_account_id: '',
@@ -39,7 +43,9 @@ export default function FinanceIntegrationPage() {
     cogs_account_id: '',
     production_variance_account_id: '',
     raw_material_account_id: '',
+    absorption_account_id: '',
   })
+  const [postWip, setPostWip] = useState(false)
 
   useEffect(() => {
     if (!glMap) return
@@ -49,7 +55,9 @@ export default function FinanceIntegrationPage() {
       cogs_account_id: glMap.cogs_account_id ?? '',
       production_variance_account_id: glMap.production_variance_account_id ?? '',
       raw_material_account_id: glMap.raw_material_account_id ?? '',
+      absorption_account_id: glMap.absorption_account_id ?? '',
     })
+    setPostWip(Boolean(glMap.post_wip_to_gl))
   }, [glMap])
 
   const saveGlMapping = async () => {
@@ -60,13 +68,14 @@ export default function FinanceIntegrationPage() {
     if (glForm.cogs_account_id) payload.cogs_account_id = glForm.cogs_account_id
     if (glForm.production_variance_account_id) payload.production_variance_account_id = glForm.production_variance_account_id
     if (glForm.raw_material_account_id) payload.raw_material_account_id = glForm.raw_material_account_id
+    if (glForm.absorption_account_id) payload.absorption_account_id = glForm.absorption_account_id
+    payload.post_wip_to_gl = postWip
     try {
       await putGl.mutateAsync(payload)
       toast.success('CO GL mapping saved')
       refGl()
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { detail?: string } } }
-      toast.error(err.response?.data?.detail || 'Failed')
+      toast.error(extractApiError(e, 'Failed to save GL mapping'))
     }
   }
 
@@ -113,6 +122,7 @@ export default function FinanceIntegrationPage() {
               <Select
                 value={glForm[key]}
                 onChange={v => setGlForm(f => ({ ...f, [key]: v }))}
+                disabled={!canManage}
                 className={fieldClass}
                 placeholder="—"
                 options={[
@@ -126,9 +136,29 @@ export default function FinanceIntegrationPage() {
             </label>
           ))}
         </div>
-        <Button type="button" size="sm" onClick={saveGlMapping} disabled={!activeCo || putGl.isPending}>
-          Save GL mapping
-        </Button>
+        <label className="flex items-start gap-2 text-sm text-foreground">
+          <input
+            type="checkbox"
+            className="mt-1"
+            checked={postWip}
+            disabled={!canManage}
+            onChange={e => setPostWip(e.target.checked)}
+          />
+          <span>
+            Accumulate WIP in the GL while the order runs
+            <span className="block text-xs text-muted-foreground">
+              Component issues and activity confirmations post Dr WIP / Cr Raw material or Absorption. Requires the WIP,
+              raw material and absorption accounts above. When off, WIP is only journalled at production completion.
+            </span>
+          </span>
+        </label>
+        {canManage ? (
+          <Button type="button" size="sm" onClick={saveGlMapping} disabled={!activeCo || putGl.isPending}>
+            Save GL mapping
+          </Button>
+        ) : (
+          <p className="text-xs text-muted-foreground">You need the chart-of-accounts permission to change this mapping.</p>
+        )}
       </div>
     </div>
   )

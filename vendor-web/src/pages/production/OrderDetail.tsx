@@ -4,6 +4,9 @@ import { toast } from 'sonner'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Select } from '@/components/ui/select'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
+import { useHasPermission } from '@/hooks/usePermissions'
+import { OrderShortagesCard, PartialOutputPanel } from '@/components/production/ProductionPlanningPanels'
+import { JobCardButton, ScheduleCard } from '@/components/production/ProductionPlanningExtras'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import {
   Factory, Package, ShoppingCart, Users, Calendar, CheckCircle,
@@ -35,17 +38,21 @@ import {
   type AuditAction,
   STATUS_CONFIG,
   WORKFLOW_STEPS,
-  makeAudit,
+  ALLOWED_TRANSITIONS,
+  TERMINAL_STATUSES,
   StatusBadge,
   TypeBadge,
   PriorityDot,
 } from './productionShared'
 
 const FIELD_H = 'h-8'
+const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024 // keep in sync with backend MAX_ATTACHMENT_BYTES
+const MAX_ATTACHMENTS = 20
 
 export default function ProductionOrderDetailPage() {
   const { orderId } = useParams<{ orderId: string }>()
   const navigate = useNavigate()
+  const canManage = useHasPermission('production.manage')
   useProductionOrdersBootstrap()
 
   const { data: orderRaw, isLoading } = useProductionOrder(orderId ?? null)
@@ -120,11 +127,17 @@ export default function ProductionOrderDetailPage() {
     ).slice(0, 10)
   }, [suppliers, detailAssigneeSearch])
 
-  const updateOrder = useCallback((id: string, patch: Partial<ProductionOrder>, auditEvent?: ReturnType<typeof makeAudit>) => {
-    const data: Record<string, unknown> = { ...patch }
-    if (auditEvent) data.audit_event = auditEvent
-    updateOrderMut.mutate({ id, data })
-  }, [updateOrderMut])
+  // The server owns the audit trail (actor = logged-in user) and validates every
+  // status change, so we only send the patch and report success once it's accepted.
+  const updateOrder = useCallback((id: string, patch: Partial<ProductionOrder>, successMessage?: string, onDone?: () => void) => {
+    if (!canManage) { toast.error('You have view-only access to Production.'); return }
+    updateOrderMut.mutate({ id, data: { ...patch } }, {
+      onSuccess: () => {
+        if (successMessage) toast.success(successMessage)
+        onDone?.()
+      },
+    })
+  }, [updateOrderMut, canManage])
 
   function deleteOrder(id: string) {
     deleteOrderMut.mutate(id, {
@@ -137,12 +150,15 @@ export default function ProductionOrderDetailPage() {
     if (idx === -1 || idx >= WORKFLOW_STEPS.length - 1) return
     const nextStatus = WORKFLOW_STEPS[idx + 1].status
     const autoProgress = ({ draft: 0, confirmed: 10, in_production: 40, qc: 90, completed: 100, cancelled: 0, on_hold: o.progress } as Record<string, number>)[nextStatus] ?? o.progress
+    if (!ALLOWED_TRANSITIONS[o.status]?.includes(nextStatus)) {
+      toast.error(`An order can't move from ${STATUS_CONFIG[o.status].label} to ${STATUS_CONFIG[nextStatus].label} directly.`)
+      return
+    }
     updateOrder(
       o.id,
       { status: nextStatus, progress: autoProgress },
-      makeAudit('status_changed', `Status changed from ${STATUS_CONFIG[o.status].label} → ${STATUS_CONFIG[nextStatus].label}`, { from: o.status, to: nextStatus, progress: autoProgress }),
+      `Order ${o.ref} moved to ${STATUS_CONFIG[nextStatus].label}`,
     )
-    toast.success(`Order ${o.ref} moved to ${STATUS_CONFIG[nextStatus].label}`)
   }
 
   function addStockDispatch(o: ProductionOrder) {
@@ -154,40 +170,32 @@ export default function ProductionOrderDetailPage() {
     const newDispatches = [...o.stock_dispatches, dispatch]
     const totalDispatched = newDispatches.reduce((s, d) => s + d.qty, 0)
     const totalRequired = o.items.reduce((s, i) => s + i.qty, 0)
-    const newProgress = Math.min(100, Math.round((totalDispatched / totalRequired) * 100))
-    const autoComplete = totalDispatched >= totalRequired && o.status !== 'completed'
+    const newProgress = totalRequired > 0 ? Math.min(100, Math.round((totalDispatched / totalRequired) * 100)) : o.progress
+    // Only an order that is already running can auto-complete (completion posts stock,
+    // so the server refuses it from draft).
+    const canAutoComplete = ['confirmed', 'in_production', 'qc'].includes(o.status)
+    const autoComplete = totalRequired > 0 && totalDispatched >= totalRequired && canAutoComplete
     updateOrder(
       o.id,
       {
         stock_dispatches: newDispatches,
         progress: Math.max(o.progress, newProgress),
-        status: autoComplete ? 'completed' : o.status,
+        ...(autoComplete ? { status: 'completed' as POStatus } : {}),
       },
-      makeAudit('stock_dispatched',
-        `${dispatch.qty} unit${dispatch.qty !== 1 ? 's' : ''} dispatched to stock${dispatchBy ? ` by ${dispatchBy}` : ''}${dispatchNotes ? ` — ${dispatchNotes}` : ''}`,
-        { qty: dispatch.qty, total_dispatched: totalDispatched, total_required: totalRequired },
-      ),
+      `${dispatch.qty} units dispatched to stock.`,
+      () => { setDispatchQty(''); setDispatchBy(''); setDispatchNotes('') },
     )
-    setDispatchQty(''); setDispatchBy(''); setDispatchNotes('')
-    toast.success(`${dispatch.qty} units dispatched to stock.`)
   }
 
   function applyStatusEdit(o: ProductionOrder) {
     if (!editStatus) return
     const newProgress = editProgress || o.progress
-    const statusChanged = editStatus !== o.status
-    const progressChanged = newProgress !== o.progress
-    const detail = [
-      statusChanged && `Status: ${STATUS_CONFIG[o.status].label} → ${STATUS_CONFIG[editStatus as POStatus].label}`,
-      progressChanged && `Progress: ${o.progress}% → ${newProgress}%`,
-    ].filter(Boolean).join(', ')
     updateOrder(
       o.id,
       { status: editStatus, progress: newProgress },
-      makeAudit('status_changed', detail || 'Status/progress reviewed', { from: o.status, to: editStatus, progress: newProgress }),
+      'Status updated.',
+      () => setEditStatus(''),
     )
-    setEditStatus('')
-    toast.success('Status updated.')
   }
 
   function exportXLS(o: ProductionOrder) {
@@ -224,14 +232,12 @@ export default function ProductionOrderDetailPage() {
   }
 
   function saveAssigneeEdit(o: ProductionOrder) {
-    const names = detailEditAssignees.map(a => a.name).join(', ') || 'None'
     updateOrder(
       o.id,
       { assignees: detailEditAssignees },
-      makeAudit('assignees_updated', `Assigned to: ${names}`, { count: detailEditAssignees.length }),
+      'Assignees updated.',
+      () => setEditAssigneesMode(false),
     )
-    setEditAssigneesMode(false)
-    toast.success('Assignees updated.')
   }
 
   function openNotesEdit(o: ProductionOrder) {
@@ -240,14 +246,12 @@ export default function ProductionOrderDetailPage() {
   }
 
   function saveNotesEdit(o: ProductionOrder) {
-    const preview = detailEditNotes.trim().slice(0, 60) + (detailEditNotes.trim().length > 60 ? '…' : '')
     updateOrder(
       o.id,
       { notes: detailEditNotes },
-      makeAudit('notes_updated', `Instructions updated: "${preview || '(cleared)'}"`),
+      'Notes updated.',
+      () => setEditNotesMode(false),
     )
-    setEditNotesMode(false)
-    toast.success('Notes updated.')
   }
 
   if (isLoading) {
@@ -278,6 +282,7 @@ export default function ProductionOrderDetailPage() {
   const totalRequired = order.items.reduce((s, i) => s + i.qty, 0)
   const totalDispatched = order.stock_dispatches.reduce((s, d) => s + d.qty, 0)
   const curStepIdx = WORKFLOW_STEPS.findIndex(s => s.status === order.status)
+  const isTerminal = TERMINAL_STATUSES.includes(order.status)
 
   return (
     <div className="min-h-screen bg-background">
@@ -329,14 +334,16 @@ export default function ProductionOrderDetailPage() {
               >
                 <Download className="w-4 h-4" />
               </button>
-              <button
-                type="button"
-                onClick={() => deleteOrder(order.id)}
-                title="Delete"
-                className="p-1.5 hover:bg-red-50 rounded-lg text-red-400 hover:text-red-600 transition-colors"
-              >
-                <Trash2 className="w-4 h-4 text-red-600" />
-              </button>
+              {canManage && (order.status === 'draft' || order.status === 'cancelled') && (
+                <button
+                  type="button"
+                  onClick={() => deleteOrder(order.id)}
+                  title="Delete"
+                  className="p-1.5 hover:bg-red-50 rounded-lg text-red-400 hover:text-red-600 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4 text-red-600" />
+                </button>
+              )}
             </div>
           </div>
 
@@ -418,7 +425,8 @@ export default function ProductionOrderDetailPage() {
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2 shrink-0">
-                      {order.status !== 'completed' && order.status !== 'cancelled' && curStepIdx < WORKFLOW_STEPS.length - 1 && (
+                      {canManage && !isTerminal && curStepIdx >= 0 && curStepIdx < WORKFLOW_STEPS.length - 1
+                        && ALLOWED_TRANSITIONS[order.status]?.includes(WORKFLOW_STEPS[curStepIdx + 1].status) && (
                         <button
                           type="button"
                           onClick={() => advanceStatus(order)}
@@ -427,13 +435,15 @@ export default function ProductionOrderDetailPage() {
                           <PlayCircle className="w-3.5 h-3.5" /> Advance to {WORKFLOW_STEPS[curStepIdx + 1]?.label}
                         </button>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => { setEditStatus(order.status); setEditProgress(order.progress) }}
-                        className="flex items-center gap-1.5 border border-gray-200 dark:border-border px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-muted transition-colors"
-                      >
-                        <Edit2 className="w-3 h-3 text-green-600" /> Edit Status / Progress
-                      </button>
+                      {canManage && (
+                        <button
+                          type="button"
+                          onClick={() => { setEditStatus(order.status); setEditProgress(order.progress) }}
+                          className="flex items-center gap-1.5 border border-gray-200 dark:border-border px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-muted transition-colors"
+                        >
+                          <Edit2 className="w-3 h-3 text-green-600" /> {isTerminal ? 'Re-open / Change Status' : 'Edit Status / Progress'}
+                        </button>
+                      )}
                     </div>
                   </div>
                   {editStatus !== '' && (
@@ -442,7 +452,8 @@ export default function ProductionOrderDetailPage() {
                         <Select
                           value={editStatus}
                           onChange={(v) => setEditStatus(v as POStatus)}
-                          options={Object.entries(STATUS_CONFIG).map(([k, v]) => ({ value: k, label: v.label }))}
+                          options={[order.status, ...(ALLOWED_TRANSITIONS[order.status] ?? [])]
+                            .map(k => ({ value: k, label: STATUS_CONFIG[k].label }))}
                           aria-label="Production order status"
                           className={`flex-1 min-w-[140px] ${FIELD_H}`}
                         />
@@ -641,7 +652,7 @@ export default function ProductionOrderDetailPage() {
                     <p className="text-xs text-muted-foreground font-semibold flex items-center gap-1.5">
                       <Users className="w-3.5 h-3.5" /> Assigned To
                     </p>
-                    {!editAssigneesMode && (
+                    {canManage && !isTerminal && !editAssigneesMode && (
                       <button
                         type="button"
                         onClick={() => openAssigneeEdit(order)}
@@ -768,7 +779,7 @@ export default function ProductionOrderDetailPage() {
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <p className="text-xs text-muted-foreground font-semibold">Instructions / Notes</p>
-                    {!editNotesMode && (
+                    {canManage && !editNotesMode && (
                       <button
                         type="button"
                         onClick={() => openNotesEdit(order)}
@@ -818,6 +829,7 @@ export default function ProductionOrderDetailPage() {
             {/* ITEMS tab */}
             {detailTab === 'items' && (
               <div className="space-y-3">
+                <OrderShortagesCard orderId={order.id} isTerminal={isTerminal} />
                 {(order.materials_reserved_at || order.inventory_posted_at) && (
                   <div className="flex flex-wrap items-center gap-2 text-xs">
                     {order.materials_reserved_at && !order.inventory_posted_at && (
@@ -828,6 +840,24 @@ export default function ProductionOrderDetailPage() {
                     {order.inventory_posted_at && (
                       <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 text-green-700 px-2.5 py-1 font-medium">
                         <CheckCircle className="w-3 h-3" /> Stock posted {new Date(order.inventory_posted_at).toLocaleDateString('en-IN')} — components consumed, finished goods received
+                      </span>
+                    )}
+                    {order.inventory_posting?.costing && (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 dark:bg-muted text-gray-700 dark:text-gray-300 px-2.5 py-1 font-medium">
+                        Cost ₹{order.inventory_posting.costing.total} (₹{order.inventory_posting.costing.unit_cost}/unit)
+                      </span>
+                    )}
+                    {order.inventory_posting?.accounting?.status === 'posted' && (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 text-green-700 px-2.5 py-1 font-medium">
+                        Journal {order.inventory_posting.accounting.entry_no} posted
+                      </span>
+                    )}
+                    {order.inventory_posting?.accounting?.status === 'skipped' && (
+                      <span
+                        className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 text-amber-700 px-2.5 py-1 font-medium"
+                        title={order.inventory_posting.accounting.reason}
+                      >
+                        Journal not posted — {order.inventory_posting.accounting.reason}
                       </span>
                     )}
                     <button type="button" onClick={() => setMrpOpen(true)} className="text-primary hover:underline font-medium">View materials</button>
@@ -889,12 +919,19 @@ export default function ProductionOrderDetailPage() {
 
             {/* ROUTING tab */}
             {detailTab === 'routing' && (
-              <ProductionRoutingPanel orderId={order.id} />
+              <div className="space-y-4">
+                <div className="flex justify-end">
+                  <JobCardButton orderId={order.id} />
+                </div>
+                <ProductionRoutingPanel orderId={order.id} readOnly={isTerminal} />
+                <ScheduleCard orderId={order.id} isTerminal={isTerminal} />
+              </div>
             )}
 
             {/* STOCK DISPATCH tab */}
             {detailTab === 'stock' && (
               <div className="space-y-4">
+                <PartialOutputPanel orderId={order.id} status={order.status} />
                 <div className="grid grid-cols-3 gap-3 text-xs">
                   <div className="bg-gray-50 dark:bg-muted/40 rounded-xl p-3 text-center">
                     <p className="text-muted-foreground mb-1">Total Required</p>
@@ -940,7 +977,8 @@ export default function ProductionOrderDetailPage() {
 
                 <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-2xl p-4 space-y-3">
                   <p className="text-xs font-bold text-green-800 dark:text-green-200 flex items-center gap-1.5">
-                    <PackagePlus className="w-3.5 h-3.5" /> Dispatch to Stock
+                    <PackagePlus className="w-3.5 h-3.5" /> Dispatch log
+                    <span className="font-normal text-green-700/80">(a record only — use “Partial output” above to post units to stock)</span>
                   </p>
                   <div className="grid grid-cols-[auto_1fr_1fr_auto] gap-2 items-end">
                     <div className="space-y-0.5">
@@ -978,7 +1016,9 @@ export default function ProductionOrderDetailPage() {
                     <button
                       type="button"
                       onClick={() => addStockDispatch(order)}
-                      className={`flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white px-3 rounded-lg text-sm font-bold transition-colors ${FIELD_H}`}
+                      disabled={!canManage || isTerminal}
+                      title={!canManage ? 'View-only access' : isTerminal ? 'Re-open the order to record more output' : undefined}
+                      className={`flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white px-3 rounded-lg text-sm font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${FIELD_H}`}
                     >
                       <PackagePlus className="w-3.5 h-3.5" /> Dispatch
                     </button>
@@ -998,13 +1038,15 @@ export default function ProductionOrderDetailPage() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-medium text-gray-600 dark:text-gray-300">Attachments ({order.attachments.length})</p>
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-1 text-xs font-medium text-primary bg-accent hover:bg-primary/12 px-3 py-1.5 rounded-lg transition-colors"
-                  >
-                    <Paperclip className="w-3.5 h-3.5" /> Attach File
-                  </button>
+                  {canManage && (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex items-center gap-1 text-xs font-medium text-primary bg-accent hover:bg-primary/12 px-3 py-1.5 rounded-lg transition-colors"
+                    >
+                      <Paperclip className="w-3.5 h-3.5" /> Attach File
+                    </button>
+                  )}
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -1012,7 +1054,13 @@ export default function ProductionOrderDetailPage() {
                     accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
                     className="hidden"
                     onChange={e => {
-                      const files = Array.from(e.target.files || [])
+                      const picked = Array.from(e.target.files || [])
+                      const tooBig = picked.filter(f => f.size > MAX_ATTACHMENT_BYTES)
+                      if (tooBig.length) toast.error(`${tooBig.map(f => f.name).join(', ')} exceed${tooBig.length === 1 ? 's' : ''} the 10 MB limit.`)
+                      const room = Math.max(0, MAX_ATTACHMENTS - order.attachments.length)
+                      if (picked.length - tooBig.length > room) toast.error(`An order can have at most ${MAX_ATTACHMENTS} attachments.`)
+                      const files = picked.filter(f => f.size <= MAX_ATTACHMENT_BYTES).slice(0, room)
+                      if (!files.length) { e.target.value = ''; return }
                       const currentOrder = order
                       const newAttachments: Attachment[] = []
                       let loaded = 0
@@ -1022,13 +1070,11 @@ export default function ProductionOrderDetailPage() {
                           newAttachments.push({ name: file.name, dataUrl: ev.target?.result as string, type: file.type, size: file.size })
                           loaded++
                           if (loaded === files.length) {
-                            const names = newAttachments.map(a => a.name).join(', ')
                             updateOrder(
                               currentOrder.id,
                               { attachments: [...currentOrder.attachments, ...newAttachments] },
-                              makeAudit('file_attached', `${files.length} file${files.length > 1 ? 's' : ''} attached: ${names}`, { count: files.length }),
+                              `${files.length} file${files.length > 1 ? 's' : ''} attached.`,
                             )
-                            toast.success(`${files.length} file${files.length > 1 ? 's' : ''} attached.`)
                           }
                         }
                         reader.readAsDataURL(file)
@@ -1131,6 +1177,13 @@ export default function ProductionOrderDetailPage() {
                               file_removed:      { icon: '🗑️', dot: 'bg-red-400',   text: 'text-red-700' },
                               item_added:        { icon: '➕', dot: 'bg-teal-400',   text: 'text-teal-700' },
                               priority_changed:  { icon: '⚡', dot: 'bg-orange-400', text: 'text-orange-700' },
+                              items_updated:     { icon: '✏️', dot: 'bg-teal-400',   text: 'text-teal-700' },
+                              inventory_posted:  { icon: '📥', dot: 'bg-green-500',  text: 'text-green-700' },
+                              inventory_reversed:{ icon: '↩️', dot: 'bg-red-400',    text: 'text-red-700' },
+                              purchase_requisition_created: { icon: '🛒', dot: 'bg-sky-400', text: 'text-sky-700' },
+                              routing_applied: { icon: '🧭', dot: 'bg-indigo-400', text: 'text-indigo-700' },
+                              output_recorded: { icon: '📦', dot: 'bg-green-500', text: 'text-green-700' },
+                              output_reversed: { icon: '↩️', dot: 'bg-red-400', text: 'text-red-700' },
                             }
                             const c = cfg[ev.action] || { icon: '•', dot: 'bg-gray-400', text: 'text-gray-600' }
                             const isFirst = i === 0
