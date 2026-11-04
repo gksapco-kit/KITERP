@@ -492,6 +492,31 @@ function shellBrandedBands(ctx: OfferShellCtx, p: PadVals): string {
     <div style="height:10px;background:linear-gradient(105deg,#0d9488 0%,#0d9488 68%,#f97316 68%,#f97316 100%)"></div></div>`
 }
 
+function shellInfocomxLetter(ctx: OfferShellCtx, p: PadVals): string {
+  const { candidate, today, content } = ctx
+  const logoRow = markBlock(ctx, 40)
+  const logoHtml = logoRow ? `<div style="margin-bottom:10px;">${logoRow}</div>` : ''
+  return `<div class="page-inner" data-infocomx-letter="true">
+    <div data-section="header" style="padding:${p.padLg};padding-bottom:8px;">
+      ${logoHtml}
+      <div style="display:flex;justify-content:space-between;gap:16px;font-size:10.5px;line-height:1.35;color:#111;">
+        <div style="flex:1;"><div style="font-weight:800;font-size:11px;">INFOCOMX TECHNOLOGIES PRIVATE LIMITED</div>
+          <div>FT 203, KYR – BL-A, Roadno5, Bachupalli,</div>
+          <div>Hyderabad, Telangana, India, 500090</div>
+          <div>https://infocomx.com / https://infocomx.in</div></div>
+        <div style="flex:1;text-align:right;"><div style="font-weight:800;font-size:11px;">INFOCOMX INC</div>
+          <div># 16192 Coastal - Highway, County of Sussex,</div>
+          <div>Lewes, Delaware, 19958, United States.</div>
+          <div>Ph # +1 262 7099907, e-mail ID: email@infocomx.com</div></div>
+      </div>
+      <div style="margin-top:6px;border-bottom:2px solid ${ACCENT};"></div>
+    </div>
+    <div style="padding:8px 28px 0;font-size:12px;">Date: ${today}</div>
+    <div style="padding:6px 28px 0;font-size:12px;"><strong>${candidate}</strong></div>
+    ${bodyWrap(content, p.padSm)}
+  </div>`
+}
+
 function shellClassicFormal(ctx: OfferShellCtx, p: PadVals): string {
   const { vendor, candidate, today, content } = ctx
   const mark = markAt(ctx, p.szMd)
@@ -535,6 +560,7 @@ const SHELLS: Record<string, ShellFn> = {
   employment_formal: shellEmploymentFormal,
   branded_bands: shellBrandedBands,
   classic_formal: shellClassicFormal,
+  infocomx_letter: shellInfocomxLetter,
 }
 
 export function applyOfferAccentColor(html: string, accentColor?: string): string {

@@ -1813,17 +1813,46 @@ async def export_payroll_csv(
     )
 
 
+async def _employee_work_location(db: AsyncSession, emp, vendor) -> str:
+    """Resolve location for payslip without relying on EmployeeProfile.store ORM (optional rel)."""
+    if not emp:
+        return (vendor.city or "") if vendor else ""
+    if getattr(emp, "store_id", None):
+        from sqlalchemy import select as _sel
+        from app.models.store import Store
+
+        row = await db.execute(_sel(Store).where(Store.id == emp.store_id))
+        store = row.scalar_one_or_none()
+        if store:
+            addr = store.address if isinstance(store.address, dict) else {}
+            city = (addr.get("city") or "").strip()
+            return city or (store.name or "")
+    tagged = (getattr(emp, "tagged_to_label", None) or "").strip()
+    if tagged:
+        return tagged
+    return (vendor.city or "") if vendor else ""
+
+
 async def _get_payroll_entry_scoped(
     db: AsyncSession, run_id: UUID, entry_id: UUID, vendor_id: UUID
 ):
     """Fetch a PayrollEntry only if both the entry and its run belong to vendor_id."""
     from sqlalchemy import select as _sel
-    from app.models.hr import PayrollEntry as _PE, PayrollRun as _PR
+    from app.models.hr import PayrollEntry as _PE, PayrollRun as _PR, EmployeeProfile
+    from app.models.vendor_user import VendorUser
     from sqlalchemy.orm import selectinload as _sl
+    emp_loaders = [
+        _sl(EmployeeProfile.department),
+        _sl(EmployeeProfile.designation),
+        _sl(EmployeeProfile.vendor_user).selectinload(VendorUser.user),
+    ]
     stmt = (
         _sel(_PE)
         .join(_PR, _PR.id == _PE.payroll_run_id)
-        .options(_sl(_PE.employee), _sl(_PE.payroll_run))
+        .options(
+            _sl(_PE.payroll_run),
+            _sl(_PE.employee).options(*emp_loaders),
+        )
         .where(
             _PE.id == entry_id,
             _PE.payroll_run_id == run_id,
@@ -1855,51 +1884,70 @@ async def get_payslip_html(
     db: AsyncSession = Depends(get_db),
 ):
     """Returns an HTML payslip ready for print/PDF."""
+    from app.repositories.vendor_repo import VendorRepository
+    from app.services.infocomx_branding import resolve_infocomx_logo_url
+    from app.services.payslip_layouts import render_payslip_html
+
     entry = await _get_payroll_entry_scoped(db, run_id, entry_id, vu.vendor_id)
     if not entry:
         raise HTTPException(status_code=404, detail="Payslip not found")
     run = entry.payroll_run
     emp = entry.employee
+    vendor = await VendorRepository(db).get_by_id(vu.vendor_id)
+
     emp_vu = emp.vendor_user if emp else None
     emp_user = emp_vu.user if emp_vu else None
-    emp_name = emp_user.full_name if emp_user else (emp.employee_code if emp else "Employee")
-    month_name = datetime(run.year, run.month, 1).strftime("%B %Y")
-    earnings_rows = "".join(
-        f"<tr><td>{k.replace('_', ' ').title()}</td><td>₹{float(v):,.2f}</td></tr>"
-        for k, v in (entry.earnings or {}).items()
+    if emp and emp.full_name:
+        emp_name = emp.full_name
+    elif emp_user and getattr(emp_user, "full_name", None):
+        emp_name = emp_user.full_name
+    else:
+        emp_name = (emp.employee_code if emp else None) or "Employee"
+
+    dept_name = emp.department.name if emp and emp.department else ""
+    desig_name = emp.designation.name if emp and emp.designation else ""
+    location = await _employee_work_location(db, emp, vendor)
+
+    company_address = "Hyderabad, Telangana, India - 500090"
+    if vendor:
+        parts = [p for p in (vendor.city, vendor.state) if p]
+        if parts:
+            tail = vendor.country or "India"
+            if vendor.postal_code:
+                tail = f"{tail} - {vendor.postal_code}"
+            company_address = ", ".join(parts + [tail])
+
+    pay_period_label = datetime(run.year, run.month, 1).strftime("%b %Y")
+    html = render_payslip_html(
+        "infocomx",
+        {
+            "company_name": (vendor.business_name if vendor else None) or "Infocomx Technologies Private Limited",
+            "company_address": company_address,
+            "logo_url": resolve_infocomx_logo_url(vendor.logo_url if vendor else None),
+            "pay_period_label": pay_period_label,
+            "emp_code": (emp.employee_code or emp.employee_code_custom or "") if emp else "",
+            "emp_name": emp_name,
+            "department": dept_name,
+            "cost_center": dept_name,
+            "pf_no": "",
+            "location": location,
+            "designation": desig_name,
+            "esi_no": (emp.esi_number or "") if emp else "",
+            "date_of_birth": emp.date_of_birth.strftime("%d-%m-%Y") if emp and emp.date_of_birth else "",
+            "bank_account": (emp.account_number or "") if emp else "",
+            "pan_no": (emp.pan_number or "") if emp else "",
+            "date_of_joining": emp.date_of_joining.strftime("%d-%m-%Y") if emp and emp.date_of_joining else "",
+            "gender": (emp.gender or "") if emp else "",
+            "eps_no": "",
+            "uan": (emp.uan_number or "") if emp else "",
+            "regime_type": "",
+            "earnings": entry.earnings or {},
+            "deductions": entry.deductions or {},
+            "gross_amount": float(entry.gross_amount or 0),
+            "total_deductions": float(entry.total_deductions or 0),
+            "net_amount": float(entry.net_amount or 0),
+        },
     )
-    ded_rows = "".join(
-        f"<tr><td>{k.replace('_', ' ').title()}</td><td>₹{float(v):,.2f}</td></tr>"
-        for k, v in (entry.deductions or {}).items()
-    )
-    html = f"""<!DOCTYPE html>
-<html><head><meta charset="UTF-8">
-<style>
-  body {{ font-family: Arial, sans-serif; margin: 30px; color: #333; }}
-  h1 {{ color: #1a73e8; }} h2 {{ color: #555; font-size:14px; }}
-  table {{ width:100%; border-collapse:collapse; margin:10px 0; }}
-  th {{ background:#1a73e8; color:#fff; padding:8px; text-align:left; }}
-  td {{ padding:6px 8px; border-bottom:1px solid #eee; }}
-  .totals {{ font-weight:bold; background:#f5f5f5; }}
-  .net {{ color:#1a73e8; font-size:18px; font-weight:bold; }}
-</style>
-</head>
-<body>
-  <h1>Pay Slip — {month_name}</h1>
-  <h2>Employee: {emp_name} ({emp.employee_code if emp else ""})</h2>
-  <p>Days Worked: {float(entry.days_worked):.0f} | Absent: {float(entry.days_absent):.0f} | Leave: {float(entry.leave_days):.0f} | OT Hours: {float(entry.overtime_hours):.1f}</p>
-  <table>
-    <tr><th>Earnings</th><th>Amount</th></tr>
-    {earnings_rows}
-    <tr class="totals"><td>Gross Pay</td><td>₹{float(entry.gross_amount):,.2f}</td></tr>
-  </table>
-  <table>
-    <tr><th>Deductions</th><th>Amount</th></tr>
-    {ded_rows}
-    <tr class="totals"><td>Total Deductions</td><td>₹{float(entry.total_deductions):,.2f}</td></tr>
-  </table>
-  <p class="net">Net Pay: ₹{float(entry.net_amount):,.2f}</p>
-</body></html>"""
     return HTMLResponse(content=html)
 
 

@@ -31,6 +31,18 @@ import {
   countOfferPages,
 } from '@/lib/offerLayouts'
 import { parseOfferPageFragments, serializeMultiPageCustom } from '@/lib/offerPages'
+import {
+  INFOCOMX_LAYOUT_ID,
+  INFOCOMX_OFFER_BODY,
+  INFOCOMX_TEMPLATE_DESCRIPTION,
+  INFOCOMX_TEMPLATE_NAME,
+  isInfocomxOfferHtml,
+} from '@/lib/infocomxOfferTemplate'
+import {
+  INFOCOMX_LOGO_PATH,
+  prepareInfocomxOfferHtmlForPreview,
+  resolveInfocomxLogoUrl,
+} from '@/lib/infocomxBranding'
 import { OfferLayoutThemeGrid } from '@/components/hr/OfferLayoutThemeGrid'
 import { DEFAULT_OFFER_ACCENT, applyOfferAccentColor } from '@/lib/offerLayoutShells'
 import { HtmlRichEditor, type HtmlRichEditorHandle } from '@/components/hr/HtmlRichEditor'
@@ -47,14 +59,17 @@ const MERGE_VARS = MERGE_VAR_KEYS.map(key => ({
 
 function emptyForm(name = '') {
   return {
-    name, description: '', body_html: DEFAULT_OFFER_BODY, layout: 'standard' as OfferLayoutId,
+    name,
+    description: INFOCOMX_TEMPLATE_DESCRIPTION,
+    body_html: INFOCOMX_OFFER_BODY,
+    layout: INFOCOMX_LAYOUT_ID as OfferLayoutId,
     designation_id: '', department_id: '', store_id: '', is_default: false,
     watermark_enabled: false,
     watermark_text: '',
     watermark_opacity: '0.12',
     watermark_style: 'diagonal_text' as OfferWatermarkStyle,
-    logo_url: '',
-    show_logo: true,
+    logo_url: INFOCOMX_LOGO_PATH,
+    show_logo: false,
     logo_shape: 'rounded' as LogoShape,
     accent_color: DEFAULT_OFFER_ACCENT,
   }
@@ -111,7 +126,7 @@ function resolveOriginPath(url: string) {
 }
 
 function nextUntitledName(templates: { name: string }[]) {
-  const base = 'Untitled offer letter'
+  const base = INFOCOMX_TEMPLATE_NAME
   const taken = new Set(templates.map(t => t.name.trim().toLowerCase()).filter(Boolean))
   if (!taken.has(base.toLowerCase())) return base
   let n = 2
@@ -169,12 +184,14 @@ export default function OfferTemplatesPage() {
   }, [])
 
   const applyTemplateToForm = useCallback((tpl: OfferLetterTemplate) => {
+    const layout = (tpl.layout || 'standard') as OfferLayoutId
     const body = normalizeOfferBody(tpl.body_html)
+    const infocomxLayout = layout === INFOCOMX_LAYOUT_ID
     const next = {
       name: tpl.name,
       description: tpl.description ?? '',
       body_html: body,
-      layout: (tpl.layout || 'standard') as OfferLayoutId,
+      layout,
       designation_id: tpl.designation_id ?? '',
       department_id: tpl.department_id ?? '',
       store_id: tpl.store_id ?? '',
@@ -183,8 +200,8 @@ export default function OfferTemplatesPage() {
       watermark_text: tpl.watermark_text ?? '',
       watermark_opacity: tpl.watermark_opacity ?? '0.12',
       watermark_style: (tpl.watermark_style || 'diagonal_text') as OfferWatermarkStyle,
-      logo_url: tpl.logo_url ?? '',
-      show_logo: tpl.show_logo ?? true,
+      logo_url: (tpl.logo_url ?? '').trim() || (infocomxLayout ? INFOCOMX_LOGO_PATH : ''),
+      show_logo: infocomxLayout ? false : (tpl.show_logo ?? true),
       logo_shape: (tpl.logo_shape || 'rounded') as LogoShape,
       accent_color: tpl.accent_color || DEFAULT_OFFER_ACCENT,
     }
@@ -235,15 +252,24 @@ export default function OfferTemplatesPage() {
   const logoPreviewClass = LOGO_SHAPE_PREVIEW_CLASS[form.logo_shape ?? 'rounded']
 
   const previewHtml = useMemo(() => {
-    const logoUrl = resolveOriginPath(form.logo_url || vendorLogo)
-    return wrapOfferPreview(previewBody, form.layout, previewVendorRef.current, '', true, {
+    const infocomxDoc = form.layout === INFOCOMX_LAYOUT_ID || isInfocomxOfferHtml(form.body_html)
+    const embeddedInfocomxLogo =
+      infocomxDoc
+      && (isInfocomxOfferHtml(previewBody)
+        || previewBody.includes(INFOCOMX_LOGO_PATH)
+        || previewBody.includes('data-infocomx-logo'))
+    const logoUrl = resolveInfocomxLogoUrl(
+      form.logo_url || (infocomxDoc ? INFOCOMX_LOGO_PATH : vendorLogo),
+    )
+    const bodyForPreview = infocomxDoc ? prepareInfocomxOfferHtmlForPreview(previewBody) : previewBody
+    return wrapOfferPreview(bodyForPreview, form.layout, previewVendorRef.current, '', true, {
       enabled: form.watermark_enabled,
       text: form.watermark_text || previewVendorRef.current,
       opacity: parseFloat(form.watermark_opacity) || 0.12,
       style: form.watermark_style,
     }, {
       url: logoUrl || undefined,
-      show: form.show_logo,
+      show: embeddedInfocomxLogo ? false : form.show_logo,
       shape: form.logo_shape,
     }, {
       mergeBodyVars: true,
@@ -255,6 +281,23 @@ export default function OfferTemplatesPage() {
   const pageCount = useMemo(() => countOfferPages(previewBody), [previewBody])
 
   const handleLayoutChange = useCallback((id: OfferLayoutId) => {
+    if (id === INFOCOMX_LAYOUT_ID) {
+      setForm(f => {
+        if (isInfocomxOfferHtml(f.body_html)) return { ...f, layout: id }
+        const untitled = /^untitled\b/i.test(f.name.trim())
+        return {
+          ...f,
+          layout: id,
+          body_html: INFOCOMX_OFFER_BODY,
+          name: untitled || !f.name.trim() ? INFOCOMX_TEMPLATE_NAME : f.name,
+          description: f.description.trim() ? f.description : INFOCOMX_TEMPLATE_DESCRIPTION,
+          logo_url: f.logo_url?.trim() ? f.logo_url : INFOCOMX_LOGO_PATH,
+          show_logo: false,
+        }
+      })
+      setPreviewBody(prev => (isInfocomxOfferHtml(prev) ? prev : INFOCOMX_OFFER_BODY))
+      return
+    }
     setForm(f => {
       const body = isCustomOfferHtml(f.body_html) ? extractBodyFragmentForLayout(f.body_html) : f.body_html
       return { ...f, layout: id, body_html: body }
@@ -577,7 +620,7 @@ export default function OfferTemplatesPage() {
               </AccordionSection>
 
               <AccordionSection title="Themes" badge={layoutLabel(form.layout)} defaultOpen>
-                <p className="text-xs text-gray-500 mb-2">Same layout library as invoice templates — thumbnails show logo placement.</p>
+                <p className="text-xs text-gray-500 mb-2">InfocomX Letter is the company appointment stationery. Other themes share the invoice layout library.</p>
                 <OfferLayoutThemeGrid
                   selectedId={form.layout}
                   accentColor={form.accent_color || DEFAULT_OFFER_ACCENT}

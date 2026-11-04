@@ -142,6 +142,7 @@ function CreateOfferModal({
 
   const mergeValues = useMemo(() => ({
     candidate_name: form.candidate_name || 'Candidate',
+    candidate_address: '',
     candidate_email: form.candidate_email || '',
     candidate_phone: form.candidate_phone || '',
     designation: designations.find((d: any) => d.id === form.designation_id)?.name || '',

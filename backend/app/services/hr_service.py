@@ -555,7 +555,10 @@ class HRService:
         accent_color: str = "#1a56db",
     ) -> str:
         """Replace {{token}} placeholders in body_html with real offer values, then apply layout shell."""
+        from app.services.infocomx_branding import embed_infocomx_logo_in_html, resolve_infocomx_logo_url
         from app.services.offer_layouts import wrap_offer_layout, DEFAULT_LAYOUT
+
+        logo_url = resolve_infocomx_logo_url(logo_url)
 
         ctc_fmt  = f"Rs.{float(offer.offered_ctc or 0):,.0f}" if offer.offered_ctc else "As discussed"
         joining  = offer.joining_date.strftime("%d %B %Y")  if offer.joining_date  else "TBD"
@@ -566,6 +569,7 @@ class HRService:
 
         tokens = {
             "candidate_name":  offer.candidate_name or "",
+            "candidate_address": getattr(offer, "candidate_address", None) or "",
             "candidate_email": offer.candidate_email or "",
             "candidate_phone": offer.candidate_phone or "",
             "designation":     desig,
@@ -581,6 +585,7 @@ class HRService:
         result = body_html
         for key, val in tokens.items():
             result = result.replace("{{" + key + "}}", val)
+        result = embed_infocomx_logo_in_html(result)
 
         ref = f"OL-{str(getattr(offer, 'id', ''))[:8].upper()}" if getattr(offer, "id", None) else ""
         return wrap_offer_layout(
@@ -616,10 +621,14 @@ class HRService:
         accent_color: str = "#1a56db",
     ) -> str:
         """Render a template preview with sample merge values."""
+        from app.services.infocomx_branding import embed_infocomx_logo_in_html, resolve_infocomx_logo_url
         from app.services.offer_layouts import wrap_offer_layout, DEFAULT_LAYOUT
+
+        logo_url = resolve_infocomx_logo_url(logo_url)
 
         defaults = {
             "candidate_name":  "Rahul Sharma",
+            "candidate_address": "Residential address, City",
             "candidate_email": "rahul@example.com",
             "candidate_phone": "+91 98765 43210",
             "designation":     "Software Engineer",
@@ -636,6 +645,7 @@ class HRService:
         result = body_html
         for key, val in tokens.items():
             result = result.replace("{{" + key + "}}", str(val))
+        result = embed_infocomx_logo_in_html(result)
         return wrap_offer_layout(
             result,
             layout or DEFAULT_LAYOUT,

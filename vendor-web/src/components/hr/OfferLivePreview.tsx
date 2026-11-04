@@ -1,6 +1,7 @@
 import { memo, useCallback } from 'react'
 import { DocumentLivePreview } from '@/components/common/DocumentLivePreview'
 import { layoutLabel, createBlankOfferContinuationPage } from '@/lib/offerLayouts'
+import { INFOCOMX_LAYOUT_ID, infocomxContinuationPage } from '@/lib/infocomxOfferTemplate'
 import type { OfferLayoutId } from '@/lib/offerLayouts'
 
 export const OfferLivePreview = memo(function OfferLivePreview({
@@ -23,12 +24,13 @@ export const OfferLivePreview = memo(function OfferLivePreview({
   accentColor?: string
 }) {
   const createBlankPage = useCallback((nextPage: number) => {
+    if (layout === INFOCOMX_LAYOUT_ID) return infocomxContinuationPage(nextPage)
     return createBlankOfferContinuationPage({
       pageNumber: nextPage,
       vendorName,
       accentColor,
     })
-  }, [vendorName, accentColor])
+  }, [layout, vendorName, accentColor])
 
   return (
     <DocumentLivePreview

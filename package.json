@@ -7,7 +7,7 @@
     "ensure-dev-stack": "node scripts/ensure-dev-stack.mjs",
     "dev:backend": "docker compose up -d postgres redis backend",
     "dev:docker": "node scripts/ensure-dev-stack.mjs",
-    "dev": "node scripts/ensure-backend.mjs && node -e \"console.log('\\n  Local Vite apps (not Docker). Wait for Local: lines for ports 3000, 3001, and 3002.\\n  For Docker frontends instead, run: npm run dev:docker\\n')\" && concurrently -n admin,vendor,business front -c blue,green,magenta \"npm run dev:vite --prefix frontend\" \"npm run dev:vite --prefix vendor-web\" \"npm run dev:vite --prefix storefront-web\"",
+    "dev": "node scripts/ensure-backend.mjs && node -e \"console.log('\\n  Local Vite apps (not Docker). Wait for Local: lines for ports 3000, 3001, and 3002.\\n  For Docker frontends instead, run: npm run dev:docker\\n')\" && concurrently -n admin,vendor,storefront -c blue,green,magenta \"npm run dev:vite --prefix frontend\" \"npm run dev:vite --prefix vendor-web\" \"npm run dev:vite --prefix storefront-web\"",
     "dev:docker-bridge": "node scripts/localhost-bridge.mjs",
     "dev:vendor": "node scripts/ensure-backend.mjs && npm run dev:vite --prefix vendor-web",
     "dev:business front": "node scripts/ensure-backend.mjs && npm run dev:vite --prefix storefront-web",

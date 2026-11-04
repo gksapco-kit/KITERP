@@ -22,6 +22,30 @@ function safeHandoffNextPath(raw: string | null): string {
 /** Survive React Strict Mode remounts so one-time handoff tokens are only redeemed once. */
 const redeemInFlight = new Map<string, Promise<void>>()
 
+/** Avoid hanging forever if persist hydration finished before onFinishHydration was registered. */
+function awaitVendorStoreHydrated(timeoutMs = 10_000): Promise<void> {
+  const persist = useVendorStore.persist
+  if (persist.hasHydrated()) return Promise.resolve()
+  return new Promise((resolve) => {
+    let settled = false
+    const finish = () => {
+      if (settled) return
+      settled = true
+      resolve()
+    }
+    const unsub = persist.onFinishHydration(finish)
+    if (persist.hasHydrated()) {
+      unsub()
+      finish()
+      return
+    }
+    window.setTimeout(() => {
+      unsub()
+      finish()
+    }, timeoutMs)
+  })
+}
+
 export default function VendorHandoff() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
@@ -44,14 +68,7 @@ export default function VendorHandoff() {
     let existing = redeemInFlight.get(token)
     if (!existing) {
       existing = (async () => {
-        if (!useVendorStore.persist.hasHydrated()) {
-          await new Promise<void>((resolve) => {
-            const unsub = useVendorStore.persist.onFinishHydration(() => {
-              unsub()
-              resolve()
-            })
-          })
-        }
+        await awaitVendorStoreHydrated()
         useAuthStore.getState().logout()
         useVendorStore.getState().clearVendor()
         qc.removeQueries({ queryKey: vendorKeys.all })

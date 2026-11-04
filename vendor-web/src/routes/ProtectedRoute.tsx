@@ -12,15 +12,21 @@ const AUTH_RETRY_MS = import.meta.env.DEV ? 60_000 : 30_000
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const location = useLocation()
   const hydrated = useAuthHydrated()
-  const { accessToken, isAuthenticated, logout } = useAuthStore()
+  const { accessToken, isAuthenticated, logout, user: storedUser } = useAuthStore()
   const me = useMe()
   const { isError, error, data: meData, isPending, isFetching, refetch } = me
 
   const networkFailure = isError && isAxiosNetworkError(error)
   const authFailure = isError && isAxiosAuthError(error)
 
+  const hasSessionProfile = Boolean(storedUser || meData)
+
   const waitingOnSession =
-    Boolean(accessToken) && !isError && meData === undefined && (isPending || isFetching)
+    Boolean(accessToken)
+    && !hasSessionProfile
+    && !isError
+    && meData === undefined
+    && (isPending || isFetching)
 
   // Slow API (builder save, cold start) — retry instead of forcing logout.
   useEffect(() => {
@@ -48,10 +54,8 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
   const loginPath = `/login${embedQs}`
 
   if (!accessToken) return <Navigate to={loginPath} state={{ from: location }} replace />
-  if (waitingOnSession || networkFailure) {
-    return (
-      <PageLoading />
-    )
+  if (waitingOnSession || (networkFailure && !hasSessionProfile)) {
+    return <PageLoading />
   }
   if (authFailure || isError) {
     logout()

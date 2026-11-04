@@ -8,6 +8,8 @@ import { useHRPayrollRun, useFinalizePayroll, useMarkPayrollPaid, useDeletePayro
 import { vendorApi } from '@/api/vendor'
 import { useNavigate } from 'react-router-dom'
 import type { PayrollEntry } from '@/types'
+import { messageForAuthenticatedHtmlError, openAuthenticatedHtml } from '@/lib/openAuthenticatedHtml'
+import { toast } from 'sonner'
 
 function DeleteConfirmModal({
  runId, label, onClose }: { runId: string; label: string; onClose: () => void }) {
@@ -68,6 +70,7 @@ export default function PayrollDetailPage() {
   const markPaid = useMarkPayrollPaid()
   const [showDelete, setShowDelete] = useState(false)
   const [downloading, setDownloading] = useState(false)
+  const [payslipPreviewId, setPayslipPreviewId] = useState<string | null>(null)
 
   if (isLoading) return <div className="p-8 text-center text-gray-400">Loading…</div>
   if (!run) return <div className="p-8 text-center text-red-500">Payroll run not found.</div>
@@ -84,6 +87,17 @@ export default function PayrollDetailPage() {
       await vendorApi.hrDownloadPayrollCsv(run.id, filename)
     } finally {
       setDownloading(false)
+    }
+  }
+
+  async function openPayslip(entryId: string) {
+    setPayslipPreviewId(entryId)
+    try {
+      await openAuthenticatedHtml(vendorApi.hrGetPayslipHtml(run.id, entryId))
+    } catch (e) {
+      toast.error(messageForAuthenticatedHtmlError(e))
+    } finally {
+      setPayslipPreviewId(null)
     }
   }
 
@@ -206,14 +220,17 @@ export default function PayrollDetailPage() {
                       </span>
                     </td>
                     <td className="py-3 px-4">
-                      <a
-                        href={vendorApi.hrGetPayslipHtmlUrl(run.id, entry.id)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                      <button
+                        type="button"
+                        onClick={() => void openPayslip(entry.id)}
+                        disabled={payslipPreviewId === entry.id}
+                        className="flex items-center gap-1 text-xs text-blue-600 hover:underline disabled:opacity-50"
                       >
-                        <ExternalLink className="w-3 h-3" /> View
-                      </a>
+                        {payslipPreviewId === entry.id
+                          ? <Loader2 className="w-3 h-3 animate-spin" />
+                          : <ExternalLink className="w-3 h-3" />}
+                        View
+                      </button>
                     </td>
                   </tr>
                 )

@@ -18,6 +18,7 @@ import {
   useHREmployees, useSetHREmployeePortalPassword,
 } from '@/hooks/useVendor'
 import { vendorApi } from '@/api/vendor'
+import { messageForAuthenticatedHtmlError, openAuthenticatedHtml } from '@/lib/openAuthenticatedHtml'
 import { useAuthStore } from '@/stores/authStore'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { toast } from 'sonner'
@@ -1178,6 +1179,18 @@ function SalaryTab({ empId }: { empId: string }) {
 function PayslipsTab({ empId }: { empId: string }) {
   const { data: payslips = [] } = useHRMyPayslips()
   const mine = payslips.filter((p: any) => p.employee_id === empId)
+  const [openingId, setOpeningId] = useState<string | null>(null)
+
+  async function openPayslip(runId: string, entryId: string) {
+    setOpeningId(entryId)
+    try {
+      await openAuthenticatedHtml(vendorApi.hrGetPayslipHtml(runId, entryId))
+    } catch (e) {
+      toast.error(messageForAuthenticatedHtmlError(e))
+    } finally {
+      setOpeningId(null)
+    }
+  }
 
   return (
     <div>
@@ -1192,14 +1205,14 @@ function PayslipsTab({ empId }: { empId: string }) {
                 <p className="text-sm font-medium">{new Date(p.payroll_run?.year, p.payroll_run?.month - 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}</p>
                 <p className="text-xs text-gray-500">Net: ₹{Number(p.net_amount).toLocaleString()}</p>
               </div>
-              <a
-                href={vendorApi.hrGetPayslipHtmlUrl(p.payroll_run_id, p.id)}
-                target="_blank"
-                rel="noreferrer"
-                className="text-sm text-blue-600 hover:underline"
+              <button
+                type="button"
+                onClick={() => void openPayslip(p.payroll_run_id, p.id)}
+                disabled={openingId === p.id}
+                className="text-sm text-blue-600 hover:underline disabled:opacity-50"
               >
-                View Payslip
-              </a>
+                {openingId === p.id ? 'Opening…' : 'View Payslip'}
+              </button>
             </div>
           ))}
         </div>

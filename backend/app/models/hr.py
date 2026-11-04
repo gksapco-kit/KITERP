@@ -135,6 +135,7 @@ class EmployeeProfile(Base):
     vendor_user = relationship("VendorUser", backref="employee_profile", foreign_keys=[vendor_user_id])
     department = relationship("Department", back_populates="employees", foreign_keys=[department_id])
     designation = relationship("Designation", back_populates="employees", foreign_keys=[designation_id])
+    store = relationship("Store", foreign_keys=[store_id])
     manager = relationship(
         "EmployeeProfile",
         remote_side="EmployeeProfile.id",

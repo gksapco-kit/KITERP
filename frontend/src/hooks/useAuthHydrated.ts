@@ -7,7 +7,13 @@ export function useAuthHydrated(): boolean {
 
   useEffect(() => {
     if (hydrated) return undefined
-    return useAuthStore.persist.onFinishHydration(() => setHydrated(true))
+    const unsub = useAuthStore.persist.onFinishHydration(() => setHydrated(true))
+    if (useAuthStore.persist.hasHydrated()) setHydrated(true)
+    const failSafe = window.setTimeout(() => setHydrated(true), 2500)
+    return () => {
+      unsub()
+      window.clearTimeout(failSafe)
+    }
   }, [hydrated])
 
   return hydrated

@@ -12,7 +12,7 @@ export const authKeys = {
 }
 
 export function useMe() {
-  const { setUser, accessToken } = useAuthStore()
+  const { setUser, accessToken, user: storedUser } = useAuthStore()
   return useQuery({
     queryKey: authKeys.me(),
     queryFn: async () => {
@@ -21,6 +21,8 @@ export function useMe() {
       return user
     },
     enabled: !!accessToken,
+    // Persisted user lets routes render while /me refetches (avoids infinite full-page spinner).
+    initialData: storedUser ?? undefined,
     retry: (failureCount, error) => {
       if (isAxiosAuthError(error)) return false
       if (isAxiosNetworkError(error)) {

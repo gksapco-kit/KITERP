@@ -790,6 +790,29 @@ def _shell_branded_bands(ctx: OfferShellCtx, p: PadVals) -> str:
     )
 
 
+def _shell_infocomx_letter(ctx: OfferShellCtx, p: PadVals) -> str:
+    content = ctx["content"]
+    today = ctx["today"]
+    candidate = ctx["candidate"]
+    return (
+        '<div class="page-inner" data-infocomx-letter="true">'
+        f'<div data-section="header" style="padding:{p["pad_lg"]};padding-bottom:8px;">'
+        '<div style="display:flex;justify-content:space-between;gap:16px;font-size:10.5px;line-height:1.35;color:#111;">'
+        '<div style="flex:1;"><div style="font-weight:800;font-size:11px;">INFOCOMX TECHNOLOGIES PRIVATE LIMITED</div>'
+        "<div>FT 203, KYR – BL-A, Roadno5, Bachupalli,</div>"
+        "<div>Hyderabad, Telangana, India, 500090</div>"
+        "<div>https://infocomx.com / https://infocomx.in</div></div>"
+        '<div style="flex:1;text-align:right;"><div style="font-weight:800;font-size:11px;">INFOCOMX INC</div>'
+        "<div># 16192 Coastal - Highway, County of Sussex,</div>"
+        "<div>Lewes, Delaware, 19958, United States.</div>"
+        "<div>Ph # +1 262 7099907, e-mail ID: email@infocomx.com</div></div></div>"
+        f'<div style="margin-top:6px;border-bottom:2px solid {ACCENT};"></div></div>'
+        f'<div style="padding:8px 28px 0;font-size:12px;">Date: {today}</div>'
+        f'<div style="padding:6px 28px 0;font-size:12px;"><strong>{candidate}</strong></div>'
+        f'<div style="padding:{p["pad_sm"]}"><div class="body-content">{content}</div></div></div>'
+    )
+
+
 def _shell_classic_formal(ctx: OfferShellCtx, p: PadVals) -> str:
     vendor, candidate, today, content = (
         ctx["vendor"], ctx["candidate"], ctx["today"], ctx["content"],
@@ -841,6 +864,7 @@ SHELLS: dict[str, ShellFn] = {
     "employment_formal": _shell_employment_formal,
     "branded_bands": _shell_branded_bands,
     "classic_formal": _shell_classic_formal,
+    "infocomx_letter": _shell_infocomx_letter,
 }
 
 OFFER_LAYOUT_IDS: frozenset[str] = frozenset(SHELLS) | frozenset(ALIASES)

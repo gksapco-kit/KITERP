@@ -2,6 +2,12 @@ import type { LogoShape } from '@/lib/invoiceTemplates'
 import { OFFER_PAGE_BREAK, isMultiPageOfferHtml, parseOfferPageFragments, isCustomOfferPageFragment } from '@/lib/offerPages'
 import { OFFER_LAYOUT_THUMBNAILS, layoutThumbnailLabel } from '@/lib/offerLayoutThumbnails'
 import { normalizeOfferLayoutId, renderOfferLayoutShell, applyOfferAccentColor, DEFAULT_OFFER_ACCENT } from '@/lib/offerLayoutShells'
+import {
+  INFOCOMX_LOGO_CSS,
+  INFOCOMX_LOGO_IMG_STYLE,
+  INFOCOMX_LOGO_CLASS,
+  isInfocomxLogoSrc,
+} from '@/lib/infocomxBranding'
 
 export type { LogoShape } from '@/lib/invoiceTemplates'
 
@@ -56,6 +62,7 @@ export const LAYOUT_LOGO_PLACEMENT: Record<string, string> = {
   employment_formal: 'Logo top-left above candidate details',
   branded_bands: 'Logo left beside company in branded header',
   classic_formal: 'Logo centered above title',
+  infocomx_letter: 'InfocomX logo with dual company letterhead',
 }
 
 export interface OfferLogoOptions {
@@ -70,7 +77,7 @@ export const WATERMARK_STYLES: { id: OfferWatermarkStyle; label: string }[] = [
 ]
 
 export const MERGE_VAR_KEYS = [
-  'candidate_name', 'designation', 'department', 'store',
+  'candidate_name', 'candidate_address', 'designation', 'department', 'store',
   'offered_ctc', 'offered_date', 'joining_date', 'expiry_date',
   'vendor_name', 'candidate_email', 'candidate_phone', 'today',
 ] as const
@@ -79,6 +86,7 @@ export type MergeVarKey = (typeof MERGE_VAR_KEYS)[number]
 
 export const SAMPLE_MERGE_VALUES: Record<MergeVarKey, string> = {
   candidate_name: 'Rahul Sharma',
+  candidate_address: 'Residential address, City',
   designation: 'Software Engineer',
   department: 'Engineering',
   store: 'Head Office',
@@ -153,6 +161,9 @@ function logoClipWrap(url: string, w: number, h: number, clipPath: string): stri
 }
 
 function offerLogoTag(url: string, size: number, shape: LogoShape = 'rounded'): string {
+  if (isInfocomxLogoSrc(url)) {
+    return `<img src="${escAttr(url)}" alt="InfocomX" class="${INFOCOMX_LOGO_CLASS}" data-infocomx-logo="true" style="${INFOCOMX_LOGO_IMG_STYLE}" />`
+  }
   switch (shape) {
     case 'circle':
       return `<img src="${escAttr(url)}" alt="" style="width:${size}px;height:${size}px;max-width:${size}px;min-width:${size}px;border-radius:50%;object-fit:cover;display:block;flex-shrink:0;" />`
@@ -339,6 +350,7 @@ export function wrapOfferPreview(
     .body-content table{width:100%;max-width:100%;border-collapse:collapse;margin:10px 0;font-size:12px;table-layout:fixed}
     .body-content th,.body-content td{border:1px solid #e5e7eb;padding:6px 8px;text-align:left;vertical-align:top;word-break:break-word}
     .body-content th{background:#f8fafc;width:34%}
+    ${INFOCOMX_LOGO_CSS}
     ${EDITABLE_PAGE_STYLES}
     .footer-note{margin:0;padding:16px 32px;font-size:10px;color:#9ca3af;text-align:center;border-top:1px solid #e5e7eb;position:relative;z-index:1}`
     : `*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Segoe UI',Arial,sans-serif;font-size:14px;color:#1f2937;background:#f3f4f6;line-height:1.7}
@@ -347,6 +359,7 @@ export function wrapOfferPreview(
     .body-content table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px}
     .body-content th,.body-content td{border:1px solid #e5e7eb;padding:8px 10px;text-align:left}
     .body-content th{background:#f8fafc}
+    ${INFOCOMX_LOGO_CSS}
     ${EDITABLE_PAGE_STYLES}
     .footer-note{margin-top:32px;padding-top:14px;border-top:1px solid #e5e7eb;font-size:11px;color:#9ca3af;text-align:center;position:relative;z-index:1}`
 

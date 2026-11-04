@@ -4419,8 +4419,16 @@ export const vendorApi = {
     const r = await apiClient.get(`/vendors/me/hr/payroll/${runId}/entries/${entryId}`)
     return r.data
   },
+  /** @deprecated Use hrGetPayslipHtml + openAuthenticatedHtml — raw URL is not authenticated in new tabs. */
   hrGetPayslipHtmlUrl: (runId: string, entryId: string) =>
     `/api/v1/vendors/me/hr/payroll/${runId}/entries/${entryId}/payslip-html`,
+  hrGetPayslipHtml: async (runId: string, entryId: string): Promise<string> => {
+    const r = await apiClient.get(
+      `/vendors/me/hr/payroll/${runId}/entries/${entryId}/payslip-html`,
+      { responseType: 'text' },
+    )
+    return r.data as string
+  },
   hrMyPayslips: async () => {
     const r = await apiClient.get('/vendors/me/hr/payroll/my-payslips')
     return r.data
