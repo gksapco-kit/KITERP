@@ -4393,6 +4393,10 @@ export const vendorApi = {
     const r = await apiClient.get(`/vendors/me/hr/payroll/${id}`)
     return r.data
   },
+  hrRefreshPayrollSalary: async (id: string) => {
+    const r = await apiClient.post(`/vendors/me/hr/payroll/${id}/refresh-salary`)
+    return r.data
+  },
   hrFinalizePayroll: async (id: string) => {
     const r = await apiClient.put(`/vendors/me/hr/payroll/${id}/finalize`)
     return r.data

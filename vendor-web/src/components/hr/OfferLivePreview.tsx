@@ -18,7 +18,7 @@ export const OfferLivePreview = memo(function OfferLivePreview({
   loading?: boolean
   layout?: OfferLayoutId | string
   editable?: boolean
-  onBodyChange?: (bodyHtml: string) => void
+  onBodyChange?: (bodyHtml: string, commit?: boolean) => void
   pageCount?: number
   vendorName?: string
   accentColor?: string

@@ -1659,6 +1659,19 @@ async def get_payroll_run(
     return _d(run)
 
 
+@router.post("/payroll/{run_id}/refresh-salary")
+async def refresh_payroll_salary_snapshots(
+    run_id: UUID,
+    vu: VendorUser = Depends(require_permission("hr.payroll")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Recompute payslip amounts from current salary structures (e.g. after adding salary post-process)."""
+    svc = HRService(db)
+    run = await svc.refresh_payroll_run_from_salary(vu.vendor_id, run_id)
+    await db.commit()
+    return _d(run)
+
+
 @router.put("/payroll/{run_id}/finalize")
 async def finalize_payroll(
     run_id: UUID,
@@ -1918,6 +1931,8 @@ async def get_payslip_html(
             company_address = ", ".join(parts + [tail])
 
     pay_period_label = datetime(run.year, run.month, 1).strftime("%b %Y")
+    svc = HRService(db)
+    fin = await svc.resolve_payslip_financials(vu.vendor_id, entry)
     html = render_payslip_html(
         "infocomx",
         {
@@ -1941,11 +1956,11 @@ async def get_payslip_html(
             "eps_no": "",
             "uan": (emp.uan_number or "") if emp else "",
             "regime_type": "",
-            "earnings": entry.earnings or {},
-            "deductions": entry.deductions or {},
-            "gross_amount": float(entry.gross_amount or 0),
-            "total_deductions": float(entry.total_deductions or 0),
-            "net_amount": float(entry.net_amount or 0),
+            "earnings": fin["earnings"],
+            "deductions": fin["deductions"],
+            "gross_amount": fin["gross_amount"],
+            "total_deductions": fin["total_deductions"],
+            "net_amount": fin["net_amount"],
         },
     )
     return HTMLResponse(content=html)

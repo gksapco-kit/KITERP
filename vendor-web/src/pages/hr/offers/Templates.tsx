@@ -171,6 +171,8 @@ export default function OfferTemplatesPage() {
   const [mergePick, setMergePick] = useState('')
   const [previewBody, setPreviewBody] = useState(form.body_html)
   const didHydrateRef = useRef(false)
+  /** Live preview edits update form only; skip debounced iframe rebuild until Content tab / blur. */
+  const previewEditInFlightRef = useRef(false)
 
   const previewVendorRef = useRef(vendorName)
   if (vendorName && vendorName !== 'Your Company') previewVendorRef.current = vendorName
@@ -229,8 +231,12 @@ export default function OfferTemplatesPage() {
     })
   }, [])
 
-  // Debounce preview updates so the iframe does not flash on every keystroke
+  // Debounce Content-tab edits into the preview iframe (not while typing in live preview).
   useEffect(() => {
+    if (previewEditInFlightRef.current) {
+      previewEditInFlightRef.current = false
+      return undefined
+    }
     const t = window.setTimeout(() => setPreviewBody(form.body_html), 280)
     return () => window.clearTimeout(t)
   }, [form.body_html])
@@ -305,10 +311,14 @@ export default function OfferTemplatesPage() {
     setPreviewBody(prev => (isCustomOfferHtml(prev) ? extractBodyFragmentForLayout(prev) : prev))
   }, [])
 
-  const handlePreviewBodyChange = useCallback((html: string) => {
+  const handlePreviewBodyChange = useCallback((html: string, commit = false) => {
     const body = normalizeOfferBody(html)
     setForm(f => (f.body_html === body ? f : { ...f, body_html: body }))
-    setPreviewBody(body)
+    if (commit) {
+      setPreviewBody(body)
+    } else {
+      previewEditInFlightRef.current = true
+    }
   }, [normalizeOfferBody])
 
   const uploadLogo = async (file: File) => {

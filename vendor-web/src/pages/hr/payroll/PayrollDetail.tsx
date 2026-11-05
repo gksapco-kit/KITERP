@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, CheckCircle, CreditCard, ExternalLink, Download, Loader2, Trash2, AlertTriangle, Info, X } from 'lucide-react'
-import { useHRPayrollRun, useFinalizePayroll, useMarkPayrollPaid, useDeletePayrollRun } from '@/hooks/useVendor'
+import { useHRPayrollRun, useFinalizePayroll, useMarkPayrollPaid, useDeletePayrollRun, useRefreshPayrollSalary } from '@/hooks/useVendor'
 import { vendorApi } from '@/api/vendor'
 import { useNavigate } from 'react-router-dom'
 import type { PayrollEntry } from '@/types'
@@ -68,6 +68,7 @@ export default function PayrollDetailPage() {
   const { data: run, isLoading } = useHRPayrollRun(id ?? null)
   const finalize = useFinalizePayroll()
   const markPaid = useMarkPayrollPaid()
+  const refreshSalary = useRefreshPayrollSalary()
   const [showDelete, setShowDelete] = useState(false)
   const [downloading, setDownloading] = useState(false)
   const [payslipPreviewId, setPayslipPreviewId] = useState<string | null>(null)
@@ -79,6 +80,9 @@ export default function PayrollDetailPage() {
   const version = run.version ?? 1
   const label = `${periodName} — v${version}`
   const entries: PayrollEntry[] = run.entries ?? []
+  const needsSalaryRefresh =
+    Number(run.total_net ?? 0) === 0
+    && entries.some(e => Number(e.gross_amount ?? 0) === 0 && Number(e.net_amount ?? 0) === 0)
 
   async function handleDownload() {
     setDownloading(true)
@@ -131,6 +135,17 @@ export default function PayrollDetailPage() {
           {run.status === 'processed' && (
             <button onClick={() => markPaid.mutate(run.id)} disabled={markPaid.isPending} className="flex items-center gap-2 px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
               <CreditCard className="w-4 h-4" /> Mark Paid
+            </button>
+          )}
+          {needsSalaryRefresh && (
+            <button
+              type="button"
+              onClick={() => refreshSalary.mutate(run.id)}
+              disabled={refreshSalary.isPending}
+              className="flex items-center gap-2 px-4 py-2 text-sm border border-amber-300 bg-amber-50 text-amber-900 rounded-lg hover:bg-amber-100 disabled:opacity-50"
+            >
+              {refreshSalary.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Info className="w-4 h-4" />}
+              Apply salary structures
             </button>
           )}
           {run.status === 'draft' && (

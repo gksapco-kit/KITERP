@@ -2359,6 +2359,7 @@ export default function DashboardLayout() {
   const sidebarServerHydratedRef = useRef(false)
 
   const blockedRouteSectionId = useMemo(() => {
+    if (isVendorAdminEmbed()) return null
     const routeSectionId = resolveRouteSectionId(
       location.pathname,
       location.search,
@@ -4289,8 +4290,8 @@ export default function DashboardLayout() {
   /** Platform admin iframe: same HR (and other) pages without vendor chrome. */
   if (isVendorAdminEmbed()) {
     return (
-      <div className="min-h-screen overflow-x-clip bg-background font-sans text-foreground">
-        <main className="vendor-main-pad min-w-0 overflow-x-clip [overscroll-behavior-y:none] bg-background font-sans text-sm">
+      <div className="min-h-full min-w-0 overflow-x-clip bg-background font-sans text-foreground">
+        <main className="vendor-main-pad min-h-full min-w-0 overflow-x-clip overflow-y-auto [overscroll-behavior-y:none] bg-background font-sans text-sm">
           <RestaurantScopeBanner />
           <FieldMappingProvider>
             <DashboardMainOutlet />

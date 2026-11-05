@@ -352,14 +352,13 @@ class HRService:
     # ─────────────────── Payroll ──────────────────────────────────────
 
     async def process_payroll(self, vendor_id: UUID, month: int, year: int, processed_by: UUID) -> PayrollRun:
-        from sqlalchemy import select as sa_select
-        from app.models.hr import EmployeeProfile as EP, SalaryStructure as SS, AttendanceRecord as AR
         from calendar import monthrange
         import datetime as dt
+        from app.services.payroll_calc import compute_payroll_snapshot, payroll_period_end
 
         _, days_in_month = monthrange(year, month)
         from_date = dt.date(year, month, 1)
-        to_date = dt.date(year, month, days_in_month)
+        to_date = payroll_period_end(month, year)
 
         version = await self.payroll_repo.next_version(vendor_id, month, year)
         run = await self.payroll_repo.create_run(vendor_id, {
@@ -376,47 +375,33 @@ class HRService:
         entry_count = 0
 
         for emp in employees:
-            salary = await self.salary_repo.get_active(emp.id)
+            salary = await self.salary_repo.get_effective_for_period(emp.id, to_date)
 
-            # Count attendance for the period
             att_records, _ = await self.att_repo.list(
                 vendor_id, employee_id=emp.id, from_date=from_date, to_date=to_date
             )
-            # week_off and holiday are paid non-working days; treat them the same as
-            # present so a standard Mon–Fri employee earns full salary.
-            PAID_STATUSES = ("present", "late", "half_day", "on_leave", "week_off", "holiday")
-            days_present = sum(1 for a in att_records if a.status in PAID_STATUSES)
-            days_absent = sum(1 for a in att_records if a.status == "absent")
-            leave_days = sum(1 for a in att_records if a.status == "on_leave")
-            overtime = sum(float(a.overtime_hours or 0) for a in att_records)
 
             if salary and (salary.earnings or salary.deductions):
-                # If no attendance records exist for the period, assume full attendance.
-                if not att_records:
-                    days_present = days_in_month
-                    days_absent = 0
-                    scheduled_days = days_in_month
-                else:
-                    # Denominator = days that were actually scheduled/tracked for this
-                    # employee.  Using calendar days would under-pay any employee whose
-                    # weekends are simply not recorded (the default for mark-range).
-                    scheduled_days = len(att_records)
-                    # Guard against a misconfigured schedule producing 0 records but
-                    # somehow bypassing the early-return above.
-                    if scheduled_days == 0:
-                        scheduled_days = days_in_month
-
-                # Pro-rate salary: present days / scheduled days (not calendar days).
-                ratio = Decimal(str(days_present)) / Decimal(str(scheduled_days))
-                earnings_snap = {k: round(float(v) * float(ratio), 2) for k, v in (salary.earnings or {}).items()}
-                ded_snap = {k: float(v) for k, v in (salary.deductions or {}).items()}
-
-                gross = Decimal(str(sum(earnings_snap.values())))
-                ded = Decimal(str(sum(ded_snap.values())))
-                net = gross - ded
+                (
+                    earnings_snap,
+                    ded_snap,
+                    days_present,
+                    days_absent,
+                    leave_days,
+                    overtime,
+                    gross,
+                    ded,
+                    net,
+                ) = compute_payroll_snapshot(
+                    salary,
+                    att_records=att_records,
+                    days_in_month=days_in_month,
+                )
                 entry_status = "processed"
             else:
-                # No salary structure — create a ₹0 pending entry so the employee appears in the run
+                from app.services.payroll_calc import attendance_totals
+
+                days_present, days_absent, leave_days, overtime = attendance_totals(att_records)
                 earnings_snap = {}
                 ded_snap = {}
                 gross = ded = net = Decimal("0")
@@ -453,6 +438,126 @@ class HRService:
         await self.db.flush()
         await self.db.refresh(run)
         return run
+
+    async def refresh_payroll_run_from_salary(self, vendor_id: UUID, run_id: UUID) -> PayrollRun:
+        """Recompute entry snapshots from current salary structures (fixes runs processed before salary was added)."""
+        from calendar import monthrange
+        import datetime as dt
+        from app.services.payroll_calc import compute_payroll_snapshot, entry_snapshot_is_empty, payroll_period_end
+
+        run = await self.payroll_repo.get_run(run_id, vendor_id)
+        if not run:
+            raise HTTPException(status_code=404, detail="Payroll run not found")
+
+        _, days_in_month = monthrange(run.year, run.month)
+        from_date = dt.date(run.year, run.month, 1)
+        to_date = payroll_period_end(run.month, run.year)
+
+        total_gross = Decimal("0")
+        total_ded = Decimal("0")
+        total_net = Decimal("0")
+
+        for entry in run.entries or []:
+            salary = await self.salary_repo.get_effective_for_period(entry.employee_id, to_date)
+            if not salary or not (salary.earnings or salary.deductions):
+                if entry_snapshot_is_empty(entry):
+                    continue
+                total_gross += Decimal(str(entry.gross_amount or 0))
+                total_ded += Decimal(str(entry.total_deductions or 0))
+                total_net += Decimal(str(entry.net_amount or 0))
+                continue
+
+            att_records, _ = await self.att_repo.list(
+                vendor_id, employee_id=entry.employee_id, from_date=from_date, to_date=to_date
+            )
+            (
+                earnings_snap,
+                ded_snap,
+                days_present,
+                days_absent,
+                leave_days,
+                overtime,
+                gross,
+                ded,
+                net,
+            ) = compute_payroll_snapshot(
+                salary,
+                att_records=att_records,
+                days_in_month=days_in_month,
+            )
+
+            entry.earnings = earnings_snap
+            entry.deductions = ded_snap
+            entry.days_worked = days_present
+            entry.days_absent = days_absent
+            entry.leave_days = leave_days
+            entry.overtime_hours = overtime
+            entry.gross_amount = gross
+            entry.total_deductions = ded
+            entry.net_amount = net
+            entry.status = "processed"
+
+            total_gross += gross
+            total_ded += ded
+            total_net += net
+
+        run.total_gross = total_gross
+        run.total_deductions = total_ded
+        run.total_net = total_net
+        await self.db.flush()
+        await self.db.refresh(run)
+        return run
+
+    async def resolve_payslip_financials(self, vendor_id: UUID, entry: PayrollEntry) -> dict:
+        """Return earnings/deductions/totals for payslip — fills from salary when run snapshot is empty."""
+        from calendar import monthrange
+        import datetime as dt
+        from app.services.payroll_calc import (
+            compute_payroll_snapshot,
+            entry_snapshot_is_empty,
+            financials_dict,
+            payroll_period_end,
+        )
+
+        run = entry.payroll_run
+        if not entry_snapshot_is_empty(entry):
+            return financials_dict(
+                dict(entry.earnings or {}),
+                dict(entry.deductions or {}),
+                Decimal(str(entry.gross_amount or 0)),
+                Decimal(str(entry.total_deductions or 0)),
+                Decimal(str(entry.net_amount or 0)),
+            )
+
+        if not run:
+            return financials_dict({}, {}, Decimal("0"), Decimal("0"), Decimal("0"))
+
+        to_date = payroll_period_end(run.month, run.year)
+        salary = await self.salary_repo.get_effective_for_period(entry.employee_id, to_date)
+        if not salary or not (salary.earnings or salary.deductions):
+            return financials_dict({}, {}, Decimal("0"), Decimal("0"), Decimal("0"))
+
+        _, days_in_month = monthrange(run.year, run.month)
+        from_date = dt.date(run.year, run.month, 1)
+        att_records, _ = await self.att_repo.list(
+            vendor_id, employee_id=entry.employee_id, from_date=from_date, to_date=to_date
+        )
+        (
+            earnings_snap,
+            ded_snap,
+            _dp,
+            _da,
+            _ld,
+            _ot,
+            gross,
+            ded,
+            net,
+        ) = compute_payroll_snapshot(
+            salary,
+            att_records=att_records,
+            days_in_month=days_in_month,
+        )
+        return financials_dict(earnings_snap, ded_snap, gross, ded, net)
 
     # ─────────────────── Offer Letters ───────────────────────────────
 

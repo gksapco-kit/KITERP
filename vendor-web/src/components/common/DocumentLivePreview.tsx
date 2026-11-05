@@ -28,7 +28,8 @@ export const DocumentLivePreview = memo(function DocumentLivePreview({
   html: string
   loading?: boolean
   editable?: boolean
-  onBodyChange?: (bodyHtml: string) => void
+  /** Second arg `commit`: true on blur / page ops — parent may refresh wrapped preview HTML. */
+  onBodyChange?: (bodyHtml: string, commit?: boolean) => void
   pageCount?: number
   title?: string
   badge?: string
@@ -51,6 +52,7 @@ export const DocumentLivePreview = memo(function DocumentLivePreview({
   const syncTimerRef = useRef<number | null>(null)
   const cleanupEditRef = useRef<(() => void) | null>(null)
   const [isEditing, setIsEditing] = useState(false)
+  const isEditingRef = useRef(false)
   const [selectedPage, setSelectedPage] = useState(1)
 
   useEffect(() => {
@@ -66,16 +68,17 @@ export const DocumentLivePreview = memo(function DocumentLivePreview({
     const pages = doc.querySelectorAll('.page')
     const page = pages[pageNum - 1] as HTMLElement | undefined
     if (!page) return
-    const top = (page.offsetTop + (page.offsetParent as HTMLElement)?.offsetTop ?? 0) * scale
+    const parentTop = (page.offsetParent as HTMLElement | null)?.offsetTop ?? 0
+    const top = (page.offsetTop + parentTop) * scale
     container.scrollTo({ top: Math.max(0, top - 12), behavior: 'smooth' })
   }, [scale])
 
+  // Only scroll when the user picks a page — not on every html sync while typing.
   useEffect(() => {
-    if (pageCount > 1) {
-      const t = window.setTimeout(() => scrollToPage(selectedPage), 120)
-      return () => window.clearTimeout(t)
-    }
-  }, [selectedPage, pageCount, html, scrollToPage])
+    if (pageCount <= 1 || isEditingRef.current) return undefined
+    const t = window.setTimeout(() => scrollToPage(selectedPage), 120)
+    return () => window.clearTimeout(t)
+  }, [selectedPage, pageCount, scrollToPage])
 
   const resizeFrame = useCallback(() => {
     const doc = iframeRef.current?.contentDocument
@@ -114,14 +117,14 @@ export const DocumentLivePreview = memo(function DocumentLivePreview({
     setFrameHeight(Math.max(120, h + 8))
   }, [selectedPage])
 
-  const syncBodyFromPreview = useCallback((immediate = false) => {
+  const syncBodyFromPreview = useCallback((commit = false) => {
     if (!onBodyChange) return
     const doc = iframeRef.current?.contentDocument
     if (!doc) return
-    onBodyChange(extractOfferTemplateFromDoc(doc))
+    onBodyChange(extractOfferTemplateFromDoc(doc), commit)
+    // Iframe DOM already matches edits — avoid doc.write (resets scroll / caret).
     skipReloadRef.current = true
-    if (immediate) lastHtmlRef.current = html
-  }, [html, onBodyChange])
+  }, [onBodyChange])
 
   const setupEditable = useCallback((doc: Document) => {
     cleanupEditRef.current?.()
@@ -140,8 +143,12 @@ export const DocumentLivePreview = memo(function DocumentLivePreview({
       syncTimerRef.current = window.setTimeout(() => syncBodyFromPreview(false), 220)
     }
 
-    const onFocus = () => setIsEditing(true)
+    const onFocus = () => {
+      isEditingRef.current = true
+      setIsEditing(true)
+    }
     const onBlur = () => {
+      isEditingRef.current = false
       setIsEditing(false)
       if (syncTimerRef.current) window.clearTimeout(syncTimerRef.current)
       syncBodyFromPreview(true)
@@ -231,7 +238,7 @@ export const DocumentLivePreview = memo(function DocumentLivePreview({
     const nextNum = pageCount + 1
     const blank = createBlankPage?.(nextNum) ?? createDefaultContinuationPage(nextNum)
     skipReloadRef.current = false
-    onBodyChange(addOfferPage(current, blank))
+    onBodyChange(addOfferPage(current, blank), true)
     setSelectedPage(nextNum)
     window.setTimeout(() => { addingPageRef.current = false }, 400)
   }
@@ -242,7 +249,7 @@ export const DocumentLivePreview = memo(function DocumentLivePreview({
     const current = doc ? extractOfferTemplateFromDoc(doc) : html
     const pageIndex = Math.min(Math.max(selectedPage, 1), pageCount) - 1
     skipReloadRef.current = false
-    onBodyChange(removeOfferPage(current, pageIndex))
+    onBodyChange(removeOfferPage(current, pageIndex), true)
     setSelectedPage(prev => Math.min(prev, Math.max(1, pageCount - 1)))
   }
 

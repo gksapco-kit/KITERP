@@ -581,6 +581,20 @@ class SalaryRepo:
         )
         return result.scalar_one_or_none()
 
+    async def get_effective_for_period(self, employee_id: UUID, period_end: date) -> Optional[SalaryStructure]:
+        """Active structure whose effective_from is on or before the payroll period end."""
+        result = await self.db.execute(
+            select(SalaryStructure)
+            .where(
+                SalaryStructure.employee_id == employee_id,
+                SalaryStructure.is_active == True,
+                SalaryStructure.effective_from <= period_end,
+            )
+            .order_by(SalaryStructure.effective_from.desc())
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
     async def create(self, data: dict) -> SalaryStructure:
         # Deactivate existing active structures for this employee
         await self.db.execute(

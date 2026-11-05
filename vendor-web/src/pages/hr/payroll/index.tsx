@@ -151,7 +151,7 @@ function DeleteConfirmModal({
 
 export default function PayrollPage() {
   const now = new Date()
-  const { data: runs = [], isLoading } = useHRPayrollRuns(now.getFullYear())
+  const { data: runs = [], isLoading, isError, error, refetch } = useHRPayrollRuns(now.getFullYear())
   const [showWizard, setShowWizard] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<PayrollRun | null>(null)
 
@@ -175,6 +175,17 @@ export default function PayrollPage() {
       <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
         {isLoading ? (
           <div className="p-8 text-center text-gray-400">Loading…</div>
+        ) : isError ? (
+          <div className="p-8 text-center text-sm text-red-600 space-y-3">
+            <p>Could not load payroll runs.</p>
+            <button
+              type="button"
+              onClick={() => void refetch()}
+              className="text-primary underline text-sm font-medium"
+            >
+              Retry
+            </button>
+          </div>
         ) : runs.length === 0 ? (
           <div className="p-12 text-center">
             <Receipt className="w-10 h-10 text-gray-300 mx-auto mb-3" />

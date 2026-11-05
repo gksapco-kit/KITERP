@@ -10,20 +10,32 @@ export function setVendorAdminEmbed(enabled: boolean) {
   }
 }
 
+function persistEmbedFlag() {
+  try {
+    sessionStorage.setItem(STORAGE_KEY, '1')
+  } catch {
+    /* private mode */
+  }
+}
+
 export function isVendorAdminEmbed(): boolean {
   if (typeof window !== 'undefined') {
     try {
       if (new URLSearchParams(window.location.search).get('embed') === '1') {
-        // Persist so client-side navigations keep the chrome-free layout.
-        try {
-          sessionStorage.setItem(STORAGE_KEY, '1')
-        } catch {
-          /* ignore */
-        }
+        persistEmbedFlag()
         return true
       }
     } catch {
       /* ignore */
+    }
+    // Platform admin loads vendor HR in an iframe — hide vendor sidebar/header so content is visible.
+    try {
+      if (window.self !== window.top) {
+        persistEmbedFlag()
+        return true
+      }
+    } catch {
+      /* cross-origin access blocked — still treat as embed when flag was set */
     }
   }
   try {

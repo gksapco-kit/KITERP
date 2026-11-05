@@ -265,13 +265,23 @@ export default function HrManagement() {
           </div>
         ) : null}
 
+        {!loadingFrame && !handoffError && !iframeSrc ? (
+          <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center text-sm text-gray-600">
+            <p className="font-medium text-gray-900">HR module did not load</p>
+            <p className="max-w-md">Check that vendor-web is running, then retry.</p>
+            <Button type="button" size="sm" variant="outline" onClick={reloadFrame}>
+              Retry
+            </Button>
+          </div>
+        ) : null}
+
         {iframeSrc ? (
           <iframe
             ref={iframeRef}
             key={`${PLATFORM_HR_SESSION_KEY}:${frameEpoch}`}
             title={`HR · ${hrItem.label}`}
             src={iframeSrc}
-            className="h-full w-full border-0"
+            className="h-full w-full border-0 bg-white"
             allow="clipboard-read; clipboard-write"
           />
         ) : null}

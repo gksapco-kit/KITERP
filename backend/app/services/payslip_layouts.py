@@ -14,6 +14,8 @@ DEFAULT_LAYOUT = "infocomx"
 EARNINGS_ROWS: list[tuple[str, tuple[str, ...]]] = [
     ("Basic", ("basic",)),
     ("HRA", ("hra", "house_rent_allowance")),
+    ("Dearness Allowance", ("da", "dearness_allowance")),
+    ("Medical Allowance", ("medical", "medical_allowance")),
     ("Children Hostel Allowance/Shift", ("children_hostel_allowance", "children_hostel", "hostel_allowance")),
     ("Allowance", ("allowance", "conveyance")),
     ("Stand By Allowance", ("stand_by_allowance", "standby_allowance", "stand_by")),
@@ -22,6 +24,7 @@ EARNINGS_ROWS: list[tuple[str, tuple[str, ...]]] = [
 
 DEDUCTION_ROWS: list[tuple[str, tuple[str, ...]]] = [
     ("Provident Fund", ("provident_fund", "pf", "pf_employee")),
+    ("ESI", ("esi_employee", "esi")),
     ("Professional Tax", ("professional_tax", "pt")),
     ("Income Tax", ("income_tax", "tds")),
 ]

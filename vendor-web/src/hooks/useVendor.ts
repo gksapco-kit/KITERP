@@ -3259,6 +3259,18 @@ export function useFinalizePayroll() {
     onError: apiError('Could not finalize payroll'),
   })
 }
+export function useRefreshPayrollSalary() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => vendorApi.hrRefreshPayrollSalary(id),
+    onSuccess: (_d, id) => {
+      qc.invalidateQueries({ queryKey: vendorKeys.hrPayrollRun(id) })
+      qc.invalidateQueries({ queryKey: vendorKeys.hrPayrollRuns() })
+      toast.success('Payslip amounts updated from salary structures')
+    },
+    onError: apiError('Could not refresh payroll from salary structures'),
+  })
+}
 export function useMarkPayrollPaid() {
   const qc = useQueryClient()
   return useMutation({
