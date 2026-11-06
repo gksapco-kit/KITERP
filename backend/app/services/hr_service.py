@@ -18,7 +18,7 @@ from app.repositories.hr_repo import (
 )
 from app.models.hr import (
     Department, Designation, EmployeeProfile, AttendanceRecord,
-    LeaveRequest, SalaryStructure, PayrollRun, PayrollEntry,
+    LeaveRequest, SalaryStructure, PayrollRun, PayrollEntry, OfferLetterTemplate,
 )
 
 
@@ -604,44 +604,115 @@ class HRService:
     async def list_offer_templates(
         self, vendor_id: UUID,
         designation_id=None, department_id=None, store_id=None,
+        vendor_slug: str | None = None,
     ):
-        return await self.tpl_repo.list_by_vendor(
+        from app.services.infocomx_vendor_scope import offer_templates_visible_for_vendor
+
+        rows = await self.tpl_repo.list_by_vendor(
             vendor_id, designation_id=designation_id,
             department_id=department_id, store_id=store_id,
         )
+        return offer_templates_visible_for_vendor(rows, vendor_slug)
 
-    async def get_offer_template(self, template_id: UUID, vendor_id: UUID):
+    def ensure_offer_template_allowed_for_vendor(self, tpl, vendor_slug: str | None) -> None:
+        """Non-allow-listed vendors must not use InfocomX templates (404 to avoid ID oracle)."""
+        from app.services.infocomx_vendor_scope import offer_template_is_infocomx_stationery, vendor_may_use_infocomx_hr_assets
+
+        if vendor_may_use_infocomx_hr_assets(vendor_slug):
+            return
+        if offer_template_is_infocomx_stationery(tpl):
+            raise HTTPException(status_code=404, detail="Offer letter template not found")
+
+    async def get_offer_template(self, template_id: UUID, vendor_id: UUID, vendor_slug: str | None = None):
         tpl = await self.tpl_repo.get(template_id, vendor_id)
         if not tpl:
             raise HTTPException(status_code=404, detail="Offer letter template not found")
+        self.ensure_offer_template_allowed_for_vendor(tpl, vendor_slug)
         return tpl
 
+    def _validate_offer_template_infocomx(self, data: dict, vendor_slug: str | None, existing: OfferLetterTemplate | None = None) -> None:
+        from app.services.infocomx_vendor_scope import (
+            INFOCOMX_OFFER_LAYOUT,
+            body_html_contains_infocomx_stationery,
+            vendor_may_use_infocomx_hr_assets,
+        )
+
+        if vendor_may_use_infocomx_hr_assets(vendor_slug):
+            return
+        layout = (data.get("layout") if data.get("layout") is not None else (existing.layout if existing else "") or "").strip()
+        body = data.get("body_html") if data.get("body_html") is not None else (existing.body_html if existing else "") or ""
+        if layout == INFOCOMX_OFFER_LAYOUT:
+            raise HTTPException(
+                status_code=400,
+                detail="InfocomX letter layout is only available for the InfocomX / platform HR tenant.",
+            )
+        if body_html_contains_infocomx_stationery(body):
+            raise HTTPException(
+                status_code=400,
+                detail="InfocomX letter content is restricted to the InfocomX / platform HR tenant.",
+            )
+
     async def create_offer_template(self, vendor_id: UUID, data: dict):
+        from app.repositories.vendor_repo import VendorRepository
+
+        vendor = await VendorRepository(self.db).get_by_id(vendor_id)
+        self._validate_offer_template_infocomx(data, vendor.slug if vendor else None)
         return await self.tpl_repo.create(vendor_id, data)
 
     async def update_offer_template(self, template_id: UUID, vendor_id: UUID, data: dict):
         tpl = await self.tpl_repo.get(template_id, vendor_id)
         if not tpl:
             raise HTTPException(status_code=404, detail="Offer letter template not found")
+        from app.repositories.vendor_repo import VendorRepository
+
+        vendor = await VendorRepository(self.db).get_by_id(vendor_id)
+        self.ensure_offer_template_allowed_for_vendor(tpl, vendor.slug if vendor else None)
+        merged = {**{k: getattr(tpl, k) for k in ("layout", "body_html") if hasattr(tpl, k)}, **data}
+        self._validate_offer_template_infocomx(merged, vendor.slug if vendor else None, existing=tpl)
         return await self.tpl_repo.update(tpl, data)
 
-    async def delete_offer_template(self, template_id: UUID, vendor_id: UUID) -> None:
+    async def delete_offer_template(self, template_id: UUID, vendor_id: UUID, vendor_slug: str | None = None) -> None:
         tpl = await self.tpl_repo.get(template_id, vendor_id)
         if not tpl:
             raise HTTPException(status_code=404, detail="Offer letter template not found")
+        self.ensure_offer_template_allowed_for_vendor(tpl, vendor_slug)
         await self.tpl_repo.delete(tpl)
 
-    async def set_default_offer_template(self, template_id: UUID, vendor_id: UUID):
+    async def set_default_offer_template(self, template_id: UUID, vendor_id: UUID, vendor_slug: str | None = None):
+        tpl = await self.tpl_repo.get(template_id, vendor_id)
+        if not tpl:
+            raise HTTPException(status_code=404, detail="Offer letter template not found")
+        self.ensure_offer_template_allowed_for_vendor(tpl, vendor_slug)
         return await self.tpl_repo.set_default(template_id, vendor_id)
 
     async def find_best_offer_template(
         self, vendor_id: UUID,
         designation_id=None, department_id=None, store_id=None,
+        vendor_slug: str | None = None,
     ):
-        return await self.tpl_repo.find_best_match(
-            vendor_id, designation_id=designation_id,
-            department_id=department_id, store_id=store_id,
+        from app.services.infocomx_vendor_scope import offer_templates_visible_for_vendor
+
+        candidates = offer_templates_visible_for_vendor(
+            await self.tpl_repo.list_by_vendor(
+                vendor_id, designation_id=designation_id,
+                department_id=department_id, store_id=store_id,
+            ),
+            vendor_slug,
         )
+        if not candidates:
+            return None
+
+        def score(t) -> int:
+            specificity = (
+                (4 if t.designation_id == designation_id and designation_id is not None else 0) +
+                (2 if t.department_id == department_id and department_id is not None else 0) +
+                (1 if t.store_id == store_id and store_id is not None else 0)
+            )
+            if specificity > 0:
+                return specificity
+            return 10 if t.is_default else 0
+
+        return max(candidates, key=score)
 
     def render_template(
         self,
@@ -658,12 +729,16 @@ class HRService:
         show_logo: bool = True,
         logo_shape: str = "rounded",
         accent_color: str = "#1a56db",
+        vendor_slug: str | None = None,
     ) -> str:
         """Replace {{token}} placeholders in body_html with real offer values, then apply layout shell."""
         from app.services.infocomx_branding import embed_infocomx_logo_in_html, resolve_infocomx_logo_url
+        from app.services.infocomx_vendor_scope import vendor_may_use_infocomx_hr_assets
         from app.services.offer_layouts import wrap_offer_layout, DEFAULT_LAYOUT
 
-        logo_url = resolve_infocomx_logo_url(logo_url)
+        use_ix = vendor_may_use_infocomx_hr_assets(vendor_slug)
+        if use_ix:
+            logo_url = resolve_infocomx_logo_url(logo_url)
 
         ctc_fmt  = f"Rs.{float(offer.offered_ctc or 0):,.0f}" if offer.offered_ctc else "As discussed"
         joining  = offer.joining_date.strftime("%d %B %Y")  if offer.joining_date  else "TBD"
@@ -690,7 +765,8 @@ class HRService:
         result = body_html
         for key, val in tokens.items():
             result = result.replace("{{" + key + "}}", val)
-        result = embed_infocomx_logo_in_html(result)
+        if use_ix:
+            result = embed_infocomx_logo_in_html(result)
 
         ref = f"OL-{str(getattr(offer, 'id', ''))[:8].upper()}" if getattr(offer, "id", None) else ""
         return wrap_offer_layout(
@@ -724,12 +800,16 @@ class HRService:
         show_logo: bool = True,
         logo_shape: str = "rounded",
         accent_color: str = "#1a56db",
+        vendor_slug: str | None = None,
     ) -> str:
         """Render a template preview with sample merge values."""
         from app.services.infocomx_branding import embed_infocomx_logo_in_html, resolve_infocomx_logo_url
+        from app.services.infocomx_vendor_scope import vendor_may_use_infocomx_hr_assets
         from app.services.offer_layouts import wrap_offer_layout, DEFAULT_LAYOUT
 
-        logo_url = resolve_infocomx_logo_url(logo_url)
+        use_ix = vendor_may_use_infocomx_hr_assets(vendor_slug)
+        if use_ix:
+            logo_url = resolve_infocomx_logo_url(logo_url)
 
         defaults = {
             "candidate_name":  "Rahul Sharma",
@@ -750,7 +830,8 @@ class HRService:
         result = body_html
         for key, val in tokens.items():
             result = result.replace("{{" + key + "}}", str(val))
-        result = embed_infocomx_logo_in_html(result)
+        if use_ix:
+            result = embed_infocomx_logo_in_html(result)
         return wrap_offer_layout(
             result,
             layout or DEFAULT_LAYOUT,

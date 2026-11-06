@@ -107,6 +107,8 @@ class RecordPayment(BaseModel):
 class InvoiceResponse(BaseModel):
     id: str
     vendor_id: str
+    vendor_slug: Optional[str] = None
+    vendor_logo_url: Optional[str] = None
     customer_id: Optional[str] = None
     sales_area_id: Optional[str] = None
     order_id: Optional[str] = None

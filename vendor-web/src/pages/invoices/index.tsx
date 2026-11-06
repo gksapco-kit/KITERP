@@ -552,7 +552,20 @@ interface CatalogueItem {
 }
 
 type LineItemDraft = {
+  /** Stable id so description and inputs stay tied to this row when lines are reordered */
+  lineKey: string
   name: string
+  description: string
+  /** Shown under Variant; merged into API description on save */
+  variant_note: string
+  /** Shown under HSN/SAC; merged into API description on save */
+  hsn_note: string
+  /** Shown under Qty; merged into API description on save */
+  qty_note: string
+  /** Shown under Rate; merged into API description on save */
+  rate_note: string
+  /** Shown under Tax %; merged into API description on save */
+  tax_note: string
   hsn_sac: string
   qty: number
   rate: number
@@ -561,6 +574,90 @@ type LineItemDraft = {
   product_id?: string
   variant_id?: string
   kind?: 'product' | 'service'
+}
+
+const VARIANT_NOTE_TAG = '[Variant note]'
+const HSN_NOTE_TAG = '[HSN note]'
+const QTY_NOTE_TAG = '[Qty note]'
+const RATE_NOTE_TAG = '[Rate note]'
+const TAX_NOTE_TAG = '[Tax note]'
+
+const LINE_NOTE_TAGS: Array<{
+  key: 'variant_note' | 'hsn_note' | 'qty_note' | 'rate_note' | 'tax_note'
+  tag: string
+}> = [
+  { key: 'variant_note', tag: VARIANT_NOTE_TAG },
+  { key: 'hsn_note', tag: HSN_NOTE_TAG },
+  { key: 'qty_note', tag: QTY_NOTE_TAG },
+  { key: 'rate_note', tag: RATE_NOTE_TAG },
+  { key: 'tax_note', tag: TAX_NOTE_TAG },
+]
+
+/** Split stored API description into main + per-column notes */
+function parseLineDescription(raw?: string): Pick<
+  LineItemDraft,
+  'description' | 'variant_note' | 'hsn_note' | 'qty_note' | 'rate_note' | 'tax_note'
+> {
+  const s = String(raw || '')
+  const hits = LINE_NOTE_TAGS.map(({ key, tag }) => ({ key, tag, idx: s.indexOf(tag) }))
+    .filter(h => h.idx >= 0)
+  const empty = {
+    description: s,
+    variant_note: '',
+    hsn_note: '',
+    qty_note: '',
+    rate_note: '',
+    tax_note: '',
+  }
+  if (hits.length === 0) return empty
+
+  hits.sort((a, b) => a.idx - b.idx)
+  const description = s.slice(0, hits[0].idx).trimEnd()
+  const stripLead = (t: string) => t.replace(/^\s*\n?/, '').trim()
+  const out = { ...empty, description }
+  for (let i = 0; i < hits.length; i++) {
+    const { key, tag, idx } = hits[i]
+    const start = idx + tag.length
+    const end = i + 1 < hits.length ? hits[i + 1].idx : s.length
+    out[key] = stripLead(s.slice(start, end))
+  }
+  return out
+}
+
+function mergeLineDescriptionForApi(row: LineItemDraft): string | undefined {
+  const main = (row.description || '').trim()
+  const blocks: string[] = []
+  if (main) blocks.push(main)
+  for (const { key, tag } of LINE_NOTE_TAGS) {
+    const t = (row[key] || '').trim()
+    if (t) blocks.push(`${tag}\n${t}`)
+  }
+  const out = blocks.join('\n\n').trim()
+  return out || undefined
+}
+
+function newLineKey() {
+  return typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `li-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`
+}
+
+function emptySalesLine(): LineItemDraft {
+  return {
+    lineKey: newLineKey(),
+    name: '',
+    description: '',
+    variant_note: '',
+    hsn_note: '',
+    qty_note: '',
+    rate_note: '',
+    tax_note: '',
+    hsn_sac: '',
+    qty: 1,
+    rate: 0,
+    discount: 0,
+    tax_rate: 18,
+  }
 }
 
 function activeVariantsOf(item: CatalogueItem | undefined): CatalogueVariant[] {
@@ -665,6 +762,12 @@ function ItemSearchRow({
     if (c.kind === 'product' && variants.length > 1 && !variant) {
       onPatch({
         name: c.name,
+        description: '',
+        variant_note: '',
+        hsn_note: '',
+        qty_note: '',
+        rate_note: '',
+        tax_note: '',
         hsn_sac: c.hsn_sac || '',
         rate: c.price ?? 0,
         tax_rate: c.tax_rate ?? 18,
@@ -683,6 +786,12 @@ function ItemSearchRow({
       chosen && chosen.name && !collapseDefault ? `${c.name} — ${chosen.name}` : c.name
     onPatch({
       name: displayName,
+      description: '',
+      variant_note: '',
+      hsn_note: '',
+      qty_note: '',
+      rate_note: '',
+      tax_note: '',
       hsn_sac: chosen?.hsn_code || c.hsn_sac || '',
       rate: chosen?.price ?? c.price ?? 0,
       tax_rate: chosen?.tax_rate ?? c.tax_rate ?? 18,
@@ -702,7 +811,7 @@ function ItemSearchRow({
   }
 
   const fieldClass = compact
-    ? 'h-8 w-full rounded-md border border-gray-200 px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400'
+    ? 'h-7 w-full rounded-md border border-gray-200 px-1.5 text-[11px] focus:outline-none focus:ring-1 focus:ring-blue-400'
     : 'h-10 w-full rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400'
 
   const menu =
@@ -862,19 +971,30 @@ function ItemSearchRow({
         )
       : null
 
+  const noteFieldClass = compact
+    ? 'h-6 w-full rounded border border-gray-200 px-1.5 text-[10px] leading-tight text-muted-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-400'
+    : 'h-9 w-full rounded-lg border border-gray-200 px-2 text-sm text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-400'
+
   return (
-    <div className={cn('flex items-start', compact ? 'gap-1.5' : 'gap-2')}>
-      <div className={cn('shrink-0 text-center text-gray-400 font-medium', compact ? 'w-6 pt-1.5 text-[10px]' : 'w-7 pt-2.5 text-xs')}>
+    <div
+      className={cn(
+        compact ? 'rounded-md border border-border/60 bg-background px-1 py-1' : 'space-y-1',
+      )}
+    >
+    <div className={cn('flex items-start', compact ? 'gap-1' : 'gap-2')}>
+      <div className={cn('shrink-0 text-center text-gray-400 font-medium', compact ? 'w-5 pt-1 text-[9px]' : 'w-7 pt-2.5 text-xs')}>
         {index + 1}
       </div>
-      <div className="relative min-w-0 flex-[2.4]" ref={wrapRef}>
+      {/* Item + line description (stacked) */}
+      <div className={cn('flex min-w-0 flex-col gap-0.5', compact ? 'min-w-[5rem] flex-[1.15]' : 'flex-[1.5]')} ref={wrapRef}>
         <div className="relative" ref={inputWrapRef}>
-          <Search className={cn('pointer-events-none absolute top-1/2 -translate-y-1/2 text-gray-400', compact ? 'left-2 h-3 w-3' : 'left-2.5 h-3.5 w-3.5')} />
+          <Search className={cn('pointer-events-none absolute top-1/2 -translate-y-1/2 text-gray-400', compact ? 'left-1.5 h-3 w-3' : 'left-2.5 h-3.5 w-3.5')} />
           <input
-            className={cn(fieldClass, 'bg-white', compact ? 'pl-7' : 'pl-8')}
+            className={cn(fieldClass, 'bg-white', compact ? 'pl-6' : 'pl-8')}
             placeholder="Search product or service…"
             value={item.name}
             onChange={e => {
+              // Only clearing identity when the search text changes — keep per-line description
               onPatch({
                 name: e.target.value,
                 product_id: undefined,
@@ -886,16 +1006,23 @@ function ItemSearchRow({
             }}
             onFocus={() => setOpen(true)}
           />
-        </div>
         {menu}
+        </div>
+        <input
+          className={noteFieldClass}
+          placeholder={compact ? 'Item description' : 'Description (optional)'}
+          aria-label={`Line ${index + 1} item description`}
+          value={item.description}
+          onChange={e => onUpdate('description', e.target.value)}
+        />
       </div>
 
-      {/* Variant (when product has multiple) */}
-      <div className="min-w-0 flex-1">
+      {/* Variant + note under it */}
+      <div className={cn('flex min-w-0 shrink-0 flex-col gap-0.5', compact ? 'w-[6.25rem] sm:w-24' : 'w-36')}>
         {rowVariants.length > 1 ? (
           <Select
             className={cn(fieldClass, 'bg-white')}
-            triggerClassName={compact ? 'h-8 px-2 text-xs' : 'h-10 px-3 text-sm'}
+            triggerClassName={compact ? 'h-7 px-1.5 text-[11px]' : 'h-10 px-3 text-sm'}
             value={item.variant_id || ''}
             onChange={applyVariantId}
             placeholder="Select variant…"
@@ -914,27 +1041,76 @@ function ItemSearchRow({
             title={rowVariants[0]?.name || 'No variants'}
           />
         )}
+        <input
+          className={noteFieldClass}
+          placeholder="Variant note"
+          aria-label={`Line ${index + 1} variant note`}
+          value={item.variant_note}
+          onChange={e => onUpdate('variant_note', e.target.value)}
+        />
       </div>
 
-      <div className="min-w-0 flex-1">
-        <input className={fieldClass}
-          placeholder="HSN" value={item.hsn_sac} onChange={e => onUpdate('hsn_sac', e.target.value)} />
+      {/* HSN + HSN note under it */}
+      <div className={cn('flex min-w-0 shrink-0 flex-col gap-0.5', compact ? 'w-20 sm:w-[5.25rem]' : 'w-28')}>
+        <input
+          className={fieldClass}
+          placeholder="HSN"
+          value={item.hsn_sac}
+          onChange={e => onUpdate('hsn_sac', e.target.value)}
+        />
+        <input
+          className={noteFieldClass}
+          placeholder="HSN note"
+          aria-label={`Line ${index + 1} HSN note`}
+          value={item.hsn_note}
+          onChange={e => onUpdate('hsn_note', e.target.value)}
+        />
       </div>
-      <div className="w-36 shrink-0">
+
+      <div className="flex w-[4.25rem] shrink-0 flex-col gap-0.5 sm:w-24">
         <input type="number" min={1} className={cn(fieldClass, 'text-center')}
           value={item.qty} onChange={e => onUpdate('qty', Number(e.target.value))} />
+        <input
+          className={noteFieldClass}
+          placeholder="Qty note"
+          aria-label={`Line ${index + 1} quantity note`}
+          value={item.qty_note}
+          onChange={e => onUpdate('qty_note', e.target.value)}
+        />
       </div>
-      <div className="w-44 shrink-0">
+      <div className="flex w-[6.5rem] shrink-0 flex-col gap-0.5 sm:w-28">
         <input type="number" min={0} placeholder="Rate" className={fieldClass}
           value={item.rate} onChange={e => onUpdate('rate', Number(e.target.value))} />
+        <input
+          className={noteFieldClass}
+          placeholder="Rate note"
+          aria-label={`Line ${index + 1} rate note`}
+          value={item.rate_note}
+          onChange={e => onUpdate('rate_note', e.target.value)}
+        />
       </div>
-      <div className="w-14 shrink-0">
+      <div className="flex w-12 shrink-0 flex-col gap-0.5 sm:w-14">
         <input type="number" min={0} max={100} placeholder="Tax%" className={cn(fieldClass, 'text-center')}
           value={item.tax_rate} onChange={e => onUpdate('tax_rate', Number(e.target.value))} />
+        <input
+          className={noteFieldClass}
+          placeholder="Tax note"
+          aria-label={`Line ${index + 1} tax note`}
+          value={item.tax_note}
+          onChange={e => onUpdate('tax_note', e.target.value)}
+        />
       </div>
-      <button type="button" onClick={onRemove} className={cn('shrink-0 rounded-lg transition-colors hover:bg-red-50', compact ? 'p-1' : 'mt-0.5 p-2')}>
+      <button
+        type="button"
+        onClick={onRemove}
+        className={cn(
+          'shrink-0 self-start rounded-md transition-colors hover:bg-red-50',
+          compact ? 'p-0.5 pt-1' : 'mt-0.5 p-2',
+        )}
+      >
         <Trash2 className={cn('text-red-400', compact ? 'h-3.5 w-3.5' : 'h-4 w-4')} />
       </button>
+    </div>
     </div>
   )
 }
@@ -991,8 +1167,28 @@ export function CreateInvoiceModal({
   })
   const [items, setItems] = useState<LineItemDraft[]>(
     prefill?.items?.length
-      ? prefill.items
-      : [{ name: '', hsn_sac: '', qty: 1, rate: 0, discount: 0, tax_rate: 18 }],
+      ? prefill.items.map((row) => {
+        const fromApi = parseLineDescription(row.description ?? '')
+        return ({
+          lineKey: row.lineKey ?? newLineKey(),
+          name: row.name ?? '',
+          description: fromApi.description,
+          variant_note: fromApi.variant_note,
+          hsn_note: fromApi.hsn_note,
+          qty_note: fromApi.qty_note,
+          rate_note: fromApi.rate_note,
+          tax_note: fromApi.tax_note,
+          hsn_sac: row.hsn_sac ?? '',
+          qty: row.qty ?? 1,
+          rate: row.rate ?? 0,
+          discount: row.discount ?? 0,
+          tax_rate: row.tax_rate ?? 18,
+          product_id: row.product_id,
+          variant_id: row.variant_id,
+          kind: row.kind,
+        })
+      })
+      : [emptySalesLine()],
   )
   const [loading, setLoading] = useState(false)
   const [copyLoading, setCopyLoading] = useState(false)
@@ -1104,7 +1300,7 @@ export function CreateInvoiceModal({
     setCustSearch(c.full_name)
   }
 
-  const addLine = () => setItems([...items, { name: '', hsn_sac: '', qty: 1, rate: 0, discount: 0, tax_rate: 18 }])
+  const addLine = () => setItems([...items, emptySalesLine()])
   const removeLine = (i: number) => setItems(items.filter((_, idx) => idx !== i))
   const updateLine = useCallback((i: number, field: string, value: string | number) => {
     setItems(prev => {
@@ -1142,7 +1338,31 @@ export function CreateInvoiceModal({
       }))
       setCustSearch(copied.customer_name)
       if (copied.store_id) setStoreId(copied.store_id)
-      if (copied.items?.length) setItems(copied.items)
+      if (copied.items?.length) {
+        setItems(
+          copied.items.map((it) => {
+            const parsed = parseLineDescription(it.description)
+            return {
+              lineKey: it.lineKey ?? newLineKey(),
+              name: it.name ?? '',
+              description: parsed.description,
+              variant_note: parsed.variant_note,
+              hsn_note: parsed.hsn_note,
+              qty_note: parsed.qty_note,
+              rate_note: parsed.rate_note,
+              tax_note: parsed.tax_note,
+              hsn_sac: it.hsn_sac ?? '',
+              qty: it.qty ?? 1,
+              rate: it.rate ?? 0,
+              discount: it.discount ?? 0,
+              tax_rate: it.tax_rate ?? 18,
+              product_id: it.product_id,
+              variant_id: it.variant_id,
+              kind: it.kind,
+            }
+          }),
+        )
+      }
       setCopiedFromNumber(String(inv.invoice_number || number))
       toast.success(`Copied from ${String(inv.invoice_number || number)}. A new number is assigned when you save.`)
     } catch (err) {
@@ -1168,8 +1388,14 @@ export function CreateInvoiceModal({
         order_id: form.order_id || undefined,
         customer_id: form.customer_id || undefined,
         sales_area_id: form.sales_area_id || undefined,
-        items: items.map(({ name, hsn_sac, qty, rate, discount, tax_rate }) => ({
-          name, hsn_sac, qty, rate, discount, tax_rate,
+        items: items.map((row) => ({
+          name: row.name,
+          description: mergeLineDescriptionForApi(row),
+          hsn_sac: row.hsn_sac,
+          qty: row.qty,
+          rate: row.rate,
+          discount: row.discount,
+          tax_rate: row.tax_rate,
         })),
         ...(isQuotation ? { extra_fields: serializeQuotationExtraFields(extraFields) } : {}),
       }
@@ -1197,23 +1423,23 @@ export function CreateInvoiceModal({
         role="dialog"
         aria-modal="true"
         aria-label={defaultType === 'estimate' ? 'Create Quotation' : 'Create Invoice'}
-        className="flex max-h-[calc(100dvh-1rem)] w-[min(96vw,90rem)] flex-col overflow-hidden rounded-xl border border-border bg-card text-foreground shadow-2xl"
+        className="flex max-h-[min(92dvh,calc(100dvh-0.5rem))] w-[min(96vw,56rem)] flex-col overflow-hidden rounded-xl border border-border bg-card text-foreground shadow-2xl"
         onClick={e => e.stopPropagation()}
         onPointerDown={e => e.stopPropagation()}
       >
-        <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-2.5">
-          <h2 className="text-base font-semibold">
+        <div className="flex shrink-0 items-center justify-between border-b border-border px-3 py-1.5">
+          <h2 className="text-[14px] font-semibold tracking-tight">
             {copiedFromNumber
               ? `Copy of ${copiedFromNumber}`
               : defaultType === 'estimate' ? 'Create Quotation' : 'Create Invoice'}
           </h2>
           <button type="button" data-escape-close aria-label="Close" onClick={onClose} className="rounded-lg p-1 hover:bg-muted"><X className="h-5 w-5" /></button>
         </div>
-        <div className="flex-1 min-h-0 overflow-y-auto px-5 py-3 space-y-2.5">
+        <div className="flex-1 min-h-0 overflow-y-auto px-3 py-1.5 space-y-2 [scrollbar-gutter:stable]">
           {/* Header: 3-column grid so labels and controls share one right edge */}
           <div className="relative">
-            <div className="grid grid-cols-1 gap-x-3 gap-y-2.5 sm:grid-cols-3">
-              <div className="min-w-0">
+            <div className="grid grid-cols-1 gap-x-2.5 gap-y-2 sm:grid-cols-6">
+              <div className="min-w-0 sm:col-span-2">
                 <Label className="text-xs">Business unit</Label>
                 <BusinessUnitSelect
                   value={storeId}
@@ -1222,7 +1448,7 @@ export function CreateInvoiceModal({
                   triggerClassName="h-8"
                 />
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 sm:col-span-2">
                 <Label className="text-xs">Branch</Label>
                 <BranchSelect
                   businessUnitId={storeId || null}
@@ -1233,7 +1459,7 @@ export function CreateInvoiceModal({
                   triggerClassName="h-8"
                 />
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 sm:col-span-2">
                 <Label className="text-xs">Sales Area</Label>
                 <SalesAreaSelect
                   businessUnitId={storeId || null}
@@ -1254,7 +1480,7 @@ export function CreateInvoiceModal({
                     <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       placeholder={isQuotation ? 'Search customers…' : 'Search or create a customer…'}
-                      className="h-8 w-full pl-8 pr-8 text-sm"
+                      className="h-8 w-full max-w-full pl-8 pr-8 text-sm"
                       value={custSearch}
                       onFocus={() => setCustOpen(true)}
                       onChange={e => {
@@ -1334,20 +1560,20 @@ export function CreateInvoiceModal({
               </div>
 
               {isQuotation ? (
-                <div className="min-w-0">
+                <div className="min-w-0 sm:col-span-2">
                   <Label className="text-xs">Valid Until</Label>
                   <Input
                     type="date"
-                    className="mt-0.5 h-8 w-full text-sm"
+                    className="mt-0.5 h-8 w-full min-w-0 text-sm"
                     value={form.due_date}
                     onChange={e => setForm({ ...form, due_date: e.target.value })}
                   />
                 </div>
               ) : (
-                <div className="min-w-0">
+                <div className="min-w-0 sm:col-span-2">
                   <Label className="text-xs" helpKey="invoice customer gstin">GSTIN</Label>
                   <Input
-                    className="mt-0.5 h-8 w-full font-mono text-sm tracking-wide"
+                    className="mt-0.5 h-8 w-full max-w-full font-mono text-sm tracking-wide"
                     value={form.customer_gstin}
                     onChange={e => setForm({ ...form, customer_gstin: e.target.value.toUpperCase() })}
                     maxLength={15}
@@ -1357,10 +1583,10 @@ export function CreateInvoiceModal({
               )}
 
               {isQuotation ? (
-                <div className="min-w-0">
+                <div className="min-w-0 sm:col-span-2">
                   <Label className="text-xs" helpKey="invoice customer gstin">GSTIN</Label>
                   <Input
-                    className="mt-0.5 h-8 w-full font-mono text-sm tracking-wide"
+                    className="mt-0.5 h-8 w-full max-w-full font-mono text-sm tracking-wide"
                     value={form.customer_gstin}
                     onChange={e => setForm({ ...form, customer_gstin: e.target.value.toUpperCase() })}
                     maxLength={15}
@@ -1368,7 +1594,7 @@ export function CreateInvoiceModal({
                   />
                 </div>
               ) : (
-                <div className="min-w-0">
+                <div className="min-w-0 sm:col-span-2">
                   <Label className="text-xs">Phone</Label>
                   <PhoneInput
                     className="mt-0.5 [&_[data-phone-input]]:h-8 [&_[data-phone-input]]:sm:h-8"
@@ -1382,11 +1608,11 @@ export function CreateInvoiceModal({
               )}
 
               {!isQuotation && (
-                <div className="min-w-0">
+                <div className="min-w-0 sm:col-span-2">
                   <Label className="text-xs">Invoice date</Label>
                   <Input
                     type="date"
-                    className="mt-0.5 h-8 w-full text-sm"
+                    className="mt-0.5 h-8 w-full min-w-0 text-sm"
                     value={form.invoice_date}
                     onChange={e => {
                       const invoice_date = e.target.value
@@ -1407,11 +1633,11 @@ export function CreateInvoiceModal({
               )}
 
               {!isQuotation && (
-                <div className="min-w-0">
+                <div className="min-w-0 sm:col-span-2">
                   <Label className="text-xs">Posting date</Label>
                   <Input
                     type="date"
-                    className="mt-0.5 h-8 w-full text-sm"
+                    className="mt-0.5 h-8 w-full min-w-0 text-sm"
                     value={form.posting_date}
                     onChange={e => setForm({ ...form, posting_date: e.target.value })}
                   />
@@ -1419,10 +1645,22 @@ export function CreateInvoiceModal({
               )}
 
               {!isQuotation && (
-                <div className="min-w-0">
+                <div className="min-w-0 sm:col-span-2">
+                  <Label className="text-xs">Due date</Label>
+                  <Input
+                    type="date"
+                    className="mt-0.5 h-8 w-full min-w-0 text-sm"
+                    value={form.due_date}
+                    onChange={e => setForm({ ...form, due_date: e.target.value })}
+                  />
+                </div>
+              )}
+
+              {!isQuotation && (
+                <div className="min-w-0 sm:col-span-4">
                   <Label className="text-xs">Payment terms</Label>
                   <Input
-                    className="mt-0.5 h-8 w-full text-sm"
+                    className="mt-0.5 h-8 w-full max-w-full text-sm"
                     placeholder="e.g. Net 30 days"
                     value={form.payment_terms}
                     onChange={e => {
@@ -1443,19 +1681,7 @@ export function CreateInvoiceModal({
                 </div>
               )}
 
-              {!isQuotation && (
-                <div className="min-w-0">
-                  <Label className="text-xs">Due date</Label>
-                  <Input
-                    type="date"
-                    className="mt-0.5 h-8 w-full text-sm"
-                    value={form.due_date}
-                    onChange={e => setForm({ ...form, due_date: e.target.value })}
-                  />
-                </div>
-              )}
-
-              <div className={cn('min-w-0', isQuotation && 'sm:col-span-2')}>
+              <div className="min-w-0 sm:col-span-2">
                 <Label className="text-xs">GST</Label>
                 <div className="mt-0.5 flex h-8 items-center">
                   <CheckboxFieldLabel
@@ -1470,17 +1696,17 @@ export function CreateInvoiceModal({
               </div>
             </div>
             {isQuotation && form.customer_name && (
-              <p className="mt-1.5 text-[11px] text-muted-foreground">
+              <p className="mt-1 text-[11px] text-muted-foreground">
                 Selected: <span className="font-medium text-foreground">{form.customer_name}</span>
                 {form.customer_phone ? ` · ${form.customer_phone}` : ''}
               </p>
             )}
           </div>
 
-          <div className="rounded-lg border border-border/80 bg-muted/20 px-2.5 py-2">
-            <div className="mb-1.5 flex items-center justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-2">
-                <Label className="text-xs">Line items</Label>
+          <div className="rounded-lg border border-border/80 bg-muted/25 px-1.5 py-1 shadow-sm">
+            <div className="mb-0.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
+              <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0">
+                <Label className="text-xs font-medium">Line items</Label>
                 <span className="text-[11px] text-muted-foreground">
                   <a
                     href="/products/new"
@@ -1503,24 +1729,25 @@ export function CreateInvoiceModal({
                   </a>
                 </span>
               </div>
-              <Button variant="outline" size="sm" className="h-8 shrink-0 gap-1 px-2.5 text-xs" onClick={addLine}>
-                <Plus className="h-3.5 w-3.5" />Add line
+              <Button variant="outline" size="sm" className="h-7 shrink-0 gap-1 px-2.5 text-[11px]" onClick={addLine} type="button">
+                <Plus className="h-3 w-3" />
+                Add line
               </Button>
             </div>
-            <div className="mb-1 flex gap-1.5 px-0.5">
-              <FormColumnLabel className="w-6 shrink-0 text-center text-[10px]">#</FormColumnLabel>
-              <FormColumnLabel className="min-w-0 flex-[2.4] text-[10px]">Item</FormColumnLabel>
-              <FormColumnLabel className="min-w-0 flex-1 text-[10px]">Variant</FormColumnLabel>
-              <FormColumnLabel className="min-w-0 flex-1 text-[10px]">HSN/SAC</FormColumnLabel>
-              <FormColumnLabel className="w-36 shrink-0 text-center text-[10px]">Qty</FormColumnLabel>
-              <FormColumnLabel className="w-44 shrink-0 text-[10px]">Rate (₹)</FormColumnLabel>
-              <FormColumnLabel className="w-14 shrink-0 text-center text-[10px]">Tax %</FormColumnLabel>
-              <div className="w-7 shrink-0" />
+            <div className="mb-0 flex gap-1 px-0.5 pb-0.5">
+              <FormColumnLabel className="w-5 shrink-0 text-center text-[9px]">#</FormColumnLabel>
+              <FormColumnLabel className="min-w-0 flex-[1.15] text-[9px]">Item</FormColumnLabel>
+              <FormColumnLabel className="w-[6.25rem] shrink-0 text-[9px] sm:w-24">Variant</FormColumnLabel>
+              <FormColumnLabel className="w-20 shrink-0 text-[9px] sm:w-[5.25rem]">HSN</FormColumnLabel>
+              <FormColumnLabel className="w-[4.25rem] shrink-0 text-center text-[9px] sm:w-24">Qty</FormColumnLabel>
+              <FormColumnLabel className="w-[6.5rem] shrink-0 text-[9px] sm:w-28">Rate</FormColumnLabel>
+              <FormColumnLabel className="w-12 shrink-0 text-center text-[9px] sm:w-14">Tax</FormColumnLabel>
+              <div className="w-6 shrink-0" />
             </div>
-            <div className="space-y-1.5">
+            <div className="max-h-[min(40vh,22rem)] space-y-1 overflow-y-auto overflow-x-auto pr-0.5 [scrollbar-gutter:stable]">
               {items.map((item, i) => (
                 <ItemSearchRow
-                  key={i}
+                  key={item.lineKey}
                   item={item}
                   index={i}
                   onUpdate={(field, value) => updateLine(i, field, value)}
@@ -1534,12 +1761,12 @@ export function CreateInvoiceModal({
           </div>
 
           {isQuotation ? (
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
               <div className="min-w-0">
                 <Label className="text-xs">Notes</Label>
                 <textarea
-                  rows={2}
-                  className="mt-0.5 w-full resize-none rounded-md border border-border bg-background px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+                  rows={1}
+                  className="mt-0.5 min-h-[2.25rem] w-full resize-none rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
                   value={form.notes}
                   onChange={e => setForm({ ...form, notes: e.target.value })}
                   placeholder="Internal or customer-facing notes…"
@@ -1548,8 +1775,8 @@ export function CreateInvoiceModal({
               <div className="min-w-0">
                 <Label className="text-xs">Terms &amp; Conditions</Label>
                 <textarea
-                  rows={2}
-                  className="mt-0.5 w-full resize-none rounded-md border border-border bg-background px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+                  rows={1}
+                  className="mt-0.5 min-h-[2.25rem] w-full resize-none rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
                   value={form.terms_and_conditions}
                   onChange={e => setForm({ ...form, terms_and_conditions: e.target.value })}
                 />
@@ -1559,8 +1786,8 @@ export function CreateInvoiceModal({
             <div>
               <Label className="text-xs">Notes</Label>
               <textarea
-                rows={2}
-                className="mt-0.5 w-full resize-none rounded-md border border-border bg-background px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+                rows={1}
+                className="mt-0.5 min-h-[2.25rem] w-full resize-none rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
                 value={form.notes}
                 onChange={e => setForm({ ...form, notes: e.target.value })}
                 placeholder="Payment notes, delivery instructions…"
@@ -1572,7 +1799,7 @@ export function CreateInvoiceModal({
             <QuotationExtraFieldsEditor fields={extraFields} onChange={setExtraFields} compact />
           )}
         </div>
-        <div className="flex shrink-0 items-center gap-3 border-t border-border px-5 py-2.5">
+        <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-border bg-muted/15 px-3 py-1.5 sm:gap-3">
           <div className="mr-auto flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-xs">
             <span className="text-muted-foreground">Subtotal: <span className="font-medium text-foreground">{formatCurrency(subtotal)}</span></span>
             <span className="text-muted-foreground">Tax: <span className="font-medium text-foreground">{formatCurrency(totalTax)}</span></span>

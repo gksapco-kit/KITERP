@@ -8,11 +8,14 @@ export function OfferLayoutThemeGrid({
   accentColor = '#1a56db',
   onSelect,
   compact = false,
+  layoutFilter,
 }: {
   selectedId: OfferLayoutId | string
   accentColor?: string
   onSelect: (id: OfferLayoutId) => void
   compact?: boolean
+  /** e.g. hide InfocomX Letter for tenants that are not allow-listed */
+  layoutFilter?: (id: string) => boolean
 }) {
   const selectedRef = useRef<HTMLButtonElement>(null)
 
@@ -22,7 +25,7 @@ export function OfferLayoutThemeGrid({
 
   return (
     <div className={`grid grid-cols-2 sm:grid-cols-3 gap-2 ${compact ? 'max-h-[220px]' : 'max-h-[480px]'} overflow-y-auto overflow-x-hidden pr-1`}>
-      {OFFER_LAYOUT_THUMBNAILS.map(tmpl => {
+      {OFFER_LAYOUT_THUMBNAILS.filter(t => (layoutFilter ? layoutFilter(t.id) : true)).map(tmpl => {
         const active = selectedId === tmpl.id
         return (
           <button

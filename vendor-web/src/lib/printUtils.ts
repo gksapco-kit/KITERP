@@ -28,12 +28,16 @@ function getBackendBase(): string {
  * Resolve a logo/signature path to an absolute URL.
  * - data: URLs are returned unchanged
  * - Absolute http(s) URLs are returned unchanged
- * - Relative paths are prefixed with the backend origin
+ * - Paths under `/branding/` are served from the vendor-web app (`public/branding`), not the API host
+ * - Other relative paths are prefixed with the backend origin (uploads, etc.)
  */
 export function resolveMediaUrl(path: string): string {
   if (!path) return ''
   if (path.startsWith('data:')) return path
   if (path.startsWith('http://') || path.startsWith('https://')) return path
+  if (path.startsWith('/') && path.startsWith('/branding/') && typeof window !== 'undefined') {
+    return `${window.location.origin}${path}`
+  }
   if (path.startsWith('/')) return `${getBackendBase()}${path}`
   return `${getBackendBase()}/${path}`
 }

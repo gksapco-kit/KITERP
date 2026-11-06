@@ -236,7 +236,7 @@ export default function SocialLinksPage() {
             <div
               className={cn(
                 'grid grid-cols-1 gap-2',
-                socialLinksMode === 'per_unit' ? 'md:grid-cols-[minmax(0,1fr)_minmax(0,14rem)]' : 'max-w-[14rem]',
+                socialLinksMode === 'per_unit' ? 'md:grid-cols-2 md:items-end' : 'max-w-[14rem]',
               )}
             >
               {socialLinksMode === 'per_unit' && (
@@ -258,6 +258,8 @@ export default function SocialLinksPage() {
                   onChange={handleIconStyleChange}
                   aria-label="Social icon style"
                   wrapperClassName="w-full"
+                  /* Hints stay in the menu only — same single-line height as Business unit */
+                  showSelectedHint={false}
                   options={SOCIAL_LINKS_ICON_STYLE_OPTIONS.map(opt => ({
                     value: opt.value,
                     label: opt.label,

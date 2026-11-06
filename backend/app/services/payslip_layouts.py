@@ -107,6 +107,7 @@ def render_infocomx_payslip(
     company_name: str,
     company_address: str,
     logo_url: str | None,
+    infocomx_stationery: bool = True,
     pay_period_label: str,
     emp_code: str,
     emp_name: str,
@@ -133,20 +134,37 @@ def render_infocomx_payslip(
     earn_body = "".join(_amount_row(label, _pick_amount(earnings, keys)) for label, keys in EARNINGS_ROWS)
     ded_body = "".join(_amount_row(label, _pick_amount(deductions, keys)) for label, keys in DEDUCTION_ROWS)
 
-    resolved_logo = resolve_infocomx_logo_url(logo_url)
-    logo_block = (
-        f'<img src="{escape(resolved_logo)}" alt="InfocomX" class="infocomx-brand-logo" '
-        f'data-infocomx-logo="true" style="height:48px;width:auto;max-width:220px;object-fit:contain;'
-        f'display:block;border:0;background:transparent;" />'
-        if resolved_logo
-        else (
-            '<div style="font-size:26px;font-weight:800;color:#1e3a5f;letter-spacing:-0.5px;">'
-            'INFO<span style="color:#111;">COMX</span></div>'
+    if infocomx_stationery:
+        resolved_logo = resolve_infocomx_logo_url(logo_url)
+        logo_block = (
+            f'<img src="{escape(resolved_logo)}" alt="InfocomX" class="infocomx-brand-logo" '
+            f'data-infocomx-logo="true" style="height:48px;width:auto;max-width:220px;object-fit:contain;'
+            f'display:block;border:0;background:transparent;" />'
+            if resolved_logo
+            else (
+                '<div style="font-size:26px;font-weight:800;color:#1e3a5f;letter-spacing:-0.5px;">'
+                'INFO<span style="color:#111;">COMX</span></div>'
+            )
         )
-    )
+        default_company = "Infocomx Technologies Private Limited"
+        default_address = "Hyderabad, Telangana, India - 500090"
+    else:
+        raw = (logo_url or "").strip()
+        if raw:
+            logo_block = (
+                f'<img src="{escape(raw)}" alt="" style="height:48px;width:auto;max-width:220px;'
+                f'object-fit:contain;display:block;border:0;background:transparent;" />'
+            )
+        else:
+            cn = (company_name or "Company").strip() or "Company"
+            logo_block = (
+                f'<div style="font-size:15px;font-weight:700;color:#1e3a5f;">{escape(cn)}</div>'
+            )
+        default_company = ""
+        default_address = ""
 
-    company = escape(company_name or "Infocomx Technologies Private Limited")
-    address = escape(company_address or "Hyderabad, Telangana, India - 500090")
+    company = escape(company_name or default_company)
+    address = escape(company_address or default_address)
     period = escape(pay_period_label)
     gender_label = _gender_short(gender)
 
@@ -161,7 +179,7 @@ def render_infocomx_payslip(
   body {{ font-family: Arial, Helvetica, sans-serif; margin: 0; padding: 16px; color: #111; background: #fff; }}
   .sheet {{ border: 1px solid #000; max-width: 820px; margin: 0 auto; padding: 14px 16px 18px; box-sizing: border-box; }}
   table {{ border-collapse: collapse; width: 100%; }}
-  img.infocomx-brand-logo,img[data-infocomx-logo="true"]{{
+  img.infocomx-brand-logo,img[data-infocomx-logo="true"],.sheet img{{
     height:48px!important;width:auto!important;max-width:220px!important;
     object-fit:contain!important;display:block!important;border:0!important;
     background:transparent!important;
@@ -268,6 +286,7 @@ def render_infocomx_payslip(
 
 
 def render_payslip_html(layout: str, ctx: dict[str, Any]) -> str:
-    """Render payslip HTML for a layout id (currently InfocomX only)."""
-    _ = layout  # reserved for future templates
+    """Render payslip HTML. ``infocomx`` uses InfocomX stationery when ``infocomx_stationery`` is True."""
+    if layout != "infocomx":
+        ctx = {**ctx, "infocomx_stationery": False}
     return render_infocomx_payslip(**ctx)

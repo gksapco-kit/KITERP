@@ -85,7 +85,7 @@ async def _vendor_id(current_user: User = Depends(get_current_active_user), db: 
     return vendor.id
 
 
-def _inv_dict(inv, include_qr: bool = False) -> dict:
+def _inv_dict(inv, include_qr: bool = False, vendor: Vendor | None = None) -> dict:
     data = {
         "id": str(inv.id), "vendor_id": str(inv.vendor_id),
         "store_id": str(inv.store_id) if getattr(inv, "store_id", None) else None,
@@ -123,6 +123,9 @@ def _inv_dict(inv, include_qr: bool = False) -> dict:
         "created_at": inv.created_at.isoformat() if inv.created_at else None,
         "updated_at": inv.updated_at.isoformat() if inv.updated_at else None,
     }
+    if vendor is not None:
+        data["vendor_slug"] = (vendor.slug or "").strip().lower() or None
+        data["vendor_logo_url"] = vendor.logo_url or None
     data.update(flatten_einvoice(inv))
     if include_qr and data.get("einvoice_signed_qr"):
         data["einvoice_qr_image"] = render_qr_data_url(data["einvoice_signed_qr"])
@@ -148,8 +151,9 @@ async def list_invoices(
         store_id=store_id, search=search, sales_area_id=sales_area_id,
         customer_id=customer_id, open_only=open_only,
     )
+    vendor = await db.get(Vendor, vid)
     return JSONResponse(content={
-        "items": [_inv_dict(i) for i in items], "total": total,
+        "items": [_inv_dict(i, vendor=vendor) for i in items], "total": total,
         "page": page, "size": size, "pages": math.ceil(total / size) if total else 0,
     })
 
@@ -163,7 +167,8 @@ async def create_invoice(data: InvoiceCreate, user: User = Depends(get_current_a
         if data.extra_fields is not None:
             payload["extra_fields"] = [f.model_dump() for f in data.extra_fields]
         inv = await svc.create_invoice(vid, payload, user.id)
-        return JSONResponse(content=_inv_dict(inv), status_code=201)
+        vendor = await db.get(Vendor, vid)
+        return JSONResponse(content=_inv_dict(inv, vendor=vendor), status_code=201)
     except ValueError as e:
         raise HTTPException(400, str(e))
 
@@ -271,7 +276,8 @@ async def lookup_invoice(
     inv = await svc.get_by_number(vid, number, invoice_type=invoice_type or None)
     if not inv:
         raise HTTPException(404, "Invoice not found")
-    return JSONResponse(content=_inv_dict(inv))
+    vendor = await db.get(Vendor, vid)
+    return JSONResponse(content=_inv_dict(inv, vendor=vendor))
 
 
 @router.get("/by-order/{order_id}")
@@ -280,7 +286,8 @@ async def get_invoice_by_order(order_id: str, vid: UUID = Depends(_vendor_id), d
     inv = await svc.get_by_order_id(UUID(order_id), vid)
     if not inv:
         raise HTTPException(404, "No invoice found for this order")
-    return JSONResponse(content=_inv_dict(inv))
+    vendor = await db.get(Vendor, vid)
+    return JSONResponse(content=_inv_dict(inv, vendor=vendor))
 
 
 @router.get("/{invoice_id}/pdf")
@@ -313,7 +320,8 @@ async def get_invoice(invoice_id: str, vid: UUID = Depends(_vendor_id), db: Asyn
         raise HTTPException(400, f"Invalid invoice ID: {invoice_id!r}")
     if not inv:
         raise HTTPException(404, "Invoice not found")
-    return JSONResponse(content=_inv_dict(inv, include_qr=True))
+    vendor = await db.get(Vendor, vid)
+    return JSONResponse(content=_inv_dict(inv, include_qr=True, vendor=vendor))
 
 
 @router.post("/{invoice_id}/e-invoice", dependencies=[_require_manage])
@@ -341,7 +349,7 @@ async def generate_invoice_einvoice(
     flag_modified(inv, "einvoice")
     await db.commit()
     await db.refresh(inv)
-    return JSONResponse(content=_inv_dict(inv, include_qr=True))
+    return JSONResponse(content=_inv_dict(inv, include_qr=True, vendor=vendor))
 
 
 @router.put("/{invoice_id}")
@@ -354,7 +362,8 @@ async def update_invoice(invoice_id: str, data: InvoiceUpdate, vid: UUID = Depen
         if data.extra_fields is not None:
             payload["extra_fields"] = [f.model_dump() for f in data.extra_fields]
         inv = await svc.update_invoice(UUID(invoice_id), vid, payload)
-        return JSONResponse(content=_inv_dict(inv))
+        vendor = await db.get(Vendor, vid)
+        return JSONResponse(content=_inv_dict(inv, vendor=vendor))
     except ValueError as e:
         raise HTTPException(400, str(e))
 
@@ -364,7 +373,8 @@ async def record_payment(invoice_id: str, data: RecordPayment, vid: UUID = Depen
     svc = InvoiceService(db)
     try:
         inv = await svc.record_payment(UUID(invoice_id), vid, data.amount)
-        return JSONResponse(content=_inv_dict(inv))
+        vendor = await db.get(Vendor, vid)
+        return JSONResponse(content=_inv_dict(inv, vendor=vendor))
     except ValueError as e:
         raise HTTPException(400, str(e))
 
@@ -374,6 +384,7 @@ async def convert_estimate(estimate_id: str, user: User = Depends(get_current_ac
     svc = InvoiceService(db)
     try:
         inv = await svc.convert_estimate_to_invoice(UUID(estimate_id), vid, user.id)
-        return JSONResponse(content=_inv_dict(inv), status_code=201)
+        vendor = await db.get(Vendor, vid)
+        return JSONResponse(content=_inv_dict(inv, vendor=vendor), status_code=201)
     except ValueError as e:
         raise HTTPException(400, str(e))

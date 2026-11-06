@@ -1931,14 +1931,21 @@ async def get_payslip_html(
             company_address = ", ".join(parts + [tail])
 
     pay_period_label = datetime(run.year, run.month, 1).strftime("%b %Y")
+    from app.services.infocomx_vendor_scope import vendor_may_use_infocomx_hr_assets
+
+    allow_ix = vendor_may_use_infocomx_hr_assets(vendor.slug if vendor else None)
     svc = HRService(db)
     fin = await svc.resolve_payslip_financials(vu.vendor_id, entry)
+    raw_logo = vendor.logo_url if vendor else None
+    resolved_logo = resolve_infocomx_logo_url(raw_logo) if allow_ix else ((raw_logo or "").strip() or None)
     html = render_payslip_html(
-        "infocomx",
+        "infocomx" if allow_ix else "standard",
         {
-            "company_name": (vendor.business_name if vendor else None) or "Infocomx Technologies Private Limited",
+            "company_name": (vendor.business_name if vendor else None)
+            or ("Infocomx Technologies Private Limited" if allow_ix else "Company"),
             "company_address": company_address,
-            "logo_url": resolve_infocomx_logo_url(vendor.logo_url if vendor else None),
+            "logo_url": resolved_logo,
+            "infocomx_stationery": allow_ix,
             "pay_period_label": pay_period_label,
             "emp_code": (emp.employee_code or emp.employee_code_custom or "") if emp else "",
             "emp_name": emp_name,
@@ -2043,12 +2050,19 @@ async def create_offer(
         tpl = None
         if template_id:
             tpl = await svc.tpl_repo.get(template_id, vu.vendor_id)
+        vs = vendor.slug if vendor else None
+        if tpl:
+            try:
+                svc.ensure_offer_template_allowed_for_vendor(tpl, vs)
+            except HTTPException:
+                tpl = None
         if not tpl:
             tpl = await svc.find_best_offer_template(
                 vu.vendor_id,
                 designation_id=offer.designation_id,
                 department_id=offer.department_id,
                 store_id=store_id,
+                vendor_slug=vs,
             )
         if tpl:
             offer.template_id = tpl.id
@@ -2064,6 +2078,7 @@ async def create_offer(
                 show_logo=bool(getattr(tpl, "show_logo", True)),
                 logo_shape=getattr(tpl, "logo_shape", "rounded") or "rounded",
                 accent_color=getattr(tpl, "accent_color", "#1a56db") or "#1a56db",
+                vendor_slug=vendor.slug if vendor else None,
             )
         else:
             offer.layout = layout_override or "standard"
@@ -2146,6 +2161,7 @@ async def get_offer_pdf(
                 show_logo=bool(getattr(tpl, "show_logo", True)),
                 logo_shape=getattr(tpl, "logo_shape", "rounded") or "rounded",
                 accent_color=getattr(tpl, "accent_color", "#1a56db") or "#1a56db",
+                vendor_slug=vendor.slug if vendor else None,
             )
         else:
             html = svc.generate_offer_html(offer, vendor_name)
@@ -2179,12 +2195,16 @@ async def list_offer_templates(
     vu: VendorUser = Depends(require_permission("hr.offers")),
     db: AsyncSession = Depends(get_db),
 ):
+    from app.repositories.vendor_repo import VendorRepository
+
     svc = HRService(db)
+    vendor = await VendorRepository(db).get_by_id(vu.vendor_id)
     templates = await svc.list_offer_templates(
         vu.vendor_id,
         designation_id=designation_id,
         department_id=department_id,
         store_id=store_id,
+        vendor_slug=vendor.slug if vendor else None,
     )
     return [_d(t) for t in templates]
 
@@ -2213,6 +2233,7 @@ async def preview_offer_template(
         show_logo=body.show_logo,
         logo_shape=body.logo_shape or "rounded",
         accent_color=body.accent_color or "#1a56db",
+        vendor_slug=vendor.slug if vendor else None,
     )
     return HTMLResponse(content=html, media_type="text/html; charset=utf-8")
 
@@ -2240,8 +2261,15 @@ async def get_offer_template(
     vu: VendorUser = Depends(require_permission("hr.offers")),
     db: AsyncSession = Depends(get_db),
 ):
+    from app.repositories.vendor_repo import VendorRepository
+
     svc = HRService(db)
-    return _d(await svc.get_offer_template(template_id, vu.vendor_id))
+    vendor = await VendorRepository(db).get_by_id(vu.vendor_id)
+    return _d(
+        await svc.get_offer_template(
+            template_id, vu.vendor_id, vendor_slug=vendor.slug if vendor else None,
+        ),
+    )
 
 
 @router.put("/offer-templates/{template_id}")
@@ -2271,8 +2299,13 @@ async def delete_offer_template(
     vu: VendorUser = Depends(require_permission("hr.offers")),
     db: AsyncSession = Depends(get_db),
 ):
+    from app.repositories.vendor_repo import VendorRepository
+
     svc = HRService(db)
-    await svc.delete_offer_template(template_id, vu.vendor_id)
+    vendor = await VendorRepository(db).get_by_id(vu.vendor_id)
+    await svc.delete_offer_template(
+        template_id, vu.vendor_id, vendor_slug=vendor.slug if vendor else None,
+    )
     await db.commit()
 
 
@@ -2282,8 +2315,13 @@ async def set_default_offer_template(
     vu: VendorUser = Depends(require_permission("hr.offers")),
     db: AsyncSession = Depends(get_db),
 ):
+    from app.repositories.vendor_repo import VendorRepository
+
     svc = HRService(db)
-    tpl = await svc.set_default_offer_template(template_id, vu.vendor_id)
+    vendor = await VendorRepository(db).get_by_id(vu.vendor_id)
+    tpl = await svc.set_default_offer_template(
+        template_id, vu.vendor_id, vendor_slug=vendor.slug if vendor else None,
+    )
     await db.commit()
     await db.refresh(tpl)
     return _d(tpl)

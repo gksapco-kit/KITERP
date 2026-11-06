@@ -2482,6 +2482,7 @@ function PostSaleReceipt({ data, invSettings, vendor, posSettings, onClose, onNe
     vendor_pan: vendor?.pan_number || '',
     vendor_address: [vendor?.street_address, vendor?.city, vendor?.state, vendor?.postal_code].filter(Boolean).join(', '),
     vendor_logo_url: vendor?.logo_url || '',
+    vendor_slug: vendor?.slug,
     items: items.map((it: any) => ({
       name: it.name,
       description: '',
@@ -2528,7 +2529,7 @@ function PostSaleReceipt({ data, invSettings, vendor, posSettings, onClose, onNe
     try {
       const inv = invoiceId ? await vendorApi.getInvoice(invoiceId) : buildInvoiceDataFromTxn()
       const s = mergedSettings()
-      const rawLogo = resolveInvoiceTemplateLogoPath(s, (inv as Record<string, unknown>).vendor_logo_url as string)
+      const rawLogo = resolveInvoiceTemplateLogoPath(s, (inv as Record<string, unknown>).vendor_logo_url as string, inv)
       const rawSig  = s.signature_url || ''
       const [logoDataUrl, sigDataUrl] = await Promise.all([
         rawLogo ? fetchAsDataUrl(rawLogo) : Promise.resolve(''),
@@ -2565,7 +2566,7 @@ function PostSaleReceipt({ data, invSettings, vendor, posSettings, onClose, onNe
     try {
       const inv = invoiceId ? await vendorApi.getInvoice(invoiceId) : buildInvoiceDataFromTxn()
       const s = mergedSettings()
-      const rawLogo = resolveInvoiceTemplateLogoPath(s, (inv as Record<string, unknown>).vendor_logo_url as string)
+      const rawLogo = resolveInvoiceTemplateLogoPath(s, (inv as Record<string, unknown>).vendor_logo_url as string, inv)
       const logoDataUrl = rawLogo ? await fetchAsDataUrl(rawLogo) : ''
       const enriched = { ...s, logo_url: logoDataUrl || undefined }
       const html = generateInvoiceHtml(
@@ -3097,6 +3098,7 @@ function TransactionDetail({ txn, onBack, invSettings, vendor, posSettings }: {
     vendor_gstin: vendor?.gstin || '',
     vendor_address: [vendor?.street_address, vendor?.city, vendor?.state, vendor?.postal_code].filter(Boolean).join(', '),
     vendor_logo_url: vendor?.logo_url || '',
+    vendor_slug: vendor?.slug,
     items: items.map((it: any) => ({
       name: it.name, hsn_sac: it.hsn_code || '', qty: it.qty, rate: it.price,
       discount: it.discount || 0, taxable_value: it.taxable || (it.price * it.qty),
@@ -3133,7 +3135,7 @@ function TransactionDetail({ txn, onBack, invSettings, vendor, posSettings }: {
         ? await vendorApi.getInvoice(txn.invoice_id as string) as Record<string, unknown>
         : buildTxnInvoiceData()
       const s = txnSettings()
-      const rawLogo = resolveInvoiceTemplateLogoPath(s, (inv as Record<string, unknown>).vendor_logo_url as string)
+      const rawLogo = resolveInvoiceTemplateLogoPath(s, (inv as Record<string, unknown>).vendor_logo_url as string, inv)
       const rawSig  = s.signature_url || ''
       const [logoDataUrl, sigDataUrl] = await Promise.all([
         rawLogo ? fetchAsDataUrl(rawLogo) : Promise.resolve(''),
@@ -3166,7 +3168,7 @@ function TransactionDetail({ txn, onBack, invSettings, vendor, posSettings }: {
         ? await vendorApi.getInvoice(txn.invoice_id as string) as Record<string, unknown>
         : buildTxnInvoiceData()
       const s = txnSettings()
-      const rawLogo = resolveInvoiceTemplateLogoPath(s, (inv as Record<string, unknown>).vendor_logo_url as string)
+      const rawLogo = resolveInvoiceTemplateLogoPath(s, (inv as Record<string, unknown>).vendor_logo_url as string, inv)
       const rawSig  = s.signature_url || ''
       const [logoDataUrl, sigDataUrl] = await Promise.all([
         rawLogo ? fetchAsDataUrl(rawLogo) : Promise.resolve(''),
@@ -3860,6 +3862,7 @@ function POSInvoiceSettingsModal({
         ? { street: vendor.street_address, city: vendor.city || '', state: vendor.state || '', postal_code: vendor.postal_code || '' }
         : { street: '456 Business Park', city: 'Mumbai', state: 'Maharashtra', postal_code: '400001' },
       vendor_logo_url: vendor?.logo_url || '',
+      vendor_slug: vendor?.slug,
     }
     setPreviewHtml(generateInvoiceHtml(sampleData, currentSettings(), window.location.origin))
   // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -396,10 +396,10 @@ export default function Orders() {
             onSortKeyChange={setSortKey}
             onSortDirChange={setSortDir}
           />
-          <ResizableTable tableId="orders-v4" defaultWidths={[44, 118, 168, 82, 108, 88, 98, 128, 130, 76]}>
+          <ResizableTable tableId="orders-v4" defaultWidths={[44, 118, 200, 78, 104, 84, 102, 124, 124, 72]}>
             <thead>
               <tr className="border-b border-border bg-muted/30">
-                <th className="w-11 px-2 py-2 text-center align-middle">
+                <th className="w-11 px-2 py-1.5 text-center align-middle">
                   <input
                     type="checkbox"
                     checked={allSelected}
@@ -407,15 +407,15 @@ export default function Orders() {
                     className="mx-auto block h-3.5 w-3.5 rounded border-input"
                   />
                 </th>
-                <th className="px-3 py-2 text-left text-[11px] font-medium uppercase text-muted-foreground"><TableColumnLabel>Order</TableColumnLabel></th>
-                <th className="px-3 py-2 text-left text-[11px] font-medium uppercase text-muted-foreground"><TableColumnLabel>Customer</TableColumnLabel></th>
-                <th className="px-3 py-2 text-left text-[11px] font-medium uppercase text-muted-foreground"><TableColumnLabel>Items</TableColumnLabel></th>
-                <th className="px-3 py-2 text-left text-[11px] font-medium uppercase text-muted-foreground"><TableColumnLabel>Total</TableColumnLabel></th>
-                <th className="px-3 py-2 text-left text-[11px] font-medium uppercase text-muted-foreground"><TableColumnLabel>Source</TableColumnLabel></th>
-                <th className="px-3 py-2 text-left text-[11px] font-medium uppercase text-muted-foreground"><TableColumnLabel>Payment</TableColumnLabel></th>
-                <th className="px-3 py-2 text-left text-[11px] font-medium uppercase text-muted-foreground"><TableColumnLabel>Status</TableColumnLabel></th>
-                <th className="px-3 py-2 text-left text-[11px] font-medium uppercase text-muted-foreground"><TableColumnLabel>Date</TableColumnLabel></th>
-                <th className="px-3 py-2 text-right text-[11px] font-medium uppercase text-muted-foreground"><TableColumnLabel>Action</TableColumnLabel></th>
+                <th className="px-3 py-1.5 text-left text-[11px] font-medium uppercase text-muted-foreground"><TableColumnLabel>Order</TableColumnLabel></th>
+                <th className="px-3 py-1.5 text-left text-[11px] font-medium uppercase text-muted-foreground"><TableColumnLabel>Customer</TableColumnLabel></th>
+                <th className="px-3 py-1.5 text-left text-[11px] font-medium uppercase text-muted-foreground"><TableColumnLabel>Items</TableColumnLabel></th>
+                <th className="px-3 py-1.5 text-left text-[11px] font-medium uppercase text-muted-foreground"><TableColumnLabel>Total</TableColumnLabel></th>
+                <th className="px-3 py-1.5 text-left text-[11px] font-medium uppercase text-muted-foreground"><TableColumnLabel>Source</TableColumnLabel></th>
+                <th className="px-3 py-1.5 text-left text-[11px] font-medium uppercase text-muted-foreground"><TableColumnLabel>Payment</TableColumnLabel></th>
+                <th className="px-3 py-1.5 text-left text-[11px] font-medium uppercase text-muted-foreground"><TableColumnLabel>Status</TableColumnLabel></th>
+                <th className="px-3 py-1.5 text-left text-[11px] font-medium uppercase text-muted-foreground"><TableColumnLabel>Date</TableColumnLabel></th>
+                <th className="px-3 py-1.5 text-right text-[11px] font-medium uppercase text-muted-foreground"><TableColumnLabel>Action</TableColumnLabel></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -426,6 +426,15 @@ export default function Orders() {
               ) : displayOrders.map((order) => {
                 const src = order.source || 'online'
                 const payLabel = paymentMethodLabel(order.payment_method)
+                const payHint =
+                  order.payment_status === 'pending_verification'
+                    ? 'Awaiting payment approval'
+                    : order.payment_method === 'pay_later' && order.status === 'pending'
+                      ? 'Awaiting approval'
+                      : ''
+                const customerSub =
+                  [order.customer_code, order.customer_email].filter(Boolean).join(' · ') || ''
+                const payTitle = payHint ? `${payLabel} — ${payHint}` : payLabel
                 return (
                 <tr key={order.id} className="cursor-pointer transition-colors hover:bg-muted/40" onClick={onClickableTableRow(() => {
                     if (order.source === 'booking') {
@@ -434,7 +443,7 @@ export default function Orders() {
                     }
                     navigate(`/orders/${order.id}`)
                   })}>
-                  <td className="w-11 px-2 py-2.5 text-center align-middle">
+                  <td className="w-11 px-2 py-2 text-center align-middle">
                     <input
                       type="checkbox"
                       checked={selectedIds.has(order.id)}
@@ -442,49 +451,67 @@ export default function Orders() {
                       className="mx-auto block h-3.5 w-3.5 rounded border-input"
                     />
                   </td>
-                  <td className="px-3 py-2.5">
+                  <td className="px-3 py-2">
                     {order.source === 'booking' && (order.items?.[0] as unknown as Record<string, unknown>)?.booking_number ? (
-                      <p className="font-mono text-sm font-medium text-primary">
+                      <p className="truncate font-mono text-sm font-medium text-primary" title={(order.items[0] as unknown as Record<string, unknown>).booking_number as string}>
                         {(order.items[0] as unknown as Record<string, unknown>).booking_number as string}
                       </p>
                     ) : (
-                      <p className="text-sm font-medium text-foreground">{order.order_number}</p>
+                      <p className="truncate text-sm font-medium text-foreground" title={order.order_number}>{order.order_number}</p>
                     )}
                   </td>
-                  <td className="px-3 py-2.5">
-                    <p className="text-sm font-medium text-foreground">{order.customer_name || 'Unknown'}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {order.customer_code ? <span className="mr-1 font-mono">{order.customer_code}</span> : null}
-                      {order.customer_email || ''}
-                    </p>
+                  <td className="px-3 py-2 !align-top">
+                    <div className="min-w-0 space-y-0.5">
+                      <p className="truncate text-sm font-medium text-foreground" title={order.customer_name || 'Unknown'}>
+                        {order.customer_name || 'Unknown'}
+                      </p>
+                      {customerSub ? (
+                        <p className="truncate text-xs text-muted-foreground" title={customerSub}>
+                          {order.customer_code ? <span className="font-mono">{order.customer_code}</span> : null}
+                          {order.customer_code && order.customer_email ? <span className="text-muted-foreground/80"> · </span> : null}
+                          {order.customer_email || ''}
+                        </p>
+                      ) : null}
+                    </div>
                   </td>
-                  <td className="px-3 py-2.5 text-sm text-muted-foreground">
+                  <td className="px-3 py-2 text-sm text-muted-foreground">
                     <InlineEditCell readOnly readOnlyMessage="Item count is calculated from order lines" value={order.item_count} onSave={() => {}}>
                       {order.item_count} items
                     </InlineEditCell>
                   </td>
-                  <td className="px-3 py-2.5 text-sm font-medium text-foreground">
+                  <td className="px-3 py-2 text-sm font-medium text-foreground">
                     <InlineEditCell readOnly readOnlyMessage="Order total is calculated from line items" value={order.total} onSave={() => {}}>
                       {formatCurrency(order.total)}
                     </InlineEditCell>
                   </td>
-                  <td className="px-3 py-2.5">
-                    <InlineEditCell readOnly readOnlyMessage="Order source is set when the order is created" value={src} onSave={() => {}}>
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium uppercase ${SOURCE_BADGE[src] || 'bg-muted text-muted-foreground'}`}>{src}</span>
+                  <td className="px-3 py-2">
+                    <InlineEditCell
+                      readOnly
+                      readOnlyMessage="Order source is set when the order is created"
+                      value={src}
+                      onSave={() => {}}
+                      truncateContent={false}
+                    >
+                      <span
+                        className={`inline-block max-w-full truncate rounded-full px-2 py-0.5 text-xs font-medium uppercase ${SOURCE_BADGE[src] || 'bg-muted text-muted-foreground'}`}
+                        title={src}
+                      >
+                        {src}
+                      </span>
                     </InlineEditCell>
                   </td>
-                  <td className="px-3 py-2.5">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-sm text-foreground">{payLabel}</span>
-                      {order.payment_status === 'pending_verification' && (
-                        <span className="text-[11px] font-medium text-amber-700">Awaiting payment approval</span>
-                      )}
-                      {order.payment_method === 'pay_later' && order.status === 'pending' && (
-                        <span className="text-[11px] font-medium text-amber-700">Awaiting approval</span>
-                      )}
-                    </div>
+                  <td className="px-3 py-2 !align-top">
+                    <p className="truncate text-sm leading-snug text-foreground" title={payTitle}>
+                      {payLabel}
+                      {payHint ? (
+                        <>
+                          <span className="text-muted-foreground"> · </span>
+                          <span className="text-[11px] font-medium text-amber-700">{payHint}</span>
+                        </>
+                      ) : null}
+                    </p>
                   </td>
-                  <td className="px-3 py-2.5">
+                  <td className="px-3 py-2">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <InlineEditCell
                         type="select"
@@ -498,8 +525,8 @@ export default function Orders() {
                       <OrderReservationBadge orderId={order.id} />
                     </div>
                   </td>
-                  <td className="px-3 py-2.5 text-sm text-muted-foreground whitespace-nowrap">{formatDate(order.created_at)}</td>
-                  <td className="px-3 py-2.5 text-right">
+                  <td className="px-3 py-2 text-sm whitespace-nowrap text-muted-foreground">{formatDate(order.created_at)}</td>
+                  <td className="px-3 py-2 text-right">
                     <div className="flex items-center justify-end gap-1">
                       <Button
                         variant="ghost"

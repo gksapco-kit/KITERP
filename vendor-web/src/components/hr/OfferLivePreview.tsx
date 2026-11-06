@@ -13,6 +13,7 @@ export const OfferLivePreview = memo(function OfferLivePreview({
   pageCount = 1,
   vendorName,
   accentColor,
+  infocomxLayoutsEnabled = true,
 }: {
   html: string
   loading?: boolean
@@ -22,15 +23,19 @@ export const OfferLivePreview = memo(function OfferLivePreview({
   pageCount?: number
   vendorName?: string
   accentColor?: string
+  /** When false, InfocomX continuation pages fall back to generic offer shell */
+  infocomxLayoutsEnabled?: boolean
 }) {
   const createBlankPage = useCallback((nextPage: number) => {
-    if (layout === INFOCOMX_LAYOUT_ID) return infocomxContinuationPage(nextPage)
+    if (layout === INFOCOMX_LAYOUT_ID && infocomxLayoutsEnabled) {
+      return infocomxContinuationPage(nextPage)
+    }
     return createBlankOfferContinuationPage({
       pageNumber: nextPage,
       vendorName,
       accentColor,
     })
-  }, [layout, vendorName, accentColor])
+  }, [layout, vendorName, accentColor, infocomxLayoutsEnabled])
 
   return (
     <DocumentLivePreview

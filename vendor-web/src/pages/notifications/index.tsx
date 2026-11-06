@@ -110,7 +110,7 @@ function SortDropdown({ value, onChange }: { value: SortKey; onChange: (v: SortK
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
-        className="flex items-center gap-1.5 rounded-full border border-border bg-background px-3.5 py-2 text-sm text-foreground shadow-sm transition-colors hover:border-input hover:bg-accent/60 dark:hover:bg-secondary/50"
+        className="flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-sm text-foreground shadow-sm transition-colors hover:border-input hover:bg-accent/60 dark:hover:bg-secondary/50"
       >
         <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
         <span className="text-xs font-medium">{label}</span>
@@ -228,10 +228,10 @@ export default function NotificationsPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3.5">
 
       {/* ── Header ──────────────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2.5">
             <h1 className="text-2xl font-semibold tracking-tight text-foreground">Notifications</h1>
@@ -263,7 +263,7 @@ export default function NotificationsPage() {
       </div>
 
       {/* ── Type filters ───────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
         {ALL_TYPES.map(t => {
           const meta = getTypeMeta(t)
           const Icon = meta.icon
@@ -277,8 +277,8 @@ export default function NotificationsPage() {
               aria-pressed={isActive}
               onClick={() => setActiveType(isActive ? null : t)}
               className={cn(
-                'group relative flex min-h-[6.25rem] flex-col overflow-hidden rounded-2xl border bg-card px-3.5 py-3 text-left transition-all duration-200',
-                'hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                'group relative flex min-h-0 flex-row items-center gap-2.5 overflow-hidden rounded-xl border bg-card px-2.5 py-2 text-left transition-all duration-200',
+                'hover:-translate-y-px hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 isActive
                   ? meta.active
                   : 'border-border shadow-sm hover:border-foreground/15',
@@ -286,28 +286,28 @@ export default function NotificationsPage() {
             >
               <span
                 className={cn(
-                  'absolute inset-x-3 top-0 h-0.5 rounded-full transition-opacity',
+                  'absolute inset-x-2.5 top-0 h-0.5 rounded-full transition-opacity',
                   meta.bar,
                   isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-70',
                 )}
                 aria-hidden
               />
-              <span className={cn('inline-flex h-8 w-8 items-center justify-center rounded-xl', meta.chip)}>
-                <Icon className="h-4 w-4" strokeWidth={2} />
+              <span className={cn('inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg', meta.chip)}>
+                <Icon className="h-3.5 w-3.5" strokeWidth={2} />
               </span>
-              <span className="mt-auto pt-3">
-                <span className="block text-[11px] font-medium tracking-wide text-muted-foreground">{meta.label}</span>
-                <span className="mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[11px] font-medium leading-tight tracking-wide text-muted-foreground">{meta.label}</span>
+                <span className="mt-0.5 flex flex-wrap items-baseline gap-x-1.5 gap-y-0">
                   <span
                     className={cn(
-                      'text-2xl font-semibold leading-none tracking-tight tabular-nums',
+                      'text-lg font-semibold leading-none tracking-tight tabular-nums',
                       hasItems ? 'text-foreground' : 'text-muted-foreground/45',
                     )}
                   >
                     {byType.total}
                   </span>
                   {byType.unread > 0 && (
-                    <span className="text-[11px] font-semibold tabular-nums text-rose-600 dark:text-rose-300">
+                    <span className="text-[10px] font-semibold tabular-nums leading-none text-rose-600 dark:text-rose-300">
                       {formatBadgeCount(byType.unread)} new
                     </span>
                   )}
@@ -319,23 +319,23 @@ export default function NotificationsPage() {
       </div>
 
       {/* ── Search + Sort + Filter bar ───────────────────────────────────── */}
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         {/* Search row */}
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative min-w-0 flex-1 basis-[min(100%,12rem)]">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <div className="flex flex-wrap items-center gap-1.5">
+          <div className="relative min-w-0 flex-1 basis-[min(100%,14rem)]">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
               placeholder="Search notifications…"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full rounded-full border border-input bg-background py-2 pl-9 pr-8 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full rounded-full border border-input bg-background py-1.5 pl-8 pr-7 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             />
             {search && (
               <button
                 type="button"
                 onClick={() => setSearch('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 aria-label="Close"
               >
                 <X className="h-3.5 w-3.5" />
@@ -346,7 +346,7 @@ export default function NotificationsPage() {
             type="button"
             onClick={() => setShowFilters(v => !v)}
             className={cn(
-              'relative flex select-none items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-medium transition-all duration-150',
+              'relative flex select-none items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-all duration-150',
               showFilters || activeFiltersCount > 0
                 ? 'border-primary bg-primary/10 text-primary shadow-sm'
                 : 'border-border bg-card text-muted-foreground hover:border-primary/40 hover:bg-accent/50 hover:text-foreground',
@@ -365,7 +365,7 @@ export default function NotificationsPage() {
 
         {/* Filter panel — Status only (type is filtered via the stat cards above) */}
         {showFilters && (
-          <div className="space-y-3 rounded-xl border border-border bg-card p-3">
+          <div className="space-y-2 rounded-lg border border-border bg-card p-2.5">
             <div>
               <p className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">Status</p>
               <div className="flex gap-2">
@@ -433,13 +433,13 @@ export default function NotificationsPage() {
 
       {/* ── List ─────────────────────────────────────────────────────────── */}
       {isLoading ? (
-        <div className="flex justify-center py-16">
+        <div className="flex justify-center py-10">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       ) : notifications.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border bg-card px-6 py-16 text-center">
-          <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">
-            <Bell className="h-5 w-5 text-muted-foreground" />
+        <div className="rounded-xl border border-dashed border-border bg-card px-5 py-10 text-center">
+          <span className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-muted">
+            <Bell className="h-4 w-4 text-muted-foreground" />
           </span>
           <p className="font-medium text-foreground">
             {search ? `No notifications matching "${search}"` : unreadOnly ? 'No unread notifications' : 'No notifications yet'}
@@ -452,7 +452,7 @@ export default function NotificationsPage() {
           )}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+        <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
           {notifications.map((n, index) => {
             const meta = getTypeMeta(n.type)
             const Icon = meta.icon
@@ -478,24 +478,24 @@ export default function NotificationsPage() {
                     }
                   : undefined}
                 className={cn(
-                  'relative flex items-start gap-3 px-4 py-3.5 transition-colors sm:gap-4 sm:px-5',
+                  'relative flex items-start gap-2.5 px-3 py-2.5 transition-colors sm:gap-3 sm:px-4',
                   index > 0 && 'border-t border-border/70',
                   !n.is_read && 'bg-primary/[0.045] dark:bg-primary/10',
                   href && 'cursor-pointer hover:bg-accent/50',
                 )}
               >
                 {!n.is_read && (
-                  <span className="absolute inset-y-3 left-0 w-0.5 rounded-full bg-primary" aria-hidden />
+                  <span className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-primary" aria-hidden />
                 )}
-                <div className={cn('mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl', !n.is_read ? meta.chip : 'bg-muted text-muted-foreground')}>
-                  <Icon className="h-4 w-4" />
+                <div className={cn('mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', !n.is_read ? meta.chip : 'bg-muted text-muted-foreground')}>
+                  <Icon className="h-3.5 w-3.5" />
                 </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className={cn('truncate text-sm', !n.is_read ? 'font-semibold text-foreground' : 'font-medium text-muted-foreground')}>{n.title}</p>
+                <div className="min-w-0 flex-1 pr-1">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 sm:pr-2">
+                    <p className={cn('min-w-0 flex-1 truncate text-sm', !n.is_read ? 'font-semibold text-foreground' : 'font-medium text-muted-foreground')}>{n.title}</p>
                   </div>
-                  <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{n.message}</p>
-                  <div className="mt-1.5 flex items-center gap-2">
+                  <p className="mt-0.5 line-clamp-2 text-sm leading-snug text-muted-foreground">{n.message}</p>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
                     <span className="text-xs text-muted-foreground">{timeAgo(n.created_at)}</span>
                     <span className="text-muted-foreground/40" aria-hidden>·</span>
                     <span className="text-xs text-muted-foreground">{meta.label}</span>
@@ -506,7 +506,7 @@ export default function NotificationsPage() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="shrink-0 rounded-full text-xs text-primary"
+                    className="-mr-1 h-8 shrink-0 rounded-full px-2 text-xs text-primary"
                     onClick={(e) => {
                       e.stopPropagation()
                       markRead.mutate(n.id)

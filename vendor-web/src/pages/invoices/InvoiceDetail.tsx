@@ -72,7 +72,7 @@ async function printWithTemplate(inv: Record<string, unknown>, invSettings: Invo
 async function downloadInvoicePdf(inv: Record<string, unknown>, invSettings: InvoiceSettings) {
   // Merge with defaults first — same as printInvoice — so template/color are always set.
   const s = { ...DEFAULT_INVOICE_SETTINGS, ...invSettings }
-  const rawLogo = resolveInvoiceTemplateLogoPath(s, inv.vendor_logo_url as string)
+  const rawLogo = resolveInvoiceTemplateLogoPath(s, inv.vendor_logo_url as string, inv)
   const rawSig  = s.signature_url || ''
   const [logoDataUrl, sigDataUrl] = await Promise.all([
     s.show_logo      && rawLogo ? fetchAsDataUrl(rawLogo) : Promise.resolve(''),
@@ -133,6 +133,30 @@ function resolveDocSettings(inv: Record<string, unknown>, base: InvoiceSettings)
     return { ...base, show_shipping_address: true }
   }
   return base
+}
+
+/** Same rule as the API: POS-layer settings apply to POS-originated sales. */
+function looksLikePosSale(inv: Record<string, unknown>): boolean {
+  const notes = String(inv.notes || '')
+  const num = String(inv.invoice_number || '')
+  return notes.includes('POS Transaction') || /^POS-/i.test(num)
+}
+
+/**
+ * Invoice detail preview / Print / Download-PDF should show the standard (A4-style) HTML template.
+ * POS receipt overrides often set a narrow paper size, which forces the thermal receipt layout in
+ * generateInvoiceHtml — confusing next to the server PDF (ReportLab A4). For POS-origin invoices we
+ * keep POS styling fields but force A4 so the on-screen document matches a proper tax invoice.
+ */
+function fullLayoutInvoiceSettings(inv: Record<string, unknown>, base: InvoiceSettings): InvoiceSettings {
+  if (!looksLikePosSale(inv)) return base
+  const p = base.paper_size
+  const narrow = p === '2inch' || p === '3inch' || p === '4inch'
+  if (!narrow) return base
+  return {
+    ...base,
+    paper_size: DEFAULT_INVOICE_SETTINGS.paper_size,
+  }
 }
 
 function addressMetaLine(address?: Record<string, string> | null): string | null {
@@ -679,8 +703,8 @@ export default function InvoiceDetail() {
     const run = async () => {
       setPreviewLoading(true)
       const invRecord = inv as Record<string, unknown>
-      const s = resolveDocSettings(invRecord, effectiveSettings(invRecord))
-      const rawLogo = resolveInvoiceTemplateLogoPath(s, inv.vendor_logo_url as string)
+      const s = fullLayoutInvoiceSettings(invRecord, resolveDocSettings(invRecord, effectiveSettings(invRecord)))
+      const rawLogo = resolveInvoiceTemplateLogoPath(s, inv.vendor_logo_url as string, inv)
       const rawSig = s.signature_url || ''
       try {
         const [logoDataUrl, sigDataUrl] = await Promise.all([
@@ -824,7 +848,7 @@ export default function InvoiceDetail() {
   const tb = invoiceTypeBadge[inv.invoice_type] || invoiceTypeBadge.invoice
   const items: Array<Record<string, unknown>> = inv.items || []
   const invRecord = inv as Record<string, unknown>
-  const docSettings = resolveDocSettings(invRecord, effectiveSettings(invRecord))
+  const docSettings = fullLayoutInvoiceSettings(invRecord, resolveDocSettings(invRecord, effectiveSettings(invRecord)))
   const docLabel = isQuotation ? 'Quotation' : 'Invoice'
 
   return (

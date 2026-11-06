@@ -319,7 +319,7 @@ export default function Dashboard() {
   ]
 
   return (
-    <div className="space-y-6 max-w-7xl">
+    <div className="w-full max-w-screen-2xl space-y-4">
 
       <DashboardWelcomeBanner
         greeting={greeting}
@@ -338,9 +338,9 @@ export default function Dashboard() {
       />
 
       {/* Overview KPI tiles */}
-      <div className="rounded-2xl border border-border bg-card px-4 py-4 shadow-sm sm:px-6 sm:py-5">
-        <h2 className="mb-4 text-sm font-semibold text-foreground">Overview</h2>
-        <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
+      <div className="rounded-xl border border-border bg-card px-3 py-3 shadow-sm sm:px-4 sm:py-3.5">
+        <h2 className="mb-2.5 text-sm font-semibold text-foreground">Overview</h2>
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           {overviewKpis.map((kpi) => {
             const up   = kpi.pct >= 0
             const Icon = kpi.icon
@@ -348,7 +348,7 @@ export default function Dashboard() {
             return (
               <div
                 key={kpi.label}
-                className="group flex min-w-0 cursor-pointer flex-col gap-2 sm:gap-3"
+                className="group flex min-w-0 cursor-pointer flex-col gap-1.5 sm:gap-2"
                 onClick={() => navigate(kpi.link)}
                 title={kpi.tooltip}
               >
@@ -398,10 +398,10 @@ export default function Dashboard() {
       </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 sm:gap-4">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 sm:gap-3">
         {stats.map(s => (
           <div key={s.label}
-            className="min-w-0 cursor-pointer overflow-hidden rounded-xl border border-border bg-card p-3 transition-shadow hover:shadow-md group sm:p-4"
+            className="group min-w-0 cursor-pointer overflow-hidden rounded-lg border border-border bg-card p-2.5 transition-shadow hover:shadow-md sm:p-3"
             onClick={() => navigate(s.link)}
             title={s.tooltip}
           >
@@ -418,7 +418,7 @@ export default function Dashboard() {
                   {s.value}
                 </p>
               </div>
-              <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg sm:h-10 sm:w-10 sm:rounded-xl ${s.chipBg}`}>
+              <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md sm:h-9 sm:w-9 sm:rounded-lg ${s.chipBg}`}>
                 <s.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${s.chipText}`} />
               </div>
             </div>
@@ -427,47 +427,47 @@ export default function Dashboard() {
       </div>
 
       {/* HR Quick Stats Card */}
-      <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-        <div className="mb-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <UserCog className="h-5 w-5 text-primary" />
-            <h3 className="font-semibold text-foreground">Human Resources</h3>
+      <div className="rounded-xl border border-border bg-card p-3 shadow-sm sm:p-4">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <UserCog className="h-4 w-4 shrink-0 text-primary" />
+            <h3 className="text-sm font-semibold text-foreground sm:text-base">Human Resources</h3>
           </div>
-          <Link to="/hr/employees" className="text-xs text-info hover:underline">View all →</Link>
+          <Link to="/hr/employees" className="shrink-0 text-xs text-info hover:underline">View all →</Link>
         </div>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <div className="rounded-xl border border-info/20 bg-info/10 p-3">
-            <div className="mb-1 flex items-center gap-2">
-              <Users className="h-4 w-4 text-info" />
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+          <div className="rounded-lg border border-info/20 bg-info/10 p-2.5 sm:p-3">
+            <div className="mb-0.5 flex items-center gap-1.5">
+              <Users className="h-3.5 w-3.5 text-info" />
               <span className="text-xs font-medium text-info">Team Size</span>
             </div>
-            <p className="text-2xl font-bold text-foreground">{hrEmpData?.total ?? '—'}</p>
+            <p className="text-xl font-bold leading-tight text-foreground sm:text-2xl">{hrEmpData?.total ?? '—'}</p>
           </div>
-          <div className={`rounded-xl border p-3 ${hrToday?.clocked_in ? 'border-success/25 bg-success/10' : 'border-border bg-muted'}`}>
-            <div className="mb-1 flex items-center gap-2">
-              <Clock className="h-4 w-4 text-success" />
+          <div className={`rounded-lg border p-2.5 sm:p-3 ${hrToday?.clocked_in ? 'border-success/25 bg-success/10' : 'border-border bg-muted'}`}>
+            <div className="mb-0.5 flex items-center gap-1.5">
+              <Clock className="h-3.5 w-3.5 text-success" />
               <span className="text-xs font-medium text-success">My Attendance</span>
             </div>
-            <p className="text-sm font-semibold text-foreground">
+            <p className="text-xs font-semibold leading-tight text-foreground sm:text-sm">
               {hrToday?.clocked_in ? (hrToday?.clocked_out ? 'Day Complete' : 'Clocked In') : 'Not Clocked In'}
             </p>
-            <Link to="/hr/attendance/my" className="text-xs text-info hover:underline">
+            <Link to="/hr/attendance/my" className="mt-0.5 inline-block text-xs text-info hover:underline">
               {hrToday?.clocked_in && !hrToday?.clocked_out ? 'Clock Out →' : 'Clock In →'}
             </Link>
           </div>
           {isHRAdmin && (
-            <div className="rounded-xl border border-warning/30 bg-warning/10 p-3">
-              <div className="mb-1 flex items-center gap-2">
-                <Plane className="h-4 w-4 text-warning" />
+            <div className="rounded-lg border border-warning/30 bg-warning/10 p-2.5 sm:p-3">
+              <div className="mb-0.5 flex items-center gap-1.5">
+                <Plane className="h-3.5 w-3.5 text-warning" />
                 <span className="text-xs font-medium text-warning">Pending Leaves</span>
               </div>
-              <p className="text-2xl font-bold text-foreground">{hrLeaveData?.total ?? '—'}</p>
-              <Link to="/hr/leaves" className="text-xs text-info hover:underline">Review →</Link>
+              <p className="text-xl font-bold leading-tight text-foreground sm:text-2xl">{hrLeaveData?.total ?? '—'}</p>
+              <Link to="/hr/leaves" className="mt-0.5 inline-block text-xs text-info hover:underline">Review →</Link>
             </div>
           )}
-          <div className="rounded-xl border border-primary/20 bg-accent p-3">
-            <div className="mb-1 flex items-center gap-2">
-              <Plane className="h-4 w-4 text-primary" />
+          <div className="rounded-lg border border-primary/20 bg-accent p-2.5 sm:p-3">
+            <div className="mb-0.5 flex items-center gap-1.5">
+              <Plane className="h-3.5 w-3.5 text-primary" />
               <span className="text-xs font-medium text-primary">My Leaves</span>
             </div>
             <Link to="/hr/leaves/my" className="text-xs text-info hover:underline">View Balances →</Link>
@@ -478,18 +478,20 @@ export default function Dashboard() {
       {/* Revenue summary */}
       {revenue && (
         <Card>
-          <CardHeader><CardTitle>Revenue Summary</CardTitle></CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+          <CardHeader className="space-y-0 p-4 pb-2 sm:p-5 sm:pb-2">
+            <CardTitle className="text-base font-semibold sm:text-lg">Revenue Summary</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0 sm:p-5 sm:pt-0">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
               {[
                 { label: 'Today',      value: revenue.today },
                 { label: 'This Week',  value: revenue.this_week },
                 { label: 'This Month', value: revenue.this_month },
                 { label: 'This FY',    value: revenue.this_fy },
               ].map(r => (
-                <div key={r.label} className="min-w-0 overflow-hidden rounded-xl bg-muted px-2 py-3 text-center sm:py-4">
-                  <p className="text-xs text-muted-foreground sm:text-sm">{r.label}</p>
-                  <p className="mt-1 break-words text-sm font-bold text-foreground tabular-nums sm:text-lg" title={formatCurrency(r.value)}>
+                <div key={r.label} className="min-w-0 overflow-hidden rounded-lg bg-muted px-2 py-2 text-center sm:py-2.5">
+                  <p className="text-[11px] text-muted-foreground sm:text-xs">{r.label}</p>
+                  <p className="mt-0.5 break-words text-sm font-bold tabular-nums text-foreground sm:text-base" title={formatCurrency(r.value)}>
                     {formatCurrency(r.value)}
                   </p>
                 </div>
@@ -500,51 +502,54 @@ export default function Dashboard() {
       )}
 
       {/* Catalog summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="group flex cursor-pointer items-center gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:border-info/30 hover:shadow-md" onClick={() => navigate('/products')}>
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-info/10">
-            <Package className="h-5 w-5 text-info" />
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
+        <div className="group flex cursor-pointer items-center gap-3 rounded-lg border border-border bg-card p-3 transition-all hover:border-info/30 hover:shadow-md sm:gap-3.5" onClick={() => navigate('/products')}>
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-info/10 sm:h-10 sm:w-10">
+            <Package className="h-4 w-4 text-info sm:h-5 sm:w-5" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-2xl font-bold text-foreground">{productData?.total ?? 0}</p>
+            <p className="text-xl font-bold tabular-nums text-foreground sm:text-2xl">{productData?.total ?? 0}</p>
             <p className="text-xs text-muted-foreground">Products</p>
           </div>
-          <ExternalLink className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-info" />
+          <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-info" />
         </div>
-        <div className="group flex cursor-pointer items-center gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:border-primary/30 hover:shadow-md" onClick={() => navigate('/services')}>
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent">
-            <Wrench className="h-5 w-5 text-primary" />
+        <div className="group flex cursor-pointer items-center gap-3 rounded-lg border border-border bg-card p-3 transition-all hover:border-primary/30 hover:shadow-md sm:gap-3.5" onClick={() => navigate('/services')}>
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-accent sm:h-10 sm:w-10">
+            <Wrench className="h-4 w-4 text-primary sm:h-5 sm:w-5" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-2xl font-bold text-foreground">{serviceData?.total ?? 0}</p>
+            <p className="text-xl font-bold tabular-nums text-foreground sm:text-2xl">{serviceData?.total ?? 0}</p>
             <p className="text-xs text-muted-foreground">Services</p>
           </div>
-          <ExternalLink className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary/80" />
+          <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-primary/80" />
         </div>
-        <div className="group flex cursor-pointer items-center gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:border-success/30 hover:shadow-md" onClick={() => navigate('/invoices')}>
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10">
-            <Receipt className="h-5 w-5 text-success" />
+        <div className="group flex cursor-pointer items-center gap-3 rounded-lg border border-border bg-card p-3 transition-all hover:border-success/30 hover:shadow-md sm:gap-3.5" onClick={() => navigate('/invoices')}>
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-success/10 sm:h-10 sm:w-10">
+            <Receipt className="h-4 w-4 text-success sm:h-5 sm:w-5" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-2xl font-bold text-foreground">{formatCurrency(dashboard?.unpaid_invoices ?? 0)}</p>
+            <p className="text-xl font-bold tabular-nums text-foreground sm:text-2xl">{formatCurrency(dashboard?.unpaid_invoices ?? 0)}</p>
             <p className="text-xs text-muted-foreground">Outstanding AR</p>
           </div>
-          <ExternalLink className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-success" />
+          <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-success" />
         </div>
       </div>
 
-      <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Orders by Status */}
         {ordersByStatus && (
           <Card className="min-w-0 overflow-hidden">
-            <CardHeader className="px-4 sm:px-6"><CardTitle className="text-lg sm:text-2xl">Orders by Status</CardTitle></CardHeader>
+            <CardHeader className="space-y-0 p-3 pb-2 sm:p-4 sm:pb-2">
+              <CardTitle className="text-base font-semibold sm:text-lg">Orders by Status</CardTitle>
+            </CardHeader>
             <CardContent className="p-0">
               <TableToolbar
                 search={obsSearch} onSearchChange={setObsSearch} searchPlaceholder="Filter by status…"
                 sortOptions={[{ value: 'status', label: 'Status' }, { value: 'count', label: 'Count' }]}
                 sortKey={obsSortKey} sortDir={obsSortDir} onSortKeyChange={setObsSortKey} onSortDirChange={setObsSortDir}
+                className="gap-1.5 px-2 py-1.5 sm:gap-2 sm:px-3 sm:py-2"
               />
-              <div className="space-y-3 p-4 sm:p-5">
+              <div className="space-y-2 p-3 sm:p-3.5">
                 {ordersStatusRows.map(({ status, count }) => {
                   const colors: Record<string, string> = {
                     pending: 'bg-warning',
@@ -558,15 +563,15 @@ export default function Dashboard() {
                   const total = Object.values(ordersByStatus.data as Record<string, number>).reduce((s: number, v) => s + (v as number), 0)
                   const pct = total > 0 ? (count / total) * 100 : 0
                   return (
-                    <div key={status} className="-mx-1.5 cursor-pointer rounded-lg p-1.5 hover:bg-muted/60" onClick={() => navigate('/orders')}>
-                      <div className="mb-1 flex min-w-0 items-center justify-between gap-2 text-sm">
+                    <div key={status} className="-mx-1 cursor-pointer rounded-md px-1 py-1 hover:bg-muted/60" onClick={() => navigate('/orders')}>
+                      <div className="mb-0.5 flex min-w-0 items-center justify-between gap-2 text-sm">
                         <span className="flex min-w-0 items-center gap-1 capitalize text-foreground">
                           <span className="truncate">{status}</span>
                           <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
                         </span>
                         <span className="shrink-0 font-medium tabular-nums">{count}</span>
                       </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-muted">
+                      <div className="h-1.5 overflow-hidden rounded-full bg-muted">
                         <div className={`h-full rounded-full ${colors[status] || 'bg-muted-foreground/40'}`} style={{ width: `${pct}%` }} />
                       </div>
                     </div>
@@ -581,18 +586,21 @@ export default function Dashboard() {
         {/* Daily Sales */}
         {salesByDay && (
           <Card className="min-w-0 overflow-hidden">
-            <CardHeader className="px-4 sm:px-6"><CardTitle className="text-lg sm:text-2xl">Daily Sales (Last 30 Days)</CardTitle></CardHeader>
+            <CardHeader className="space-y-0 p-3 pb-2 sm:p-4 sm:pb-2">
+              <CardTitle className="text-base font-semibold sm:text-lg">Daily Sales (Last 30 Days)</CardTitle>
+            </CardHeader>
             <CardContent className="p-0">
               <TableToolbar
                 search={salesSearch} onSearchChange={setSalesSearch} searchPlaceholder="Filter by date…"
                 sortOptions={[{ value: 'date', label: 'Date' }, { value: 'revenue', label: 'Revenue' }, { value: 'orders', label: 'Orders' }]}
                 sortKey={salesSortKey} sortDir={salesSortDir} onSortKeyChange={setSalesSortKey} onSortDirChange={setSalesSortDir}
+                className="gap-1.5 px-2 py-1.5 sm:gap-2 sm:px-3 sm:py-2"
               />
-              <div className="max-h-64 space-y-1 overflow-y-auto p-3 sm:p-4">
+              <div className="max-h-64 space-y-0.5 overflow-y-auto p-2.5 sm:p-3">
                 {salesRows.map((d) => (
-                  <div key={d.date} className="flex min-w-0 items-center gap-2 py-1.5 sm:gap-3">
-                    <span className="w-16 shrink-0 text-xs text-muted-foreground sm:w-24">{d.date}</span>
-                    <div className="h-5 min-w-0 flex-1 overflow-hidden rounded-full bg-muted">
+                  <div key={d.date} className="flex min-w-0 items-center gap-2 py-1 sm:gap-2.5">
+                    <span className="w-[4.5rem] shrink-0 text-xs text-muted-foreground sm:w-24">{d.date}</span>
+                    <div className="h-4 min-w-0 flex-1 overflow-hidden rounded-full bg-muted">
                       <div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(100, ((d.revenue || 0) / maxRevenue) * 100)}%` }} />
                     </div>
                     <span className="w-16 shrink-0 text-right text-xs font-medium tabular-nums sm:w-20">{formatCurrency(d.revenue)}</span>
@@ -608,19 +616,22 @@ export default function Dashboard() {
         {/* Top Products */}
         {topProducts && (
           <Card className="min-w-0 overflow-hidden">
-            <CardHeader className="px-4 sm:px-6"><CardTitle className="text-lg sm:text-2xl">Top Products (by stock)</CardTitle></CardHeader>
+            <CardHeader className="space-y-0 p-3 pb-2 sm:p-4 sm:pb-2">
+              <CardTitle className="text-base font-semibold sm:text-lg">Top Products (by stock)</CardTitle>
+            </CardHeader>
             <CardContent className="p-0">
               <TableToolbar
                 search={tpSearch} onSearchChange={setTpSearch} searchPlaceholder="Search product…"
                 sortOptions={[{ value: 'name', label: 'Name' }, { value: 'price', label: 'Price' }, { value: 'stock', label: 'Stock' }]}
                 sortKey={tpSortKey} sortDir={tpSortDir} onSortKeyChange={setTpSortKey} onSortDirChange={setTpSortDir}
+                className="gap-1.5 px-2 py-1.5 sm:gap-2 sm:px-3 sm:py-2"
               />
               <div className="divide-y">
                 {topProductRows.map((p, i) => (
                   <button
                     key={p.id}
                     type="button"
-                    className="flex w-full min-w-0 items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50"
+                    className="flex w-full min-w-0 items-start gap-2 px-3 py-2 text-left transition-colors hover:bg-muted/50"
                     onClick={() => navigate(`/products/${p.id}`)}
                   >
                     <span className="mt-0.5 w-5 shrink-0 text-xs tabular-nums text-muted-foreground">{i + 1}</span>
@@ -644,19 +655,22 @@ export default function Dashboard() {
         {/* Top Customers */}
         {topCustomers && (
           <Card className="min-w-0 overflow-hidden">
-            <CardHeader className="px-4 sm:px-6"><CardTitle className="text-lg sm:text-2xl">Top Customers (by spend)</CardTitle></CardHeader>
+            <CardHeader className="space-y-0 p-3 pb-2 sm:p-4 sm:pb-2">
+              <CardTitle className="text-base font-semibold sm:text-lg">Top Customers (by spend)</CardTitle>
+            </CardHeader>
             <CardContent className="p-0">
               <TableToolbar
                 search={tcSearch} onSearchChange={setTcSearch} searchPlaceholder="Search name or email…"
                 sortOptions={[{ value: 'name', label: 'Name' }, { value: 'email', label: 'Email' }, { value: 'orders', label: 'Orders' }, { value: 'spent', label: 'Spent' }]}
                 sortKey={tcSortKey} sortDir={tcSortDir} onSortKeyChange={setTcSortKey} onSortDirChange={setTcSortDir}
+                className="gap-1.5 px-2 py-1.5 sm:gap-2 sm:px-3 sm:py-2"
               />
               <div className="divide-y">
                 {topCustomerRows.map((c, i) => (
                   <button
                     key={c.id}
                     type="button"
-                    className="flex w-full min-w-0 items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/60"
+                    className="flex w-full min-w-0 items-start gap-2 px-3 py-2 text-left transition-colors hover:bg-muted/60"
                     onClick={() => navigate(`/customers/${c.id}`)}
                   >
                     <span className="mt-0.5 w-5 shrink-0 text-xs tabular-nums text-muted-foreground">{i + 1}</span>
@@ -681,10 +695,10 @@ export default function Dashboard() {
 
       {/* Orders Report */}
       <Card className="min-w-0 overflow-hidden">
-        <CardHeader className="px-4 pb-3 sm:px-6">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:flex-wrap">
-            <CardTitle className="flex items-center gap-2 text-lg sm:text-2xl">
-              <Receipt className="h-5 w-5 shrink-0 text-info" /> Orders Report
+        <CardHeader className="space-y-0 p-3 pb-2 sm:p-4 sm:pb-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:flex-wrap">
+            <CardTitle className="flex items-center gap-2 text-base font-semibold sm:text-lg">
+              <Receipt className="h-4 w-4 shrink-0 text-info sm:h-5 sm:w-5" /> Orders Report
             </CardTitle>
 
             {/* Tab dropdown — scrollable on narrow screens */}
@@ -717,16 +731,16 @@ export default function Dashboard() {
           </div>
 
           {/* Compact summary stats */}
-          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
-            <div className="flex min-w-0 items-center justify-between gap-3 rounded-lg bg-info/10 px-3 py-2">
+          <div className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-3">
+            <div className="flex min-w-0 items-center justify-between gap-2 rounded-lg bg-info/10 px-2.5 py-1.5 sm:gap-3 sm:px-3 sm:py-2">
               <span className="text-xs text-muted-foreground">Total Count</span>
               <span className="text-base font-bold text-foreground tabular-nums">{orderStats.count}</span>
             </div>
-            <div className="flex min-w-0 items-center justify-between gap-3 rounded-lg bg-success/10 px-3 py-2">
+            <div className="flex min-w-0 items-center justify-between gap-2 rounded-lg bg-success/10 px-2.5 py-1.5 sm:gap-3 sm:px-3 sm:py-2">
               <span className="text-xs text-muted-foreground">Total Revenue</span>
               <span className="truncate text-base font-bold text-foreground tabular-nums">{formatCurrency(orderStats.revenue)}</span>
             </div>
-            <div className="flex min-w-0 items-center justify-between gap-3 rounded-lg bg-warning/10 px-3 py-2">
+            <div className="flex min-w-0 items-center justify-between gap-2 rounded-lg bg-warning/10 px-2.5 py-1.5 sm:gap-3 sm:px-3 sm:py-2">
               <span className="text-xs text-muted-foreground">Avg Value</span>
               <span className="truncate text-base font-bold text-foreground tabular-nums">{formatCurrency(orderStats.avg)}</span>
             </div>
@@ -740,6 +754,7 @@ export default function Dashboard() {
             onSearchChange={(v) => { setOrderSearch(v); setOrderPage(0) }}
             searchPlaceholder={isBookingTab ? 'Search bookings…' : 'Search orders…'}
             searchWrapperClassName="min-w-0 w-full flex-1 basis-full max-w-full sm:basis-auto sm:max-w-xs"
+            className="gap-1.5 px-2 py-1.5 sm:gap-2 sm:px-3 sm:py-2"
             sortOptions={isBookingTab
               ? [
                   { value: 'booking_date',   label: 'Date' },

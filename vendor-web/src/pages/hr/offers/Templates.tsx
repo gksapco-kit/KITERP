@@ -43,6 +43,7 @@ import {
   prepareInfocomxOfferHtmlForPreview,
   resolveInfocomxLogoUrl,
 } from '@/lib/infocomxBranding'
+import { mayUseInfocomxHrAssetsForSlug } from '@/lib/infocomxVendorScope'
 import { OfferLayoutThemeGrid } from '@/components/hr/OfferLayoutThemeGrid'
 import { DEFAULT_OFFER_ACCENT, applyOfferAccentColor } from '@/lib/offerLayoutShells'
 import { HtmlRichEditor, type HtmlRichEditorHandle } from '@/components/hr/HtmlRichEditor'
@@ -57,19 +58,21 @@ const MERGE_VARS = MERGE_VAR_KEYS.map(key => ({
   label: key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
 }))
 
-function emptyForm(name = '') {
+export type OfferTemplateFormState = ReturnType<typeof makeOfferTemplateEmptyForm>
+
+function makeOfferTemplateEmptyForm(allowInfocomx: boolean, name = '') {
   return {
     name,
-    description: INFOCOMX_TEMPLATE_DESCRIPTION,
-    body_html: INFOCOMX_OFFER_BODY,
-    layout: INFOCOMX_LAYOUT_ID as OfferLayoutId,
+    description: allowInfocomx ? INFOCOMX_TEMPLATE_DESCRIPTION : '',
+    body_html: allowInfocomx ? INFOCOMX_OFFER_BODY : DEFAULT_OFFER_BODY,
+    layout: (allowInfocomx ? INFOCOMX_LAYOUT_ID : 'standard') as OfferLayoutId,
     designation_id: '', department_id: '', store_id: '', is_default: false,
     watermark_enabled: false,
     watermark_text: '',
     watermark_opacity: '0.12',
     watermark_style: 'diagonal_text' as OfferWatermarkStyle,
-    logo_url: INFOCOMX_LOGO_PATH,
-    show_logo: false,
+    logo_url: allowInfocomx ? INFOCOMX_LOGO_PATH : '',
+    show_logo: !allowInfocomx,
     logo_shape: 'rounded' as LogoShape,
     accent_color: DEFAULT_OFFER_ACCENT,
   }
@@ -125,8 +128,8 @@ function resolveOriginPath(url: string) {
   return `${window.location.origin}${url.startsWith('/') ? url : `/${url}`}`
 }
 
-function nextUntitledName(templates: { name: string }[]) {
-  const base = INFOCOMX_TEMPLATE_NAME
+function nextUntitledName(templates: { name: string }[], allowInfocomx: boolean) {
+  const base = allowInfocomx ? INFOCOMX_TEMPLATE_NAME : 'Untitled template'
   const taken = new Set(templates.map(t => t.name.trim().toLowerCase()).filter(Boolean))
   if (!taken.has(base.toLowerCase())) return base
   let n = 2
@@ -142,11 +145,22 @@ export default function OfferTemplatesPage() {
   const navigate = useNavigate()
   const editorRef = useRef<HtmlRichEditorHandle>(null)
   const nameInputRef = useRef<HTMLInputElement>(null)
-  const baselineRef = useRef(JSON.stringify(emptyForm()))
   const userOverrideRef = useRef(false)
 
   const vendorName = useVendorStore(s => s.vendor?.business_name) || 'Your Company'
   const vendorLogo = useVendorStore(s => s.vendor?.logo_url) || ''
+  const vendorSlug = useVendorStore(s => s.vendor?.slug)
+  const allowInfocomx = useMemo(
+    () => mayUseInfocomxHrAssetsForSlug(vendorSlug),
+    [vendorSlug],
+  )
+
+  const emptyForm = useCallback(
+    (name = '') => makeOfferTemplateEmptyForm(allowInfocomx, name),
+    [allowInfocomx],
+  )
+
+  const baselineRef = useRef(JSON.stringify(makeOfferTemplateEmptyForm(false)))
 
   const { data: templatesData } = useHROfferTemplates()
   const templates = templatesData ?? []
@@ -164,7 +178,7 @@ export default function OfferTemplatesPage() {
   const setDefault = useSetDefaultHROfferTemplate()
 
   const [selected, setSelected] = useState<OfferLetterTemplate | null>(null)
-  const [form, setForm] = useState(emptyForm())
+  const [form, setForm] = useState<OfferTemplateFormState>(() => makeOfferTemplateEmptyForm(false))
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('design')
   const [isNew, setIsNew] = useState(false)
   const [draftNonce, setDraftNonce] = useState(0)
@@ -186,8 +200,13 @@ export default function OfferTemplatesPage() {
   }, [])
 
   const applyTemplateToForm = useCallback((tpl: OfferLetterTemplate) => {
-    const layout = (tpl.layout || 'standard') as OfferLayoutId
-    const body = normalizeOfferBody(tpl.body_html)
+    let layout = (tpl.layout || 'standard') as OfferLayoutId
+    let body = normalizeOfferBody(tpl.body_html)
+    if (!allowInfocomx && (layout === INFOCOMX_LAYOUT_ID || isInfocomxOfferHtml(body))) {
+      layout = 'standard'
+      body = isInfocomxOfferHtml(body) ? DEFAULT_OFFER_BODY : body
+      toast.message('InfocomX stationery is not available for this business — opened as a standard template.')
+    }
     const infocomxLayout = layout === INFOCOMX_LAYOUT_ID
     const next = {
       name: tpl.name,
@@ -211,7 +230,7 @@ export default function OfferTemplatesPage() {
     setForm(next)
     setPreviewBody(body)
     setIsNew(false)
-  }, [normalizeOfferBody])
+  }, [normalizeOfferBody, allowInfocomx])
 
   const applyEmptyForm = useCallback((name = '') => {
     const next = emptyForm(name)
@@ -219,7 +238,7 @@ export default function OfferTemplatesPage() {
     setForm(next)
     setPreviewBody(next.body_html)
     setIsNew(true)
-  }, [])
+  }, [emptyForm])
 
   const isDirty = JSON.stringify(form) !== baselineRef.current
 
@@ -247,18 +266,19 @@ export default function OfferTemplatesPage() {
     didHydrateRef.current = true
     if (userOverrideRef.current) return
     if (templatesData.length === 0) {
-      applyEmptyForm(nextUntitledName([]))
+      applyEmptyForm(nextUntitledName([], allowInfocomx))
       return
     }
     const pick = templatesData.find(t => t.is_default) ?? templatesData[0]
     setSelected(pick)
     applyTemplateToForm(pick)
-  }, [templatesData, applyTemplateToForm, applyEmptyForm])
+  }, [templatesData, applyTemplateToForm, applyEmptyForm, allowInfocomx])
 
   const logoPreviewClass = LOGO_SHAPE_PREVIEW_CLASS[form.logo_shape ?? 'rounded']
 
   const previewHtml = useMemo(() => {
-    const infocomxDoc = form.layout === INFOCOMX_LAYOUT_ID || isInfocomxOfferHtml(form.body_html)
+    const infocomxDoc =
+      allowInfocomx && (form.layout === INFOCOMX_LAYOUT_ID || isInfocomxOfferHtml(form.body_html))
     const embeddedInfocomxLogo =
       infocomxDoc
       && (isInfocomxOfferHtml(previewBody)
@@ -282,11 +302,15 @@ export default function OfferTemplatesPage() {
       editableTemplate: true,
       accentColor: form.accent_color || DEFAULT_OFFER_ACCENT,
     })
-  }, [previewBody, form.layout, form.accent_color, form.watermark_enabled, form.watermark_text, form.watermark_opacity, form.watermark_style, form.logo_url, form.show_logo, form.logo_shape, vendorLogo])
+  }, [previewBody, form.layout, form.accent_color, form.watermark_enabled, form.watermark_text, form.watermark_opacity, form.watermark_style, form.logo_url, form.show_logo, form.logo_shape, vendorLogo, allowInfocomx])
 
   const pageCount = useMemo(() => countOfferPages(previewBody), [previewBody])
 
   const handleLayoutChange = useCallback((id: OfferLayoutId) => {
+    if (id === INFOCOMX_LAYOUT_ID && !allowInfocomx) {
+      toast.error('InfocomX letter stationery is only available for InfocomX / platform HR.')
+      return
+    }
     if (id === INFOCOMX_LAYOUT_ID) {
       setForm(f => {
         if (isInfocomxOfferHtml(f.body_html)) return { ...f, layout: id }
@@ -309,7 +333,7 @@ export default function OfferTemplatesPage() {
       return { ...f, layout: id, body_html: body }
     })
     setPreviewBody(prev => (isCustomOfferHtml(prev) ? extractBodyFragmentForLayout(prev) : prev))
-  }, [])
+  }, [allowInfocomx])
 
   const handlePreviewBodyChange = useCallback((html: string, commit = false) => {
     const body = normalizeOfferBody(html)
@@ -342,7 +366,7 @@ export default function OfferTemplatesPage() {
     userOverrideRef.current = true
     setSelected(null)
     setDraftNonce(n => n + 1)
-    applyEmptyForm(nextUntitledName(templates))
+    applyEmptyForm(nextUntitledName(templates, allowInfocomx))
     focusName()
   }, [isNew, selected, isDirty, applyEmptyForm, focusName, templates])
 
@@ -354,7 +378,7 @@ export default function OfferTemplatesPage() {
     applyTemplateToForm(tpl)
   }, [templates, applyTemplateToForm, selected, isDirty])
 
-  function setField<K extends keyof ReturnType<typeof emptyForm>>(k: K, v: ReturnType<typeof emptyForm>[K]) {
+  function setField<K extends keyof OfferTemplateFormState>(k: K, v: OfferTemplateFormState[K]) {
     setForm(f => ({ ...f, [k]: v }))
   }
 
@@ -389,7 +413,7 @@ export default function OfferTemplatesPage() {
     if (selected && !isNew) {
       applyTemplateToForm(selected)
     } else {
-      applyEmptyForm(form.name.trim() || nextUntitledName(templates))
+      applyEmptyForm(form.name.trim() || nextUntitledName(templates, allowInfocomx))
     }
   }
 
@@ -451,7 +475,7 @@ export default function OfferTemplatesPage() {
     userOverrideRef.current = true
     setSelected(null)
     setDraftNonce(n => n + 1)
-    applyEmptyForm(nextUntitledName(templates.filter(t => t.id !== selected.id)))
+    applyEmptyForm(nextUntitledName(templates.filter(t => t.id !== selected.id), allowInfocomx))
     focusName()
   }
 
@@ -466,13 +490,21 @@ export default function OfferTemplatesPage() {
       name = `${selected.name} (Copy ${copyN})`
       copyN += 1
     }
+    const dupLayout = (selected.layout || 'standard') as OfferLayoutId
+    const dupBody = normalizeOfferBody(selected.body_html)
+    const ixDup = dupLayout === INFOCOMX_LAYOUT_ID || isInfocomxOfferHtml(dupBody)
+    const layout = (!allowInfocomx && ixDup ? 'standard' : dupLayout) as OfferLayoutId
+    const body_html = !allowInfocomx && ixDup ? (isInfocomxOfferHtml(dupBody) ? DEFAULT_OFFER_BODY : dupBody) : dupBody
+    if (!allowInfocomx && ixDup) {
+      toast.message('InfocomX stationery is not available for this business — duplicated as a standard template.')
+    }
     setSelected(null)
     setDraftNonce(key => key + 1)
-    setForm({
+    const nextForm = {
       name,
       description: selected.description ?? '',
-      body_html: selected.body_html,
-      layout: (selected.layout || 'standard') as OfferLayoutId,
+      body_html,
+      layout,
       designation_id: selected.designation_id ?? '',
       department_id: selected.department_id ?? '',
       store_id: selected.store_id ?? '',
@@ -481,12 +513,17 @@ export default function OfferTemplatesPage() {
       watermark_text: selected.watermark_text ?? '',
       watermark_opacity: selected.watermark_opacity ?? '0.12',
       watermark_style: (selected.watermark_style || 'diagonal_text') as OfferWatermarkStyle,
-      logo_url: selected.logo_url ?? '',
-      show_logo: selected.show_logo ?? true,
+      logo_url:
+        !allowInfocomx && ixDup
+          ? (vendorLogo || '')
+          : ((selected.logo_url ?? '').trim() || (layout === INFOCOMX_LAYOUT_ID ? INFOCOMX_LOGO_PATH : '')),
+      show_logo: layout === INFOCOMX_LAYOUT_ID ? false : (selected.show_logo ?? true),
       logo_shape: (selected.logo_shape || 'rounded') as LogoShape,
       accent_color: selected.accent_color || DEFAULT_OFFER_ACCENT,
-    })
-    setPreviewBody(selected.body_html)
+    }
+    baselineRef.current = JSON.stringify(nextForm)
+    setForm(nextForm)
+    setPreviewBody(body_html)
     setIsNew(true)
     focusName()
   }
@@ -561,6 +598,7 @@ export default function OfferTemplatesPage() {
           pageCount={pageCount}
           vendorName={previewVendorRef.current}
           accentColor={form.accent_color || DEFAULT_OFFER_ACCENT}
+          infocomxLayoutsEnabled={allowInfocomx}
         />
 
         {/* Right: Settings panel — always mounted so tab/editor state is never lost */}
@@ -630,11 +668,18 @@ export default function OfferTemplatesPage() {
               </AccordionSection>
 
               <AccordionSection title="Themes" badge={layoutLabel(form.layout)} defaultOpen>
-                <p className="text-xs text-gray-500 mb-2">InfocomX Letter is the company appointment stationery. Other themes share the invoice layout library.</p>
+                {allowInfocomx ? (
+                  <p className="text-xs text-gray-500 mb-2">
+                    InfocomX Letter is the company appointment stationery. Other themes share the invoice layout library.
+                  </p>
+                ) : (
+                  <p className="text-xs text-gray-500 mb-2">Pick a layout theme — invoice layout library applies to offer letters.</p>
+                )}
                 <OfferLayoutThemeGrid
                   selectedId={form.layout}
                   accentColor={form.accent_color || DEFAULT_OFFER_ACCENT}
                   onSelect={handleLayoutChange}
+                  layoutFilter={id => id !== INFOCOMX_LAYOUT_ID || allowInfocomx}
                 />
               </AccordionSection>
 

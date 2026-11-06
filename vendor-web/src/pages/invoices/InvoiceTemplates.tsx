@@ -23,6 +23,7 @@ import {
   generateInvoiceHtml, mergeInvoiceTemplatePages, createBlankInvoiceContinuationPage,
   DEFAULT_INVOICE_SETTINGS, DEFAULT_QUOTATION_SETTINGS, PAPER_SIZES,
   DEFAULT_LAYOUT_SECTIONS, resolveInvoiceTemplateLogoPath,
+  applyAllInvoiceComponentsPreset,
   LOGO_SHAPES, URL_POSITION_OPTIONS,
   INVOICE_TEMPLATE_LABELS, normalizeInvoiceTemplateId,
 } from '@/lib/invoiceTemplates'
@@ -786,7 +787,7 @@ export default function InvoiceSettingsPage() {
 
   const vendorLogo = vendor?.logo_url || ''
   const vendorWebsiteFallback = resolveVendorWebsiteFallback(vendor)
-  const logoUrl = resolveInvoiceTemplateLogoPath(settings, vendorLogo)
+  const logoUrl = resolveInvoiceTemplateLogoPath(settings, vendorLogo, vendor?.slug ?? null)
   const logoShape = settings.logo_shape ?? 'rounded'
   const logoPreviewClass = LOGO_SHAPE_PREVIEW_CLASS[logoShape]
 
@@ -801,6 +802,7 @@ export default function InvoiceSettingsPage() {
         ? { street: vendor.street_address, city: vendor.city || '', state: vendor.state || '', postal_code: vendor.postal_code || '' }
         : sampleBase.vendor_address,
       vendor_logo_url: vendorLogo,
+      vendor_slug: vendor?.slug,
       vendor_website_url: settings.website_url?.trim() || vendorWebsiteFallback,
       terms_and_conditions: settings.default_terms || sampleBase.terms_and_conditions,
     }
@@ -823,6 +825,7 @@ export default function InvoiceSettingsPage() {
         ? { street: vendor.street_address, city: vendor.city || '', state: vendor.state || '', postal_code: vendor.postal_code || '' }
         : SAMPLE_INVOICE.vendor_address,
       vendor_logo_url: vendorLogo,
+      vendor_slug: vendor?.slug,
       vendor_website_url: pm.website_url?.trim() || vendorWebsiteFallback,
       customer_name: 'Walk-in Customer',
       notes: 'POS Transaction: POS-000042',
@@ -890,7 +893,7 @@ export default function InvoiceSettingsPage() {
       vendorName: vendor?.business_name,
       vendorGstin: vendor?.gstin ?? undefined,
       vendorAddress: vendorAddressStr,
-      logoUrl: resolveInvoiceTemplateLogoPath(pm, vendorLogo),
+      logoUrl: resolveInvoiceTemplateLogoPath(pm, vendorLogo, vendor?.slug ?? null),
       docKind: 'receipt',
       paperSize: pm.paper_size,
     })
@@ -1614,10 +1617,25 @@ export default function InvoiceSettingsPage() {
                       </button>
                     </div>
                   ))}
-                  <button onClick={() => set('layout_sections', DEFAULT_LAYOUT_SECTIONS.map(d => ({ ...d })))}
-                    className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-0.5 mt-1">
-                    <RotateCcw className="w-2.5 h-2.5" /> Reset order
-                  </button>
+                  <div className="mt-1 flex flex-col gap-1">
+                    <button
+                      type="button"
+                      onClick={() => set('layout_sections', DEFAULT_LAYOUT_SECTIONS.map(d => ({ ...d })))}
+                      className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-0.5"
+                    >
+                      <RotateCcw className="w-2.5 h-2.5" /> Reset order
+                    </button>
+                    {!isQuotationMode && (
+                      <button
+                        type="button"
+                        title="Turns on every optional block (like a full tax invoice). Your theme and colours stay the same."
+                        onClick={() => setSettings(prev => applyAllInvoiceComponentsPreset(prev))}
+                        className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-0.5 text-left"
+                      >
+                        Enable all components
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

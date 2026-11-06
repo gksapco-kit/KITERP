@@ -12,6 +12,8 @@ from starlette.concurrency import run_in_threadpool
 
 from app.models.vendor import Vendor
 from app.services.document_assets import load_document_image
+from app.services.infocomx_branding import LOGO_FILE
+from app.services.infocomx_vendor_scope import vendor_may_use_infocomx_hr_assets
 from app.utils.document_settings import sanitize_document_settings
 from app.utils.pdf_generator import generate_invoice_pdf, is_pos_invoice, resolve_pdf_settings
 
@@ -37,6 +39,15 @@ async def render_invoice_pdf(db, invoice) -> bytes:
         body = await load_document_image(settings.get("logo_url"))
         if body is None and not settings.get("logo_url"):
             body = await load_document_image(company_logo, allow_company_logo=True)
+        if (
+            body is None
+            and not settings.get("logo_url")
+            and not (company_logo or "").strip()
+            and vendor
+            and vendor_may_use_infocomx_hr_assets(vendor.slug)
+            and LOGO_FILE.is_file()
+        ):
+            body = LOGO_FILE.read_bytes()
         if body:
             images["logo"] = body
     if settings.get("show_signature", True) is not False:

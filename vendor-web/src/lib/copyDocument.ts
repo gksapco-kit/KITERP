@@ -58,6 +58,7 @@ export function salesInvoiceToCopyPrefill(inv: Record<string, unknown>) {
   const rawItems = Array.isArray(inv.items) ? inv.items as Array<Record<string, unknown>> : []
   const items = rawItems.map(row => ({
     name: String(row.name || ''),
+    description: String(row.description || ''),
     hsn_sac: String(row.hsn_sac || row.hsn_code || ''),
     qty: Number(row.qty ?? row.quantity ?? 1),
     rate: Number(row.rate ?? row.price ?? 0),

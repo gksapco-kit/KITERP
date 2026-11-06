@@ -325,6 +325,54 @@ export const DEFAULT_INVOICE_SETTINGS: InvoiceSettings = {
   show_payment_terms: true,
 }
 
+/**
+ * Turn on every optional invoice block (line columns, totals, GST/shipping, footer extras).
+ * Use when you want the same *components* as a full tax invoice PDF (logo, meta, table,
+ * tax split, amount in words, bank, notes, signature, etc.) without matching pixel-perfect layout.
+ * Layout sections are reset to default order with all visible.
+ */
+export function applyAllInvoiceComponentsPreset(base: InvoiceSettings): InvoiceSettings {
+  return {
+    ...base,
+    layout_sections: DEFAULT_LAYOUT_SECTIONS.map(s => ({ ...s, visible: true })),
+    show_logo: true,
+    show_phone: true,
+    show_description: true,
+    show_hsn: true,
+    show_bank_details: true,
+    show_signature: true,
+    show_tax_breakdown: true,
+    show_notes: true,
+    show_terms: true,
+    show_gstin: true,
+    show_shipping_address: true,
+    show_place_of_supply: true,
+    show_item_numbers: true,
+    show_discount: true,
+    discount_display: 'both',
+    show_taxable_amount: true,
+    show_round_off: true,
+    show_amount_in_words: true,
+    show_tax_inclusive_note: true,
+    show_product_images: true,
+    show_vendor_address: true,
+    show_customer_address: true,
+    show_url: true,
+    url_position: base.url_position ?? 'auto',
+    show_qr_code: true,
+    qr_code_position: base.qr_code_position ?? 'footer',
+    show_customer_email: true,
+    show_financial_year: true,
+    show_due_date: true,
+    show_booking_number: true,
+    show_copy_label: true,
+    show_amount_paid: true,
+    show_balance_due: true,
+    show_legal_note: true,
+    show_payment_terms: true,
+  }
+}
+
 /** Defaults when quotation template settings have never been saved. */
 export const DEFAULT_QUOTATION_SETTINGS: InvoiceSettings = {
   ...DEFAULT_INVOICE_SETTINGS,
@@ -373,6 +421,9 @@ export function getTemplateColorLabel(hex: string): string {
   return match?.label ?? 'Custom'
 }
 
+import { resolveInfocomxLogoUrl } from '@/lib/infocomxBranding'
+import { mayUseInfocomxHrAssetsForSlug } from '@/lib/infocomxVendorScope'
+import { useVendorStore } from '@/stores/vendorStore'
 import { resolveMediaUrl, fetchAsDataUrl, openPrintWindow } from './printUtils'
 
 // ── POS-specific invoice settings ────────────────────────────────────────────
@@ -416,6 +467,94 @@ function fmtDate(d?: string | null): string {
   try { return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) } catch { return d }
 }
 
+const TH_DESC_VARIANT = '[Variant note]'
+const TH_DESC_HSN = '[HSN note]'
+const TH_DESC_QTY = '[Qty note]'
+const TH_DESC_RATE = '[Rate note]'
+const TH_DESC_TAX = '[Tax note]'
+const TH_DESC_TAGS: Array<{ key: keyof ThermalLineDescParts; tag: string }> = [
+  { key: 'variant', tag: TH_DESC_VARIANT },
+  { key: 'hsn', tag: TH_DESC_HSN },
+  { key: 'qty', tag: TH_DESC_QTY },
+  { key: 'rate', tag: TH_DESC_RATE },
+  { key: 'tax', tag: TH_DESC_TAX },
+]
+
+type ThermalLineDescParts = { variant: string; hsn: string; qty: string; rate: string; tax: string }
+
+/** Escape minimal HTML for monospace thermal output */
+function thermalEsc(s: string): string {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
+/**
+ * Split merged line description (Create Invoice modal) into main text + note parts.
+ */
+function parseThermalLineDescription(raw: unknown): { main: string; parts: ThermalLineDescParts } {
+  const s = String(raw || '')
+  const empty: ThermalLineDescParts = { variant: '', hsn: '', qty: '', rate: '', tax: '' }
+  const hits = TH_DESC_TAGS.map(({ tag, key }) => ({ key, tag, idx: s.indexOf(tag) }))
+    .filter(h => h.idx >= 0)
+  if (hits.length === 0) {
+    return { main: s.trim(), parts: empty }
+  }
+  hits.sort((a, b) => a.idx - b.idx)
+  const stripLead = (t: string) => t.replace(/^\s*\n?/, '').trim()
+  const main = s.slice(0, hits[0].idx).trimEnd()
+  const parts = { ...empty }
+  for (let i = 0; i < hits.length; i++) {
+    const { key, tag, idx } = hits[i]
+    const start = idx + tag.length
+    const end = i + 1 < hits.length ? hits[i + 1].idx : s.length
+    parts[key] = stripLead(s.slice(start, end))
+  }
+  return { main, parts }
+}
+
+function thermalItemDetailsCell(it: InvData, settings: InvoiceSettings, rowFs: string): string {
+  const name = thermalEsc(String(it.name || '').trim())
+  const descRaw = parseThermalLineDescription(it.description)
+  const mainDesc = descRaw.main.trim()
+  const lineName = String(it.name || '').trim()
+  const showMainDesc = mainDesc && mainDesc !== lineName
+  const hsnCode = thermalEsc(String((it as Record<string, unknown>).hsn_sac || (it as Record<string, unknown>).hsn_code || '').trim())
+  const taxPct = Number((it as Record<string, unknown>).tax_rate ?? (it as Record<string, unknown>).gst_rate ?? 0)
+  const showTax = settings.show_tax_breakdown !== false && taxPct > 0
+
+  const sub: string[] = []
+  if (showMainDesc) sub.push(`<div style="font-size:${rowFs};opacity:.88;line-height:1.35">${thermalEsc(mainDesc)}</div>`)
+  if (descRaw.parts.variant) {
+    sub.push(`<div style="font-size:${rowFs};opacity:.85;line-height:1.35">Var: ${thermalEsc(descRaw.parts.variant)}</div>`)
+  }
+  if (descRaw.parts.hsn) {
+    sub.push(`<div style="font-size:${rowFs};opacity:.85;line-height:1.35">HSN: ${thermalEsc(descRaw.parts.hsn)}</div>`)
+  } else if (hsnCode) {
+    sub.push(`<div style="font-size:${rowFs};opacity:.85;line-height:1.35">HSN ${hsnCode}</div>`)
+  }
+  if (descRaw.parts.qty) {
+    sub.push(`<div style="font-size:${rowFs};opacity:.82;line-height:1.35">Q: ${thermalEsc(descRaw.parts.qty)}</div>`)
+  }
+  if (descRaw.parts.rate) {
+    sub.push(`<div style="font-size:${rowFs};opacity:.82;line-height:1.35">R: ${thermalEsc(descRaw.parts.rate)}</div>`)
+  }
+  if (descRaw.parts.tax) {
+    sub.push(`<div style="font-size:${rowFs};opacity:.82;line-height:1.35">Tax: ${thermalEsc(descRaw.parts.tax)}</div>`)
+  } else if (showTax) {
+    sub.push(`<div style="font-size:${rowFs};opacity:.82;line-height:1.35">Tax ${taxPct}%</div>`)
+  }
+
+  if (!sub.length) {
+    return `<div style="overflow-wrap:anywhere">${name}</div>`
+  }
+  return `<div style="overflow-wrap:anywhere">
+    <div class="b">${name}</div>
+    ${sub.join('')}
+  </div>`
+}
+
 function vendorAddr(addr?: Record<string, string> | null): string {
   if (!addr) return ''
   const street = addr.street_address || addr.street || addr.address_line1 || addr.line1
@@ -430,19 +569,56 @@ function addressHasContent(addr?: Record<string, string> | null): boolean {
   return !!vendorAddr(addr) || !!(addr.label || addr.phone || '').trim()
 }
 
+function resolveVendorSlugForBranding(invOrSlug?: InvData | string | null): string | null {
+  if (typeof invOrSlug === 'string') return invOrSlug.trim() || null
+  if (invOrSlug && typeof invOrSlug === 'object') {
+    const o = invOrSlug as Record<string, unknown>
+    const s = o.vendor_slug ?? o.vendorSlug
+    if (typeof s === 'string' && s.trim()) return s.trim()
+  }
+  try {
+    return useVendorStore.getState().vendor?.slug?.trim() || null
+  } catch {
+    return null
+  }
+}
+
+function isNarrowReceiptPaper(settings: Partial<InvoiceSettings>): boolean {
+  const p = settings.paper_size
+  return p === '2inch' || p === '3inch' || p === '4inch'
+}
+
 /**
  * Resolve invoice template logo path.
- * Empty string means the user explicitly removed the logo (no fallback).
+ * Empty string usually means the user explicitly removed the logo (no fallback on A4).
+ * Exception: on narrow (thermal) receipts, allow-listed InfocomX vendors still get the bundled
+ * mark so POS/58mm output matches “receipt layout + InfocomX logo” without a full A4 template.
  * Undefined/null falls back to the vendor logo on the document.
+ * For InfocomX allow-listed vendors only: when there is no template logo and no company logo,
+ * use the bundled InfocomX mark (`/branding/infocomx-logo.png`); see INFOCOMX_VENDOR_SLUGS.
  */
 export function resolveInvoiceTemplateLogoPath(
   settings: Partial<InvoiceSettings>,
   vendorLogoUrl?: string | null,
+  invOrVendorSlug?: InvData | string | null,
 ): string {
   if (settings.show_logo === false) return ''
-  if (settings.logo_url === '') return ''
   if (settings.logo_url) return settings.logo_url
-  return vendorLogoUrl || ''
+
+  const slug = resolveVendorSlugForBranding(invOrVendorSlug)
+  const ixVendor = Boolean(slug && mayUseInfocomxHrAssetsForSlug(slug))
+  const narrow = isNarrowReceiptPaper(settings)
+
+  if (settings.logo_url === '') {
+    if (!(narrow && ixVendor)) return ''
+  }
+
+  const trimmed = (vendorLogoUrl || '').trim()
+  if (trimmed) return trimmed
+  if (ixVendor) {
+    return resolveInfocomxLogoUrl('')
+  }
+  return ''
 }
 
 /** Resolve website URL for invoice print — settings override, then document vendor field. */
@@ -585,7 +761,7 @@ function thermalVendorUrlLine(settings: InvoiceSettings, inv: InvData): string {
  * backendApiBase is kept for backward-compat but resolveMediaUrl does the real work.
  */
 function resolveLogoUrl(settings: InvoiceSettings, inv: InvData, _backendApiBase: string): string {
-  const path = resolveInvoiceTemplateLogoPath(settings, inv.vendor_logo_url as string)
+  const path = resolveInvoiceTemplateLogoPath(settings, inv.vendor_logo_url as string, inv)
   if (!path) return ''
   return resolveMediaUrl(path)
 }
@@ -679,21 +855,29 @@ function invoiceTableHeadCells(
     <th style="${th};text-align:right;width:100px">AMOUNT</th>`
 }
 
-function invoiceTableHead(settings: InvoiceSettings, color: string, filled = true): string {
+function invoiceTableHead(settings: InvoiceSettings, color: string, filled = true, cellPad = INV_TABLE_CELL_PAD): string {
   const tr = filled
     ? `<tr style="background:${color};color:#fff">`
     : `<tr style="border-bottom:2px solid ${color}">`
   const th = filled
-    ? `padding:${INV_TABLE_CELL_PAD};font-size:10px;font-weight:600;white-space:nowrap`
-    : `padding:${INV_TABLE_CELL_PAD};font-size:10px;font-weight:600;white-space:nowrap;color:${color}`
+    ? `padding:${cellPad};font-size:10px;font-weight:600;white-space:nowrap`
+    : `padding:${cellPad};font-size:10px;font-weight:600;white-space:nowrap;color:${color}`
   return `${tr}${invoiceTableHeadCells(settings, th)}
   </tr>`
 }
 
-function invoiceItemsSection(items: InvData[], settings: InvoiceSettings, color: string, filled = true): string {
-  return `<table style="margin-bottom:16px;width:100%;border-collapse:collapse;table-layout:auto">
-    <thead>${invoiceTableHead(settings, color, filled)}</thead>
-    <tbody>${itemRows(items, settings, color)}</tbody>
+function invoiceItemsSection(
+  items: InvData[],
+  settings: InvoiceSettings,
+  color: string,
+  filled = true,
+  opts?: { marginBottom?: string; cellPad?: string },
+): string {
+  const cellPad = opts?.cellPad ?? INV_TABLE_CELL_PAD
+  const mb = opts?.marginBottom ?? '16px'
+  return `<table style="margin-bottom:${mb};width:100%;border-collapse:collapse;table-layout:auto">
+    <thead>${invoiceTableHead(settings, color, filled, cellPad)}</thead>
+    <tbody>${itemRows(items, settings, color, cellPad)}</tbody>
   </table>`
 }
 
@@ -703,10 +887,10 @@ function itemThumb(it: InvData): string {
   return `<img src="${resolveMediaUrl(url)}" style="width:40px;height:40px;border-radius:6px;object-fit:cover;border:1px solid #e5e7eb;flex-shrink:0;display:block" crossorigin="anonymous"/>`
 }
 
-function itemRows(items: InvData[], settings: InvoiceSettings, color: string): string {
+function itemRows(items: InvData[], settings: InvoiceSettings, color: string, cellPad = INV_TABLE_CELL_PAD): string {
   const showImg = settings.show_product_images
   const showDiscCol = showDiscountColumn(settings)
-  const td = `padding:${INV_TABLE_CELL_PAD};border-bottom:1px solid #e5e7eb;vertical-align:top`
+  const td = `padding:${cellPad};border-bottom:1px solid #e5e7eb;vertical-align:top`
   return items.map((it, i) => {
     const qty   = Number(it.qty || it.quantity || 0)
     const rate  = Number(it.rate || it.price || 0)
@@ -804,10 +988,19 @@ function totalsBlock(inv: InvData, settings: InvoiceSettings): string {
   `
 }
 
-function bankBlock(settings: InvoiceSettings): string {
-  if (!settings.show_bank_details) return ''
+/** True when bank details should render (toggle on and at least one non-empty bank field). */
+function hasBankDetailsContent(settings: InvoiceSettings): boolean {
+  if (!settings.show_bank_details) return false
   const { bank_name, account_number, ifsc_code, account_holder_name, upi_id } = settings
-  if (!bank_name && !account_number) return ''
+  return [bank_name, account_number, ifsc_code, account_holder_name, upi_id].some(v => {
+    const s = v == null ? '' : String(v).trim()
+    return Boolean(s)
+  })
+}
+
+function bankBlock(settings: InvoiceSettings): string {
+  if (!hasBankDetailsContent(settings)) return ''
+  const { bank_name, account_number, ifsc_code, account_holder_name, upi_id } = settings
   return `<div style="font-size:11px">
     <div style="font-weight:600;margin-bottom:6px;font-size:12px">Bank Details</div>
     ${bank_name ? `<div>Bank: <span style="font-weight:500">${bank_name}</span></div>` : ''}
@@ -899,7 +1092,10 @@ function quotationExtraFieldsBlock(inv: InvData): string {
 
 type FooterLogoOpts = { url: string; position: 'left' | 'right' | 'center' | 'bottom-left' | 'bottom-right'; size?: 'sm' | 'md' }
 
-function commonFooter(inv: InvData, settings: InvoiceSettings, footerLogo?: FooterLogoOpts): string {
+type CommonFooterOpts = { /** Tighter margins after totals (e.g. classic template). */ compact?: boolean }
+
+function commonFooter(inv: InvData, settings: InvoiceSettings, footerLogo?: FooterLogoOpts, opts?: CommonFooterOpts): string {
+  const compact = opts?.compact === true
   const extraFieldsHtml = quotationExtraFieldsBlock(inv)
   const notes      = (inv.notes as string) || settings.default_notes || ''
   const terms      = (inv.terms_and_conditions as string) || settings.default_terms || ''
@@ -913,7 +1109,7 @@ function commonFooter(inv: InvData, settings: InvoiceSettings, footerLogo?: Foot
   const irn = String(inv.einvoice_irn || '')
   const ack = String(inv.einvoice_ack_no || '')
   const einvoiceHtml = irn ? `
-    <div style="margin-bottom:14px;padding:10px 12px;background:#ecfdf5;border-radius:6px;border:1px solid #a7f3d0;font-size:11px">
+    <div style="margin-bottom:${compact ? '10px' : '14px'};padding:${compact ? '8px 10px' : '10px 12px'};background:#ecfdf5;border-radius:6px;border:1px solid #a7f3d0;font-size:11px">
       <div style="font-size:9px;text-transform:uppercase;letter-spacing:.12em;color:#047857;margin-bottom:4px">e-Invoice</div>
       <div><span style="color:#374151;font-weight:500">IRN:</span> <span style="color:#6b7280;word-break:break-all">${irn}</span></div>
       ${ack ? `<div style="margin-top:3px"><span style="color:#374151;font-weight:500">Ack No:</span> <span style="color:#6b7280">${ack}</span></div>` : ''}
@@ -921,22 +1117,22 @@ function commonFooter(inv: InvData, settings: InvoiceSettings, footerLogo?: Foot
 
   const gstHtml = (einvoiceHtml || showShipBlock || (settings.show_place_of_supply && placeOfSupply)) ? `
     ${einvoiceHtml}
-    <div style="margin-bottom:14px;display:grid;grid-template-columns:${showShipBlock && settings.show_place_of_supply && placeOfSupply ? '1fr 1fr' : '1fr'};gap:16px">
+    <div style="margin-bottom:${compact ? '10px' : '14px'};display:grid;grid-template-columns:${showShipBlock && settings.show_place_of_supply && placeOfSupply ? '1fr 1fr' : '1fr'};gap:${compact ? '12px' : '16px'}">
       ${showShipBlock && shipAddr ? `
-      <div style="padding:10px 12px;background:#f8fafc;border-radius:6px;border-left:3px solid #e5e7eb;font-size:11px">
+      <div style="padding:${compact ? '8px 10px' : '10px 12px'};background:#f8fafc;border-radius:6px;border-left:3px solid #e5e7eb;font-size:11px">
         <div style="font-size:9px;text-transform:uppercase;letter-spacing:.12em;color:#9ca3af;margin-bottom:4px">Ship To</div>
         ${shipAddr.label ? `<div style="font-weight:600;font-size:12px">${shipAddr.label}</div>` : ''}
         <div style="color:#6b7280;line-height:1.5;margin-top:2px">${vendorAddr(shipAddr)}</div>
-        ${(billAddr && vendorAddr(billAddr) !== vendorAddr(shipAddr)) ? `<div style="font-size:9px;color:#9ca3af;margin-top:4px">Bill To: ${vendorAddr(billAddr)}</div>` : ''}
+        ${(billAddr && vendorAddr(billAddr) !== vendorAddr(shipAddr)) ? `<div style="font-size:9px;color:#9ca3af;margin-top:4px">Billing address: ${vendorAddr(billAddr)}</div>` : ''}
       </div>` : ''}
       ${settings.show_place_of_supply && placeOfSupply ? `
-      <div style="padding:10px 12px;background:#f8fafc;border-radius:6px;font-size:11px">
+      <div style="padding:${compact ? '8px 10px' : '10px 12px'};background:#f8fafc;border-radius:6px;font-size:11px">
         <div style="font-size:9px;text-transform:uppercase;letter-spacing:.12em;color:#9ca3af;margin-bottom:4px">GST Info</div>
         <div style="margin-bottom:3px"><span style="color:#374151;font-weight:500">Place of Supply:</span> <span style="color:#6b7280">${placeOfSupply}</span></div>
         <div style="margin-bottom:3px"><span style="color:#374151;font-weight:500">Supply Type:</span> <span style="color:#6b7280">${isInterState ? 'Inter-State (IGST)' : 'Intra-State (CGST + SGST)'}</span></div>
         ${payTerms ? `<div><span style="color:#374151;font-weight:500">Payment Terms:</span> <span style="color:#6b7280">${payTerms}</span></div>` : ''}
       </div>` : (payTerms ? `
-      <div style="padding:10px 12px;background:#f8fafc;border-radius:6px;font-size:11px">
+      <div style="padding:${compact ? '8px 10px' : '10px 12px'};background:#f8fafc;border-radius:6px;font-size:11px">
         <div style="font-size:9px;text-transform:uppercase;letter-spacing:.12em;color:#9ca3af;margin-bottom:4px">Payment Terms</div>
         <div style="color:#374151;font-weight:500">${payTerms}</div>
       </div>` : '')}
@@ -953,7 +1149,7 @@ function commonFooter(inv: InvData, settings: InvoiceSettings, footerLogo?: Foot
   // that row, with the signature under the last paragraph (not beside the terms).
   const notesBlock = `<div style="flex:1;min-width:0">
         ${bankBlock(settings)}
-        ${settings.show_notes && notes ? `<div style="margin-top:${settings.show_bank_details ? '12px' : '0'};font-size:11px"><div style="font-weight:600;margin-bottom:4px">Notes</div><div style="color:#6b7280;white-space:pre-wrap;line-height:1.5">${notes}</div></div>` : ''}
+        ${settings.show_notes && notes ? `<div style="margin-top:${hasBankDetailsContent(settings) ? '12px' : '0'};font-size:11px"><div style="font-weight:600;margin-bottom:4px">Notes</div><div style="color:#6b7280;white-space:pre-wrap;line-height:1.5">${notes}</div></div>` : ''}
       </div>`
   const termsBlock = hasTerms
     ? `<div style="margin-top:12px;width:100%;font-size:10px;color:#9ca3af;white-space:pre-wrap;line-height:1.5">${terms}</div>`
@@ -980,21 +1176,21 @@ function commonFooter(inv: InvData, settings: InvoiceSettings, footerLogo?: Foot
         </div>`
 
   const footerCenterLogo = footerLogo?.position === 'center' && footerLogoHtml
-    ? `<div style="display:flex;justify-content:center;margin-top:14px;padding-top:14px;border-top:1px dashed #e5e7eb">${footerLogoHtml}</div>`
+    ? `<div style="display:flex;justify-content:center;margin-top:${compact ? '8px' : '14px'};padding-top:${compact ? '8px' : '14px'};border-top:1px dashed #e5e7eb">${footerLogoHtml}</div>`
     : ''
 
   const footerBelowLogo = (footerLogo?.position === 'bottom-left' || footerLogo?.position === 'bottom-right') && footerLogoHtml
-    ? `<div style="display:flex;justify-content:${footerLogo.position === 'bottom-left' ? 'flex-start' : 'flex-end'};margin-top:14px;padding-top:14px;border-top:1px dashed #e5e7eb">${footerLogoHtml}</div>`
+    ? `<div style="display:flex;justify-content:${footerLogo.position === 'bottom-left' ? 'flex-start' : 'flex-end'};margin-top:${compact ? '8px' : '14px'};padding-top:${compact ? '8px' : '14px'};border-top:1px dashed #e5e7eb">${footerLogoHtml}</div>`
     : ''
 
   const footerBody = `${topFooterRow}${termsBlock}${signatureBelow}`
   const footerHtml = `
-    <div style="margin-top:20px;padding-top:16px;border-top:1px solid #e5e7eb">
+    <div style="margin-top:${compact ? '10px' : '20px'};padding-top:${compact ? '8px' : '16px'};border-top:1px solid #e5e7eb">
       ${footerLogo?.position === 'center' ? footerBody + footerCenterLogo : footerBody + footerBelowLogo}
     </div>`
 
   const legalHtml = (settings.show_legal_note ?? true) ? `
-    <div style="margin-top:16px;padding-top:10px;border-top:1px solid #f3f4f6;text-align:center;font-size:10px;color:#9ca3af">
+    <div style="margin-top:${compact ? '8px' : '16px'};padding-top:${compact ? '6px' : '10px'};border-top:1px solid #f3f4f6;text-align:center;font-size:10px;color:#9ca3af">
       Computer generated invoice. No signature required. | This is a valid tax invoice.
     </div>` : ''
 
@@ -1008,19 +1204,22 @@ function classicTemplate(inv: InvData, settings: InvoiceSettings, backendApiBase
   const items   = (inv.items as InvData[]) || []
   const addr    = vendorAddr(inv.vendor_address as Record<string, string>)
   const logoUrl = resolveLogoUrl(settings, inv, backendApiBase)
+  /** Tighter classic layout — less empty vertical space between sections. */
+  const classicItemCellPad = '5px 8px'
+  const classicItemsMb = '8px'
 
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"/><title>Invoice ${inv.invoice_number}</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
   body{font-family:'Arial',sans-serif;font-size:12px;color:#111;background:#f9fafb}
-  .page{max-width:800px;margin:20px auto;background:#fff;padding:32px;border-radius:6px}
+  .page{max-width:800px;margin:12px auto;background:#fff;padding:20px 24px;border-radius:6px}
   table{width:100%;border-collapse:collapse}
   @media print{body{background:#fff}.page{margin:0;border-radius:0;box-shadow:none}}
 </style></head>
 <body><div class="page">
 ${sec('header', `
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid ${color}">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;padding-bottom:10px;border-bottom:3px solid ${color}">
     <div style="display:flex;align-items:center;gap:14px">
       ${logoImg(logoUrl, 'height:64px;max-width:120px', settings)}
       <div>
@@ -1039,8 +1238,8 @@ ${sec('header', `
     </div>
   </div>`)}
 ${sec('meta', `
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
-    <div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:6px;padding:12px">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:12px">
+    <div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:6px;padding:8px 10px">
       <div style="display:flex;justify-content:space-between;margin-bottom:6px">
         <span style="color:#6b7280;font-size:11px">Invoice No.</span>
         <span style="font-weight:700;font-family:monospace">${inv.invoice_number}</span>
@@ -1060,12 +1259,12 @@ ${sec('meta', `
       ${settings.show_gstin && inv.customer_gstin ? `<div style="font-size:11px;color:#6b7280;margin-top:2px">GSTIN: ${inv.customer_gstin}</div>` : ''}
     </div>` : '<div></div>'}
   </div>`)}
-${sec('items', invoiceItemsSection(items, settings, color))}
+${sec('items', invoiceItemsSection(items, settings, color, true, { marginBottom: classicItemsMb, cellPad: classicItemCellPad }))}
 ${sec('totals', `
-  <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
+  <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
     ${totalsTable(inv, settings, 280)}
   </div>`)}
-  ${commonFooter(inv, settings)}
+  ${commonFooter(inv, settings, undefined, { compact: true })}
 </div></body></html>`
 }
 
@@ -1432,7 +1631,15 @@ function thermalTemplate(inv: InvData, settings: InvoiceSettings, backendApiBase
   const items   = (inv.items as InvData[]) || []
   const addr    = vendorAddr(inv.vendor_address as Record<string, string>)
   const p       = PAPER_SIZES.find(s => s.id === settings.paper_size) || PAPER_SIZES[0]
-  const logoUrl = resolveLogoUrl(settings, inv, backendApiBase)
+  let logoUrl = resolveLogoUrl(settings, inv, backendApiBase)
+  // Thermal: when no company logo, allow-listed vendors still get the InfocomX mark (see resolveInvoiceTemplateLogoPath).
+  if (!logoUrl) {
+    const slug = resolveVendorSlugForBranding(inv)
+    if (slug && mayUseInfocomxHrAssetsForSlug(slug)) {
+      logoUrl = resolveMediaUrl(resolveInfocomxLogoUrl(''))
+    }
+  }
+  const logoH   = settings.paper_size === '2inch' ? 28 : settings.paper_size === '3inch' ? 34 : 36
   const fs      = settings.paper_size === '2inch' ? '8px' : settings.paper_size === '3inch' ? '9px' : '10px'
   const headerFs = settings.paper_size === '2inch' ? '11px' : '13px'
 
@@ -1470,7 +1677,7 @@ function thermalTemplate(inv: InvData, settings: InvoiceSettings, backendApiBase
 </style></head>
 <body><div class="page">
 
-  ${logoUrl ? `<div class="c" style="margin-bottom:3px">${logoImg(logoUrl, `height:36px;max-width:${p.maxWidth}`, settings)}</div>` : ''}
+  ${logoUrl ? `<div class="c" style="margin-bottom:3px;line-height:0">${logoImg(logoUrl, `height:${logoH}px;max-width:${p.maxWidth}`, settings)}</div>` : ''}
   <div class="c b" style="font-size:${headerFs}">${inv.vendor_name || ''}</div>
   ${settings.show_vendor_address !== false && addr ? `<div class="c" style="font-size:${fs}">${addr}</div>` : ''}
   ${settings.show_gstin && inv.vendor_gstin ? `<div class="c">GSTIN: ${inv.vendor_gstin}</div>` : ''}
@@ -1517,7 +1724,7 @@ function thermalTemplate(inv: InvData, settings: InvoiceSettings, backendApiBase
         // Pre-tax taxable amount — consistent with the Subtotal row below.
         const lineAmt = qty * rate - disc
         return `<tr>
-          <td style="overflow-wrap:anywhere">${it.name || ''}</td>
+          <td>${thermalItemDetailsCell(it, settings, fs)}</td>
           <td class="num" style="text-align:center">${qty}</td>
           <td class="num" style="text-align:right">${fmt(rate)}</td>
           <td class="num" style="text-align:right">${fmt(lineAmt)}</td>
@@ -1539,7 +1746,7 @@ function thermalTemplate(inv: InvData, settings: InvoiceSettings, backendApiBase
   ${paid > 0 ? `<div class="row" style="color:#059669"><span>Paid</span><span>${fmt(paid)}</span></div>` : ''}
   ${bal > 0 ? `<div class="row b" style="color:#dc2626"><span>Balance Due</span><span>${fmt(bal)}</span></div>` : ''}
 
-  ${settings.show_bank_details && (settings.bank_name || settings.account_number) ? `
+  ${hasBankDetailsContent(settings) ? `
   <div class="sep"></div>
   <div class="b">Payment Details</div>
   ${settings.bank_name ? `<div>${settings.bank_name}</div>` : ''}
@@ -2862,7 +3069,7 @@ export async function printInvoice(
   const s = { ...DEFAULT_INVOICE_SETTINGS, ...settings }
 
   // Resolve raw paths
-  const rawLogo = resolveInvoiceTemplateLogoPath(s, inv.vendor_logo_url as string)
+  const rawLogo = resolveInvoiceTemplateLogoPath(s, inv.vendor_logo_url as string, inv)
   const rawSig  = s.signature_url || ''
   const items   = (inv.items as InvData[]) || []
 
