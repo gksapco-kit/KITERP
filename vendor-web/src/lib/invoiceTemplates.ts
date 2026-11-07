@@ -771,8 +771,10 @@ function parseLogoHeightPx(style: string, fallback = 64): number {
   return match ? parseInt(match[1], 10) : fallback
 }
 
+const LOGO_IMG_ONERROR = `onerror="this.onerror=null;this.style.display='none'"`
+
 function logoClipWrap(url: string, base: string, w: number, h: number, clipPath: string): string {
-  return `<span style="display:inline-block;width:${w}px;height:${h}px;clip-path:${clipPath};-webkit-clip-path:${clipPath};overflow:hidden;flex-shrink:0;line-height:0;vertical-align:middle;"><img src="${url}" style="${base}width:100%;height:100%;object-fit:cover;display:block;" crossorigin="anonymous"/></span>`
+  return `<span style="display:inline-block;width:${w}px;height:${h}px;min-width:${w}px;clip-path:${clipPath};-webkit-clip-path:${clipPath};overflow:hidden;flex-shrink:0;line-height:0;vertical-align:middle;"><img src="${url}" ${LOGO_IMG_ONERROR} style="${base}width:100%;height:100%;object-fit:cover;display:block;" crossorigin="anonymous"/></span>`
 }
 
 function logoTag(url: string, style: string, shape: LogoShape = 'rounded'): string {
@@ -794,22 +796,24 @@ function logoTag(url: string, style: string, shape: LogoShape = 'rounded'): stri
 
   switch (shape) {
     case 'circle':
-      return `<span style="display:inline-flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;min-width:${size}px;border-radius:50%;background:#f8fafc;box-shadow:0 0 0 1px #e2e8f0;overflow:hidden;flex-shrink:0;vertical-align:middle;"><img src="${url}" style="${base}width:74%;height:74%;object-fit:contain;display:block;" crossorigin="anonymous"/></span>`
+      return `<span style="display:inline-flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;min-width:${size}px;border-radius:50%;background:#f8fafc;box-shadow:0 0 0 1px #e2e8f0;overflow:hidden;flex-shrink:0;vertical-align:middle;"><img src="${url}" ${LOGO_IMG_ONERROR} style="${base}width:74%;height:74%;object-fit:contain;display:block;" crossorigin="anonymous"/></span>`
     case 'oval': {
       const w = Math.round(size * 1.45)
       const h = size
-      return `<span style="display:inline-flex;align-items:center;justify-content:center;width:${w}px;height:${h}px;border-radius:50%;background:#f8fafc;box-shadow:0 0 0 1px #e2e8f0;overflow:hidden;flex-shrink:0;vertical-align:middle;"><img src="${url}" style="${base}width:78%;height:72%;object-fit:contain;display:block;" crossorigin="anonymous"/></span>`
+      return `<span style="display:inline-flex;align-items:center;justify-content:center;width:${w}px;height:${h}px;min-width:${w}px;border-radius:50%;background:#f8fafc;box-shadow:0 0 0 1px #e2e8f0;overflow:hidden;flex-shrink:0;vertical-align:middle;"><img src="${url}" ${LOGO_IMG_ONERROR} style="${base}width:78%;height:72%;object-fit:contain;display:block;" crossorigin="anonymous"/></span>`
     }
-    case 'pill':
-      return `<img src="${url}" style="${base}height:${size}px;width:${Math.round(size * 2.1)}px;max-width:${Math.round(size * 2.4)}px;border-radius:9999px;object-fit:contain;display:block;flex-shrink:0;" crossorigin="anonymous"/>`
+    case 'pill': {
+      const w = Math.round(size * 2.1)
+      return `<span style="display:inline-flex;align-items:center;justify-content:center;width:${w}px;height:${size}px;min-width:${w}px;max-width:${w}px;border-radius:9999px;background:#f8fafc;box-shadow:0 0 0 1px #e2e8f0;overflow:hidden;flex-shrink:0;vertical-align:middle;line-height:0;"><img src="${url}" ${LOGO_IMG_ONERROR} style="${base}max-width:92%;max-height:88%;width:auto;height:auto;object-fit:contain;display:block;" crossorigin="anonymous"/></span>`
+    }
     case 'squircle':
-      return `<img src="${url}" style="${base}width:${size}px;height:${size}px;max-width:${size}px;min-width:${size}px;border-radius:28%;object-fit:cover;display:block;flex-shrink:0;" crossorigin="anonymous"/>`
+      return `<img src="${url}" ${LOGO_IMG_ONERROR} style="${base}width:${size}px;height:${size}px;max-width:${size}px;min-width:${size}px;border-radius:28%;object-fit:cover;display:block;flex-shrink:0;" crossorigin="anonymous"/>`
     case 'arch':
-      return `<img src="${url}" style="${base}width:${size}px;height:${size}px;max-width:${size}px;border-radius:50% 50% 8px 8px;object-fit:cover;display:block;flex-shrink:0;" crossorigin="anonymous"/>`
+      return `<img src="${url}" ${LOGO_IMG_ONERROR} style="${base}width:${size}px;height:${size}px;max-width:${size}px;border-radius:50% 50% 8px 8px;object-fit:cover;display:block;flex-shrink:0;" crossorigin="anonymous"/>`
     case 'sharp':
-      return `<img src="${url}" style="${base}height:${size}px;max-width:${size * 2}px;border-radius:0;object-fit:contain;display:block;flex-shrink:0;" crossorigin="anonymous"/>`
+      return `<img src="${url}" ${LOGO_IMG_ONERROR} style="${base}height:${size}px;max-width:${size * 2}px;border-radius:0;object-fit:contain;display:block;flex-shrink:0;" crossorigin="anonymous"/>`
     case 'square':
-      return `<img src="${url}" style="${base}width:${size}px;height:${size}px;max-width:${size}px;min-width:${size}px;border-radius:4px;object-fit:contain;display:block;flex-shrink:0;" crossorigin="anonymous"/>`
+      return `<img src="${url}" ${LOGO_IMG_ONERROR} style="${base}width:${size}px;height:${size}px;max-width:${size}px;min-width:${size}px;border-radius:4px;object-fit:contain;display:block;flex-shrink:0;" crossorigin="anonymous"/>`
     case 'diamond':
       return logoClipWrap(url, base, size, size, 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)')
     case 'hexagon':
@@ -818,8 +822,16 @@ function logoTag(url: string, style: string, shape: LogoShape = 'rounded'): stri
       return logoClipWrap(url, base, size, Math.round(size * 1.12), 'polygon(50% 0%, 92% 12%, 92% 58%, 50% 100%, 8% 58%, 8% 12%)')
     case 'rounded':
     default:
-      return `<img src="${url}" style="${base}height:${size}px;max-width:${size * 2}px;border-radius:8px;object-fit:contain;display:block;flex-shrink:0;" crossorigin="anonymous"/>`
+      return `<img src="${url}" ${LOGO_IMG_ONERROR} style="${base}height:${size}px;max-width:${size * 2}px;border-radius:8px;object-fit:contain;display:block;flex-shrink:0;" crossorigin="anonymous"/>`
   }
+}
+
+/** Fixed header slot so logo shape/size does not push invoice layout when the image loads. */
+function logoHeaderSlot(logoUrl: string, style: string, settings: InvoiceSettings, slotW = 120, slotH = 64): string {
+  if (settings.show_logo === false || !logoUrl) return ''
+  const inner = logoImg(logoUrl, style, settings)
+  if (!inner) return ''
+  return `<div class="inv-logo-slot" style="width:${slotW}px;height:${slotH}px;min-width:${slotW}px;flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden;line-height:0">${inner}</div>`
 }
 
 function logoImg(logoUrl: string, style: string, settings: InvoiceSettings): string {
@@ -1220,9 +1232,9 @@ function classicTemplate(inv: InvData, settings: InvoiceSettings, backendApiBase
 <body><div class="page">
 ${sec('header', `
   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;padding-bottom:10px;border-bottom:3px solid ${color}">
-    <div style="display:flex;align-items:center;gap:14px">
-      ${logoImg(logoUrl, 'height:64px;max-width:120px', settings)}
-      <div>
+    <div style="display:flex;align-items:flex-start;gap:14px;min-width:0">
+      ${logoHeaderSlot(logoUrl, 'height:64px;max-width:120px', settings)}
+      <div style="min-width:0;flex:1">
         <div style="font-size:20px;font-weight:700;color:#111">${inv.vendor_name || ''}</div>
         ${settings.show_gstin && inv.vendor_gstin ? `<div style="font-size:10px;color:#6b7280;margin-top:2px">GSTIN: ${inv.vendor_gstin}</div>` : ''}
         ${settings.show_vendor_address !== false && addr ? `<div style="font-size:10px;color:#6b7280;margin-top:2px;line-height:1.5">${addr}</div>` : ''}
@@ -3110,6 +3122,47 @@ export async function printInvoice(
     false,
   )
   openPrintWindow(html)
+}
+
+/**
+ * Live preview HTML with logo/signature/QR embedded as data URLs (auth-aware fetch).
+ * Avoids broken images in the template editor iframe and matches print output.
+ */
+export async function buildInvoicePreviewHtml(
+  inv: InvData,
+  settings: Partial<InvoiceSettings>,
+  backendApiBase = '',
+): Promise<string> {
+  const s: InvoiceSettings = { ...DEFAULT_INVOICE_SETTINGS, ...settings }
+  const rawLogo = resolveInvoiceTemplateLogoPath(s, inv.vendor_logo_url as string, inv)
+  const rawSig = (s.signature_url || '').trim()
+  const rawQr = (s.qr_code_url || '').trim()
+
+  const [logoDataUrl, sigDataUrl, qrDataUrl] = await Promise.all([
+    s.show_logo !== false && rawLogo ? fetchAsDataUrl(rawLogo) : Promise.resolve(''),
+    s.show_signature && rawSig ? fetchAsDataUrl(rawSig) : Promise.resolve(''),
+    s.show_qr_code && rawQr ? fetchAsDataUrl(rawQr) : Promise.resolve(''),
+  ])
+
+  const previewSettings: InvoiceSettings = { ...s }
+  if (s.show_logo !== false && rawLogo) {
+    previewSettings.logo_url = logoDataUrl || ''
+    if (!logoDataUrl) previewSettings.show_logo = false
+  }
+  if (s.show_signature && rawSig) {
+    previewSettings.signature_url = sigDataUrl || ''
+    if (!sigDataUrl) previewSettings.show_signature = false
+  }
+  if (s.show_qr_code && rawQr) {
+    previewSettings.qr_code_url = qrDataUrl || ''
+    if (!qrDataUrl) previewSettings.show_qr_code = false
+  }
+
+  return generateInvoiceHtml(
+    { ...inv, vendor_logo_url: logoDataUrl || inv.vendor_logo_url },
+    previewSettings,
+    backendApiBase,
+  )
 }
 
 /** Apply stored custom pages (if any) on top of generated invoice HTML. */

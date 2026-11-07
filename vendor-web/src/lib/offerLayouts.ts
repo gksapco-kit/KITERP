@@ -7,6 +7,7 @@ import {
   INFOCOMX_LOGO_IMG_STYLE,
   INFOCOMX_LOGO_CLASS,
   isInfocomxLogoSrc,
+  resolveInfocomxLogoUrl,
 } from '@/lib/infocomxBranding'
 
 export type { LogoShape } from '@/lib/invoiceTemplates'
@@ -69,6 +70,28 @@ export interface OfferLogoOptions {
   url?: string
   show?: boolean
   shape?: LogoShape
+  /** When true, header shows empty reserved space instead of initials if `url` is missing. */
+  skipInitials?: boolean
+}
+
+/**
+ * Template logo URL resolution for offer letters.
+ * - `null` / unset → company logo (optional InfocomX default path)
+ * - `''` → no logo image on this template
+ * - non-empty → template-specific upload
+ */
+export function resolveOfferTemplateLogoUrl(
+  templateLogoUrl: string | null | undefined,
+  vendorLogoUrl: string,
+  infocomxFallback?: string,
+): string | undefined {
+  if (templateLogoUrl === '') return undefined
+  const custom = (templateLogoUrl ?? '').trim()
+  if (custom) return resolveInfocomxLogoUrl(custom)
+  if (infocomxFallback?.trim()) return resolveInfocomxLogoUrl(infocomxFallback)
+  const vendor = (vendorLogoUrl ?? '').trim()
+  if (vendor) return resolveInfocomxLogoUrl(vendor)
+  return undefined
 }
 
 export const WATERMARK_STYLES: { id: OfferWatermarkStyle; label: string }[] = [
@@ -160,27 +183,31 @@ function logoClipWrap(url: string, w: number, h: number, clipPath: string): stri
   return `<span style="display:inline-block;width:${w}px;height:${h}px;clip-path:${clipPath};-webkit-clip-path:${clipPath};overflow:hidden;flex-shrink:0;line-height:0;vertical-align:middle;"><img src="${escAttr(url)}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;" /></span>`
 }
 
+const OFFER_LOGO_ONERROR = `onerror="this.onerror=null;this.style.display='none'"`
+
 function offerLogoTag(url: string, size: number, shape: LogoShape = 'rounded'): string {
   if (isInfocomxLogoSrc(url)) {
-    return `<img src="${escAttr(url)}" alt="InfocomX" class="${INFOCOMX_LOGO_CLASS}" data-infocomx-logo="true" style="${INFOCOMX_LOGO_IMG_STYLE}" />`
+    return `<img src="${escAttr(url)}" alt="InfocomX" class="${INFOCOMX_LOGO_CLASS}" data-infocomx-logo="true" ${OFFER_LOGO_ONERROR} style="${INFOCOMX_LOGO_IMG_STYLE}" />`
   }
   switch (shape) {
     case 'circle':
-      return `<img src="${escAttr(url)}" alt="" style="width:${size}px;height:${size}px;max-width:${size}px;min-width:${size}px;border-radius:50%;object-fit:cover;display:block;flex-shrink:0;" />`
+      return `<span style="display:inline-flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;min-width:${size}px;border-radius:50%;overflow:hidden;flex-shrink:0;line-height:0;vertical-align:middle;"><img src="${escAttr(url)}" alt="" ${OFFER_LOGO_ONERROR} style="width:74%;height:74%;object-fit:contain;display:block;" /></span>`
     case 'oval': {
       const w = Math.round(size * 1.45)
-      return `<img src="${escAttr(url)}" alt="" style="width:${w}px;height:${size}px;max-width:${w}px;border-radius:50%;object-fit:cover;display:block;flex-shrink:0;" />`
+      return `<span style="display:inline-flex;align-items:center;justify-content:center;width:${w}px;height:${size}px;min-width:${w}px;border-radius:50%;overflow:hidden;flex-shrink:0;line-height:0;vertical-align:middle;"><img src="${escAttr(url)}" alt="" ${OFFER_LOGO_ONERROR} style="width:78%;height:72%;object-fit:contain;display:block;" /></span>`
     }
-    case 'pill':
-      return `<img src="${escAttr(url)}" alt="" style="height:${size}px;width:${Math.round(size * 2.1)}px;max-width:${Math.round(size * 2.4)}px;border-radius:9999px;object-fit:contain;display:block;flex-shrink:0;" />`
+    case 'pill': {
+      const w = Math.round(size * 2.1)
+      return `<span style="display:inline-flex;align-items:center;justify-content:center;width:${w}px;height:${size}px;min-width:${w}px;max-width:${w}px;border-radius:9999px;overflow:hidden;flex-shrink:0;line-height:0;vertical-align:middle;"><img src="${escAttr(url)}" alt="" ${OFFER_LOGO_ONERROR} style="max-width:92%;max-height:88%;width:auto;height:auto;object-fit:contain;display:block;" /></span>`
+    }
     case 'squircle':
-      return `<img src="${escAttr(url)}" alt="" style="width:${size}px;height:${size}px;max-width:${size}px;min-width:${size}px;border-radius:28%;object-fit:cover;display:block;flex-shrink:0;" />`
+      return `<img src="${escAttr(url)}" alt="" ${OFFER_LOGO_ONERROR} style="width:${size}px;height:${size}px;max-width:${size}px;min-width:${size}px;border-radius:28%;object-fit:cover;display:block;flex-shrink:0;" />`
     case 'arch':
-      return `<img src="${escAttr(url)}" alt="" style="width:${size}px;height:${size}px;max-width:${size}px;border-radius:50% 50% 8px 8px;object-fit:cover;display:block;flex-shrink:0;" />`
+      return `<img src="${escAttr(url)}" alt="" ${OFFER_LOGO_ONERROR} style="width:${size}px;height:${size}px;max-width:${size}px;border-radius:50% 50% 8px 8px;object-fit:cover;display:block;flex-shrink:0;" />`
     case 'sharp':
-      return `<img src="${escAttr(url)}" alt="" style="height:${size}px;max-width:${size * 2}px;border-radius:0;object-fit:contain;display:block;flex-shrink:0;" />`
+      return `<img src="${escAttr(url)}" alt="" ${OFFER_LOGO_ONERROR} style="height:${size}px;max-width:${size * 2}px;border-radius:0;object-fit:contain;display:block;flex-shrink:0;" />`
     case 'square':
-      return `<img src="${escAttr(url)}" alt="" style="width:${size}px;height:${size}px;max-width:${size}px;min-width:${size}px;border-radius:4px;object-fit:contain;display:block;flex-shrink:0;" />`
+      return `<img src="${escAttr(url)}" alt="" ${OFFER_LOGO_ONERROR} style="width:${size}px;height:${size}px;max-width:${size}px;min-width:${size}px;border-radius:4px;object-fit:contain;display:block;flex-shrink:0;" />`
     case 'diamond':
       return logoClipWrap(url, size, size, 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)')
     case 'hexagon':
@@ -189,13 +216,16 @@ function offerLogoTag(url: string, size: number, shape: LogoShape = 'rounded'): 
       return logoClipWrap(url, size, Math.round(size * 1.12), 'polygon(50% 0%, 92% 12%, 92% 58%, 50% 100%, 8% 58%, 8% 12%)')
     case 'rounded':
     default:
-      return `<img src="${escAttr(url)}" alt="" style="height:${size}px;max-width:${size * 2}px;border-radius:8px;object-fit:contain;display:block;flex-shrink:0;" />`
+      return `<img src="${escAttr(url)}" alt="" ${OFFER_LOGO_ONERROR} style="height:${size}px;max-width:${size * 2}px;border-radius:8px;object-fit:contain;display:block;flex-shrink:0;" />`
   }
 }
 
 function headerMark(vendor: string, logo?: OfferLogoOptions, size = 52): string {
   if (!logo?.show) return ''
-  if (logo.url) return offerLogoTag(logo.url, size, logo.shape ?? 'rounded')
+  if (logo.url) {
+    return `<span style="display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;line-height:0;vertical-align:middle;">${offerLogoTag(logo.url, size, logo.shape ?? 'rounded')}</span>`
+  }
+  if (logo.skipInitials) return ''
   return initialsMark(vendor, size)
 }
 

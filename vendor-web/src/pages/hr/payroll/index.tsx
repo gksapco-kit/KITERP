@@ -5,7 +5,9 @@ import { Select } from '@/components/ui/select'
 import { useState } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link } from 'react-router-dom'
-import { Play, CheckCircle, CreditCard, Receipt, Loader2, Trash2, AlertTriangle, X } from 'lucide-react'
+import { Play, CheckCircle, Receipt, Loader2, Trash2, AlertTriangle, X, ArrowRight } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { formatCurrency } from '@/lib/utils'
 import { useHRPayrollRuns, useProcessPayroll, useDeletePayrollRun } from '@/hooks/useVendor'
 import type { PayrollRun } from '@/types'
 
@@ -157,22 +159,36 @@ export default function PayrollPage() {
 
   const totalNet = (runs as PayrollRun[]).reduce((s, r) => s + Number(r.total_net), 0)
 
+  const runHeaders = [
+    { key: 'period', label: 'Period', align: 'left' as const },
+    { key: 'version', label: 'Version', align: 'left' as const },
+    { key: 'employees', label: 'Employees', align: 'right' as const },
+    { key: 'gross', label: 'Total Gross', align: 'right' as const },
+    { key: 'ded', label: 'Total Deductions', align: 'right' as const },
+    { key: 'net', label: 'Net Payout', align: 'right' as const },
+    { key: 'status', label: 'Status', align: 'left' as const },
+    { key: 'actions', label: 'Actions', align: 'right' as const },
+  ]
+
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-4 sm:p-6">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Payroll</h1>
-          <p className="text-sm text-gray-500 mt-1">YTD Net Payout: ₹{totalNet.toLocaleString()}</p>
+          <h1 className="text-xl font-bold text-gray-900 sm:text-2xl">Payroll</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            YTD Net Payout: <span className="font-medium text-foreground">{formatCurrency(totalNet)}</span>
+          </p>
         </div>
-        <button
+        <Button
+          size="sm"
+          className="gap-1.5"
           onClick={() => setShowWizard(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 text-sm font-medium"
         >
-          <Play className="w-4 h-4" /> Process Payroll
-        </button>
+          <Play className="h-4 w-4" /> Process Payroll
+        </Button>
       </div>
 
-      <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
+      <div className="overflow-hidden rounded-xl border border-border bg-card text-foreground">
         {isLoading ? (
           <div className="p-8 text-center text-gray-400">Loading…</div>
         ) : isError ? (
@@ -187,49 +203,63 @@ export default function PayrollPage() {
             </button>
           </div>
         ) : runs.length === 0 ? (
-          <div className="p-12 text-center">
-            <Receipt className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">No payroll runs yet. Process your first payroll above.</p>
+          <div className="p-8 text-center">
+            <Receipt className="mx-auto mb-2 h-9 w-9 text-muted-foreground/40" />
+            <p className="text-sm text-muted-foreground">No payroll runs yet. Process your first payroll above.</p>
           </div>
         ) : (
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b">
+          <div className="vendor-scroll-x">
+          <table className="w-full min-w-[720px] border-collapse">
+            <thead className="border-b border-border bg-muted/30">
               <tr>
-                {['Period', 'Version', 'Employees', 'Total Gross', 'Total Deductions', 'Net Payout', 'Status', ''].map(h => (
-                  <th key={h} className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">{h}</th>
+                {runHeaders.map(h => (
+                  <th
+                    key={h.key}
+                    className={cn(
+                      'px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground whitespace-nowrap',
+                      h.align === 'right' ? 'text-right' : 'text-left',
+                      h.key === 'actions' && 'w-[1%]',
+                    )}
+                  >
+                    {h.label}
+                  </th>
                 ))}
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-border">
               {(runs as PayrollRun[]).map(run => {
                 const periodName = new Date(run.year, run.month - 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
                 const cfg = STATUS_CONFIG[run.status] ?? { label: run.status, color: 'bg-gray-100 text-gray-600' }
                 return (
-                  <tr key={run.id} className="border-b hover:bg-gray-50">
-                    <td className="py-3 px-4 font-medium text-sm text-gray-900">{periodName}</td>
-                    <td className="py-3 px-4">
-                      <span className="text-xs font-mono bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                  <tr key={run.id} className="transition-colors hover:bg-muted/40">
+                    <td className="px-3 py-2 align-middle text-sm font-medium text-foreground whitespace-nowrap">{periodName}</td>
+                    <td className="px-3 py-2 align-middle">
+                      <span className="inline-block rounded-full bg-muted px-2 py-0.5 font-mono text-[11px] text-muted-foreground">
                         v{run.version ?? 1}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-sm text-gray-600">{run.employee_count}</td>
-                    <td className="py-3 px-4 text-sm text-green-700">₹{Number(run.total_gross).toLocaleString()}</td>
-                    <td className="py-3 px-4 text-sm text-red-600">₹{Number(run.total_deductions).toLocaleString()}</td>
-                    <td className="py-3 px-4 text-sm font-bold text-blue-700">₹{Number(run.total_net).toLocaleString()}</td>
-                    <td className="py-3 px-4">
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cfg.color}`}>{cfg.label}</span>
+                    <td className="px-3 py-2 align-middle text-right text-sm tabular-nums text-muted-foreground">{run.employee_count}</td>
+                    <td className="px-3 py-2 align-middle text-right text-sm tabular-nums text-green-700 dark:text-green-400">{formatCurrency(Number(run.total_gross))}</td>
+                    <td className="px-3 py-2 align-middle text-right text-sm tabular-nums text-red-600 dark:text-red-400">{formatCurrency(Number(run.total_deductions))}</td>
+                    <td className="px-3 py-2 align-middle text-right text-sm font-semibold tabular-nums text-primary">{formatCurrency(Number(run.total_net))}</td>
+                    <td className="px-3 py-2 align-middle">
+                      <span className={cn('inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium', cfg.color)}>{cfg.label}</span>
                     </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center justify-end gap-3">
-                        <Link to={`/hr/payroll/${run.id}`} className="text-sm text-blue-600 hover:underline font-medium">
-                          View →
+                    <td className="px-3 py-2 align-middle">
+                      <div className="flex shrink-0 flex-nowrap items-center justify-end gap-1">
+                        <Link
+                          to={`/hr/payroll/${run.id}`}
+                          className="inline-flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-1 text-sm font-medium text-primary hover:bg-primary/10"
+                        >
+                          View <ArrowRight className="h-3.5 w-3.5 shrink-0" aria-hidden />
                         </Link>
                         <button
+                          type="button"
                           onClick={() => setDeleteTarget(run)}
-                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                          className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-red-500/10 hover:text-red-600"
                           title="Delete run"
                         >
-                          <Trash2 className="w-4 h-4 text-red-600" />
+                          <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
                     </td>
@@ -238,6 +268,7 @@ export default function PayrollPage() {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 

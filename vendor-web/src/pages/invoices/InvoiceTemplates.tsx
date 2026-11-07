@@ -21,6 +21,7 @@ import {
 import { InvoiceAccentColorPicker } from '@/components/invoices/InvoiceAccentColorPicker'
 import {
   generateInvoiceHtml, mergeInvoiceTemplatePages, createBlankInvoiceContinuationPage,
+  buildInvoicePreviewHtml,
   DEFAULT_INVOICE_SETTINGS, DEFAULT_QUOTATION_SETTINGS, PAPER_SIZES,
   DEFAULT_LAYOUT_SECTIONS, resolveInvoiceTemplateLogoPath,
   applyAllInvoiceComponentsPreset,
@@ -221,6 +222,7 @@ function InvoiceDocumentPreview({
   onPagesChange,
   createBlankPage,
   emptyMessage = 'Generating preview…',
+  loading,
 }: {
   html: string
   title: string
@@ -231,6 +233,7 @@ function InvoiceDocumentPreview({
   onPagesChange: (html: string) => void
   createBlankPage: (nextPageNumber: number) => string
   emptyMessage?: string
+  loading?: boolean
 }) {
   const previewScale = 1
   const containerWidth = paperSize === '2inch' ? '220px'
@@ -246,6 +249,7 @@ function InvoiceDocumentPreview({
     <DocumentLivePreview
       html={html}
       title={title}
+      loading={loading}
       editable
       onBodyChange={onPagesChange}
       pageCount={pageCount}
@@ -725,6 +729,7 @@ export default function InvoiceSettingsPage() {
   )
   const [previewHtml, setPreviewHtml] = useState('')
   const [previewPagesHtml, setPreviewPagesHtml] = useState('')
+  const [previewAssetsLoading, setPreviewAssetsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [sigMode, setSigMode] = useState<'upload' | 'draw'>('upload')
 
@@ -791,8 +796,9 @@ export default function InvoiceSettingsPage() {
   const logoShape = settings.logo_shape ?? 'rounded'
   const logoPreviewClass = LOGO_SHAPE_PREVIEW_CLASS[logoShape]
 
-  // Regenerate document preview whenever settings change
+  // Regenerate document preview whenever settings change (embed logo/sig/QR with auth fetch).
   useEffect(() => {
+    let cancelled = false
     const sampleBase = isQuotationMode ? SAMPLE_QUOTATION : SAMPLE_INVOICE
     const sampleData = {
       ...sampleBase,
@@ -806,15 +812,26 @@ export default function InvoiceSettingsPage() {
       vendor_website_url: settings.website_url?.trim() || vendorWebsiteFallback,
       terms_and_conditions: settings.default_terms || sampleBase.terms_and_conditions,
     }
-    const generated = generateInvoiceHtml(sampleData, settings, window.location.origin)
-    // mergeInvoiceTemplatePages ignores stale single-page snapshots so Design
-    // settings (template, columns, totals) always win over a frozen editor copy.
-    const stored = previewPagesHtml || settings.template_pages_html
-    setPreviewHtml(mergeInvoiceTemplatePages(generated, { template_pages_html: stored }, true))
+    const run = async () => {
+      setPreviewAssetsLoading(true)
+      try {
+        const generated = await buildInvoicePreviewHtml(sampleData, settings, window.location.origin)
+        if (cancelled) return
+        const stored = previewPagesHtml || settings.template_pages_html
+        setPreviewHtml(mergeInvoiceTemplatePages(generated, { template_pages_html: stored }, true))
+      } catch {
+        if (!cancelled) setPreviewHtml('')
+      } finally {
+        if (!cancelled) setPreviewAssetsLoading(false)
+      }
+    }
+    void run()
+    return () => { cancelled = true }
   }, [settings, previewPagesHtml, vendor, vendorLogo, vendorWebsiteFallback, isQuotationMode])
 
   // Regenerate POS preview whenever posSettings change
   useEffect(() => {
+    let cancelled = false
     const pm = posMerged()
     const sampleData = {
       ...SAMPLE_INVOICE,
@@ -830,9 +847,18 @@ export default function InvoiceSettingsPage() {
       customer_name: 'Walk-in Customer',
       notes: 'POS Transaction: POS-000042',
     }
-    const generated = generateInvoiceHtml(sampleData, pm, window.location.origin)
-    const stored = posPreviewPagesHtml || pm.template_pages_html
-    setPosPreviewHtml(mergeInvoiceTemplatePages(generated, { template_pages_html: stored }, true))
+    const run = async () => {
+      try {
+        const generated = await buildInvoicePreviewHtml(sampleData, pm, window.location.origin)
+        if (cancelled) return
+        const stored = posPreviewPagesHtml || pm.template_pages_html
+        setPosPreviewHtml(mergeInvoiceTemplatePages(generated, { template_pages_html: stored }, true))
+      } catch {
+        if (!cancelled) setPosPreviewHtml('')
+      }
+    }
+    void run()
+    return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [posSettings, posPreviewPagesHtml, settings, vendor, vendorLogo, vendorWebsiteFallback])
 
@@ -1528,6 +1554,7 @@ export default function InvoiceSettingsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] gap-6">
         <InvoiceDocumentPreview
           html={previewHtml}
+          loading={previewAssetsLoading}
           title={isQuotationMode ? 'Quotation Preview' : 'Invoice Preview'}
           paperSize={settings.paper_size}
           templateId={settings.template}
@@ -1730,7 +1757,9 @@ export default function InvoiceSettingsPage() {
                   </button>
                 ))}
               </div>
-              <p className="text-xs text-gray-400 mt-1.5">Shape applies to the logo in the live preview and printed invoices.</p>
+              <p className="text-xs text-gray-400 mt-1.5">
+                Shape applies in preview and print. The logo sits in a fixed header slot so uploading or changing shape does not shift the Classic layout.
+              </p>
             </div>
           </AccordionSection>
 

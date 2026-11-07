@@ -29,6 +29,7 @@ import {
   wrapOfferPreview, layoutLabel, LAYOUT_LOGO_PLACEMENT,
   isCustomOfferHtml, extractBodyFragmentForLayout,
   countOfferPages,
+  resolveOfferTemplateLogoUrl,
 } from '@/lib/offerLayouts'
 import { parseOfferPageFragments, serializeMultiPageCustom } from '@/lib/offerPages'
 import {
@@ -71,7 +72,7 @@ function makeOfferTemplateEmptyForm(allowInfocomx: boolean, name = '') {
     watermark_text: '',
     watermark_opacity: '0.12',
     watermark_style: 'diagonal_text' as OfferWatermarkStyle,
-    logo_url: allowInfocomx ? INFOCOMX_LOGO_PATH : '',
+    logo_url: (allowInfocomx ? INFOCOMX_LOGO_PATH : null) as string | null,
     show_logo: !allowInfocomx,
     logo_shape: 'rounded' as LogoShape,
     accent_color: DEFAULT_OFFER_ACCENT,
@@ -221,7 +222,13 @@ export default function OfferTemplatesPage() {
       watermark_text: tpl.watermark_text ?? '',
       watermark_opacity: tpl.watermark_opacity ?? '0.12',
       watermark_style: (tpl.watermark_style || 'diagonal_text') as OfferWatermarkStyle,
-      logo_url: (tpl.logo_url ?? '').trim() || (infocomxLayout ? INFOCOMX_LOGO_PATH : ''),
+      logo_url: infocomxLayout
+        ? ((tpl.logo_url ?? '').trim() || INFOCOMX_LOGO_PATH)
+        : tpl.logo_url === ''
+          ? ''
+          : (tpl.logo_url ?? '').trim()
+            ? String(tpl.logo_url).trim()
+            : null,
       show_logo: infocomxLayout ? false : (tpl.show_logo ?? true),
       logo_shape: (tpl.logo_shape || 'rounded') as LogoShape,
       accent_color: tpl.accent_color || DEFAULT_OFFER_ACCENT,
@@ -284,8 +291,10 @@ export default function OfferTemplatesPage() {
       && (isInfocomxOfferHtml(previewBody)
         || previewBody.includes(INFOCOMX_LOGO_PATH)
         || previewBody.includes('data-infocomx-logo'))
-    const logoUrl = resolveInfocomxLogoUrl(
-      form.logo_url || (infocomxDoc ? INFOCOMX_LOGO_PATH : vendorLogo),
+    const logoUrl = resolveOfferTemplateLogoUrl(
+      form.logo_url,
+      vendorLogo,
+      infocomxDoc ? INFOCOMX_LOGO_PATH : undefined,
     )
     const bodyForPreview = infocomxDoc ? prepareInfocomxOfferHtmlForPreview(previewBody) : previewBody
     return wrapOfferPreview(bodyForPreview, form.layout, previewVendorRef.current, '', true, {
@@ -294,9 +303,10 @@ export default function OfferTemplatesPage() {
       opacity: parseFloat(form.watermark_opacity) || 0.12,
       style: form.watermark_style,
     }, {
-      url: logoUrl || undefined,
+      url: logoUrl,
       show: embeddedInfocomxLogo ? false : form.show_logo,
       shape: form.logo_shape,
+      skipInitials: form.logo_url === '',
     }, {
       mergeBodyVars: true,
       editableTemplate: true,
@@ -349,7 +359,7 @@ export default function OfferTemplatesPage() {
     try {
       // Template-only folder: unlike uploadVendorLogo this does not replace the company logo.
       const result = await vendorApi.uploadDocumentAsset('logo', file)
-      setField('logo_url', result.url)
+      setForm(f => ({ ...f, logo_url: result.url, show_logo: true }))
       toast.success('Template logo uploaded (company logo is unchanged)')
     } catch {
       toast.error('Could not upload logo — use PNG or JPG under 2MB')
@@ -450,7 +460,12 @@ export default function OfferTemplatesPage() {
       watermark_text: form.watermark_text.trim() || null,
       watermark_opacity: form.watermark_opacity,
       watermark_style: form.watermark_style,
-      logo_url: form.logo_url.trim() || null,
+      logo_url:
+        form.logo_url === null
+          ? null
+          : form.logo_url === ''
+            ? ''
+            : form.logo_url.trim() || null,
       show_logo: form.show_logo,
       logo_shape: form.logo_shape,
       accent_color: form.accent_color || DEFAULT_OFFER_ACCENT,
@@ -704,19 +719,21 @@ export default function OfferTemplatesPage() {
                 {form.show_logo && (
                   <>
                   <div className="flex items-center gap-3 pt-1">
-                    {form.logo_url || vendorLogo ? (
+                    {(() => {
+                      const thumbSrc = form.logo_url === null ? vendorLogo : (form.logo_url || '')
+                      return thumbSrc ? (
                       <div className="relative shrink-0">
                         <img
-                          src={resolveOriginPath(form.logo_url || vendorLogo)}
+                          src={resolveOriginPath(thumbSrc)}
                           alt="Logo"
-                          className={`h-12 w-12 border p-1 bg-white ${logoPreviewClass}`}
+                          className={`h-12 w-12 border p-1 bg-white object-contain ${logoPreviewClass}`}
                         />
-                        {form.logo_url && (
+                        {typeof form.logo_url === 'string' && form.logo_url.length > 0 && (
                           <button
                             type="button"
                             onClick={() => setField('logo_url', '')}
                             className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center text-[10px]"
-                            title="Remove template logo"
+                            title="Remove logo from this template"
                           >
                             ×
                           </button>
@@ -726,24 +743,49 @@ export default function OfferTemplatesPage() {
                       <div className={`h-12 w-12 border-2 border-dashed border-gray-300 flex items-center justify-center shrink-0 ${logoPreviewClass}`}>
                         <Building2 className="w-5 h-5 text-gray-300" />
                       </div>
-                    )}
+                    )
+                    })()}
                     <div className="flex-1 min-w-0">
                       <ImageSourcePicker
                         title="Logo"
                         onFile={uploadLogo}
-                        buttonLabel={form.logo_url ? 'Change logo' : 'Upload logo'}
+                        buttonLabel={typeof form.logo_url === 'string' && form.logo_url ? 'Change logo' : 'Upload logo'}
                         buttonVariant="outline"
                         buttonSize="sm"
                         buttonClassName="gap-1.5 w-full cursor-pointer text-xs"
                       />
                       <p className="text-xs text-gray-400 mt-1">
-                        {form.logo_url ? 'Template logo' : vendorLogo ? 'Using company logo' : 'PNG, JPG • Max 2 MB'}
+                        {typeof form.logo_url === 'string' && form.logo_url
+                          ? 'Template-only logo (does not change company logo)'
+                          : form.logo_url === null && vendorLogo
+                            ? 'Using company logo — upload to override, or remove below'
+                            : form.logo_url === ''
+                              ? 'No logo on this template — upload or use company logo'
+                              : 'PNG, JPG • Max 2 MB'}
                       </p>
+                      {form.logo_url === null && vendorLogo ? (
+                        <button
+                          type="button"
+                          className="text-xs text-red-600 hover:text-red-800 mt-1"
+                          onClick={() => setField('logo_url', '')}
+                        >
+                          Remove logo from letter
+                        </button>
+                      ) : form.logo_url === '' && vendorLogo ? (
+                        <button
+                          type="button"
+                          className="text-xs text-blue-600 hover:text-blue-800 mt-1"
+                          onClick={() => setField('logo_url', null)}
+                        >
+                          Use company logo
+                        </button>
+                      ) : null}
                     </div>
                   </div>
                   <LogoShapePicker
                     value={form.logo_shape}
                     onChange={shape => setField('logo_shape', shape)}
+                    hint="Shape and size are fixed in the header so upload or remove does not shift the layout."
                   />
                   </>
                 )}
