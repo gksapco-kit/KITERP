@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import {
   Dialog,
   DialogContent,
@@ -343,6 +344,9 @@ export default function Products() {
     permanent?: boolean
   } | null>(null)
   const [bulkDeleting, setBulkDeleting] = useState(false)
+  const [bulkUpdating, setBulkUpdating] = useState(false)
+  const [bulkStatusPick, setBulkStatusPick] = useState('')
+  const [bulkVisibilityPick, setBulkVisibilityPick] = useState('')
 
   const activeFilterCount = [status, visibility, category, productType, stock].filter(Boolean).length
   const hasActiveQuery = Boolean(search.trim() || activeFilterCount > 0)
@@ -517,6 +521,39 @@ export default function Products() {
       else next.delete(id)
       return next
     })
+  }
+
+  const runBulkProductUpdate = async (
+    field: 'status' | 'is_visible',
+    value: string,
+  ) => {
+    if (!value || selectedIds.size === 0) return
+    const ids = Array.from(selectedIds)
+    const payload: Record<string, unknown> =
+      field === 'is_visible' ? { is_visible: value === 'true' } : { status: value }
+    setBulkUpdating(true)
+    let failed = 0
+    for (const id of ids) {
+      try {
+        await vendorApi.updateProduct(id, payload)
+      } catch {
+        failed += 1
+      }
+    }
+    await queryClient.invalidateQueries({ queryKey: ['vendor', 'products'] })
+    setBulkUpdating(false)
+    const updated = ids.length - failed
+    if (field === 'status') setBulkStatusPick('')
+    else setBulkVisibilityPick('')
+    if (failed === 0) {
+      toast.success(
+        `Updated ${field === 'status' ? 'status' : 'visibility'} for ${updated} product${updated === 1 ? '' : 's'}`,
+      )
+    } else if (updated > 0) {
+      toast.error(`${updated} updated, ${failed} failed`)
+    } else {
+      toast.error('Could not update the selected products')
+    }
   }
 
   const runExport = async (mode: 'template' | 'selected' | 'all') => {
@@ -723,8 +760,10 @@ export default function Products() {
               setProductDeleteConfirm(null)
             }}
           >
-            <Trash2 className={`w-4 h-4 ${showDeleted ? '' : 'text-red-500'}`} />
-            {showDeleted ? 'Back to products' : 'Deleted'}
+            {showDeleted
+              ? <Package className="w-4 h-4" />
+              : <RotateCcw className="w-4 h-4 text-primary" />}
+            {showDeleted ? 'Back to products' : 'Restore'}
           </Button>
           {!showDeleted && (
             <>
@@ -887,6 +926,61 @@ export default function Products() {
       {/* Table */}
       <Card className="border-gray-200/80 overflow-hidden">
         <CardContent className="p-0">
+          {selectedIds.size > 0 && !showDeleted && listViewMode === 'product' && (
+            <div className="flex flex-wrap items-center gap-2 border-b border-sky-200 bg-sky-50 px-4 py-2.5">
+              <span className="shrink-0 text-xs font-semibold text-sky-800">
+                {selectedIds.size} selected
+              </span>
+              <Select
+                value={bulkStatusPick}
+                onChange={(v) => {
+                  setBulkStatusPick(v)
+                  if (v) void runBulkProductUpdate('status', v)
+                }}
+                options={selectOptionsWithBlank('Change status…', PRODUCT_STATUS_FILTER_OPTIONS)}
+                placeholder="Change status…"
+                aria-label="Bulk change product status"
+                className="h-8 min-w-[10.5rem] text-xs"
+                disabled={bulkUpdating || bulkDeleting}
+              />
+              <Select
+                value={bulkVisibilityPick}
+                onChange={(v) => {
+                  setBulkVisibilityPick(v)
+                  if (v) void runBulkProductUpdate('is_visible', v)
+                }}
+                options={selectOptionsWithBlank('Change visibility…', VISIBILITY_FILTER_OPTIONS)}
+                placeholder="Change visibility…"
+                aria-label="Bulk change product visibility"
+                className="h-8 min-w-[11.5rem] text-xs"
+                disabled={bulkUpdating || bulkDeleting}
+              />
+              {(bulkUpdating) && <Loader2 className="h-4 w-4 animate-spin text-sky-600" />}
+              <Button
+                variant="outline"
+                size="sm"
+                className="ml-auto h-8 gap-1.5 text-red-600 hover:text-red-700"
+                disabled={bulkDeleting || bulkUpdating}
+                onClick={() => setProductDeleteConfirm({
+                  ids: Array.from(selectedIds),
+                  label: `${selectedIds.size} product${selectedIds.size === 1 ? '' : 's'}`,
+                })}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Delete
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-1 px-2 text-xs"
+                onClick={() => setSelectedIds(new Set())}
+                disabled={bulkUpdating}
+              >
+                <X className="w-3.5 h-3.5" />
+                Clear
+              </Button>
+            </div>
+          )}
           <div className="overflow-x-auto">
 
           {/* ── Product-wise view ── */}

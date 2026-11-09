@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
-import { RefreshCw, Search } from 'lucide-react'
+import { Loader2, RefreshCw, Search } from 'lucide-react'
+import { Label } from '@/components/ui/label'
 import { pharmaApi } from '@/api/pharma'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -296,56 +297,109 @@ export function PharmaFefoPage() {
     }
   }
 
+  const shortBy = result != null ? Number(result.short_by ?? 0) : 0
+  const qtyNeeded = result != null ? Number(result.qty_needed ?? qty) : Number(qty) || 1
+  const allocations = (result?.allocations || []) as any[]
+
   return (
-    <div className="p-6">
+    <div className="mx-auto w-full max-w-6xl px-4 py-5 md:px-6">
       <PharmaPageHeader
         title="FEFO allocation"
         subtitle="Preview earliest-expiry-first picks from unrestricted, non-expired lots."
       />
-      <PharmaCard className="mb-4">
-        <PharmaToolbar>
-          <PharmaProductSelect className="w-72" value={productId} onChange={setProductId} />
-          <Input className="w-28" type="number" min={1} value={qty} onChange={(e) => setQty(e.target.value)} />
-          <Button onClick={run} disabled={running}>
-            {running ? 'Calculating…' : 'Preview'}
-          </Button>
-        </PharmaToolbar>
-      </PharmaCard>
-      {result ? (
-        <PharmaCard>
-          <div className="mb-3 flex flex-wrap items-center gap-3 text-sm">
-            <span>
-              Needed: <strong>{result.qty_needed ?? qty}</strong>
-            </span>
-            <span className={Number(result.short_by) > 0 ? 'text-red-700' : 'text-emerald-700'}>
-              Short by: <strong>{result.short_by ?? 0}</strong>
-            </span>
+
+      <PharmaCard className="overflow-hidden p-0">
+        <div className="border-b border-border/80 bg-muted/25 px-4 py-2.5">
+          <p className="text-sm font-medium text-foreground">Run preview</p>
+          <p className="text-[11px] text-muted-foreground">
+            Batches are ordered by expiry date (earliest first).
+          </p>
+        </div>
+        <div className="p-4">
+          <div className="grid w-full gap-3 sm:grid-cols-[minmax(0,1fr)_6.5rem_auto] sm:items-end">
+            <div className="min-w-0 space-y-1">
+              <Label className="text-xs font-medium text-muted-foreground">Product</Label>
+              <PharmaProductSelect
+                className="h-8 min-h-8 w-full text-sm"
+                value={productId}
+                onChange={setProductId}
+                placeholder="Select product…"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-medium text-muted-foreground">Qty</Label>
+              <Input
+                className="h-8 w-full tabular-nums"
+                type="number"
+                min={1}
+                value={qty}
+                onChange={(e) => setQty(e.target.value)}
+              />
+            </div>
+            <Button className="h-8 w-full gap-1.5 px-4 sm:w-auto" onClick={run} disabled={running}>
+              {running ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Calculating…
+                </>
+              ) : (
+                'Preview'
+              )}
+            </Button>
           </div>
-          {(result.allocations || []).length === 0 ? (
+        </div>
+      </PharmaCard>
+
+      {result ? (
+        <PharmaCard className="mt-4 overflow-hidden p-0">
+          <div className="flex flex-wrap items-center gap-2 border-b border-border/80 bg-muted/20 px-4 py-3">
+            <span className="rounded-md border border-border/70 bg-background px-2.5 py-1 text-xs">
+              Needed <strong className="ml-1 tabular-nums text-foreground">{qtyNeeded}</strong>
+            </span>
+            <span
+              className={
+                shortBy > 0
+                  ? 'rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-1 text-xs text-destructive'
+                  : 'rounded-md border border-emerald-600/25 bg-emerald-500/10 px-2.5 py-1 text-xs text-emerald-800 dark:text-emerald-300'
+              }
+            >
+              Short by <strong className="ml-1 tabular-nums">{shortBy}</strong>
+            </span>
+            {allocations.length > 0 ? (
+              <span className="text-[11px] text-muted-foreground sm:ml-auto">
+                {allocations.length} batch{allocations.length === 1 ? '' : 'es'} allocated
+              </span>
+            ) : null}
+          </div>
+          {allocations.length === 0 ? (
             <PharmaEmpty label="No unrestricted FEFO stock available" />
           ) : (
-            <table className="w-full text-left text-sm">
-              <thead className="border-b text-xs text-muted-foreground">
-                <tr>
-                  <th className="py-2 font-medium">Batch</th>
-                  <th className="py-2 font-medium">Allocate</th>
-                  <th className="py-2 font-medium">Available</th>
-                  <th className="py-2 font-medium">Expiry</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(result.allocations || []).map((a: any) => (
-                  <tr key={a.id || a.batch_number} className="border-b border-border/50">
-                    <td className="py-2 font-mono text-xs">{a.batch_number}</td>
-                    <td className="py-2 tabular-nums font-medium">{a.allocate_qty}</td>
-                    <td className="py-2 tabular-nums text-muted-foreground">{a.quantity_available ?? '—'}</td>
-                    <td className="py-2">
-                      <PharmaExpiryCell date={a.expiry_date} />
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[32rem] text-left text-sm">
+                <thead className="border-b bg-muted/40 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  <tr>
+                    <th className="px-4 py-2.5 font-medium">Batch</th>
+                    <th className="px-4 py-2.5 font-medium">Allocate</th>
+                    <th className="px-4 py-2.5 font-medium">Available</th>
+                    <th className="px-4 py-2.5 font-medium">Expiry</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-border/60">
+                  {allocations.map((a: any) => (
+                    <tr key={a.id || a.batch_number} className="hover:bg-muted/20">
+                      <td className="px-4 py-2.5 font-mono text-xs">{a.batch_number}</td>
+                      <td className="px-4 py-2.5 tabular-nums font-medium">{a.allocate_qty}</td>
+                      <td className="px-4 py-2.5 tabular-nums text-muted-foreground">
+                        {a.quantity_available ?? '—'}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <PharmaExpiryCell date={a.expiry_date} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </PharmaCard>
       ) : null}

@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Plus, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { pharmaApi } from '@/api/pharma'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { useHasPermission } from '@/hooks/usePermissions'
 import {
@@ -138,79 +140,142 @@ export function PharmaMbrPage() {
     }
   }
 
+  const fieldSm = 'h-8 text-sm'
+
   return (
-    <div className="p-6">
+    <div className="mx-auto w-full max-w-6xl px-4 py-5 md:px-6">
       <PharmaPageHeader
         title="Master Batch Record"
         subtitle="Approved templates seed each BPR with operations, line clearance, and IPC checks."
       />
       {canManage ? (
-        <PharmaCard className="mb-4">
-          <h2 className="mb-3 text-sm font-semibold">New MBR (draft)</h2>
-          <div className="space-y-3">
-            <PharmaToolbar>
-              <PharmaProductSelect className="w-64" value={form.product_id} onChange={(product_id) => setForm({ ...form, product_id })} />
-              <Input className="w-32" placeholder="Code" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />
-              <Input className="w-48" placeholder="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-            </PharmaToolbar>
+        <PharmaCard className="mb-4 overflow-hidden p-0">
+          <div className="border-b border-border/80 bg-muted/25 px-4 py-2.5">
+            <h2 className="text-sm font-semibold text-foreground">New MBR (draft)</h2>
+            <p className="text-[11px] text-muted-foreground">
+              Default IPC and line-clearance checks are added on create.
+            </p>
+          </div>
+          <div className="space-y-4 p-4">
+            <div className="grid w-full gap-3 sm:grid-cols-[minmax(0,1.2fr)_7rem_minmax(0,1fr)] sm:items-end">
+              <div className="min-w-0 space-y-1">
+                <Label className="text-xs font-medium text-muted-foreground">Product</Label>
+                <PharmaProductSelect
+                  className={`${fieldSm} min-h-8 w-full`}
+                  value={form.product_id}
+                  onChange={(product_id) => setForm({ ...form, product_id })}
+                  placeholder="Select product…"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs font-medium text-muted-foreground">Code</Label>
+                <Input
+                  className={fieldSm}
+                  placeholder="e.g. MBR-001"
+                  value={form.code}
+                  onChange={(e) => setForm({ ...form, code: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs font-medium text-muted-foreground">Title</Label>
+                <Input
+                  className={fieldSm}
+                  placeholder="e.g. Tablet blend & pack"
+                  value={form.title}
+                  onChange={(e) => setForm({ ...form, title: e.target.value })}
+                />
+              </div>
+            </div>
+
             <div>
-              <div className="mb-1.5 flex items-center justify-between">
-                <span className="text-xs font-semibold uppercase text-muted-foreground">Operations</span>
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Operations
+                </span>
                 <Button
                   type="button"
                   size="sm"
                   variant="outline"
+                  className="h-8 gap-1 px-2.5 text-xs"
                   onClick={() => setCreateOps((ops) => [...ops, { seq: (ops.at(-1)?.seq ?? 0) + 10, name: '' }])}
                 >
-                  + Step
+                  <Plus className="h-3.5 w-3.5" />
+                  Step
                 </Button>
               </div>
-              {createOps.map((op, idx) => (
-                <div key={idx} className="mb-1 flex flex-wrap items-center gap-2">
-                  <Input
-                    className="w-20"
-                    type="number"
-                    value={op.seq}
-                    onChange={(e) => {
-                      const next = [...createOps]
-                      next[idx] = { ...op, seq: Number(e.target.value) || 0 }
-                      setCreateOps(next)
-                    }}
-                    placeholder="Seq"
-                  />
-                  <Input
-                    className="w-48"
-                    placeholder="Step name"
-                    value={op.name}
-                    onChange={(e) => {
-                      const next = [...createOps]
-                      next[idx] = { ...op, name: e.target.value }
-                      setCreateOps(next)
-                    }}
-                  />
-                  {createOps.length > 1 && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      className="text-destructive"
-                      onClick={() => setCreateOps((ops) => ops.filter((_, i) => i !== idx))}
-                    >
-                      ✕
-                    </Button>
-                  )}
-                </div>
-              ))}
+              <div className="mb-1 hidden gap-2 px-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground sm:grid sm:grid-cols-[4.5rem_minmax(0,1fr)_2.25rem]">
+                <span>Seq</span>
+                <span>Step name</span>
+                <span className="sr-only">Remove</span>
+              </div>
+              <div className="space-y-2">
+                {createOps.map((op, idx) => (
+                  <div
+                    key={idx}
+                    className="grid grid-cols-[4.5rem_minmax(0,1fr)_2.25rem] items-center gap-2"
+                  >
+                    <Input
+                      className={`${fieldSm} tabular-nums`}
+                      type="number"
+                      value={op.seq}
+                      onChange={(e) => {
+                        const next = [...createOps]
+                        next[idx] = { ...op, seq: Number(e.target.value) || 0 }
+                        setCreateOps(next)
+                      }}
+                      placeholder="10"
+                      aria-label={`Sequence ${idx + 1}`}
+                    />
+                    <Input
+                      className={fieldSm}
+                      placeholder="Step name"
+                      value={op.name}
+                      onChange={(e) => {
+                        const next = [...createOps]
+                        next[idx] = { ...op, name: e.target.value }
+                        setCreateOps(next)
+                      }}
+                    />
+                    {createOps.length > 1 ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 w-9 shrink-0 px-0 text-destructive hover:bg-destructive/10"
+                        onClick={() => setCreateOps((ops) => ops.filter((_, i) => i !== idx))}
+                        aria-label="Remove step"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    ) : (
+                      <span className="h-8 w-9" aria-hidden />
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
-            <Button onClick={create}>Create MBR</Button>
+
+            <div className="flex justify-end border-t border-border/60 pt-3">
+              <Button className="h-9 px-4" onClick={create}>
+                Create MBR
+              </Button>
+            </div>
           </div>
         </PharmaCard>
       ) : null}
-      <PharmaCard>
-        {loading ? <PharmaLoading /> : items.length === 0 ? <PharmaEmpty label="No MBRs yet" hint="Create a draft, then approve it before starting BPRs." /> : null}
+      <PharmaCard className="overflow-hidden p-0">
+        <div className="border-b border-border/80 bg-muted/25 px-4 py-2.5">
+          <h2 className="text-sm font-semibold text-foreground">MBR library</h2>
+          <p className="text-[11px] text-muted-foreground">Draft, approve, then use when opening a BPR.</p>
+        </div>
+        <div className="px-4 py-2">
+          {loading ? <PharmaLoading /> : items.length === 0 ? (
+            <PharmaEmpty label="No MBRs yet" hint="Create a draft, then approve it before starting BPRs." />
+          ) : null}
+        </div>
         <ul className="divide-y divide-border/60">
           {items.map((m) => (
-            <li key={m.id} className="py-3 text-sm">
+            <li key={m.id} className="px-4 py-3 text-sm">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <div className="font-medium">
@@ -471,32 +536,75 @@ export function PharmaBprPage() {
     }
   }
 
+  const fieldSm = 'h-8 text-sm'
+
   return (
-    <div className="p-6">
+    <div className="mx-auto w-full max-w-6xl px-4 py-5 md:px-6">
       <PharmaPageHeader
         title="Batch Production Record"
         subtitle="Clearance → log steps → IPC → complete with yield."
       />
       {canManage ? (
-        <PharmaCard className="mb-4">
-          <h2 className="mb-3 text-sm font-semibold">Start BPR</h2>
-          <PharmaToolbar>
-            <PharmaProductSelect className="w-64" value={form.product_id} onChange={(product_id) => setForm({ ...form, product_id })} />
-            <Input className="w-40" placeholder="Batch number" value={form.batch_number} onChange={(e) => setForm({ ...form, batch_number: e.target.value })} />
-            <Input className="w-28" placeholder="Planned qty" value={form.planned_qty} onChange={(e) => setForm({ ...form, planned_qty: e.target.value })} />
-            <Button onClick={create}>Create BPR</Button>
-          </PharmaToolbar>
+        <PharmaCard className="mb-4 overflow-hidden p-0">
+          <div className="border-b border-border/80 bg-muted/25 px-4 py-2.5">
+            <h2 className="text-sm font-semibold text-foreground">Start BPR</h2>
+            <p className="text-[11px] text-muted-foreground">
+              Seeds from an approved MBR for the product when one exists.
+            </p>
+          </div>
+          <div className="p-4">
+            <div className="grid w-full gap-3 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_6.5rem_auto] sm:items-end">
+              <div className="min-w-0 space-y-1">
+                <Label className="text-xs font-medium text-muted-foreground">Product</Label>
+                <PharmaProductSelect
+                  className={`${fieldSm} min-h-8 w-full`}
+                  value={form.product_id}
+                  onChange={(product_id) => setForm({ ...form, product_id })}
+                  placeholder="Select product…"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs font-medium text-muted-foreground">Batch number</Label>
+                <Input
+                  className={fieldSm}
+                  placeholder="e.g. BN-2025-001"
+                  value={form.batch_number}
+                  onChange={(e) => setForm({ ...form, batch_number: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs font-medium text-muted-foreground">Planned qty</Label>
+                <Input
+                  className={`${fieldSm} tabular-nums`}
+                  placeholder="Optional"
+                  value={form.planned_qty}
+                  onChange={(e) => setForm({ ...form, planned_qty: e.target.value })}
+                />
+              </div>
+              <Button className="h-8 w-full px-4 sm:w-auto" onClick={create}>
+                Create BPR
+              </Button>
+            </div>
+          </div>
         </PharmaCard>
       ) : null}
-      <PharmaCard>
-        {loading ? <PharmaLoading /> : items.length === 0 ? <PharmaEmpty label="No BPRs yet" /> : null}
+      <PharmaCard className="overflow-hidden p-0">
+        <div className="border-b border-border/80 bg-muted/25 px-4 py-2.5">
+          <h2 className="text-sm font-semibold text-foreground">BPR register</h2>
+          <p className="text-[11px] text-muted-foreground">Open a record to log steps, IPC, and completion.</p>
+        </div>
+        <div className="px-4 py-2">
+          {loading ? <PharmaLoading /> : items.length === 0 ? (
+            <PharmaEmpty label="No BPRs yet" hint="Create a batch record above to get started." />
+          ) : null}
+        </div>
         <ul className="divide-y divide-border/60">
           {items.map((b) => {
             const ops = b.operation_log || []
             const doneOps = ops.filter((s: any) => ['completed', 'skipped'].includes(s.status)).length
             const open = expanded === b.id
             return (
-              <li key={b.id} className="py-3">
+              <li key={b.id} className="px-4 py-3">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">

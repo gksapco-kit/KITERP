@@ -5,6 +5,7 @@ import { pharmaApi } from '@/api/pharma'
 import { vendorApi } from '@/api/vendor'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { useHasPermission } from '@/hooks/usePermissions'
 import {
@@ -48,53 +49,100 @@ export function PharmaGenealogyPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const fieldSm = 'h-8 min-h-8 text-sm'
+
   return (
-    <div className="p-6">
+    <div className="mx-auto w-full max-w-6xl px-4 py-5 md:px-6">
       <PharmaPageHeader
         title="Genealogy"
         subtitle="Forward and backward lot traceability from batch transactions."
       />
-      <PharmaCard className="mb-4">
-        <PharmaToolbar>
-          <PharmaBatchSelect className="w-96" value={batchId} onChange={setBatchId} />
-          <Button onClick={() => run()}>Trace</Button>
-          {tree ? (
-            <Button size="sm" variant="outline" onClick={() => setRaw((v) => !v)}>
-              {raw ? 'Tree view' : 'JSON'}
-            </Button>
-          ) : null}
-        </PharmaToolbar>
-      </PharmaCard>
-      {tree ? (
-        <div className="grid gap-4 lg:grid-cols-2">
-          <PharmaCard>
-            <div className="mb-2 flex flex-wrap items-center gap-2">
-              <span className="font-mono text-sm font-medium">{tree.batch_number}</span>
-              <PharmaStatusBadge status={tree.quality_status} />
-              <span className="text-xs text-muted-foreground">qty {tree.quantity_available}</span>
+      <PharmaCard className="mb-4 overflow-hidden p-0">
+        <div className="border-b border-border/80 bg-muted/25 px-4 py-2.5">
+          <h2 className="text-sm font-semibold text-foreground">Run trace</h2>
+          <p className="text-[11px] text-muted-foreground">Pick a batch, then load upstream and downstream links.</p>
+        </div>
+        <div className="p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div className="min-w-0 flex-1 space-y-1">
+              <Label className="text-xs font-medium text-muted-foreground">Batch</Label>
+              <PharmaBatchSelect
+                className={`${fieldSm} w-full`}
+                value={batchId}
+                onChange={setBatchId}
+                placeholder="Select batch…"
+              />
             </div>
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Upstream (components)</h3>
-            {(tree.upstream || []).length === 0 ? (
-              <p className="text-xs text-muted-foreground">No upstream links</p>
-            ) : (
-              tree.upstream.map((n: any, i: number) => <GenealogyNode key={i} node={n} />)
-            )}
+            <div className="flex flex-wrap items-center gap-2 sm:pb-0">
+              <Button className="h-8 w-full px-4 sm:w-auto" onClick={() => run()}>
+                Trace
+              </Button>
+              {tree ? (
+                <Button
+                  className="h-8"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setRaw((v) => !v)}
+                >
+                  {raw ? 'Tree view' : 'JSON'}
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      </PharmaCard>
+
+      {!tree ? (
+        <PharmaCard className="border-dashed">
+          <PharmaEmpty label="No trace loaded" hint="Select a batch and click Trace to see genealogy." />
+        </PharmaCard>
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <PharmaCard className="overflow-hidden p-0">
+            <div className="border-b border-border/80 bg-muted/25 px-4 py-2.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-mono text-sm font-semibold">{tree.batch_number}</span>
+                <PharmaStatusBadge status={tree.quality_status} />
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  Qty {tree.quantity_available ?? '—'}
+                </span>
+              </div>
+              <h3 className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Upstream (components)
+              </h3>
+            </div>
+            <div className="p-4">
+              {(tree.upstream || []).length === 0 ? (
+                <p className="text-xs text-muted-foreground">No upstream links</p>
+              ) : (
+                tree.upstream.map((n: any, i: number) => <GenealogyNode key={i} node={n} />)
+              )}
+            </div>
           </PharmaCard>
-          <PharmaCard>
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Downstream (usage)</h3>
-            {(tree.downstream || []).length === 0 ? (
-              <p className="text-xs text-muted-foreground">No downstream links</p>
-            ) : (
-              tree.downstream.map((n: any, i: number) => <GenealogyNode key={i} node={n} />)
-            )}
+          <PharmaCard className="overflow-hidden p-0">
+            <div className="border-b border-border/80 bg-muted/25 px-4 py-2.5">
+              <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Downstream (usage)
+              </h3>
+            </div>
+            <div className="p-4">
+              {(tree.downstream || []).length === 0 ? (
+                <p className="text-xs text-muted-foreground">No downstream links</p>
+              ) : (
+                tree.downstream.map((n: any, i: number) => <GenealogyNode key={i} node={n} />)
+              )}
+            </div>
           </PharmaCard>
           {raw ? (
-            <PharmaCard className="lg:col-span-2">
-              <pre className="overflow-auto rounded bg-muted p-3 text-xs">{JSON.stringify(tree, null, 2)}</pre>
+            <PharmaCard className="overflow-hidden p-0 lg:col-span-2">
+              <div className="border-b border-border/80 bg-muted/25 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Raw JSON
+              </div>
+              <pre className="max-h-96 overflow-auto p-4 text-xs">{JSON.stringify(tree, null, 2)}</pre>
             </PharmaCard>
           ) : null}
         </div>
-      ) : null}
+      )}
     </div>
   )
 }
@@ -113,53 +161,78 @@ export function PharmaRecallsPage() {
     load()
   }, [])
 
+  const fieldSm = 'h-8 min-h-8 text-sm'
+
+  const startRecall = () => {
+    if (!isUuid(form.goods_batch_id) || !form.reason.trim()) {
+      toast.error('Select a batch and enter a reason')
+      return
+    }
+    pharmaApi.createRecall(form).then(() => {
+      toast.success('Recall opened — lot blocked')
+      setForm({ goods_batch_id: '', reason: '' })
+      load()
+    })
+  }
+
   return (
-    <div className="p-6">
+    <div className="mx-auto w-full max-w-6xl px-4 py-5 md:px-6">
       <PharmaPageHeader
         title="Recalls"
         subtitle="Block the lot, snapshot genealogy, log notify/investigate actions, then close."
       />
       {canManage ? (
-        <PharmaCard className="mb-4">
-          <PharmaToolbar>
-            <PharmaBatchSelect
-              className="w-80"
-              value={form.goods_batch_id}
-              onChange={(id) => setForm({ ...form, goods_batch_id: id })}
-            />
-            <Input
-              className="w-72"
-              placeholder="Reason"
-              value={form.reason}
-              onChange={(e) => setForm({ ...form, reason: e.target.value })}
-            />
-            <Button
-              onClick={() => {
-                if (!isUuid(form.goods_batch_id) || !form.reason.trim()) {
-                  toast.error('Select a batch and enter a reason')
-                  return
-                }
-                pharmaApi.createRecall(form).then(() => {
-                  toast.success('Recall opened — lot blocked')
-                  setForm({ goods_batch_id: '', reason: '' })
-                  load()
-                })
-              }}
-            >
-              Start recall
-            </Button>
-          </PharmaToolbar>
+        <PharmaCard className="mb-4 overflow-hidden p-0">
+          <div className="border-b border-border/80 bg-muted/25 px-4 py-2.5">
+            <h2 className="text-sm font-semibold text-foreground">Start recall</h2>
+            <p className="text-[11px] text-muted-foreground">
+              The selected batch is blocked and genealogy is snapshotted at open.
+            </p>
+          </div>
+          <div className="p-4">
+            <div className="grid w-full gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto] sm:items-end">
+              <div className="min-w-0 space-y-1">
+                <Label className="text-xs font-medium text-muted-foreground">Batch</Label>
+                <PharmaBatchSelect
+                  className={`${fieldSm} w-full`}
+                  value={form.goods_batch_id}
+                  onChange={(id) => setForm({ ...form, goods_batch_id: id })}
+                  placeholder="Select batch…"
+                />
+              </div>
+              <div className="min-w-0 space-y-1">
+                <Label className="text-xs font-medium text-muted-foreground">Reason</Label>
+                <Input
+                  className={fieldSm}
+                  placeholder="e.g. Out-of-spec IPC result"
+                  value={form.reason}
+                  onChange={(e) => setForm({ ...form, reason: e.target.value })}
+                />
+              </div>
+              <Button className="h-8 w-full px-4 sm:w-auto" onClick={startRecall}>
+                Start recall
+              </Button>
+            </div>
+          </div>
         </PharmaCard>
       ) : null}
-      <PharmaCard>
-        {loading ? <PharmaLoading /> : items.length === 0 ? <PharmaEmpty label="No recalls" /> : null}
+      <PharmaCard className="overflow-hidden p-0">
+        <div className="border-b border-border/80 bg-muted/25 px-4 py-2.5">
+          <h2 className="text-sm font-semibold text-foreground">Recall register</h2>
+          <p className="text-[11px] text-muted-foreground">Investigate, notify, export, and close open recalls.</p>
+        </div>
+        <div className="px-4 py-2">
+          {loading ? <PharmaLoading /> : items.length === 0 ? (
+            <PharmaEmpty label="No recalls" hint="Start a recall above when a lot must be blocked." />
+          ) : null}
+        </div>
         <ul className="divide-y divide-border/60">
           {items.map((r) => {
             const open = expanded === r.id
             const snap = r.affected_summary || {}
             const gene = snap.genealogy || {}
             return (
-              <li key={r.id} className="py-3 text-sm">
+              <li key={r.id} className="px-4 py-3 text-sm">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <div className="font-medium">{r.recall_number}</div>
@@ -528,35 +601,68 @@ export function PharmaCapasPage() {
     }
   }
 
+  const fieldSm = 'h-8 text-sm'
+
+  const createCapa = () => {
+    if (!title.trim()) {
+      toast.error('Enter a title')
+      return
+    }
+    pharmaApi.createCapa({ title: title.trim() }).then(() => {
+      toast.success('CAPA created')
+      setTitle('')
+      load()
+    })
+  }
+
   return (
-    <div className="p-6">
+    <div className="mx-auto w-full max-w-6xl px-4 py-5 md:px-6">
       <PharmaPageHeader
         title="CAPA"
         subtitle="Corrective / preventive actions — effectiveness check + e-sign required to close."
       />
       {canManage ? (
-        <PharmaCard className="mb-4">
-          <PharmaToolbar>
-            <Input className="w-80" placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
-            <Button
-              onClick={() => {
-                if (!title.trim()) return
-                pharmaApi.createCapa({ title }).then(() => {
-                  setTitle('')
-                  load()
-                })
-              }}
-            >
-              Create CAPA
-            </Button>
-          </PharmaToolbar>
+        <PharmaCard className="mb-4 overflow-hidden p-0">
+          <div className="border-b border-border/80 bg-muted/25 px-4 py-2.5">
+            <h2 className="text-sm font-semibold text-foreground">New CAPA</h2>
+            <p className="text-[11px] text-muted-foreground">
+              Add root cause, actions, and effectiveness check before closure.
+            </p>
+          </div>
+          <div className="p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <div className="min-w-0 flex-1 space-y-1">
+                <Label className="text-xs font-medium text-muted-foreground">Title</Label>
+                <Input
+                  className={fieldSm}
+                  placeholder="e.g. Repeatable blend weight drift"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') createCapa()
+                  }}
+                />
+              </div>
+              <Button className="h-8 w-full shrink-0 px-4 sm:w-auto" onClick={createCapa}>
+                Create CAPA
+              </Button>
+            </div>
+          </div>
         </PharmaCard>
       ) : null}
-      <PharmaCard>
-        {loading ? <PharmaLoading /> : items.length === 0 ? <PharmaEmpty label="No CAPAs" /> : null}
+      <PharmaCard className="overflow-hidden p-0">
+        <div className="border-b border-border/80 bg-muted/25 px-4 py-2.5">
+          <h2 className="text-sm font-semibold text-foreground">CAPA register</h2>
+          <p className="text-[11px] text-muted-foreground">Track status from open through e-signed close.</p>
+        </div>
+        <div className="px-4 py-2">
+          {loading ? <PharmaLoading /> : items.length === 0 ? (
+            <PharmaEmpty label="No CAPAs" hint="Create a CAPA above or link one from a deviation." />
+          ) : null}
+        </div>
         <ul className="divide-y divide-border/60">
           {items.map((c) => (
-            <li key={c.id} className="py-3 text-sm">
+            <li key={c.id} className="px-4 py-3 text-sm">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <div className="font-medium">
