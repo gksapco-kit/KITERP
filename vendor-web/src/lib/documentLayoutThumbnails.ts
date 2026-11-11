@@ -354,7 +354,7 @@ const TEMPLATES: DocumentLayoutThumbnail[] = [
   {
     id: 'taxcompliance',
     name: 'Tax Compliance',
-    desc: 'Reference GST layout — meta bar, services table, bank + totals',
+    desc: 'Infocomx / CAREATOR-style GST — meta bar, SERVICES table, bank + totals',
     svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
       <rect width="120" height="160" fill="#fff" rx="3"/>
       <rect x="6" y="8" width="22" height="20" fill="#e2e8f0" rx="2"/>

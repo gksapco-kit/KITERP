@@ -44,7 +44,7 @@ import { InlineEditCell } from '@/components/table/InlineEditCell'
 import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import { processRows, type SortDir } from '@/lib/tableList'
 import { ThemeSelect } from '@/components/common/ThemeSelect'
-import { printInvoice, type InvoiceSettings } from '@/lib/invoiceTemplates'
+import { printInvoice, downloadInvoiceWithTemplate, type InvoiceSettings } from '@/lib/invoiceTemplates'
 import {
   invoiceBadgeClass,
   invoiceNumberLinkClass,
@@ -57,19 +57,12 @@ import { onAuthenticatedAnchorClick } from '@/lib/openAuthenticatedTab'
 const TABLE_ICON_BTN =
   'inline-flex shrink-0 items-center justify-center rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground dark:hover:bg-muted/70 dark:hover:text-foreground'
 
-async function downloadInvoicePdf(id: string, invoiceNumber: string) {
+async function downloadInvoicePdf(id: string, invSettings: Partial<InvoiceSettings>) {
   try {
-    const res = await apiClient.get(`/vendors/me/invoices/${id}/pdf`, { responseType: 'blob' })
-    const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${(invoiceNumber || id).replace(/\//g, '-')}.pdf`
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-    window.URL.revokeObjectURL(url)
+    const inv = await vendorApi.getInvoice(id)
+    await downloadInvoiceWithTemplate(inv as Record<string, unknown>, invSettings)
   } catch {
-    toast.error('Could not download invoice PDF — the invoice may not have been generated yet')
+    toast.error('Could not download invoice PDF — check template settings and try again')
   }
 }
 

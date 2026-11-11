@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useCallback, useEffect } from 'react'
+﻿import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { SectionLabel } from '@/components/common/FieldLabel'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
@@ -8,6 +8,7 @@ import {
   useInvoiceSettings, useUpdateInvoiceSettings,
   useQuotationSettings, useUpdateQuotationSettings,
   usePosReceiptSettings, useSavePosReceiptSettings, useUploadDocumentAsset,
+  useProducts, useServices,
 } from '@/hooks/useVendor'
 import { useQuery } from '@tanstack/react-query'
 import { vendorApi } from '@/api/vendor'
@@ -16,8 +17,11 @@ import {
   ArrowLeft, Loader2, Upload, X, Check, RefreshCw,
   ChevronDown, ChevronUp, Building2, Pen, Eye, Eraser, RotateCcw,
   ShoppingCart, GripVertical, EyeOff, Type, Palette,
-  FileOutput, ToggleLeft, QrCode,
+  FileOutput, ToggleLeft, QrCode, Package, FileSearch,
 } from 'lucide-react'
+import { resolveServiceDisplayAmount } from '@/lib/servicePricing'
+import { CopyFromDocumentField } from '@/components/procurement/CopyFromDocumentField'
+import { extractApiError } from '@/lib/errorMessages'
 import { InvoiceAccentColorPicker } from '@/components/invoices/InvoiceAccentColorPicker'
 import {
   generateInvoiceHtml, mergeInvoiceTemplatePages, createBlankInvoiceContinuationPage,
@@ -26,6 +30,7 @@ import {
   DEFAULT_LAYOUT_SECTIONS, resolveInvoiceTemplateLogoPath,
   applyAllInvoiceComponentsPreset,
   applyReferenceInvoicePreset,
+  REFERENCE_GST_TEMPLATE_ID,
   LOGO_SHAPES, URL_POSITION_OPTIONS,
   INVOICE_TEMPLATE_LABELS, normalizeInvoiceTemplateId, panFromGstin,
 } from '@/lib/invoiceTemplates'
@@ -137,6 +142,11 @@ function TemplateThemeGrid({
   onSelect: (id: InvoiceTemplateId) => void
 }) {
   const selectedRef = useRef<HTMLButtonElement>(null)
+  const orderedTemplates = useMemo(() => {
+    const featured = TEMPLATES.find(t => t.id === REFERENCE_GST_TEMPLATE_ID)
+    const rest = TEMPLATES.filter(t => t.id !== REFERENCE_GST_TEMPLATE_ID)
+    return featured ? [featured, ...rest] : TEMPLATES
+  }, [])
 
   useEffect(() => {
     selectedRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
@@ -144,17 +154,23 @@ function TemplateThemeGrid({
 
   return (
     <div className="grid grid-cols-2 gap-2 flex-1 min-w-0 max-h-[480px] overflow-y-auto pr-1">
-      {TEMPLATES.map(tmpl => {
+      {orderedTemplates.map(tmpl => {
         const active = selectedId === tmpl.id
+        const isReferenceGst = tmpl.id === REFERENCE_GST_TEMPLATE_ID
         return (
           <button
             key={tmpl.id}
             ref={active ? selectedRef : undefined}
             onClick={() => onSelect(tmpl.id)}
             className={`relative rounded-lg border-2 p-1.5 transition-all text-left ${
-              active ? 'border-blue-500 bg-blue-50 shadow-sm ring-1 ring-blue-200' : 'border-gray-200 hover:border-gray-300'
+              active ? 'border-blue-500 bg-blue-50 shadow-sm ring-1 ring-blue-200' : isReferenceGst ? 'border-blue-200 hover:border-blue-400 bg-blue-50/30' : 'border-gray-200 hover:border-gray-300'
             }`}
           >
+            {isReferenceGst && !active ? (
+              <div className="absolute top-1 left-1 z-10 text-[8px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-emerald-600 text-white">
+                Reference
+              </div>
+            ) : null}
             {active && (
               <>
                 <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center z-10">
@@ -703,6 +719,90 @@ const SAMPLE_QUOTATION = {
   booking_number: undefined,
 }
 
+type PreviewCatalogRow = {
+  name: string
+  hsn_sac: string
+  price: number
+  tax_rate: number
+}
+
+function previewLinesFromCatalog(catalog: PreviewCatalogRow[], max = 6) {
+  const picked = catalog.slice(0, max)
+  let subtotal = 0
+  let totalTax = 0
+  const items = picked.map(p => {
+    const rate = Number(p.price) || 0
+    const qty = 1
+    const line = rate * qty
+    const taxRate = Number(p.tax_rate) || 0
+    const half = taxRate / 2
+    const cgst_amt = Math.round(line * half) / 100
+    const sgst_amt = cgst_amt
+    const total = line + cgst_amt + sgst_amt
+    subtotal += line
+    totalTax += cgst_amt + sgst_amt
+    return {
+      name: p.name,
+      description: '',
+      hsn_sac: p.hsn_sac,
+      qty,
+      rate,
+      discount: 0,
+      cgst_rate: half,
+      sgst_rate: half,
+      cgst_amt,
+      sgst_amt,
+      igst_amt: 0,
+      total,
+    }
+  })
+  const total = Math.round((subtotal + totalTax) * 100) / 100
+  return {
+    items,
+    subtotal,
+    discount_amount: 0,
+    taxable_amount: subtotal,
+    cgst_amount: Math.round(totalTax * 50) / 100,
+    sgst_amount: Math.round(totalTax * 50) / 100,
+    igst_amount: 0,
+    total_tax: totalTax,
+    round_off: 0,
+    total,
+    amount_paid: total,
+    balance_due: 0,
+  }
+}
+
+function previewOverridesFromInvoice(inv: Record<string, unknown>): Record<string, unknown> {
+  return {
+    invoice_number: inv.invoice_number,
+    items: inv.items,
+    customer_name: inv.customer_name,
+    customer_phone: inv.customer_phone,
+    customer_email: inv.customer_email,
+    customer_gstin: inv.customer_gstin,
+    customer_pan: inv.customer_pan,
+    billing_address: inv.billing_address,
+    shipping_address: inv.shipping_address,
+    place_of_supply: inv.place_of_supply,
+    is_inter_state: inv.is_inter_state,
+    subtotal: inv.subtotal,
+    discount_amount: inv.discount_amount,
+    taxable_amount: inv.taxable_amount,
+    cgst_amount: inv.cgst_amount,
+    sgst_amount: inv.sgst_amount,
+    igst_amount: inv.igst_amount,
+    total_tax: inv.total_tax,
+    round_off: inv.round_off,
+    total: inv.total,
+    amount_paid: inv.amount_paid,
+    balance_due: inv.balance_due,
+    notes: inv.notes,
+    payment_terms: inv.payment_terms,
+    booking_number: inv.booking_number,
+  }
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function InvoiceSettingsPage() {
@@ -738,6 +838,46 @@ export default function InvoiceSettingsPage() {
   const [previewAssetsLoading, setPreviewAssetsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [sigMode, setSigMode] = useState<'upload' | 'draw'>('upload')
+  const [previewSampleOverrides, setPreviewSampleOverrides] = useState<Record<string, unknown> | null>(null)
+  const [previewCopyLoading, setPreviewCopyLoading] = useState(false)
+  const [previewCopiedFrom, setPreviewCopiedFrom] = useState<string | null>(null)
+
+  const { data: productsData } = useProducts({ size: 120 })
+  const { data: servicesData } = useServices({ size: 120 })
+  const previewCatalog = useMemo<PreviewCatalogRow[]>(() => {
+    const prods = (productsData?.items ?? []).map((p: Record<string, unknown>) => ({
+      name: String(p.name || ''),
+      hsn_sac: String(p.hsn_code || ''),
+      price: Number(p.price ?? p.selling_price ?? 0),
+      tax_rate: Number(p.tax_rate ?? p.gst_rate ?? 18),
+    }))
+    const svcs = (servicesData?.items ?? []).map((s: Record<string, unknown>) => ({
+      name: String(s.name || ''),
+      hsn_sac: String(s.sac_code || s.hsn_sac || ''),
+      price: resolveServiceDisplayAmount(s),
+      tax_rate: Number(s.tax_rate ?? s.gst_rate ?? 18),
+    }))
+    return [...prods, ...svcs].filter(r => r.name)
+  }, [productsData, servicesData])
+
+  const { data: previewDocSuggestions, isLoading: previewDocsLoading } = useQuery({
+    queryKey: ['invoice-template-preview-docs', isQuotationMode],
+    queryFn: () => vendorApi.listInvoices({
+      invoice_type: isQuotationMode ? 'estimate' : 'invoice',
+      size: 80,
+    }),
+    staleTime: 60_000,
+  })
+  const previewCopySuggestions = useMemo(
+    () => ((previewDocSuggestions?.items ?? []) as Array<Record<string, unknown>>)
+      .map(inv => ({
+        number: String(inv.invoice_number || ''),
+        title: String(inv.customer_name || '') || undefined,
+        hint: String(inv.status || '').replace(/_/g, ' ') || undefined,
+      }))
+      .filter(s => s.number),
+    [previewDocSuggestions],
+  )
 
   // POS-specific settings (stored per vendor on the server; shared by every terminal)
   const { data: serverPosSettings } = usePosReceiptSettings()
@@ -804,25 +944,78 @@ export default function InvoiceSettingsPage() {
   const logoShape = settings.logo_shape ?? 'rounded'
   const logoPreviewClass = LOGO_SHAPE_PREVIEW_CLASS[logoShape]
 
+  const enrichSampleDoc = useCallback((base: typeof SAMPLE_INVOICE) => {
+    const merged = { ...base, ...(previewSampleOverrides || {}) }
+    return {
+      ...merged,
+      vendor_name: vendor?.business_name || merged.vendor_name,
+      vendor_gstin: vendor?.gstin || merged.vendor_gstin,
+      vendor_pan: vendor?.pan_number || panFromGstin(vendor?.gstin) || merged.vendor_pan,
+      vendor_phone: vendor?.primary_phone || merged.vendor_phone,
+      vendor_email: vendor?.primary_email || 'billing@example.com',
+      vendor_address: vendor?.street_address
+        ? { street: vendor.street_address, city: vendor.city || '', state: vendor.state || '', postal_code: vendor.postal_code || '' }
+        : merged.vendor_address,
+      vendor_logo_url: vendorLogo,
+      vendor_slug: vendor?.slug,
+      vendor_website_url: settings.website_url?.trim() || vendorWebsiteFallback,
+      terms_and_conditions: settings.default_terms || merged.terms_and_conditions,
+    }
+  }, [previewSampleOverrides, vendor, vendorLogo, vendorWebsiteFallback, settings.default_terms, settings.website_url])
+
+  const importCatalogIntoPreview = useCallback(() => {
+    if (!previewCatalog.length) {
+      toast.error('Add products or services in your catalog first')
+      return
+    }
+    setPreviewPagesHtml('')
+    setPreviewSampleOverrides(previewLinesFromCatalog(previewCatalog))
+    setPreviewCopiedFrom(null)
+    toast.success(`Preview shows ${Math.min(previewCatalog.length, 6)} catalog line(s)`)
+  }, [previewCatalog])
+
+  const applyGstReferenceWithCatalog = useCallback(() => {
+    setPreviewPagesHtml('')
+    setSettings(prev => applyReferenceInvoicePreset(prev))
+    if (previewCatalog.length) {
+      setPreviewSampleOverrides(previewLinesFromCatalog(previewCatalog))
+      setPreviewCopiedFrom(null)
+      toast.success('GST reference layout applied with your catalog lines — review and Save Template')
+    } else {
+      toast.success('GST reference layout applied — use Import products or copy an existing invoice # for sample lines')
+    }
+  }, [previewCatalog])
+
+  const copyExistingDocIntoPreview = useCallback(async (number: string) => {
+    setPreviewCopyLoading(true)
+    try {
+      const inv = await vendorApi.lookupSalesInvoice(
+        number,
+        isQuotationMode ? 'estimate' : 'invoice',
+      )
+      setPreviewPagesHtml('')
+      setPreviewSampleOverrides(previewOverridesFromInvoice(inv as Record<string, unknown>))
+      setPreviewCopiedFrom(number)
+      toast.success(`Preview copied from ${number}`)
+    } catch (err) {
+      toast.error(extractApiError(err, 'Could not load that document'))
+    } finally {
+      setPreviewCopyLoading(false)
+    }
+  }, [isQuotationMode])
+
+  const resetPreviewSample = useCallback(() => {
+    setPreviewSampleOverrides(null)
+    setPreviewCopiedFrom(null)
+    setPreviewPagesHtml('')
+    toast.success('Preview sample reset')
+  }, [])
+
   // Regenerate document preview whenever settings change (embed logo/sig/QR with auth fetch).
   useEffect(() => {
     let cancelled = false
     const sampleBase = isQuotationMode ? SAMPLE_QUOTATION : SAMPLE_INVOICE
-    const sampleData = {
-      ...sampleBase,
-      vendor_name: vendor?.business_name || sampleBase.vendor_name,
-      vendor_gstin: vendor?.gstin || sampleBase.vendor_gstin,
-      vendor_pan: vendor?.pan_number || panFromGstin(vendor?.gstin) || sampleBase.vendor_pan,
-      vendor_phone: vendor?.primary_phone || sampleBase.vendor_phone,
-      vendor_email: vendor?.primary_email || 'billing@example.com',
-      vendor_address: vendor?.street_address
-        ? { street: vendor.street_address, city: vendor.city || '', state: vendor.state || '', postal_code: vendor.postal_code || '' }
-        : sampleBase.vendor_address,
-      vendor_logo_url: vendorLogo,
-      vendor_slug: vendor?.slug,
-      vendor_website_url: settings.website_url?.trim() || vendorWebsiteFallback,
-      terms_and_conditions: settings.default_terms || sampleBase.terms_and_conditions,
-    }
+    const sampleData = enrichSampleDoc(sampleBase)
     const run = async () => {
       setPreviewAssetsLoading(true)
       try {
@@ -838,24 +1031,15 @@ export default function InvoiceSettingsPage() {
     }
     void run()
     return () => { cancelled = true }
-  }, [settings, vendor, vendorLogo, vendorWebsiteFallback, isQuotationMode])
+  }, [settings, enrichSampleDoc, isQuotationMode])
 
   // Regenerate POS preview whenever posSettings change
   useEffect(() => {
     let cancelled = false
     const pm = posMerged()
     const sampleData = {
-      ...SAMPLE_INVOICE,
+      ...enrichSampleDoc(SAMPLE_INVOICE),
       invoice_number: 'POS-000042',
-      vendor_name: vendor?.business_name || SAMPLE_INVOICE.vendor_name,
-      vendor_gstin: vendor?.gstin || SAMPLE_INVOICE.vendor_gstin,
-      vendor_pan: vendor?.pan_number || panFromGstin(vendor?.gstin) || SAMPLE_INVOICE.vendor_pan,
-      vendor_phone: vendor?.primary_phone || SAMPLE_INVOICE.vendor_phone,
-      vendor_address: vendor?.street_address
-        ? { street: vendor.street_address, city: vendor.city || '', state: vendor.state || '', postal_code: vendor.postal_code || '' }
-        : SAMPLE_INVOICE.vendor_address,
-      vendor_logo_url: vendorLogo,
-      vendor_slug: vendor?.slug,
       vendor_website_url: pm.website_url?.trim() || vendorWebsiteFallback,
       customer_name: 'Walk-in Customer',
       notes: 'POS Transaction: POS-000042',
@@ -873,7 +1057,7 @@ export default function InvoiceSettingsPage() {
     void run()
     return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [posSettings, settings, vendor, vendorLogo, vendorWebsiteFallback])
+  }, [posSettings, settings, enrichSampleDoc, vendorWebsiteFallback])
 
   const set = useCallback(<K extends keyof InvoiceSettings>(key: K, value: InvoiceSettings[K]) => {
     // Any Design/Content change must drop a frozen single-page snapshot, otherwise
@@ -1609,6 +1793,20 @@ export default function InvoiceSettingsPage() {
           {settingsTab === 'design' && <>
           {/* ── Themes + Layout Editor (side-by-side) ── */}
           <AccordionSection title="Themes" badge={templateLabelFor(settings.template)} defaultOpen>
+            {!isQuotationMode ? (
+              <div className="mb-3 rounded-lg border border-blue-200 bg-gradient-to-r from-blue-50 to-white p-3 space-y-2">
+                <div>
+                  <p className="text-xs font-semibold text-blue-900">Reference GST invoice (like your Infocomx / CAREATOR PDF)</p>
+                  <p className="text-[10px] text-gray-600 mt-1 leading-snug">
+                    Tax Compliance layout — logo, invoice meta bar, SERVICES table, bank details, CGST/SGST totals, amount in words, signature.
+                  </p>
+                </div>
+                <Button type="button" size="sm" variant="outline" className="h-8 text-xs gap-1.5 border-blue-300 text-blue-800 hover:bg-blue-100" onClick={applyGstReferenceWithCatalog}>
+                  <Package className="w-3.5 h-3.5" />
+                  Apply layout + import products
+                </Button>
+              </div>
+            ) : null}
             <div className="flex gap-3">
               <TemplateThemeGrid
                 selectedId={settings.template}
@@ -1691,6 +1889,37 @@ export default function InvoiceSettingsPage() {
                         </button>
                       </div>
                     )}
+                    <div className="mt-2 border-t border-gray-100 pt-2 space-y-1.5">
+                      <SectionLabel className="text-[10px]">Preview data</SectionLabel>
+                      <p className="text-[10px] text-gray-400 leading-snug">
+                        Sample lines for the live preview only — not saved with the template.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={importCatalogIntoPreview}
+                        className="text-xs text-gray-700 hover:text-blue-700 flex items-center gap-1 text-left w-full"
+                      >
+                        <Package className="w-3 h-3 shrink-0" /> Import products
+                      </button>
+                      <CopyFromDocumentField
+                        placeholder={isQuotationMode ? 'Copy quotation #' : 'Copy invoice #'}
+                        onCopy={copyExistingDocIntoPreview}
+                        loading={previewCopyLoading}
+                        copiedFrom={previewCopiedFrom}
+                        suggestions={previewCopySuggestions}
+                        suggestionsLoading={previewDocsLoading}
+                        triggerClassName="w-full justify-start h-8 text-xs gap-1 px-0 text-gray-700 hover:text-blue-700"
+                      />
+                      {previewSampleOverrides ? (
+                        <button
+                          type="button"
+                          onClick={resetPreviewSample}
+                          className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-0.5"
+                        >
+                          <RotateCcw className="w-2.5 h-2.5" /> Reset sample
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
               </div>

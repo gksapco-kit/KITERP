@@ -346,13 +346,16 @@ export const DEFAULT_INVOICE_SETTINGS: InvoiceSettings = {
  * tax split, amount in words, bank, notes, signature, etc.) without matching pixel-perfect layout.
  * Layout sections are reset to default order with all visible.
  */
+/** Layout id for the Infocomx / CAREATOR-style reference GST PDF. */
+export const REFERENCE_GST_TEMPLATE_ID: InvoiceTemplateId = 'taxcompliance'
+
 /**
  * Reference Indian GST invoice (CAREATOR-style): Tax Compliance layout + all standard blocks.
  */
 export function applyReferenceInvoicePreset(base: InvoiceSettings): InvoiceSettings {
   return {
     ...applyAllInvoiceComponentsPreset(base),
-    template: 'taxcompliance',
+    template: REFERENCE_GST_TEMPLATE_ID,
     color: base.color || '#111827',
     show_item_numbers: false,
     show_hsn: false,
@@ -475,7 +478,7 @@ export function getTemplateColorLabel(hex: string): string {
 import { resolveInfocomxLogoUrl } from '@/lib/infocomxBranding'
 import { mayUseInfocomxHrAssetsForSlug } from '@/lib/infocomxVendorScope'
 import { useVendorStore } from '@/stores/vendorStore'
-import { resolveMediaUrl, fetchAsDataUrl, openPrintWindow } from './printUtils'
+import { resolveMediaUrl, fetchAsDataUrl, openPrintWindow, downloadAsPdf } from './printUtils'
 
 // ── POS-specific invoice settings ────────────────────────────────────────────
 // POS receipt overrides live on the server (vendor.settings.pos_receipt_settings); read them
@@ -2926,8 +2929,9 @@ ${sec('header', `
     <div style="flex:1;min-width:0">
       <div style="font-size:20px;font-weight:700;color:#111;line-height:1.25">${inv.vendor_name || ''}</div>
       ${settings.show_vendor_address !== false && addr ? `<div style="font-size:10px;color:#4b5563;margin-top:6px;line-height:1.55">${addr}</div>` : ''}
+      ${(settings.show_vendor_phone ?? false) && inv.vendor_phone ? `<div class="inv-vendor-phone" style="font-size:10px;color:#4b5563;margin-top:4px">Mobile: ${inv.vendor_phone}</div>` : ''}
+      ${settings.show_gstin && inv.vendor_gstin ? `<div style="font-size:10px;color:#4b5563;margin-top:2px">GSTIN: ${inv.vendor_gstin}</div>` : ''}
       <div class="inv-url-slot"></div>
-      ${settings.show_gstin && inv.vendor_gstin ? `<div style="font-size:10px;color:#4b5563;margin-top:4px">GSTIN: ${inv.vendor_gstin}</div>` : ''}
     </div>
     <div style="text-align:right;min-width:150px;flex-shrink:0">
       <div style="font-size:18px;font-weight:800;color:${settings.color || '#1a56db'};letter-spacing:1px">TAX INVOICE</div>
@@ -2946,6 +2950,7 @@ ${sec('meta', `
     ${billAddr ? `<div style="font-size:10px;color:#4b5563;margin-top:4px;line-height:1.5">${billAddr}</div>` : ''}
     ${settings.show_phone && inv.customer_phone ? `<div style="font-size:10px;color:#4b5563;margin-top:4px">Mobile: ${inv.customer_phone}</div>` : ''}
     ${settings.show_gstin && inv.customer_gstin ? `<div style="font-size:10px;color:#4b5563;margin-top:2px">GSTIN: ${inv.customer_gstin}</div>` : ''}
+    ${(settings.show_pan ?? true) && resolveCustomerPan(inv) ? `<div class="inv-customer-pan" style="font-size:10px;color:#4b5563;margin-top:2px">PAN Number: ${resolveCustomerPan(inv)}</div>` : ''}
     ${settings.show_place_of_supply && placeOfSupply ? `<div style="font-size:10px;color:#4b5563;margin-top:2px">Place of Supply: ${placeOfSupply}</div>` : ''}
   </div>` : ''}`)}
 ${sec('items', invoiceItemsSection(items, settings, color, true, {
@@ -3377,6 +3382,55 @@ export async function printInvoice(
     false,
   )
   openPrintWindow(html)
+}
+
+/** PDF download using the same HTML template as Print (not the server ReportLab layout). */
+export async function downloadInvoiceWithTemplate(
+  inv: InvData,
+  settings: Partial<InvoiceSettings>,
+  _backendApiBase = '',
+): Promise<void> {
+  const s = { ...DEFAULT_INVOICE_SETTINGS, ...settings }
+  const rawLogo = resolveInvoiceTemplateLogoPath(s, inv.vendor_logo_url as string, inv)
+  const rawSig = s.signature_url || ''
+  const items = (inv.items as InvData[]) || []
+  const needItemImages = s.show_product_images || s.template === 'visual'
+
+  const [logoDataUrl, sigDataUrl, ...itemDataUrls] = await Promise.all([
+    s.show_logo && rawLogo ? fetchAsDataUrl(rawLogo) : Promise.resolve(''),
+    s.show_signature && rawSig ? fetchAsDataUrl(rawSig) : Promise.resolve(''),
+    ...items.map(it => {
+      const url = (it.image_url || it.image || '') as string
+      return needItemImages && url ? fetchAsDataUrl(url).catch(() => '') : Promise.resolve('')
+    }),
+  ])
+
+  const enrichedItems = items.map((it, i) => ({
+    ...it,
+    image_url: itemDataUrls[i] || (it.image_url as string) || '',
+  }))
+
+  const enriched: InvoiceSettings = {
+    ...s,
+    logo_url: logoDataUrl || undefined,
+    signature_url: sigDataUrl || undefined,
+  }
+
+  const html = mergeInvoiceTemplatePages(
+    generateInvoiceHtml(
+      { ...inv, vendor_logo_url: logoDataUrl || inv.vendor_logo_url, items: enrichedItems },
+      enriched,
+      '',
+    ),
+    enriched,
+    false,
+  )
+  const filename = `${String(inv.invoice_number || 'invoice').replace(/\//g, '-')}.pdf`
+  await downloadAsPdf(html, filename, {
+    margin: s.pdf_margin ?? 5,
+    orientation: s.pdf_orientation ?? 'portrait',
+    imageQuality: s.pdf_image_quality ?? 0.98,
+  })
 }
 
 /**

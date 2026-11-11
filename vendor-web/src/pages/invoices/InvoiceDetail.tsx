@@ -23,7 +23,7 @@ import {
 } from 'lucide-react'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { processRows, type SortDir } from '@/lib/tableList'
-import { printInvoice, generateInvoiceHtml, DEFAULT_INVOICE_SETTINGS, DEFAULT_QUOTATION_SETTINGS, resolveInvoiceTemplateLogoPath } from '@/lib/invoiceTemplates'
+import { printInvoice, generateInvoiceHtml, downloadInvoiceWithTemplate, DEFAULT_INVOICE_SETTINGS, DEFAULT_QUOTATION_SETTINGS, resolveInvoiceTemplateLogoPath } from '@/lib/invoiceTemplates'
 import type { InvoiceSettings } from '@/lib/invoiceTemplates'
 import {
   invoiceBadgeClass,
@@ -50,39 +50,12 @@ interface LineItem {
   tax_rate: number
 }
 
-async function downloadPdf(id: string, invoiceNumber: string) {
-  try {
-    const res = await apiClient.get(`/vendors/me/invoices/${id}/pdf`, { responseType: 'blob' })
-    const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${(invoiceNumber || id).replace(/\//g, '-')}.pdf`
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-    window.URL.revokeObjectURL(url)
-  } catch {
-    toast.error('Could not download invoice PDF — try again or use Print Invoice instead')
-  }
-}
-
 async function printWithTemplate(inv: Record<string, unknown>, invSettings: InvoiceSettings) {
   await printInvoice(inv, invSettings)
 }
 
 async function downloadInvoicePdf(inv: Record<string, unknown>, invSettings: InvoiceSettings) {
-  // Merge with defaults first — same as printInvoice — so template/color are always set.
-  const s = { ...DEFAULT_INVOICE_SETTINGS, ...invSettings }
-  const rawLogo = resolveInvoiceTemplateLogoPath(s, inv.vendor_logo_url as string, inv)
-  const rawSig  = s.signature_url || ''
-  const [logoDataUrl, sigDataUrl] = await Promise.all([
-    s.show_logo      && rawLogo ? fetchAsDataUrl(rawLogo) : Promise.resolve(''),
-    s.show_signature && rawSig  ? fetchAsDataUrl(rawSig)  : Promise.resolve(''),
-  ])
-  const enriched: InvoiceSettings = { ...s, logo_url: logoDataUrl || undefined, signature_url: sigDataUrl || undefined }
-  const html = generateInvoiceHtml({ ...inv, vendor_logo_url: logoDataUrl || inv.vendor_logo_url }, enriched, '')
-  const filename = `${String(inv.invoice_number || 'invoice').replace(/\//g, '-')}.pdf`
-  await downloadAsPdf(html, filename, { margin: s.pdf_margin ?? 5, orientation: s.pdf_orientation ?? 'portrait', imageQuality: s.pdf_image_quality ?? 0.98 })
+  await downloadInvoiceWithTemplate(inv, invSettings)
 }
 
 function InfoRow({ icon: Icon, label, value, compact }: { icon: React.ElementType; label: string; value?: string | null; compact?: boolean }) {
