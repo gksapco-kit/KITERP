@@ -59,6 +59,7 @@ from app.database import (
     ensure_platform_career_application_table,
     ensure_storage_location_plant_nullable,
     ensure_product_soft_delete,
+    ensure_invoice_soft_delete,
     ensure_pharma_schema,
     ensure_realestate_schema,
 )
@@ -132,6 +133,7 @@ async def lifespan(app: FastAPI):
         await ensure_platform_career_application_table()
         await ensure_storage_location_plant_nullable()
         await ensure_product_soft_delete()
+        await ensure_invoice_soft_delete()
         await ensure_pharma_schema()
         await ensure_realestate_schema()
     await connect_redis()

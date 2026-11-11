@@ -3428,6 +3428,26 @@ async def ensure_product_soft_delete() -> None:
     logger.info("ensure_product_soft_delete: product.deleted_at ready")
 
 
+async def ensure_invoice_soft_delete() -> None:
+    """Add invoice.deleted_at for trash / restore on sales documents."""
+    if "postgresql" not in settings.DATABASE_URL.lower():
+        return
+    async with engine.begin() as conn:
+        await conn.execute(
+            text("ALTER TABLE invoice ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ")
+        )
+        await conn.execute(
+            text("CREATE INDEX IF NOT EXISTS ix_invoice_deleted_at ON invoice (deleted_at)")
+        )
+        await conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_invoice_vendor_deleted "
+                "ON invoice (vendor_id, deleted_at)"
+            )
+        )
+    logger.info("ensure_invoice_soft_delete: invoice.deleted_at ready")
+
+
 async def ensure_storage_location_plant_nullable() -> None:
     """Allow storage locations under a branch without a plant."""
     if "postgresql" not in settings.DATABASE_URL.lower():

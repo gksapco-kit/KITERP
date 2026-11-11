@@ -446,6 +446,7 @@ def _open_invoice_filters(vendor_id: UUID):
         Invoice.invoice_type == "invoice",
         Invoice.status.notin_(["draft", "void", "cancelled", "paid"]),
         Invoice.balance_due > 0,
+        Invoice.deleted_at.is_(None),
     ]
 
 

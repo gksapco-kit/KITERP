@@ -14,17 +14,18 @@ import { Label } from '@/components/ui/label'
 import { vendorApi } from '@/api/vendor'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useInvoiceSettings, useProducts, useServices, useUpdateInvoice } from '@/hooks/useVendor'
+import { useInvoiceSettings, useProducts, useServices, useUpdateInvoice, useRestoreInvoice } from '@/hooks/useVendor'
+import { useHasPermission } from '@/hooks/usePermissions'
 import { formatCurrency, formatDate, cn } from '@/lib/utils'
 import { resolveServiceDisplayAmount } from '@/lib/servicePricing'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { toast } from 'sonner'
-import { extractApiError } from '@/lib/errorMessages'
+import { extractApiError, isAxiosNetworkError } from '@/lib/errorMessages'
 import { createdDocMessage, pickDocNo } from '@/lib/documentToast'
 import {
   Plus, Search, Loader2, FileText,
-  X, Eye, IndianRupee, ArrowRight, Download, Trash2, Share2,
+  X, Eye, IndianRupee, ArrowRight, Download, Trash2, Share2, RotateCcw,
   MessageCircle, Mail, Smartphone, Copy, Send, Settings2, CalendarDays, Printer, UserPlus,
 } from 'lucide-react'
 import { CopyFromDocumentField } from '@/components/procurement/CopyFromDocumentField'
@@ -179,9 +180,12 @@ export default function InvoicesPage() {
   const [shareOpenId, setShareOpenId] = useState<string | null>(null)
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
+  const [showDeleted, setShowDeleted] = useState(false)
   const [sortKey, setSortKey] = useState('created_at')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const { data: invSettings } = useInvoiceSettings()
+  const canManageInvoice = useHasPermission('invoices.manage')
+  const restoreInvoice = useRestoreInvoice()
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -205,19 +209,29 @@ export default function InvoicesPage() {
     } catch { /* ignore */ }
   }, [])
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['invoices', page, pageSize, typeFilter, statusFilter, storeFilter, branchFilter, salesAreaFilter, search],
+  const { data, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ['invoices', page, pageSize, typeFilter, statusFilter, storeFilter, branchFilter, salesAreaFilter, search, showDeleted],
     queryFn: () => vendorApi.listInvoices({
       page,
       size: pageSize,
       invoice_type: typeFilter || undefined,
       exclude_invoice_type: typeFilter ? undefined : 'estimate',
-      status: statusFilter || undefined,
+      status: showDeleted ? undefined : (statusFilter || undefined),
       store_id: branchFilter || storeFilter || undefined,
       sales_area_id: salesAreaFilter || undefined,
       search: search || undefined,
+      deleted: showDeleted || undefined,
     }),
+    retry: (failureCount, err) => isAxiosNetworkError(err) && failureCount < 4,
+    retryDelay: (attempt) => Math.min(1500 * 2 ** attempt, 12_000),
   })
+  const { data: trashMeta } = useQuery({
+    queryKey: ['invoices', 'trash-count'],
+    queryFn: () => vendorApi.listInvoices({ deleted: true, page: 1, size: 1, exclude_invoice_type: 'estimate' }),
+    enabled: canManageInvoice,
+    retry: (failureCount, err) => isAxiosNetworkError(err) && failureCount < 2,
+  })
+  const trashCount = trashMeta?.total ?? 0
   const updateInvoice = useUpdateInvoice()
   const { savingCellKey, cellKey, patchField: patchInvoiceField } = useInlineFieldPatch({
     mutateAsync: ({ id, data }) => updateInvoice.mutateAsync({ id, data }),
@@ -261,11 +275,30 @@ export default function InvoicesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground">Invoices & Billing</h1>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => navigate('/invoices/templates')} className="gap-2"><Settings2 className="w-4 h-4" />Templates</Button>
-          <Button onClick={() => { setCopyPrefill(undefined); setShowCreate(true) }} className="gap-2"><Plus className="w-4 h-4" />New Invoice</Button>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold text-foreground">{showDeleted ? 'Deleted invoices' : 'Invoices & Billing'}</h1>
+        <div className="flex flex-wrap justify-end gap-2">
+          {canManageInvoice ? (
+            <Button
+              variant={showDeleted ? 'default' : 'outline'}
+              onClick={() => { setShowDeleted(v => !v); setPage(1) }}
+              className="gap-2"
+            >
+              <Trash2 className="w-4 h-4" />
+              Deleted
+              {!showDeleted && trashCount > 0 ? (
+                <span className="rounded-full bg-red-100 px-1.5 text-xs font-semibold text-red-700 dark:bg-red-950 dark:text-red-300">
+                  {trashCount}
+                </span>
+              ) : null}
+            </Button>
+          ) : null}
+          {!showDeleted ? (
+            <>
+              <Button variant="outline" onClick={() => navigate('/invoices/templates')} className="gap-2"><Settings2 className="w-4 h-4" />Templates</Button>
+              <Button onClick={() => { setCopyPrefill(undefined); setShowCreate(true) }} className="gap-2"><Plus className="w-4 h-4" />New Invoice</Button>
+            </>
+          ) : null}
         </div>
       </div>
 
@@ -389,6 +422,13 @@ export default function InvoicesPage() {
             <tbody className="divide-y">
               {isLoading ? (
                 <tr><td colSpan={9} className="py-12 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" /></td></tr>
+              ) : isError ? (
+                <tr>
+                  <td colSpan={9} className="py-12 text-center text-sm text-muted-foreground space-y-2">
+                    <p className="text-red-600 dark:text-red-400">{extractApiError(error, 'Could not load invoices')}</p>
+                    <Button type="button" variant="outline" size="sm" onClick={() => refetch()}>Retry</Button>
+                  </td>
+                </tr>
               ) : !data?.items?.length ? (
                 <tr><td colSpan={9} className="py-12 text-center text-sm text-muted-foreground">{search ? 'No invoices match your search' : 'No invoices yet'}</td></tr>
               ) : displayInvoices.map((inv: InvRow) => {
@@ -454,6 +494,22 @@ export default function InvoicesPage() {
                     <td className="px-5 py-3 text-sm text-muted-foreground whitespace-nowrap">{formatDate(inv.created_at as string)}</td>
                     <td className="px-2 py-3">
                       <div className="flex items-center justify-center gap-1">
+                        {showDeleted && canManageInvoice ? (
+                          <button
+                            type="button"
+                            onClick={() => restoreInvoice.mutate(inv.id as string)}
+                            disabled={restoreInvoice.isPending && restoreInvoice.variables === inv.id}
+                            title="Restore invoice"
+                            className={TABLE_ICON_BTN}
+                            aria-label="Restore invoice"
+                          >
+                            {restoreInvoice.isPending && restoreInvoice.variables === inv.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <RotateCcw className="w-4 h-4 text-emerald-600" />
+                            )}
+                          </button>
+                        ) : null}
                         <button
                           type="button"
                           onClick={() => navigate(`/invoices/${inv.id}`)}

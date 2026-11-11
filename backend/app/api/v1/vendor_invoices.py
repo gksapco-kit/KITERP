@@ -123,6 +123,7 @@ def _inv_dict(inv, include_qr: bool = False, vendor: Vendor | None = None) -> di
         "created_by": str(inv.created_by) if inv.created_by else None,
         "created_at": inv.created_at.isoformat() if inv.created_at else None,
         "updated_at": inv.updated_at.isoformat() if inv.updated_at else None,
+        "deleted_at": inv.deleted_at.isoformat() if getattr(inv, "deleted_at", None) else None,
     }
     if vendor is not None:
         data["vendor_slug"] = (vendor.slug or "").strip().lower() or None
@@ -143,6 +144,7 @@ async def list_invoices(
     search: str = None,
     customer_id: str = None,
     open_only: bool = Query(False),
+    deleted: bool = Query(False),
     page: int = Query(1, ge=1), size: int = Query(20, ge=1, le=1000),
     vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db),
 ):
@@ -150,7 +152,7 @@ async def list_invoices(
     items, total = await svc.list_invoices(
         vid, invoice_type, exclude_invoice_type, status, page, size,
         store_id=store_id, search=search, sales_area_id=sales_area_id,
-        customer_id=customer_id, open_only=open_only,
+        customer_id=customer_id, open_only=open_only, deleted=deleted,
     )
     vendor = await db.get(Vendor, vid)
     return JSONResponse(content={
@@ -351,6 +353,28 @@ async def generate_invoice_einvoice(
     await db.commit()
     await db.refresh(inv)
     return JSONResponse(content=_inv_dict(inv, include_qr=True, vendor=vendor))
+
+
+@router.delete("/{invoice_id}", status_code=204, dependencies=[_require_manage])
+async def delete_invoice(invoice_id: str, vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db)):
+    """Soft-delete an invoice or quotation (moves to trash; restore via POST …/restore)."""
+    svc = InvoiceService(db)
+    try:
+        await svc.soft_delete(UUID(invoice_id), vid)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return None
+
+
+@router.post("/{invoice_id}/restore", dependencies=[_require_manage])
+async def restore_invoice(invoice_id: str, vid: UUID = Depends(_vendor_id), db: AsyncSession = Depends(get_db)):
+    svc = InvoiceService(db)
+    try:
+        inv = await svc.restore(UUID(invoice_id), vid)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    vendor = await db.get(Vendor, vid)
+    return JSONResponse(content=_inv_dict(inv, vendor=vendor))
 
 
 @router.put("/{invoice_id}")

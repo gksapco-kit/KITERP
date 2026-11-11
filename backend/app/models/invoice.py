@@ -95,11 +95,13 @@ class Invoice(Base):
     created_by = Column(UUID(as_uuid=True), ForeignKey("user.id"))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    deleted_at = Column(DateTime(timezone=True), nullable=True, index=True)
 
     __table_args__ = (
         Index("ix_invoice_vendor_type", "vendor_id", "invoice_type"),
         Index("ix_invoice_vendor_status", "vendor_id", "status"),
         Index("ix_invoice_vendor_store", "vendor_id", "store_id"),
         Index("ix_invoice_sales_area", "vendor_id", "sales_area_id"),
+        Index("ix_invoice_vendor_deleted", "vendor_id", "deleted_at"),
         Index("ix_invoice_number", "vendor_id", "invoice_number", unique=True),
     )

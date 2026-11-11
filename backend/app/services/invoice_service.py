@@ -4,7 +4,7 @@ from decimal import Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func as sqlfunc, and_, or_
 from uuid import UUID
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 import math
 
 from app.models.invoice import Invoice
@@ -304,6 +304,8 @@ class InvoiceService:
         invoice = result.scalar_one_or_none()
         if not invoice:
             raise ValueError("Invoice not found")
+        if invoice.deleted_at:
+            raise ValueError("Cannot edit a deleted invoice. Restore it first.")
 
         if invoice.status in ("paid", "cancelled"):
             raise ValueError(f"Cannot edit invoice in '{invoice.status}' status")
@@ -365,6 +367,8 @@ class InvoiceService:
         invoice = result.scalar_one_or_none()
         if not invoice:
             raise ValueError("Invoice not found")
+        if invoice.deleted_at:
+            raise ValueError("Cannot record payment on a deleted invoice. Restore it first.")
 
         invoice.amount_paid = float(invoice.amount_paid or 0) + amount
         invoice.balance_due = float(invoice.total or 0) - invoice.amount_paid
@@ -448,8 +452,13 @@ class InvoiceService:
         sales_area_id: str | UUID = None,
         customer_id: str | UUID = None,
         open_only: bool = False,
+        deleted: bool = False,
     ):
         conditions = [Invoice.vendor_id == vendor_id]
+        if deleted:
+            conditions.append(Invoice.deleted_at.is_not(None))
+        else:
+            conditions.append(Invoice.deleted_at.is_(None))
         if invoice_type:
             conditions.append(Invoice.invoice_type == invoice_type)
         elif exclude_invoice_type:
@@ -507,13 +516,16 @@ class InvoiceService:
         self, vendor_id: UUID, number: str, invoice_type: str | None = None,
     ) -> Invoice | None:
         from app.utils.doc_lookup import lookup_id_by_number, lookup_http_error
-        extra = [Invoice.invoice_type == invoice_type] if invoice_type else []
+        extra = [Invoice.deleted_at.is_(None)]
+        if invoice_type:
+            extra.append(Invoice.invoice_type == invoice_type)
         invoice_id, status = await lookup_id_by_number(
             self.db, Invoice, Invoice.invoice_number, vendor_id, number, extra_filters=extra,
         )
         if not invoice_id and invoice_type:
             invoice_id, status = await lookup_id_by_number(
                 self.db, Invoice, Invoice.invoice_number, vendor_id, number,
+                extra_filters=[Invoice.deleted_at.is_(None)],
             )
         if not invoice_id:
             raise lookup_http_error(status, "invoice")
@@ -522,10 +534,37 @@ class InvoiceService:
     async def get_by_order_id(self, order_id: UUID, vendor_id: UUID) -> Invoice | None:
         result = await self.db.execute(
             select(Invoice).where(
-                and_(Invoice.order_id == order_id, Invoice.vendor_id == vendor_id, Invoice.invoice_type == "invoice")
+                and_(
+                    Invoice.order_id == order_id,
+                    Invoice.vendor_id == vendor_id,
+                    Invoice.invoice_type == "invoice",
+                    Invoice.deleted_at.is_(None),
+                )
             )
         )
         return result.scalar_one_or_none()
+
+    async def soft_delete(self, invoice_id: UUID, vendor_id: UUID) -> Invoice:
+        invoice = await self.get_invoice(invoice_id, vendor_id)
+        if not invoice:
+            raise ValueError("Invoice not found")
+        if invoice.deleted_at:
+            raise ValueError("Invoice is already deleted")
+        invoice.deleted_at = datetime.now(timezone.utc)
+        await self.db.commit()
+        await self.db.refresh(invoice)
+        return invoice
+
+    async def restore(self, invoice_id: UUID, vendor_id: UUID) -> Invoice:
+        invoice = await self.get_invoice(invoice_id, vendor_id)
+        if not invoice:
+            raise ValueError("Invoice not found")
+        if not invoice.deleted_at:
+            raise ValueError("Invoice is not deleted")
+        invoice.deleted_at = None
+        await self.db.commit()
+        await self.db.refresh(invoice)
+        return invoice
 
     async def _post_new_invoice_to_gl(self, vendor_id: UUID, invoice: Invoice) -> None:
         """GL-post an invoice created by an order/booking flow, plus any payment already received."""

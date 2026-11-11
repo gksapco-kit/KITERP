@@ -1400,10 +1400,7 @@ export default function POS() {
               >All ({products.length + services.length})</button>
               <button onClick={() => setFilter('products')}
                 className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md text-xs font-medium transition-colors ${filter === 'products' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-              ><Package className="w-3.5 h-3.5" /> Products ({products.reduce((n: number, p: any) => {
-                  const av = posSellableVariants(p.variants)
-                  return n + (av.length > 0 ? av.length : 1)
-                }, 0)})</button>
+              ><Package className="w-3.5 h-3.5" /> Products ({products.length})</button>
               <button onClick={() => setFilter('services')}
                 className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md text-xs font-medium transition-colors ${filter === 'services' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
               ><Wrench className="w-3.5 h-3.5" /> Services ({services.length})</button>
@@ -1421,16 +1418,39 @@ export default function POS() {
                       <Package className="w-3 h-3 text-blue-500" /> Products
                     </div>
                   )}
-                  {products.flatMap((p: any) => {
+                  {products.map((p: any) => {
                     const imgUrl = p.images?.[0]?.url || p.images?.[0]?.file_url || p.image_url
                     const activeVariants = posSellableVariants(p.variants)
-                    const hasVariants = activeVariants.length > 0
 
-                    if (hasVariants) {
-                      return activeVariants.map((v: any) => {
-                        const unit = gramSaleUnit(v)
-                        const price = v.price || p.price || 0
-                        const line = {
+                    if (activeVariants.length > 1) {
+                      const prices = activeVariants.map((v: { price?: number }) => v.price || p.price || 0)
+                      const minPrice = Math.min(...prices)
+                      const maxPrice = Math.max(...prices)
+                      const stocked = activeVariants.filter((v: { quantity?: number | null }) => v.quantity != null)
+                      const totalStock = stocked.length > 0
+                        ? stocked.reduce((sum: number, v: { quantity?: number | null }) => sum + (v.quantity ?? 0), 0)
+                        : null
+                      const priceLabel = minPrice === maxPrice
+                        ? formatCurrency(minPrice)
+                        : `${formatCurrency(minPrice)} – ${formatCurrency(maxPrice)}`
+                      return renderCatalogItem({
+                        key: `p-${p.id}`,
+                        onClick: () => setVariantPickerProduct(p),
+                        imgUrl,
+                        type: 'product',
+                        name: p.name,
+                        sub: `${activeVariants.length} variants · Stock ${totalStock ?? '—'}`,
+                        priceLabel,
+                      })
+                    }
+
+                    if (activeVariants.length === 1) {
+                      const v = activeVariants[0]
+                      const unit = gramSaleUnit(v)
+                      const price = v.price || p.price || 0
+                      return renderCatalogItem({
+                        key: `p-${p.id}`,
+                        onClick: () => handleProductAdd({
                           id: p.id,
                           variant_id: v.id,
                           name: p.name,
@@ -1438,23 +1458,19 @@ export default function POS() {
                           price,
                           tax_rate: v.tax_rate ?? p.tax_rate ?? p.gst_rate ?? 0,
                           hsn_code: v.hsn_code || p.hsn_code,
-                          item_type: 'product' as const,
+                          item_type: 'product',
                           image_url: imgUrl,
                           unit,
-                        }
-                        return renderCatalogItem({
-                          key: `p-${p.id}-v-${v.id}`,
-                          onClick: () => addToCart(line),
-                          imgUrl,
-                          type: 'product',
-                          name: p.name,
-                          sub: `Stock ${v.quantity ?? '—'}${unit ? ` · per ${unit}` : ''}`,
-                          priceLabel: `${formatCurrency(price)}${unit ? ` / ${unit}` : ''}`,
-                        })
+                        }),
+                        imgUrl,
+                        type: 'product',
+                        name: p.name,
+                        sub: `Stock ${v.quantity ?? '—'}${unit ? ` · per ${unit}` : ''}`,
+                        priceLabel: `${formatCurrency(price)}${unit ? ` / ${unit}` : ''}`,
                       })
                     }
 
-                    return [renderCatalogItem({
+                    return renderCatalogItem({
                       key: `p-${p.id}`,
                       onClick: () => handleProductAdd({ id: p.id, name: p.name, sku: p.sku, price: p.price || 0, tax_rate: p.tax_rate || p.gst_rate || 0, hsn_code: p.hsn_code, item_type: 'product', image_url: imgUrl }),
                       imgUrl,
@@ -1462,7 +1478,7 @@ export default function POS() {
                       name: p.name,
                       sub: `Stock ${p.quantity ?? '—'}`,
                       priceLabel: formatCurrency(p.price || 0),
-                    })]
+                    })
                   })}
                 </>
               )}
@@ -1654,7 +1670,7 @@ export default function POS() {
                     onFocus={e => e.target.select()}
                     onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
                     aria-label={item.unit === 'g' ? `Grams for ${item.name}` : `Quantity for ${item.name}`}
-                    className="w-12 h-6 text-center text-sm font-medium border rounded px-1 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    className="w-16 h-8 text-center text-sm font-semibold border rounded-md px-1.5 tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                   />
                   <button onClick={() => updateQty(idx, 1)} className="p-1 rounded hover:bg-gray-100"><Plus className="w-3 h-3" /></button>
                 </div>
@@ -1929,7 +1945,7 @@ export default function POS() {
                     <button
                       key={v.id}
                       onClick={() => {
-                        addToCart({
+                        void handleProductAdd({
                           id: variantPickerProduct.id,
                           variant_id: v.id,
                           name: variantPickerProduct.name,

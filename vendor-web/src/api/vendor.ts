@@ -2767,6 +2767,13 @@ export const vendorApi = {
     const response = await apiClient.post(`/vendors/me/invoices/${id}/e-invoice`)
     return response.data
   },
+  deleteInvoice: async (id: string) => {
+    await apiClient.delete(`/vendors/me/invoices/${id}`)
+  },
+  restoreInvoice: async (id: string) => {
+    const response = await apiClient.post(`/vendors/me/invoices/${id}/restore`)
+    return response.data
+  },
 
   // ── Coupons ───────────────────────────────────────────────────
   listCoupons: async (params?: Record<string, unknown>) => {

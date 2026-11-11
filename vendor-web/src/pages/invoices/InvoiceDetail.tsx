@@ -4,7 +4,8 @@ import { useStoreName } from '@/components/common/BusinessUnitSelect'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { vendorApi } from '@/api/vendor'
-import { useUpdateInvoice, useGenerateEinvoice, useInvoiceSettings, useQuotationSettings, useSalesAreas, usePosReceiptSettings } from '@/hooks/useVendor'
+import { useUpdateInvoice, useGenerateEinvoice, useDeleteInvoice, useRestoreInvoice, useInvoiceSettings, useQuotationSettings, useSalesAreas, usePosReceiptSettings } from '@/hooks/useVendor'
+import { useConfirm } from '@/components/common/ConfirmProvider'
 import { SalesAreaSelect } from '@/components/common/SalesAreaSelect'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -17,7 +18,7 @@ import {
   ArrowLeft, Loader2, Download, FileText, Printer,
   IndianRupee, Calendar, User, Phone, Mail, Building2,
   Hash, MapPin, Pencil, Save, X, Plus, Trash2, CalendarDays, ShoppingBag, Settings2,
-  MessageCircle, MessageSquare, Share2, Eye, CopyPlus, QrCode,
+  MessageCircle, MessageSquare, Share2, Eye, CopyPlus, QrCode, RotateCcw,
   Minimize2, Maximize2, PanelLeft, PanelRight,
 } from 'lucide-react'
 import { TableToolbar } from '@/components/table/TableToolbar'
@@ -548,6 +549,9 @@ export default function InvoiceDetail() {
   const isQuotationRoute = location.pathname.startsWith('/quotations/')
   const updateInvoice = useUpdateInvoice()
   const generateEinvoice = useGenerateEinvoice()
+  const deleteInvoice = useDeleteInvoice()
+  const restoreInvoice = useRestoreInvoice()
+  const confirm = useConfirm()
   const canManageInvoice = useHasPermission('invoices.manage')
   const { data: rawInvSettings, isLoading: invoiceSettingsLoading } = useInvoiceSettings()
   const { data: rawQuoteSettings, isLoading: quotationSettingsLoading } = useQuotationSettings()
@@ -582,7 +586,8 @@ export default function InvoiceDetail() {
   const storeName = useStoreName((inv as { store_id?: string } | undefined)?.store_id)
   /** Invoices created from a web-store / POS / booking order stay in sync with that order. */
   const isOrderLinked = Boolean((inv as { order_id?: string } | undefined)?.order_id)
-  const canEditInvoice = Boolean(inv) && !isOrderLinked && inv?.status !== 'paid' && inv?.status !== 'cancelled'
+  const isDeleted = Boolean((inv as { deleted_at?: string | null } | undefined)?.deleted_at)
+  const canEditInvoice = Boolean(inv) && !isDeleted && !isOrderLinked && inv?.status !== 'paid' && inv?.status !== 'cancelled'
   const canChangeSalesArea = Boolean(inv) && inv?.status !== 'paid' && inv?.status !== 'cancelled'
   const { data: salesAreaData } = useSalesAreas({ is_active: true })
   const invoiceSalesAreaLabel = (() => {
@@ -895,6 +900,14 @@ export default function InvoiceDetail() {
         )}
       </div>
 
+      {isDeleted ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100">
+          This {docLabel.toLowerCase()} is in the deleted bin
+          {inv.deleted_at ? ` (since ${formatDate(inv.deleted_at as string)})` : ''}.
+          {canManageInvoice ? ' Restore it to edit, record payments, or show it in lists again.' : ' Ask someone with invoice manage access to restore it.'}
+        </div>
+      ) : null}
+
       {/* Action toolbar — single horizontal line */}
       {!isEditing && (
         <div className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -903,7 +916,7 @@ export default function InvoiceDetail() {
               <Pencil className="w-3.5 h-3.5 mr-1.5 text-green-600" /> Edit
             </Button>
           ) : null}
-          {!isQuotation && canManageInvoice && inv.status !== 'cancelled' && (inv as Record<string, unknown>).einvoice_status !== 'generated' ? (
+          {!isDeleted && !isQuotation && canManageInvoice && inv.status !== 'cancelled' && (inv as Record<string, unknown>).einvoice_status !== 'generated' ? (
             <Button
               variant="outline"
               size="sm"
@@ -984,6 +997,53 @@ export default function InvoiceDetail() {
           <Button variant="outline" size="sm" className="h-8 shrink-0 text-xs px-3" onClick={() => navigate(isQuotation ? '/quotations/templates' : '/invoices/templates')}>
             <Settings2 className="w-3.5 h-3.5 mr-1.5" /> {isQuotation ? 'Templates' : 'Settings'}
           </Button>
+          {canManageInvoice && isDeleted ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 shrink-0 text-xs px-3 border-emerald-200 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-300"
+              disabled={restoreInvoice.isPending || !id}
+              onClick={() => id && restoreInvoice.mutate(id)}
+            >
+              {restoreInvoice.isPending ? (
+                <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+              ) : (
+                <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+              )}
+              Restore
+            </Button>
+          ) : null}
+          {canManageInvoice && !isDeleted ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 shrink-0 text-xs px-3 border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900 dark:text-red-400"
+              disabled={deleteInvoice.isPending || !id}
+              onClick={async () => {
+                if (!id) return
+                const ok = await confirm({
+                  title: `Delete ${docLabel}?`,
+                  description: (
+                    <>
+                      <strong>{inv.invoice_number}</strong> will be moved to the deleted bin. You can restore it later from
+                      {' '}{isQuotation ? 'Quotations' : 'Invoices & Billing'} → Deleted.
+                    </>
+                  ),
+                  variant: 'danger',
+                  confirmLabel: 'Delete',
+                })
+                if (!ok) return
+                deleteInvoice.mutate(id, { onSuccess: () => navigate(listPath) })
+              }}
+            >
+              {deleteInvoice.isPending ? (
+                <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+              ) : (
+                <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+              )}
+              Delete
+            </Button>
+          ) : null}
         </div>
       )}
 

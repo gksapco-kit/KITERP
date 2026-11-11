@@ -2375,6 +2375,38 @@ export function useUpdateInvoice() {
   })
 }
 
+export function useDeleteInvoice() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => vendorApi.deleteInvoice(id),
+    onSuccess: (_data, id) => {
+      qc.invalidateQueries({ queryKey: ['invoices'] })
+      qc.invalidateQueries({ queryKey: ['quotations'] })
+      qc.invalidateQueries({ queryKey: ['vendor', 'invoices'] })
+      qc.invalidateQueries({ queryKey: ['invoice', id] })
+      qc.invalidateQueries({ queryKey: ['reports'] })
+      toast.success('Moved to deleted invoices — you can restore it from the bin')
+    },
+    onError: apiError('Could not delete this invoice'),
+  })
+}
+
+export function useRestoreInvoice() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => vendorApi.restoreInvoice(id),
+    onSuccess: (data, id) => {
+      qc.invalidateQueries({ queryKey: ['invoices'] })
+      qc.invalidateQueries({ queryKey: ['quotations'] })
+      qc.invalidateQueries({ queryKey: ['vendor', 'invoices'] })
+      qc.invalidateQueries({ queryKey: ['invoice', id] })
+      qc.invalidateQueries({ queryKey: ['reports'] })
+      toast.success(actionDocMessage('Invoice', pickDocNo(data, 'invoice_number'), 'restored'))
+    },
+    onError: apiError('Could not restore this invoice'),
+  })
+}
+
 // ── Bookings ─────────────────────────────────────────────────────
 export function useUpdateBookingStatus() {
   const qc = useQueryClient()

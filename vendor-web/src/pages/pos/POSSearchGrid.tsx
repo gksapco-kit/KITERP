@@ -173,6 +173,18 @@ function reorder<T>(arr: T[], from: number, to: number): T[] {
   return result
 }
 
+function sellableVariantsForProduct(item: POSGridProduct): POSGridVariant[] {
+  return posSellableVariants(item.variants)
+}
+
+/** One catalog row: collapsed when multiple sellable variants exist. */
+function variantRowsForProduct(p: POSGridProduct): Array<{ item: POSGridProduct; variant?: POSGridVariant }> {
+  const activeVariants = sellableVariantsForProduct(p)
+  if (activeVariants.length > 1) return [{ item: p }]
+  if (activeVariants.length === 1) return [{ item: p, variant: activeVariants[0] }]
+  return [{ item: p }]
+}
+
 // ─── Settings Panel ───────────────────────────────────────────────────────────
 
 function ConfigPanel({
@@ -283,8 +295,20 @@ function CellContent({
   variant?: POSGridVariant
   onAdd: () => void
 }) {
-  const price = variant?.price ?? item.price ?? 0
-  const stock = variant?.quantity ?? item.quantity
+  const activeVariants = sellableVariantsForProduct(item)
+  const collapsedMulti = !variant && activeVariants.length > 1
+  const prices = collapsedMulti
+    ? activeVariants.map(v => v.price ?? item.price ?? 0)
+    : []
+  const price = collapsedMulti
+    ? Math.min(...prices)
+    : (variant?.price ?? item.price ?? 0)
+  const stock = collapsedMulti
+    ? (() => {
+        const stocked = activeVariants.filter(v => v.quantity != null)
+        return stocked.length > 0 ? stocked.reduce((s, v) => s + (v.quantity ?? 0), 0) : null
+      })()
+    : (variant?.quantity ?? item.quantity)
   const sku = variant?.sku ?? item.sku
   const gst = item.tax_rate ?? item.gst_rate ?? 0
   const hsn = item.hsn_code ?? item.sac_code
@@ -294,6 +318,9 @@ function CellContent({
       return (
         <div className="min-w-0">
           <div className="text-xs font-medium text-gray-900 truncate leading-tight">{item.name}</div>
+          {collapsedMulti && (
+            <div className="text-xs text-blue-600 truncate">{activeVariants.length} variants — tap to choose</div>
+          )}
           {item.item_type === 'service' && item.service_type && (
             <div className="text-xs text-primary/80 truncate">{item.service_type}</div>
           )}
@@ -316,8 +343,12 @@ function CellContent({
     )
     case 'mrp':     return <span className="text-xs text-gray-500">{item.mrp != null ? formatCurrency(item.mrp) : '—'}</span>
     case 'price': {
-      const unit = gramSaleUnit(variant)
-      return <span className="text-xs font-bold text-gray-900">{formatCurrency(price)}{unit ? ` / ${unit}` : ''}</span>
+      const unit = collapsedMulti ? undefined : gramSaleUnit(variant)
+      const maxPrice = collapsedMulti ? Math.max(...prices) : price
+      const priceLabel = collapsedMulti && maxPrice !== price
+        ? `${formatCurrency(price)} – ${formatCurrency(maxPrice)}`
+        : formatCurrency(price)
+      return <span className="text-xs font-bold text-gray-900">{priceLabel}{unit ? ` / ${unit}` : ''}</span>
     }
     case 'gst':     return <span className="text-xs text-gray-600">{gst}%</span>
     case 'hsn':     return <span className="font-mono text-xs text-gray-500">{hsn || '—'}</span>
@@ -391,17 +422,12 @@ export function POSSearchGrid({ products, services, onAddToCart, onVariantPick, 
 
   const setFilter = (key: string, val: string) => setFilters(prev => ({ ...prev, [key]: val }))
 
-  // Build flat item list (products expanded by variant)
+  // One row per product; multiple variants open the picker on add
   const allItems: Array<{ item: POSGridProduct; variant?: POSGridVariant }> = useMemo(() => {
     const rows: Array<{ item: POSGridProduct; variant?: POSGridVariant }> = []
     if (typeFilter !== 'service') {
       for (const p of products) {
-        const activeVariants = posSellableVariants(p.variants)
-        if (activeVariants.length > 0) {
-          for (const v of activeVariants) rows.push({ item: p, variant: v })
-        } else {
-          rows.push({ item: p })
-        }
+        rows.push(...variantRowsForProduct(p))
       }
     }
     if (typeFilter !== 'product') {
@@ -414,17 +440,24 @@ export function POSSearchGrid({ products, services, onAddToCart, onVariantPick, 
   const filtered = useMemo(() => {
     return allItems.filter(({ item, variant }) => {
       const f = filters
+      const activeVariants = sellableVariantsForProduct(item)
+      const variantScope = variant
+        ? [variant]
+        : (activeVariants.length > 0 ? activeVariants : [undefined as POSGridVariant | undefined])
 
-      if (f.name && !`${item.name} ${variant?.name ?? ''}`.toLowerCase().includes(f.name.toLowerCase())) return false
+      if (f.name) {
+        const hay = `${item.name} ${variantScope.map(v => v?.name ?? '').join(' ')}`.toLowerCase()
+        if (!hay.includes(f.name.toLowerCase())) return false
+      }
       if (f.sku) {
-        const sku = (variant?.sku ?? item.sku ?? '').toLowerCase()
-        if (!sku.includes(f.sku.toLowerCase())) return false
+        const skus = variantScope.map(v => (v?.sku ?? item.sku ?? '').toLowerCase())
+        if (!skus.some(sku => sku.includes(f.sku.toLowerCase()))) return false
       }
       if (f.category && !(item.category ?? '').toLowerCase().includes(f.category.toLowerCase())) return false
       if (f.company && !`${item.company ?? ''} ${item.brand ?? ''}`.toLowerCase().includes(f.company.toLowerCase())) return false
       if (f.batch_no) {
-        const batch = (variant?.batch_no ?? item.batch_no ?? '').toLowerCase()
-        if (!batch.includes(f.batch_no.toLowerCase())) return false
+        const batches = variantScope.map(v => (v?.batch_no ?? item.batch_no ?? '').toLowerCase())
+        if (!batches.some(batch => batch.includes(f.batch_no.toLowerCase()))) return false
       }
       if (f.uom && !(item.uom ?? item.packing ?? '').toLowerCase().includes(f.uom.toLowerCase())) return false
       if (f.rack_no && !(item.rack_no ?? '').toLowerCase().includes(f.rack_no.toLowerCase())) return false
@@ -438,22 +471,22 @@ export function POSSearchGrid({ products, services, onAddToCart, onVariantPick, 
       }
       if (f.price_min) {
         const min = parseFloat(f.price_min)
-        const price = variant?.price ?? item.price ?? 0
-        if (price < min) return false
+        const rowPrices = variantScope.map(v => v?.price ?? item.price ?? 0)
+        if (!rowPrices.some(price => price >= min)) return false
       }
       if (f.price_max) {
         const max = parseFloat(f.price_max)
-        const price = variant?.price ?? item.price ?? 0
-        if (price > max) return false
+        const rowPrices = variantScope.map(v => v?.price ?? item.price ?? 0)
+        if (!rowPrices.some(price => price <= max)) return false
       }
       if (f.stock_min) {
         const min = parseFloat(f.stock_min)
-        const stock = variant?.quantity ?? item.quantity ?? 0
-        if (stock < min) return false
+        const stocks = variantScope.map(v => v?.quantity ?? item.quantity ?? 0)
+        if (!stocks.some(stock => stock >= min)) return false
       }
       if (f.expiry) {
-        const exp = variant?.expiry_date ?? item.expiry_date ?? ''
-        if (!exp || exp > f.expiry + '-99') return false
+        const exps = variantScope.map(v => v?.expiry_date ?? item.expiry_date ?? '')
+        if (!exps.some(exp => exp && exp <= f.expiry + '-99')) return false
       }
       return true
     })
@@ -464,10 +497,25 @@ export function POSSearchGrid({ products, services, onAddToCart, onVariantPick, 
     return [...filtered].sort((a, b) => {
       let av: string | number = ''
       let bv: string | number = ''
+      const rowPrice = (row: { item: POSGridProduct; variant?: POSGridVariant }) => {
+        const av = sellableVariantsForProduct(row.item)
+        if (!row.variant && av.length > 1) {
+          return Math.min(...av.map(v => v.price ?? row.item.price ?? 0))
+        }
+        return row.variant?.price ?? row.item.price ?? 0
+      }
+      const rowStock = (row: { item: POSGridProduct; variant?: POSGridVariant }) => {
+        const av = sellableVariantsForProduct(row.item)
+        if (!row.variant && av.length > 1) {
+          const stocked = av.filter(v => v.quantity != null)
+          return stocked.length > 0 ? stocked.reduce((s, v) => s + (v.quantity ?? 0), 0) : -1
+        }
+        return row.variant?.quantity ?? row.item.quantity ?? -1
+      }
       switch (sortKey) {
         case 'name':  av = a.item.name; bv = b.item.name; break
-        case 'price': av = a.variant?.price ?? a.item.price ?? 0; bv = b.variant?.price ?? b.item.price ?? 0; break
-        case 'stock': av = a.variant?.quantity ?? a.item.quantity ?? -1; bv = b.variant?.quantity ?? b.item.quantity ?? -1; break
+        case 'price': av = rowPrice(a); bv = rowPrice(b); break
+        case 'stock': av = rowStock(a); bv = rowStock(b); break
         case 'sku':   av = a.variant?.sku ?? a.item.sku ?? ''; bv = b.variant?.sku ?? b.item.sku ?? ''; break
         default:      av = a.item.name; bv = b.item.name
       }
@@ -520,7 +568,7 @@ export function POSSearchGrid({ products, services, onAddToCart, onVariantPick, 
         <div className="flex gap-1 bg-gray-100 rounded-lg p-1 flex-1">
           {([
             { id: 'all',     label: `All (${products.length + services.length})` },
-            { id: 'product', label: `Products (${products.reduce((n, p) => n + Math.max(posSellableVariants(p.variants).length, 1), 0)})`, icon: Package },
+            { id: 'product', label: `Products (${products.length})`, icon: Package },
             { id: 'service', label: `Services (${services.length})`, icon: Wrench },
           ] as const).map(t => (
             <button key={t.id} onClick={() => setTypeFilter(t.id)}
@@ -625,9 +673,9 @@ export function POSSearchGrid({ products, services, onAddToCart, onVariantPick, 
               const hasMultipleVariants = activeVariants.length > 1 && !variant
 
               return (
-                <tr key={`${item.id}-${variant?.id ?? 'novar'}`}
+                <tr key={`${item.id}-${variant?.id ?? 'collapsed'}`}
                   className={`border-b border-gray-100 hover:bg-blue-50 transition-colors cursor-pointer ${idx % 2 === 1 ? 'bg-gray-50/50' : 'bg-white'}`}
-                  onClick={() => makeAddFn(item, variant)()}
+                  onClick={() => (hasMultipleVariants ? onVariantPick(item) : makeAddFn(item, variant)())}
                 >
                   {enabledCols.map(col => (
                     <td key={col.key}
