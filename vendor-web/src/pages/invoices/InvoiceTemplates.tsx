@@ -729,6 +729,8 @@ export default function InvoiceSettingsPage() {
   )
   const [previewHtml, setPreviewHtml] = useState('')
   const [previewPagesHtml, setPreviewPagesHtml] = useState('')
+  const previewPagesHtmlRef = useRef('')
+  previewPagesHtmlRef.current = previewPagesHtml
   const [previewAssetsLoading, setPreviewAssetsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [sigMode, setSigMode] = useState<'upload' | 'draw'>('upload')
@@ -748,6 +750,8 @@ export default function InvoiceSettingsPage() {
   }, [serverPosSettings])
   const [posPreviewHtml, setPosPreviewHtml] = useState('')
   const [posPreviewPagesHtml, setPosPreviewPagesHtml] = useState('')
+  const posPreviewPagesHtmlRef = useRef('')
+  posPreviewPagesHtmlRef.current = posPreviewPagesHtml
   const posMerged = (): InvoiceSettings => ({ ...DEFAULT_INVOICE_SETTINGS, ...settings, ...posSettings })
 
   const setPos = <K extends keyof InvoiceSettings>(k: K, v: InvoiceSettings[K]) => {
@@ -817,17 +821,17 @@ export default function InvoiceSettingsPage() {
       try {
         const generated = await buildInvoicePreviewHtml(sampleData, settings, window.location.origin)
         if (cancelled) return
-        const stored = previewPagesHtml || settings.template_pages_html
+        const stored = previewPagesHtmlRef.current || settings.template_pages_html
         setPreviewHtml(mergeInvoiceTemplatePages(generated, { template_pages_html: stored }, true))
       } catch {
-        if (!cancelled) setPreviewHtml('')
+        /* keep last good previewHtml on transient fetch/generate errors */
       } finally {
         if (!cancelled) setPreviewAssetsLoading(false)
       }
     }
     void run()
     return () => { cancelled = true }
-  }, [settings, previewPagesHtml, vendor, vendorLogo, vendorWebsiteFallback, isQuotationMode])
+  }, [settings, vendor, vendorLogo, vendorWebsiteFallback, isQuotationMode])
 
   // Regenerate POS preview whenever posSettings change
   useEffect(() => {
@@ -851,16 +855,16 @@ export default function InvoiceSettingsPage() {
       try {
         const generated = await buildInvoicePreviewHtml(sampleData, pm, window.location.origin)
         if (cancelled) return
-        const stored = posPreviewPagesHtml || pm.template_pages_html
+        const stored = posPreviewPagesHtmlRef.current || pm.template_pages_html
         setPosPreviewHtml(mergeInvoiceTemplatePages(generated, { template_pages_html: stored }, true))
       } catch {
-        if (!cancelled) setPosPreviewHtml('')
+        /* keep last good posPreviewHtml */
       }
     }
     void run()
     return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [posSettings, posPreviewPagesHtml, settings, vendor, vendorLogo, vendorWebsiteFallback])
+  }, [posSettings, settings, vendor, vendorLogo, vendorWebsiteFallback])
 
   const set = useCallback(<K extends keyof InvoiceSettings>(key: K, value: InvoiceSettings[K]) => {
     // Any Design/Content change must drop a frozen single-page snapshot, otherwise
@@ -881,12 +885,14 @@ export default function InvoiceSettingsPage() {
     setSettings(prev => ({ ...prev, template: id, template_pages_html: '' }))
   }, [])
 
-  const handlePreviewPagesChange = useCallback((html: string) => {
+  const handlePreviewPagesChange = useCallback((html: string, commit?: boolean) => {
+    if (!commit) return
     setPreviewPagesHtml(html)
     setSettings(prev => ({ ...prev, template_pages_html: html }))
   }, [])
 
-  const handlePosPreviewPagesChange = useCallback((html: string) => {
+  const handlePosPreviewPagesChange = useCallback((html: string, commit?: boolean) => {
+    if (!commit) return
     setPosPreviewPagesHtml(html)
     setPosSettings(prev => ({ ...prev, template_pages_html: html }))
   }, [])

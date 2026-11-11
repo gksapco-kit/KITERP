@@ -366,22 +366,33 @@ export const DocumentLivePreview = memo(function DocumentLivePreview({
       <div
         ref={scrollRef}
         className={containerWidth
-          ? 'border rounded-xl overflow-auto bg-gray-100 min-h-[560px] max-h-[85vh] flex items-start justify-center py-3 px-2'
-          : 'border rounded-xl overflow-auto bg-white min-h-[560px] max-h-[85vh] w-full'}
+          ? 'border rounded-xl overflow-auto bg-gray-100 min-h-[560px] max-h-[85vh] flex items-start justify-center py-3 px-2 relative'
+          : 'border rounded-xl overflow-auto bg-white min-h-[560px] max-h-[85vh] w-full relative'}
       >
-        {loading || !html ? (
+        {!html ? (
           <div className="flex flex-col items-center justify-center gap-2 w-full min-h-[480px] text-gray-400">
-            <Loader2 className="w-8 h-8 animate-spin" />
+            <Loader2 className={`w-8 h-8 animate-spin ${loading ? '' : 'opacity-40'}`} />
             <span className="text-sm">{loading ? 'Loading…' : emptyMessage}</span>
           </div>
         ) : (
           <div
-            className={containerWidth ? 'mx-auto shrink-0 shadow-lg rounded-lg bg-white overflow-hidden' : 'w-full bg-white overflow-hidden'}
+            className={`relative ${containerWidth ? 'mx-auto shrink-0 shadow-lg rounded-lg bg-white overflow-hidden' : 'w-full bg-white overflow-hidden'}`}
             style={{
               width: scaledWidth,
               height: scaledHeight,
             }}
           >
+            {loading && (
+              <div
+                className="absolute inset-0 z-10 flex items-center justify-center bg-white/70 backdrop-blur-[1px] pointer-events-none"
+                aria-hidden
+              >
+                <div className="flex flex-col items-center gap-2 text-gray-500">
+                  <Loader2 className="w-7 h-7 animate-spin text-blue-500" />
+                  <span className="text-xs font-medium">Updating preview…</span>
+                </div>
+              </div>
+            )}
             <div
               style={
                 scale < 1

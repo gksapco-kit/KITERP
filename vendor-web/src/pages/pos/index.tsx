@@ -172,14 +172,7 @@ export default function POS() {
   const [session, setSession] = useState<Record<string, unknown> | null>(null)
   const [cart, setCart] = useState<CartItem[]>([])
   const [search, setSearch] = useState('')
-  const [catalogView, setCatalogViewState] = useState<'list' | 'grid' | 'table'>(() => {
-    const saved = localStorage.getItem('pos_catalog_view_v2')
-    return saved === 'list' || saved === 'grid' || saved === 'table' ? saved : 'grid'
-  })
-  const setCatalogView = (v: 'list' | 'grid' | 'table') => {
-    setCatalogViewState(v)
-    localStorage.setItem('pos_catalog_view_v2', v)
-  }
+  const [catalogView, setCatalogView] = useState<'list' | 'grid' | 'table'>('grid')
   const renderCatalogItem = ({ key, onClick, imgUrl, type, name, sub, priceLabel }: {
     key: string; onClick: () => void; imgUrl?: string; type: 'product' | 'service'
     name: string; sub: string; priceLabel: string
