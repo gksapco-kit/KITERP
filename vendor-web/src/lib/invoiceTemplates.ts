@@ -30,7 +30,7 @@ export const DEFAULT_LAYOUT_SECTIONS: LayoutSection[] = [
 export const INVOICE_TEMPLATE_IDS = [
   'classic', 'modern', 'minimal', 'luxury', 'corporate', 'colorblock', 'compact', 'bold', 'visual',
   'centered', 'letterhead', 'banner', 'executive', 'stripe',
-  'gstpro', 'retail', 'sideright', 'framed', 'slimleft', 'premiumright',
+  'gstpro', 'taxcompliance', 'retail', 'sideright', 'framed', 'slimleft', 'premiumright',
   'leftlogo', 'rightlogo',
   'toprightlogobottomleft',
   'topleftlogobottomright',
@@ -97,6 +97,7 @@ export const INVOICE_TEMPLATE_LABELS: Record<InvoiceTemplateId, string> = {
   executive: 'Executive',
   stripe: 'Stripe',
   gstpro: 'GST Pro',
+  taxcompliance: 'Tax Compliance',
   retail: 'Retail',
   sideright: 'Side Right',
   framed: 'Framed',
@@ -161,6 +162,18 @@ export interface InvoiceSettings {
   show_notes: boolean
   show_terms: boolean
   show_gstin: boolean
+  /** Show vendor + customer PAN on the document (from snapshot or embedded in GSTIN). Default true. */
+  show_pan?: boolean
+  /** Show vendor mobile in the header (snapshot `vendor_phone`). Default false. */
+  show_vendor_phone?: boolean
+  /** Show vendor email in the header (`vendor_email`). Default false. */
+  show_vendor_email?: boolean
+  /** Line-items table first column heading (e.g. SERVICES). Default ITEM. */
+  items_section_label?: string
+  /** Show tax % beside line tax amount (e.g. 49500 (18%)). Default false. */
+  show_line_tax_rate?: boolean
+  /** Label for the amount-paid row in totals (default Amount Paid). */
+  amount_paid_label?: string
   show_shipping_address: boolean
   show_place_of_supply: boolean
   bank_name?: string
@@ -286,6 +299,8 @@ export const DEFAULT_INVOICE_SETTINGS: InvoiceSettings = {
   show_notes: true,
   show_terms: false,
   show_gstin: true,
+  show_pan: true,
+  show_vendor_phone: false,
   show_shipping_address: false,
   show_place_of_supply: true,
   show_item_numbers: false,
@@ -331,6 +346,40 @@ export const DEFAULT_INVOICE_SETTINGS: InvoiceSettings = {
  * tax split, amount in words, bank, notes, signature, etc.) without matching pixel-perfect layout.
  * Layout sections are reset to default order with all visible.
  */
+/**
+ * Reference Indian GST invoice (CAREATOR-style): Tax Compliance layout + all standard blocks.
+ */
+export function applyReferenceInvoicePreset(base: InvoiceSettings): InvoiceSettings {
+  return {
+    ...applyAllInvoiceComponentsPreset(base),
+    template: 'taxcompliance',
+    color: base.color || '#111827',
+    show_item_numbers: false,
+    show_hsn: false,
+    show_booking_number: false,
+    show_financial_year: false,
+    show_vendor_phone: true,
+    show_vendor_email: true,
+    show_url: true,
+    url_position: 'below-address',
+    show_pan: true,
+    show_taxable_amount: true,
+    show_tax_breakdown: true,
+    show_amount_in_words: true,
+    show_amount_paid: true,
+    amount_paid_label: 'Received Amount',
+    show_place_of_supply: true,
+    show_notes: false,
+    show_terms: false,
+    show_qr_code: false,
+    items_section_label: 'SERVICES',
+    show_line_tax_rate: true,
+    show_discount: false,
+    show_product_images: false,
+    show_legal_note: false,
+  }
+}
+
 export function applyAllInvoiceComponentsPreset(base: InvoiceSettings): InvoiceSettings {
   return {
     ...base,
@@ -345,6 +394,8 @@ export function applyAllInvoiceComponentsPreset(base: InvoiceSettings): InvoiceS
     show_notes: true,
     show_terms: true,
     show_gstin: true,
+    show_pan: true,
+    show_vendor_phone: true,
     show_shipping_address: true,
     show_place_of_supply: true,
     show_item_numbers: true,
@@ -700,6 +751,89 @@ function stripUrlSlots(html: string): string {
   return html.replace(/<div class="inv-url-slot"><\/div>/g, '')
 }
 
+/** PAN is characters 3–12 of a 15-character Indian GSTIN. */
+export function panFromGstin(gstin?: string): string {
+  const g = String(gstin || '').trim().toUpperCase()
+  if (g.length !== 15) return ''
+  const pan = g.slice(2, 12)
+  return /^[A-Z]{5}\d{4}[A-Z]$/.test(pan) ? pan : ''
+}
+
+function resolveVendorPan(inv: InvData): string {
+  const pan = String(inv.vendor_pan || '').trim().toUpperCase()
+  if (pan) return pan
+  return panFromGstin(String(inv.vendor_gstin || ''))
+}
+
+function resolveCustomerPan(inv: InvData): string {
+  const pan = String(inv.customer_pan || '').trim().toUpperCase()
+  if (pan) return pan
+  return panFromGstin(String(inv.customer_gstin || ''))
+}
+
+function panNumberLine(pan: string, extraClass = ''): string {
+  const cls = extraClass ? `inv-pan-line ${extraClass}` : 'inv-pan-line'
+  return `<div class="${cls}" style="font-size:10px;color:#6b7280;margin-top:2px">PAN Number: ${pan}</div>`
+}
+
+/** Insert PAN + optional vendor mobile after GSTIN lines (all themes). */
+function injectIndianTaxIdentityExtras(html: string, settings: InvoiceSettings, inv: InvData): string {
+  let out = html
+  const showPan = settings.show_pan ?? true
+  const vPan = showPan ? resolveVendorPan(inv) : ''
+  const cPan = showPan ? resolveCustomerPan(inv) : ''
+
+  if (vPan && !out.includes('inv-vendor-pan')) {
+    let n = 0
+    out = out.replace(/(<div[^>]*>GSTIN:\s*[^<]*<\/div>)/g, (m) => {
+      n += 1
+      return n === 1 ? `${m}\n${panNumberLine(vPan, 'inv-vendor-pan')}` : m
+    })
+  }
+  if (cPan && !out.includes('inv-customer-pan')) {
+    let n = 0
+    out = out.replace(/(<div[^>]*>GSTIN:\s*[^<]*<\/div>)/g, (m) => {
+      n += 1
+      return n === 2 ? `${m}\n${panNumberLine(cPan, 'inv-customer-pan')}` : m
+    })
+  }
+
+  const vendorEmail = String(inv.vendor_email || '').trim()
+  if ((settings.show_vendor_email ?? false) && vendorEmail && !out.includes('inv-vendor-email')) {
+    const emailLine = `<div class="inv-vendor-email" style="font-size:10px;color:#6b7280;margin-top:2px">Email: <a href="mailto:${vendorEmail.replace(/"/g, '&quot;')}" style="color:inherit">${vendorEmail}</a></div>`
+    if (out.includes('inv-vendor-phone')) {
+      out = out.replace(/(<div class="inv-vendor-phone"[^>]*>[\s\S]*?<\/div>)/, `$1\n${emailLine}`)
+    } else if (out.includes('inv-vendor-pan')) {
+      out = out.replace(/(<div class="inv-pan-line inv-vendor-pan"[^>]*>[\s\S]*?<\/div>)/, `$1\n${emailLine}`)
+    } else {
+      let n = 0
+      out = out.replace(/(<div[^>]*>GSTIN:\s*[^<]*<\/div>)/g, (m) => {
+        n += 1
+        return n === 1 ? `${m}\n${emailLine}` : m
+      })
+    }
+  }
+
+  const vendorPhone = String(inv.vendor_phone || '').trim()
+  if ((settings.show_vendor_phone ?? false) && vendorPhone && !out.includes('inv-vendor-phone')) {
+    const phoneLine = `<div class="inv-vendor-phone" style="font-size:10px;color:#6b7280;margin-top:2px">Mobile: ${vendorPhone}</div>`
+    if (out.includes('inv-vendor-pan')) {
+      out = out.replace(/(<div class="inv-pan-line inv-vendor-pan"[^>]*>[\s\S]*?<\/div>)/, `$1\n${phoneLine}`)
+    } else {
+      let n = 0
+      out = out.replace(/(<div[^>]*>GSTIN:\s*[^<]*<\/div>)/g, (m) => {
+        n += 1
+        return n === 1 ? `${m}\n${phoneLine}` : m
+      })
+      if (!out.includes('inv-vendor-phone')) {
+        const header = tryInjectInMarkedSection(out, 'header', c => injectAfterVendorContact(c, phoneLine))
+        if (header) out = header
+      }
+    }
+  }
+  return out
+}
+
 function injectWebsiteUrl(html: string, settings: InvoiceSettings, inv: InvData): string {
   const line = vendorUrlLine(settings, inv)
   // Drop unused placement slots when the URL is off / empty.
@@ -853,11 +987,14 @@ function invoiceTableHeadCells(
   opts?: { itemLabel?: string; discLabel?: string; numAlign?: 'left' | 'center' },
 ): string {
   const showDisc = showDiscountColumn(settings)
-  const itemLabel = opts?.itemLabel ?? 'ITEM'
+  const itemLabel = opts?.itemLabel ?? (settings.items_section_label || 'ITEM')
   const discLabel = opts?.discLabel ?? 'DISC'
   const numAlign = opts?.numAlign ?? 'center'
+  const numCol = (settings.show_item_numbers ?? false)
+    ? `<th style="${th};text-align:${numAlign};width:36px">#</th>`
+    : ''
   return `
-    <th style="${th};text-align:${numAlign};width:36px">#</th>
+    ${numCol}
     <th style="${th};text-align:left">${itemLabel}</th>
     ${settings.show_hsn ? `<th style="${th};text-align:center;width:72px">HSN</th>` : ''}
     <th style="${th};text-align:center;width:48px">QTY</th>
@@ -867,14 +1004,20 @@ function invoiceTableHeadCells(
     <th style="${th};text-align:right;width:100px">AMOUNT</th>`
 }
 
-function invoiceTableHead(settings: InvoiceSettings, color: string, filled = true, cellPad = INV_TABLE_CELL_PAD): string {
+function invoiceTableHead(
+  settings: InvoiceSettings,
+  color: string,
+  filled = true,
+  cellPad = INV_TABLE_CELL_PAD,
+  headOpts?: { itemLabel?: string; discLabel?: string; numAlign?: 'left' | 'center' },
+): string {
   const tr = filled
     ? `<tr style="background:${color};color:#fff">`
     : `<tr style="border-bottom:2px solid ${color}">`
   const th = filled
-    ? `padding:${cellPad};font-size:10px;font-weight:600;white-space:nowrap`
+    ? `padding:${cellPad};font-size:10px;font-weight:600;white-space:nowrap;text-transform:uppercase;letter-spacing:.04em`
     : `padding:${cellPad};font-size:10px;font-weight:600;white-space:nowrap;color:${color}`
-  return `${tr}${invoiceTableHeadCells(settings, th)}
+  return `${tr}${invoiceTableHeadCells(settings, th, headOpts)}
   </tr>`
 }
 
@@ -883,13 +1026,42 @@ function invoiceItemsSection(
   settings: InvoiceSettings,
   color: string,
   filled = true,
-  opts?: { marginBottom?: string; cellPad?: string },
+  opts?: { marginBottom?: string; cellPad?: string; itemLabel?: string; subtotalFooter?: boolean },
 ): string {
   const cellPad = opts?.cellPad ?? INV_TABLE_CELL_PAD
   const mb = opts?.marginBottom ?? '16px'
+  const headOpts = opts?.itemLabel ? { itemLabel: opts.itemLabel } : undefined
+  let footer = ''
+  if (opts?.subtotalFooter && items.length > 0) {
+    const colCount = 1
+      + (settings.show_item_numbers ?? false ? 1 : 0)
+      + (settings.show_hsn ? 1 : 0)
+      + 4
+      + (showDiscountColumn(settings) ? 1 : 0)
+    const trailCols = showDiscountColumn(settings) ? 5 : 4
+    const colsBeforeQty = colCount - trailCols
+    const qtySum = items.reduce((s, it) => s + Number(it.qty || it.quantity || 0), 0)
+    const taxSum = items.reduce((s, it) => s + Number(it.cgst_amt || 0) + Number(it.sgst_amt || 0) + Number(it.igst_amt || 0), 0)
+    const amtSum = items.reduce((s, it) => {
+      const qty = Number(it.qty || it.quantity || 0)
+      const rate = Number(it.rate || it.price || 0)
+      const disc = Number(it.discount || 0)
+      return s + (qty * rate - disc)
+    }, 0)
+    const td = `padding:${cellPad};font-size:10px;font-weight:600;background:#f3f4f6;border-top:2px solid #111`
+    const discCell = showDiscountColumn(settings) ? `<td style="${td};text-align:right">—</td>` : ''
+    footer = `<tr>
+      <td colspan="${colsBeforeQty}" style="${td};text-align:left;text-transform:uppercase;letter-spacing:.04em">Subtotal</td>
+      <td style="${td};text-align:center">${qtySum}</td>
+      <td style="${td};text-align:right">—</td>
+      ${discCell}
+      <td style="${td};text-align:right">${fmt(taxSum)}</td>
+      <td style="${td};text-align:right">${fmt(amtSum)}</td>
+    </tr>`
+  }
   return `<table style="margin-bottom:${mb};width:100%;border-collapse:collapse;table-layout:auto">
-    <thead>${invoiceTableHead(settings, color, filled, cellPad)}</thead>
-    <tbody>${itemRows(items, settings, color, cellPad)}</tbody>
+    <thead>${invoiceTableHead(settings, color, filled, cellPad, headOpts)}</thead>
+    <tbody>${itemRows(items, settings, color, cellPad)}${footer}</tbody>
   </table>`
 }
 
@@ -911,17 +1083,24 @@ function itemRows(items: InvData[], settings: InvoiceSettings, color: string, ce
     // Taxable amount = qty × rate − line discount (pre-tax). Matches the Subtotal row.
     // We do NOT use it.total which the backend stores as tax-inclusive.
     const total = qty * rate - disc
+    const ratePct = Number(it.cgst_rate || it.sgst_rate || it.igst_rate || it.tax_rate || 0)
+    const taxCell = tax > 0
+      ? (settings.show_line_tax_rate && ratePct > 0 ? `${fmt(tax)}<div style="font-size:9px;color:#6b7280">(${ratePct}%)</div>` : fmt(tax))
+      : '—'
+    const numCol = (settings.show_item_numbers ?? false)
+      ? `<td class="num" style="${td};text-align:center;color:#6b7280;width:36px">${i + 1}</td>`
+      : ''
     const nameCell = showImg
       ? `<div style="display:flex;align-items:center;gap:8px">${itemThumb(it)}<div><div style="font-weight:500">${it.name || ''}</div>${settings.show_description && it.description ? `<div style="font-size:10px;color:#6b7280">${it.description}</div>` : ''}</div></div>`
       : `<div style="font-weight:500">${it.name || ''}</div>${settings.show_description && it.description ? `<div style="font-size:10px;color:#6b7280">${it.description}</div>` : ''}`
     return `<tr style="background:${i % 2 === 0 ? '#fff' : '#f9fafb'}">
-      <td class="num" style="${td};text-align:center;color:#6b7280;width:36px">${i + 1}</td>
+      ${numCol}
       <td style="${td};text-align:left;min-width:120px;word-break:normal;overflow-wrap:break-word">${nameCell}</td>
       ${settings.show_hsn ? `<td class="num" style="${td};text-align:center;color:#6b7280;width:72px">${it.hsn_sac || it.hsn_code || '—'}</td>` : ''}
       <td class="num" style="${td};text-align:center;width:48px">${qty}</td>
       <td class="num" style="${td};text-align:right;width:90px;white-space:nowrap">${fmt(rate)}</td>
       ${showDiscCol ? `<td class="num" style="${td};text-align:right;width:80px;white-space:nowrap;color:#dc2626">${disc > 0 ? `-${fmt(disc)}` : '—'}</td>` : ''}
-      <td class="num" style="${td};text-align:right;width:80px;white-space:nowrap">${tax > 0 ? fmt(tax) : '—'}</td>
+      <td class="num" style="${td};text-align:right;width:80px;white-space:nowrap">${taxCell}</td>
       <td class="num" style="${td};text-align:right;width:100px;white-space:nowrap;font-weight:500">${fmt(total)}</td>
     </tr>`
   }).join('')
@@ -976,6 +1155,10 @@ function totalsBlock(inv: InvData, settings: InvoiceSettings): string {
   const sgstLabel   = settings.sgst_label       || 'SGST'
   const igstLabel   = settings.igst_label       || 'IGST'
   const showDiscSum = disc > 0 && settings.show_discount && (settings.discount_display ?? 'both') !== 'column'
+  const cgstPct = taxable > 0 && cgst > 0 ? Math.round((cgst / taxable) * 100) : 0
+  const sgstPct = taxable > 0 && sgst > 0 ? Math.round((sgst / taxable) * 100) : 0
+  const cgstRowLabel = cgstPct > 0 ? `${cgstLabel} @${cgstPct}%` : cgstLabel
+  const sgstRowLabel = sgstPct > 0 ? `${sgstLabel} @${sgstPct}%` : sgstLabel
   // Labels left / values right keeps the totals block tight on the right edge of the page.
   const lbl = 'padding:5px 12px 5px 10px;text-align:left;color:#6b7280;white-space:nowrap'
   const val = 'padding:5px 10px;text-align:right;white-space:nowrap;width:1%'
@@ -983,9 +1166,9 @@ function totalsBlock(inv: InvData, settings: InvoiceSettings): string {
   return `
     <tr><td style="${lbl}">Subtotal</td><td style="${val}">${fmt(sub)}</td></tr>
     ${showDiscSum ? `<tr><td style="${lbl}">${discLabel}</td><td style="${val};color:#dc2626">-${fmt(disc)}</td></tr>` : ''}
-    ${settings.show_taxable_amount && (disc > 0 || taxable !== sub) ? `<tr><td style="${lbl}">Taxable Amount</td><td style="${val}">${fmt(taxable)}</td></tr>` : ''}
-    ${settings.show_tax_breakdown && cgst > 0 ? `<tr><td style="${lbl}">${cgstLabel}</td><td style="${val}">${fmt(cgst)}</td></tr>` : ''}
-    ${settings.show_tax_breakdown && sgst > 0 ? `<tr><td style="${lbl}">${sgstLabel}</td><td style="${val}">${fmt(sgst)}</td></tr>` : ''}
+    ${settings.show_taxable_amount ? `<tr><td style="${lbl}">Taxable Amount</td><td style="${val}">${fmt(taxable)}</td></tr>` : ''}
+    ${settings.show_tax_breakdown && cgst > 0 ? `<tr><td style="${lbl}">${cgstRowLabel}</td><td style="${val}">${fmt(cgst)}</td></tr>` : ''}
+    ${settings.show_tax_breakdown && sgst > 0 ? `<tr><td style="${lbl}">${sgstRowLabel}</td><td style="${val}">${fmt(sgst)}</td></tr>` : ''}
     ${settings.show_tax_breakdown && igst > 0 ? `<tr><td style="${lbl}">${igstLabel}</td><td style="${val}">${fmt(igst)}</td></tr>` : ''}
     ${!settings.show_tax_breakdown && tax > 0 ? `<tr><td style="${lbl}">${taxLabel}</td><td style="${val}">${fmt(tax)}</td></tr>` : ''}
     ${settings.show_round_off !== false && round !== 0 ? `<tr><td style="${lbl}">Round Off</td><td style="${val}">${fmt(round)}</td></tr>` : ''}
@@ -993,7 +1176,7 @@ function totalsBlock(inv: InvData, settings: InvoiceSettings): string {
       <td style="padding:8px 12px 8px 10px;text-align:left;white-space:nowrap">Total</td>
       <td style="padding:8px 10px;text-align:right;white-space:nowrap;width:1%">${fmt(total)}</td>
     </tr>
-    ${!isQuotationDoc(inv) && (settings.show_amount_paid ?? true) && paid > 0 ? `<tr><td style="${lbl};color:#059669">Amount Paid</td><td style="${val};color:#059669">${fmt(paid)}</td></tr>` : ''}
+    ${!isQuotationDoc(inv) && (settings.show_amount_paid ?? true) ? `<tr><td style="${lbl}">${settings.amount_paid_label || 'Amount Paid'}</td><td style="${val}">${fmt(paid)}</td></tr>` : ''}
     ${!isQuotationDoc(inv) && (settings.show_balance_due ?? true) && bal > 0 ? `<tr><td style="${lbl};color:#dc2626;font-weight:600">Balance Due</td><td style="${val};color:#dc2626;font-weight:600">${fmt(bal)}</td></tr>` : ''}
     ${settings.show_amount_in_words && total > 0 ? `<tr><td colspan="2" style="padding:6px 10px;border-top:1px dashed #e5e7eb;font-size:10px;color:#6b7280;font-style:italic">Amount in words: <span style="font-weight:500;color:#374151">${numToWords(total)}</span></td></tr>` : ''}
     ${settings.show_tax_inclusive_note ? `<tr><td colspan="2" style="padding:4px 10px;font-size:10px;color:#9ca3af;font-style:italic;text-align:right">* All prices are inclusive of applicable taxes</td></tr>` : ''}
@@ -1014,11 +1197,11 @@ function bankBlock(settings: InvoiceSettings): string {
   if (!hasBankDetailsContent(settings)) return ''
   const { bank_name, account_number, ifsc_code, account_holder_name, upi_id } = settings
   return `<div style="font-size:11px">
-    <div style="font-weight:600;margin-bottom:6px;font-size:12px">Bank Details</div>
-    ${bank_name ? `<div>Bank: <span style="font-weight:500">${bank_name}</span></div>` : ''}
-    ${account_holder_name ? `<div>Name: <span style="font-weight:500">${account_holder_name}</span></div>` : ''}
-    ${account_number ? `<div>Account: <span style="font-weight:500">${account_number}</span></div>` : ''}
-    ${ifsc_code ? `<div>IFSC: <span style="font-weight:500">${ifsc_code}</span></div>` : ''}
+    <div style="font-weight:700;margin-bottom:6px;font-size:11px;text-transform:uppercase;letter-spacing:.06em">Bank Details</div>
+    ${account_holder_name ? `<div style="margin-top:4px"><span style="color:#374151">Name:</span> <span style="font-weight:500">${account_holder_name}</span></div>` : ''}
+    ${ifsc_code ? `<div style="margin-top:2px"><span style="color:#374151">IFSC Code:</span> <span style="font-weight:500">${ifsc_code}</span></div>` : ''}
+    ${account_number ? `<div style="margin-top:2px"><span style="color:#374151">Account No:</span> <span style="font-weight:500">${account_number}</span></div>` : ''}
+    ${bank_name ? `<div style="margin-top:2px"><span style="color:#374151">Bank:</span> <span style="font-weight:500">${bank_name}</span></div>` : ''}
     ${upi_id ? `<div>UPI: <span style="font-weight:500">${upi_id}</span></div>` : ''}
   </div>`
 }
@@ -2714,6 +2897,76 @@ ${sec('totals', `<div style="display:flex;justify-content:flex-end;margin-bottom
 </div></body></html>`
 }
 
+// ─── Template: Tax Compliance (reference Indian GST layout) ─────────────────
+
+function taxcomplianceTemplate(inv: InvData, settings: InvoiceSettings, backendApiBase: string): string {
+  const color = '#111'
+  const items = (inv.items as InvData[]) || []
+  const addr = vendorAddr(inv.vendor_address as Record<string, string>)
+  const billAddr = vendorAddr(inv.billing_address as Record<string, string>)
+  const logoUrl = resolveLogoUrl(settings, inv, backendApiBase)
+  const placeOfSupply = inv.place_of_supply as string | null
+  const itemLabel = settings.items_section_label || 'SERVICES'
+  const notes = (inv.notes as string) || settings.default_notes || ''
+  const sigHtml = signatureBlock(settings, String(inv.vendor_name || ''))
+
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"/><title>Invoice ${inv.invoice_number}</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:Arial,'Segoe UI',sans-serif;font-size:12px;color:#111;background:#f3f4f6}
+  .page{max-width:800px;margin:16px auto;background:#fff;padding:24px 28px}
+  table{width:100%;border-collapse:collapse}
+  @media print{body{background:#fff}.page{margin:0}}
+</style></head>
+<body><div class="page">
+${sec('header', `
+  <div style="display:flex;gap:16px;align-items:flex-start;margin-bottom:14px">
+    ${logoHeaderSlot(logoUrl, 'height:56px;max-width:110px', settings, 110, 56)}
+    <div style="flex:1;min-width:0">
+      <div style="font-size:20px;font-weight:700;color:#111;line-height:1.25">${inv.vendor_name || ''}</div>
+      ${settings.show_vendor_address !== false && addr ? `<div style="font-size:10px;color:#4b5563;margin-top:6px;line-height:1.55">${addr}</div>` : ''}
+      <div class="inv-url-slot"></div>
+      ${settings.show_gstin && inv.vendor_gstin ? `<div style="font-size:10px;color:#4b5563;margin-top:4px">GSTIN: ${inv.vendor_gstin}</div>` : ''}
+    </div>
+    <div style="text-align:right;min-width:150px;flex-shrink:0">
+      <div style="font-size:18px;font-weight:800;color:${settings.color || '#1a56db'};letter-spacing:1px">TAX INVOICE</div>
+      ${(settings.show_copy_label ?? true) ? '<div style="font-size:9px;color:#9ca3af;margin-top:3px;text-transform:uppercase;letter-spacing:.06em">Original for recipient</div>' : ''}
+    </div>
+  </div>`)}
+${sec('meta', `
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:4px;margin-bottom:14px;font-size:11px">
+    <div style="padding:10px 12px;border-right:1px solid #e5e7eb"><span style="color:#6b7280">Invoice No.</span><div style="font-weight:700;font-family:monospace;margin-top:2px">${inv.invoice_number}</div></div>
+    <div style="padding:10px 12px;border-right:1px solid #e5e7eb"><span style="color:#6b7280">Invoice Date</span><div style="font-weight:600;margin-top:2px">${fmtDate(inv.created_at as string)}</div></div>
+    <div style="padding:10px 12px"><span style="color:#6b7280">Due Date</span><div style="font-weight:600;margin-top:2px">${(settings.show_due_date ?? true) && inv.due_date ? fmtDate(inv.due_date as string) : '—'}</div></div>
+  </div>
+  ${settings.show_customer_address !== false ? `<div style="margin-bottom:14px">
+    <div style="font-size:10px;font-weight:700;letter-spacing:.12em;color:#6b7280;margin-bottom:6px">BILL TO</div>
+    <div style="font-size:13px;font-weight:700;color:#111">${inv.customer_name || ''}</div>
+    ${billAddr ? `<div style="font-size:10px;color:#4b5563;margin-top:4px;line-height:1.5">${billAddr}</div>` : ''}
+    ${settings.show_phone && inv.customer_phone ? `<div style="font-size:10px;color:#4b5563;margin-top:4px">Mobile: ${inv.customer_phone}</div>` : ''}
+    ${settings.show_gstin && inv.customer_gstin ? `<div style="font-size:10px;color:#4b5563;margin-top:2px">GSTIN: ${inv.customer_gstin}</div>` : ''}
+    ${settings.show_place_of_supply && placeOfSupply ? `<div style="font-size:10px;color:#4b5563;margin-top:2px">Place of Supply: ${placeOfSupply}</div>` : ''}
+  </div>` : ''}`)}
+${sec('items', invoiceItemsSection(items, settings, color, true, {
+  itemLabel,
+  subtotalFooter: true,
+  marginBottom: '12px',
+  cellPad: '8px 10px',
+}))}
+${sec('totals', `
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:flex-start;margin-bottom:16px">
+    <div>${bankBlock(settings)}</div>
+    <div style="display:flex;justify-content:flex-end">${totalsTable(inv, settings, 300)}</div>
+  </div>
+  ${settings.show_amount_in_words && Number(inv.total) > 0 ? `<div style="font-size:10px;color:#4b5563;margin-top:8px;line-height:1.5"><span style="font-weight:600;color:#374151">Total Amount (in words)</span><br/><span style="font-style:italic">${numToWords(Number(inv.total))}</span></div>` : ''}
+  ${settings.show_notes && notes ? `<div style="margin-top:12px;font-size:11px;color:#6b7280"><span style="font-weight:600;color:#374151">Notes:</span> ${notes}</div>` : ''}
+  ${sigHtml ? `<div style="display:flex;justify-content:flex-end;margin-top:20px">${sigHtml}</div>` : ''}
+`)}
+${sec('legal', (settings.show_legal_note ?? true) ? `<div style="margin-top:16px;text-align:center;font-size:9px;color:#9ca3af">Computer generated invoice. This is a valid tax invoice.</div>` : '')}
+</div></body></html>`
+}
+
 // ─── Template: GST Pro (logo left) ───────────────────────────────────────────
 
 function gstproTemplate(inv: InvData, settings: InvoiceSettings, backendApiBase: string): string {
@@ -3054,6 +3307,7 @@ export function generateInvoiceHtml(
     case 'executive':  html = executiveTemplate(inv, s, backendApiBase); break
     case 'stripe':     html = stripeTemplate(inv, s, backendApiBase); break
     case 'gstpro':     html = gstproTemplate(inv, s, backendApiBase); break
+    case 'taxcompliance': html = taxcomplianceTemplate(inv, s, backendApiBase); break
     case 'retail':     html = retailTemplate(inv, s, backendApiBase); break
     case 'sideright':  html = siderightTemplate(inv, s, backendApiBase); break
     case 'framed':     html = framedTemplate(inv, s, backendApiBase); break
@@ -3064,6 +3318,7 @@ export function generateInvoiceHtml(
     default:           html = classicTemplate(inv, s, backendApiBase)
   }
   html = injectWebsiteUrl(html, s, inv)
+  html = injectIndianTaxIdentityExtras(html, s, inv)
   html = applyLayout(html, s)
   html = applyQuotationLabels(html, inv)
   return injectPageCss(html, s.paper_size, s)

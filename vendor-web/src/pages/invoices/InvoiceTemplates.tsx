@@ -25,8 +25,9 @@ import {
   DEFAULT_INVOICE_SETTINGS, DEFAULT_QUOTATION_SETTINGS, PAPER_SIZES,
   DEFAULT_LAYOUT_SECTIONS, resolveInvoiceTemplateLogoPath,
   applyAllInvoiceComponentsPreset,
+  applyReferenceInvoicePreset,
   LOGO_SHAPES, URL_POSITION_OPTIONS,
-  INVOICE_TEMPLATE_LABELS, normalizeInvoiceTemplateId,
+  INVOICE_TEMPLATE_LABELS, normalizeInvoiceTemplateId, panFromGstin,
 } from '@/lib/invoiceTemplates'
 import type { InvoiceSettings, PaperSize, LayoutSection, LogoShape, InvoiceTemplateId } from '@/lib/invoiceTemplates'
 import { DocumentLivePreview } from '@/components/common/DocumentLivePreview'
@@ -654,19 +655,22 @@ const SAMPLE_INVOICE = {
   financial_year: '2025-26',
   vendor_name: 'Your Business Name',
   vendor_gstin: '29ABCDE1234F1Z5',
+  vendor_pan: 'ABCDE1234F',
+  vendor_phone: '+91 94417 57900',
   vendor_address: { street: 'Block A, Industrial Area', city: 'Hyderabad', state: 'Telangana', postal_code: '500001' },
   customer_name: 'Sample Customer',
   customer_email: 'customer@example.com',
   customer_phone: '+91 98765 43210',
   customer_gstin: '27XYZAB9876C1Z3',
+  customer_pan: 'XYZAB9876C',
   billing_address: { street: 'Block A, Industrial Area', city: 'Hyderabad', state: 'Telangana', postal_code: '500001' },
   shipping_address: { label: 'Warehouse', street: 'Plot 45, APIIC Layout', city: 'Pune', state: 'Maharashtra', postal_code: '411001' },
   place_of_supply: 'Telangana (36)',
   is_inter_state: false,
   payment_terms: 'Net 30 Days',
   items: [
-    { name: 'Service Booking', description: 'Professional service', hsn_sac: '998314', qty: 1, rate: 5000, discount: 250, cgst_amt: 427.5, sgst_amt: 427.5, igst_amt: 0, total: 5605 },
-    { name: 'Consultation Fee', description: '', hsn_sac: '', qty: 2, rate: 750, discount: 0, cgst_amt: 67.5, sgst_amt: 67.5, igst_amt: 0, total: 1635 },
+    { name: 'Service Booking', description: 'Jul 5 to 4 Aug 2026', hsn_sac: '998314', qty: 1, rate: 5000, discount: 250, cgst_rate: 9, sgst_rate: 9, cgst_amt: 427.5, sgst_amt: 427.5, igst_amt: 0, total: 5605 },
+    { name: 'Consultation Fee', description: '', hsn_sac: '', qty: 2, rate: 750, discount: 0, cgst_rate: 9, sgst_rate: 9, cgst_amt: 67.5, sgst_amt: 67.5, igst_amt: 0, total: 1635 },
   ],
   subtotal: 6500,
   discount_amount: 250,
@@ -808,6 +812,9 @@ export default function InvoiceSettingsPage() {
       ...sampleBase,
       vendor_name: vendor?.business_name || sampleBase.vendor_name,
       vendor_gstin: vendor?.gstin || sampleBase.vendor_gstin,
+      vendor_pan: vendor?.pan_number || panFromGstin(vendor?.gstin) || sampleBase.vendor_pan,
+      vendor_phone: vendor?.primary_phone || sampleBase.vendor_phone,
+      vendor_email: vendor?.primary_email || 'billing@example.com',
       vendor_address: vendor?.street_address
         ? { street: vendor.street_address, city: vendor.city || '', state: vendor.state || '', postal_code: vendor.postal_code || '' }
         : sampleBase.vendor_address,
@@ -842,6 +849,8 @@ export default function InvoiceSettingsPage() {
       invoice_number: 'POS-000042',
       vendor_name: vendor?.business_name || SAMPLE_INVOICE.vendor_name,
       vendor_gstin: vendor?.gstin || SAMPLE_INVOICE.vendor_gstin,
+      vendor_pan: vendor?.pan_number || panFromGstin(vendor?.gstin) || SAMPLE_INVOICE.vendor_pan,
+      vendor_phone: vendor?.primary_phone || SAMPLE_INVOICE.vendor_phone,
       vendor_address: vendor?.street_address
         ? { street: vendor.street_address, city: vendor.city || '', state: vendor.state || '', postal_code: vendor.postal_code || '' }
         : SAMPLE_INVOICE.vendor_address,
@@ -1659,14 +1668,28 @@ export default function InvoiceSettingsPage() {
                       <RotateCcw className="w-2.5 h-2.5" /> Reset order
                     </button>
                     {!isQuotationMode && (
-                      <button
-                        type="button"
-                        title="Turns on every optional block (like a full tax invoice). Your theme and colours stay the same."
-                        onClick={() => setSettings(prev => applyAllInvoiceComponentsPreset(prev))}
-                        className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-0.5 text-left"
-                      >
-                        Enable all components
-                      </button>
+                      <div className="flex flex-col gap-1">
+                        <button
+                          type="button"
+                          title="Layout like a standard Indian GST invoice (meta bar, SERVICES table, bank + totals, PAN, amount in words)."
+                          onClick={() => {
+                            setPreviewPagesHtml('')
+                            setSettings(prev => applyReferenceInvoicePreset(prev))
+                            toast.success('Reference GST layout applied — review preview and Save Template')
+                          }}
+                          className="text-xs font-medium text-blue-700 hover:text-blue-900 flex items-center gap-0.5 text-left"
+                        >
+                          Use reference GST layout
+                        </button>
+                        <button
+                          type="button"
+                          title="Turns on every optional block on the current theme."
+                          onClick={() => setSettings(prev => applyAllInvoiceComponentsPreset(prev))}
+                          className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-0.5 text-left"
+                        >
+                          Enable all components (keep theme)
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -2198,6 +2221,9 @@ export default function InvoiceSettingsPage() {
                 { label: 'Vendor Address',          key: 'show_vendor_address',   val: settings.show_vendor_address ?? true },
                 { label: 'Website URL',             key: 'show_url',              val: settings.show_url ?? false },
                 { label: 'GSTIN (vendor + customer)', key: 'show_gstin',          val: settings.show_gstin },
+                { label: 'PAN (vendor + customer)', key: 'show_pan',             val: settings.show_pan ?? true },
+                { label: 'Vendor mobile (header)',   key: 'show_vendor_phone',    val: settings.show_vendor_phone ?? false },
+                { label: 'Vendor email (header)',  key: 'show_vendor_email',    val: settings.show_vendor_email ?? false },
                 // ── Invoice Meta ──
                 { label: 'Financial Year (F.Y.)',   key: 'show_financial_year',   val: settings.show_financial_year ?? true },
                 { label: isQuotationMode ? 'Valid Until' : 'Due Date', key: 'show_due_date', val: settings.show_due_date ?? true },

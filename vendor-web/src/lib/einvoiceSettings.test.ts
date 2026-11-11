@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { autoGenerateEinvoice, readEinvoiceCredentials } from './einvoiceSettings'
-import { generateInvoiceHtml, DEFAULT_INVOICE_SETTINGS } from './invoiceTemplates'
+import { generateInvoiceHtml, DEFAULT_INVOICE_SETTINGS, panFromGstin } from './invoiceTemplates'
 
 describe('e-invoice storefront setting', () => {
   it('stays off unless the vendor turns it on', () => {
@@ -16,6 +16,31 @@ describe('e-invoice storefront setting', () => {
     expect(creds.client_id).toBe('abc')
     expect(creds.username).toBe('gstuser')
     expect(creds.sandbox).toBe(false)
+  })
+})
+
+describe('PAN on tax invoices', () => {
+  it('derives PAN from GSTIN', () => {
+    expect(panFromGstin('36AAGCI8158Q1ZP')).toBe('AAGCI8158Q')
+  })
+
+  it('prints vendor and customer PAN when enabled', () => {
+    const html = generateInvoiceHtml(
+      {
+        invoice_number: 'INV-1',
+        invoice_type: 'invoice',
+        customer_name: 'Buyer',
+        customer_gstin: '36AADCV9163H1ZZ',
+        vendor_name: 'Seller',
+        vendor_gstin: '36AAGCI8158Q1ZP',
+        total: 118,
+        items: [{ name: 'Item', qty: 1, rate: 100, total: 118 }],
+      },
+      { ...DEFAULT_INVOICE_SETTINGS, show_gstin: true, show_pan: true, template: 'classic' },
+      '',
+    )
+    expect(html).toContain('PAN Number: AAGCI8158Q')
+    expect(html).toContain('PAN Number: AADCV9163H')
   })
 })
 

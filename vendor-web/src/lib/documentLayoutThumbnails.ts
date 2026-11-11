@@ -352,6 +352,24 @@ const TEMPLATES: DocumentLayoutThumbnail[] = [
     </svg>`,
   },
   {
+    id: 'taxcompliance',
+    name: 'Tax Compliance',
+    desc: 'Reference GST layout — meta bar, services table, bank + totals',
+    svg: (color: string) => `<svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
+      <rect width="120" height="160" fill="#fff" rx="3"/>
+      <rect x="6" y="8" width="22" height="20" fill="#e2e8f0" rx="2"/>
+      <rect x="32" y="10" width="52" height="5" fill="#374151" rx="1"/>
+      <rect x="32" y="18" width="40" height="3" fill="#9ca3af" rx="1"/>
+      <rect x="88" y="10" width="26" height="10" fill="${color}" opacity=".85" rx="1"/>
+      <rect x="6" y="32" width="108" height="10" fill="#f3f4f6" rx="1"/>
+      <rect x="6" y="46" width="108" height="16" fill="#f9fafb" rx="1"/>
+      <rect x="6" y="66" width="108" height="8" fill="#111"/>
+      ${[0,1,2].map(i=>`<rect x="6" y="${78+i*12}" width="108" height="11" fill="${i%2===0?'#fff':'#f9fafb'}"/>`).join('')}
+      <rect x="6" y="114" width="48" height="22" fill="#f3f4f6" rx="1"/>
+      <rect x="62" y="114" width="52" height="22" fill="#f8fafc" rx="1"/>
+    </svg>`,
+  },
+  {
     id: 'gstpro',
     name: 'GST Pro',
     desc: 'Indian GST format — logo left in bordered box',
