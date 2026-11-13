@@ -8,6 +8,7 @@ import { useUpdateInvoice, useGenerateEinvoice, useDeleteInvoice, useRestoreInvo
 import { useConfirm } from '@/components/common/ConfirmProvider'
 import { SalesAreaSelect } from '@/components/common/SalesAreaSelect'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { normalizeInvoiceAdditionalCharges } from '@/lib/invoiceAdditionalCharges'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -33,6 +34,7 @@ import {
 } from '@/lib/invoiceBadges'
 import { fetchAsDataUrl, downloadAsPdf, shareViaWhatsApp, shareViaSms, buildShareMessage } from '@/lib/printUtils'
 import { withNoScriptCsp, writeSafeHtml } from '@/lib/htmlSafety'
+import { A4_SHEET_WIDTH_PX, injectPreviewFitCss } from '@/lib/documentPreview'
 import { useHasPermission } from '@/hooks/usePermissions'
 import { SALES_DOC_COPY_FROM_KEY } from '@/lib/copyDocument'
 import { QuotationExtraFieldsEditor, QuotationExtraFieldsDisplay } from '@/components/quotations/QuotationExtraFieldsEditor'
@@ -340,9 +342,8 @@ function InvoiceDocumentPreview({
     const viewport = viewportRef.current
     if (!doc?.body || !viewport) return
 
-    const availW = Math.max(160, viewport.clientWidth)
+    const sheetW = A4_SHEET_WIDTH_PX
 
-    // Use full panel width; collapse empty A4 min-height. Vertical overflow scrolls.
     let style = doc.getElementById('kiterp-invoice-preview-fit') as HTMLStyleElement | null
     if (!style) {
       style = doc.createElement('style')
@@ -352,11 +353,11 @@ function InvoiceDocumentPreview({
     style.textContent = `
       html, body {
         margin: 0 !important; padding: 0 !important; background: #fff !important;
-        overflow-x: auto !important; overflow-y: visible !important;
-        width: 100% !important; height: auto !important;
+        overflow-x: hidden !important; overflow-y: visible !important;
+        width: ${sheetW}px !important; max-width: 100% !important; height: auto !important;
       }
       .page {
-        margin: 0 auto !important; max-width: 100% !important;
+        margin: 0 auto !important; max-width: ${sheetW}px !important; width: 100% !important;
         min-height: 0 !important; height: auto !important;
         box-shadow: none !important; border-radius: 0 !important;
         box-sizing: border-box !important;
@@ -374,8 +375,7 @@ function InvoiceDocumentPreview({
         200,
       )
       setFrameHeight(contentH + 4)
-      // Keep iframe at the panel width so the document always uses available horizontal space.
-      if (iframeRef.current) iframeRef.current.style.width = `${availW}px`
+      if (iframeRef.current) iframeRef.current.style.width = `${sheetW}px`
     }
     requestAnimationFrame(() => requestAnimationFrame(measure))
   }, [])
@@ -489,7 +489,7 @@ function InvoiceDocumentPreview({
         )}
         </div>
       </div>
-      <div ref={viewportRef} className="flex-1 overflow-x-hidden overflow-y-auto bg-white min-h-0">
+      <div ref={viewportRef} className="flex-1 overflow-x-auto overflow-y-auto bg-gray-100 min-h-0 flex justify-center py-3 px-2">
         {loading ? (
           <div className="flex flex-col items-center justify-center gap-2 h-full min-h-[200px] text-gray-400">
             <Loader2 className="w-7 h-7 animate-spin" />
@@ -503,11 +503,11 @@ function InvoiceDocumentPreview({
         ) : (
           <iframe
             ref={iframeRef}
-            srcDoc={withNoScriptCsp(html)}
+            srcDoc={withNoScriptCsp(injectPreviewFitCss(html))}
             title={title}
             onLoad={layoutPreview}
-            className="border-0 block bg-white w-full"
-            style={{ height: `${frameHeight}px` }}
+            className="border-0 block bg-white shrink-0 shadow-md rounded-sm"
+            style={{ height: `${frameHeight}px`, width: A4_SHEET_WIDTH_PX }}
           />
         )}
       </div>
@@ -1407,6 +1407,12 @@ export default function InvoiceDetail() {
                 <span className="text-gray-500">Subtotal</span>
                 <span className="font-medium">{formatCurrency(viewTotals.subtotal)}</span>
               </div>
+              {(normalizeInvoiceAdditionalCharges((inv as { additional_charges?: unknown }).additional_charges)).map((c) => (
+                <div key={c.id} className="flex justify-between text-sm">
+                  <span className="text-gray-500">{c.name}</span>
+                  <span>{formatCurrency(c.amount)}</span>
+                </div>
+              ))}
               {inv.discount_amount > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Discount</span>

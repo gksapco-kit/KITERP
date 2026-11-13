@@ -60,6 +60,7 @@ from app.database import (
     ensure_storage_location_plant_nullable,
     ensure_product_soft_delete,
     ensure_invoice_soft_delete,
+    ensure_invoice_additional_charges,
     ensure_pharma_schema,
     ensure_realestate_schema,
 )
@@ -134,6 +135,7 @@ async def lifespan(app: FastAPI):
         await ensure_storage_location_plant_nullable()
         await ensure_product_soft_delete()
         await ensure_invoice_soft_delete()
+        await ensure_invoice_additional_charges()
         await ensure_pharma_schema()
         await ensure_realestate_schema()
     await connect_redis()

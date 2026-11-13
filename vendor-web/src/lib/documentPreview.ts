@@ -7,24 +7,42 @@ import {
 
 const EDITABLE_STYLES = `
   .page[data-doc-editable="full"]{outline:none;cursor:text;min-height:1122px;box-sizing:border-box}
-  .page[data-doc-page-sheet="true"]{min-height:1122px;max-width:800px;width:100%;display:flex;flex-direction:column;box-sizing:border-box}
+  .page[data-doc-page-sheet="true"]{min-height:1122px;max-width:100%;width:100%;display:flex;flex-direction:column;box-sizing:border-box}
   .page[data-doc-editable="full"]:focus-within{box-shadow:inset 0 0 0 2px rgba(59,130,246,.45);background:rgba(239,246,255,.15)}
   .page[data-doc-editable="full"] table td,.page[data-doc-editable="full"] table th{min-width:36px}
   .page + .page{margin-top:14px;border-top:2px dashed #e5e7eb;padding-top:14px}
   @media print{.page{page-break-after:always}.page:last-child{page-break-after:auto}}
 `
 
-/** Make the paper fill the live-preview iframe (no grey side gutters). */
-const PREVIEW_FIT_STYLES = `
-html,body{margin:0!important;padding:0!important;background:#fff!important;width:100%!important;overflow-x:hidden!important}
-.page{margin:0!important;max-width:100%!important;width:100%!important;border-radius:0!important;box-shadow:none!important}
+/** A4 sheet width at 96 dpi — matches html2pdf export container in printUtils. */
+export const A4_SHEET_WIDTH_PX = 794
+
+const PREVIEW_FIT_STYLES_THERMAL = `
+html,body{margin:0!important;padding:0!important;background:#fff!important;width:100%!important;overflow-x:hidden!important;text-align:left!important}
+.page{margin:0!important;max-width:100%!important;width:100%!important;border-radius:0!important;box-shadow:none!important;text-align:left!important}
+.inv-header-row{text-align:left!important}
+.inv-vendor-identity:not(.inv-vendor-header-meta){text-align:left!important}
+.inv-vendor-header-meta{text-align:center!important;align-items:center!important}
 `
 
-export function injectPreviewFitCss(html: string): string {
+function previewFitStyles(paperSize?: string): string {
+  const thermal = paperSize === '2inch' || paperSize === '3inch' || paperSize === '4inch'
+  if (thermal) return PREVIEW_FIT_STYLES_THERMAL
+  const w = A4_SHEET_WIDTH_PX
+  return `
+html,body{margin:0!important;padding:0!important;background:#fff!important;width:${w}px!important;max-width:100%!important;overflow-x:hidden!important;text-align:left!important}
+.page{margin:0 auto!important;max-width:${w}px!important;width:100%!important;box-sizing:border-box!important;border-radius:0!important;box-shadow:none!important;text-align:left!important}
+.inv-header-row{text-align:left!important}
+.inv-vendor-identity:not(.inv-vendor-header-meta){text-align:left!important}
+.inv-vendor-header-meta{text-align:center!important;align-items:center!important}
+`
+}
+
+export function injectPreviewFitCss(html: string, paperSize?: string): string {
   if (!html) return html
   let out = html
   if (!out.includes('data-kiterp-preview-fit')) {
-    const tag = `<style data-kiterp-preview-fit>${PREVIEW_FIT_STYLES}</style>`
+    const tag = `<style data-kiterp-preview-fit>${previewFitStyles(paperSize)}</style>`
     out = out.includes('</head>') ? out.replace('</head>', `${tag}</head>`) : `${tag}${out}`
   }
   // Addresses, GSTINs, and invoice numbers are not prose — skip the red spell-check underlines.
@@ -145,7 +163,7 @@ export function hasStoredDocumentPages(html?: string): boolean {
 export { countOfferPages, isMultiPageOfferHtml }
 
 /** A4 continuation sheet (~210×297 mm at 96 dpi). */
-export const A4_PAGE_SHEET_STYLE = 'min-height:1122px;max-width:800px;width:100%;margin:0 auto;background:#fff;padding:32px 40px;box-sizing:border-box;display:flex;flex-direction:column;font-family:Arial,sans-serif;font-size:12px;color:#111'
+export const A4_PAGE_SHEET_STYLE = `min-height:1122px;max-width:${A4_SHEET_WIDTH_PX}px;width:100%;margin:0 auto;background:#fff;padding:32px 40px;box-sizing:border-box;display:flex;flex-direction:column;font-family:Arial,sans-serif;font-size:12px;color:#111`
 
 export function createDefaultContinuationPage(pageNumber: number, options?: {
   heading?: string

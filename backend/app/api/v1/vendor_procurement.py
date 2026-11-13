@@ -307,6 +307,7 @@ async def create_purchase_order(
 async def list_purchase_orders(
     status: Optional[str] = None,
     supplier_id: Optional[str] = None,
+    search: Optional[str] = None,
     pending_my_approval: bool = Query(False),
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=1000),
@@ -319,6 +320,7 @@ async def list_purchase_orders(
         vendor_id,
         status_filter=status,
         supplier_id=UUID(supplier_id) if supplier_id else None,
+        search=search,
         page=page, size=size,
         pending_my_approval=pending_my_approval,
         approver_id=vendor_user.id if pending_my_approval else None,

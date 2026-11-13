@@ -15,6 +15,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { ModalOverlay } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/button'
@@ -35,12 +36,41 @@ interface Props {
   /** Called when a customer is selected (created or chosen from duplicates) */
   onSelect: (customer: Pick<Customer, 'id' | 'full_name' | 'phone' | 'email'>) => void
   onClose: () => void
-  /** Optional path suffix for the "Enter full details" link, e.g. "?returnTo=pos" */
+  /**
+   * Where to return after full master-data create (slug or path), e.g. `pos`, `/invoices`, `bookings`.
+   * Opens `/master-data/new?returnTo=…` (not the removed `/customers/new` route).
+   */
   returnTo?: string
+  /** Close parent overlays (e.g. Create Invoice) so the full form is visible after navigate */
+  onNavigateAway?: () => void
+}
+
+const QUICK_CREATE_DRAFT_KEY = 'quick_create_customer_draft'
+
+/** Normalize legacy `?returnTo=pos` props to `pos`. */
+function resolveReturnToSlug(returnTo?: string): string {
+  if (!returnTo?.trim()) return 'master-data'
+  let s = returnTo.trim()
+  if (s.startsWith('?')) s = s.slice(1)
+  const m = s.match(/^returnTo=(.+)$/i)
+  if (m) s = m[1]
+  try {
+    s = decodeURIComponent(s)
+  } catch {
+    /* use raw */
+  }
+  if (s.startsWith('/')) s = s.slice(1)
+  return s || 'master-data'
+}
+
+function masterDataNewCustomerPath(returnTo?: string): string {
+  const slug = resolveReturnToSlug(returnTo)
+  return `/master-data/new?returnTo=${encodeURIComponent(slug)}&kind=customer`
 }
 
 export function QuickCreateCustomerModal({
- onSelect, onClose, returnTo }: Props) {
+  onSelect, onClose, returnTo, onNavigateAway,
+}: Props) {
   const navigate = useNavigate()
   const createCustomerMut = useCreateCustomer({ silent: true })
 
@@ -147,8 +177,27 @@ export function QuickCreateCustomerModal({
 
   const visibleDups = dupDismissed ? [] : dupMatches
 
-  return (
-    <ModalOverlay onClose={onClose} className="z-[110] bg-black/60">
+  const openFullCustomerForm = () => {
+    try {
+      sessionStorage.setItem(
+        QUICK_CREATE_DRAFT_KEY,
+        JSON.stringify({
+          full_name: name.trim(),
+          phone: phone.trim(),
+          email: email.trim(),
+        }),
+      )
+    } catch { /* ignore */ }
+    onNavigateAway?.()
+    onClose()
+    const path = masterDataNewCustomerPath(returnTo)
+    window.requestAnimationFrame(() => {
+      navigate(path)
+    })
+  }
+
+  return createPortal(
+    <ModalOverlay onClose={onClose} className="z-[120] bg-black/60">
       <div
         className="bg-card border border-border text-foreground rounded-2xl shadow-2xl w-full max-w-sm p-5 space-y-4 max-h-[90vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
@@ -217,10 +266,10 @@ export function QuickCreateCustomerModal({
         <div className="flex items-center justify-between gap-2 pt-1">
           <button
             type="button"
-            onClick={() => {
-              onClose()
-              const path = returnTo ? `/customers/new${returnTo.startsWith('?') ? returnTo : `?returnTo=${returnTo}`}` : '/customers'
-              navigate(path)
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              openFullCustomerForm()
             }}
             className="flex items-center gap-1 text-xs text-primary hover:text-primary font-medium transition-colors"
           >
@@ -246,6 +295,7 @@ export function QuickCreateCustomerModal({
           </div>
         </div>
       </div>
-    </ModalOverlay>
+    </ModalOverlay>,
+    document.body,
   )
 }

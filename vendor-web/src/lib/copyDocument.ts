@@ -57,6 +57,9 @@ export function vendorInvoiceToCopyLines(invoice: VendorInvoice): Array<{
 export function salesInvoiceToCopyPrefill(inv: Record<string, unknown>) {
   const rawItems = Array.isArray(inv.items) ? inv.items as Array<Record<string, unknown>> : []
   const items = rawItems.map(row => ({
+    lineKey: typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `line-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
     name: String(row.name || ''),
     description: String(row.description || ''),
     hsn_sac: String(row.hsn_sac || row.hsn_code || ''),

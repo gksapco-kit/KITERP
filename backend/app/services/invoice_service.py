@@ -19,6 +19,10 @@ from app.services.store_resolver import (
     parse_explicit_sales_area_id,
     resolve_txn_sales_area_id,
 )
+from app.services.invoice_numbering import (
+    format_invoice_number,
+    resolve_number_prefix_suffix_with_overrides,
+)
 
 log = logging.getLogger(__name__)
 
@@ -34,6 +38,42 @@ def _parse_optional_date(val) -> date | None:
     if isinstance(val, str):
         return date.fromisoformat(val[:10])
     return None
+
+def _normalize_invoice_additional_charges(raw) -> list:
+    if not raw:
+        return []
+    if not isinstance(raw, list):
+        return []
+    out = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name") or "").strip()
+        amount = float(item.get("amount") or 0)
+        if not name or amount <= 0:
+            continue
+        tax_rate = float(item.get("tax_rate") if item.get("tax_rate") is not None else 18)
+        out.append({
+            "id": str(item.get("id") or "").strip() or str(uuid.uuid4()),
+            "name": name,
+            "amount": round(amount, 2),
+            "tax_rate": max(0.0, min(100.0, tax_rate)),
+        })
+    return out
+
+
+def _additional_charges_as_items(charges: list) -> list:
+    return [
+        {
+            "name": c["name"],
+            "qty": 1,
+            "rate": c["amount"],
+            "discount": 0,
+            "tax_rate": c.get("tax_rate", 18),
+        }
+        for c in charges
+    ]
+
 
 async def _try_generate_einvoice(db, invoice, vendor=None):
     """Best-effort GST e-invoice. Off by default; never blocks invoice creation."""
@@ -108,9 +148,90 @@ class InvoiceService:
         current_max = result.scalar_one() or 0
         return current_max + 1
 
-    def _generate_number(self, prefix: str, fy: str, seq: int) -> str:
-        fy_short = fy.replace("-", "")
-        return f"{prefix}/{fy_short}/{seq:04d}"
+    def _generate_number(self, prefix: str, fy: str, seq: int, suffix: str = "") -> str:
+        return format_invoice_number(prefix, fy, seq, suffix)
+
+    async def _invoice_number_taken(self, vendor_id: UUID, invoice_number: str) -> bool:
+        result = await self.db.execute(
+            select(Invoice.id).where(
+                and_(
+                    Invoice.vendor_id == vendor_id,
+                    Invoice.invoice_number == invoice_number,
+                )
+            ).limit(1)
+        )
+        return result.scalar_one_or_none() is not None
+
+    async def _allocate_invoice_number(
+        self,
+        vendor: Vendor,
+        vendor_id: UUID,
+        invoice_type: str,
+        *,
+        prefix_override: str | None = None,
+        suffix_override: str | None = None,
+        sequence_override: int | None = None,
+    ) -> tuple[str, str, int]:
+        prefix, suffix = resolve_number_prefix_suffix_with_overrides(
+            vendor.settings,
+            invoice_type,
+            prefix_override=prefix_override,
+            suffix_override=suffix_override,
+        )
+        fy = self._get_financial_year()
+        if sequence_override is not None:
+            seq = int(sequence_override)
+            if seq < 1:
+                raise ValueError("Sequence must be at least 1")
+        else:
+            seq = await self._next_sequence(vendor_id, invoice_type)
+        invoice_number = self._generate_number(prefix, fy, seq, suffix)
+        if await self._invoice_number_taken(vendor_id, invoice_number):
+            raise ValueError(
+                f"Invoice number {invoice_number} already exists — choose another sequence or prefix"
+            )
+        return invoice_number, fy, seq
+
+    async def preview_invoice_number(
+        self,
+        vendor_id: UUID,
+        invoice_type: str,
+        *,
+        prefix_override: str | None = None,
+        suffix_override: str | None = None,
+        sequence_override: int | None = None,
+    ) -> dict:
+        vendor_result = await self.db.execute(select(Vendor).where(Vendor.id == vendor_id))
+        vendor = vendor_result.scalar_one_or_none()
+        if not vendor:
+            raise ValueError("Vendor not found")
+
+        has_prefix = prefix_override is not None
+        has_suffix = suffix_override is not None
+        prefix, suffix = resolve_number_prefix_suffix_with_overrides(
+            vendor.settings,
+            invoice_type,
+            prefix_override=prefix_override if has_prefix else None,
+            suffix_override=suffix_override if has_suffix else None,
+        )
+        fy = self._get_financial_year()
+        suggested = await self._next_sequence(vendor_id, invoice_type)
+        if sequence_override is not None:
+            seq = int(sequence_override)
+            if seq < 1:
+                raise ValueError("Sequence must be at least 1")
+        else:
+            seq = suggested
+        invoice_number = self._generate_number(prefix, fy, seq, suffix)
+        return {
+            "invoice_number": invoice_number,
+            "prefix": prefix,
+            "suffix": suffix,
+            "financial_year": fy,
+            "sequence_number": seq,
+            "suggested_sequence": suggested,
+            "available": not await self._invoice_number_taken(vendor_id, invoice_number),
+        }
 
     def _compute_tax(
         self,
@@ -170,6 +291,48 @@ class InvoiceService:
 
         return computed, float(total_taxable), float(total_cgst), float(total_sgst), float(total_igst)
 
+    def _rollup_line_and_charge_tax(
+        self,
+        raw_items: list,
+        additional_charges: list,
+        is_inter_state: bool,
+        vendor_gst_registered: bool,
+        invoice_type: str = "invoice",
+    ):
+        computed_items, taxable_lines, cgst, sgst, igst = self._compute_tax(
+            raw_items, is_inter_state, vendor_gst_registered, invoice_type
+        )
+        if additional_charges:
+            _, taxable_ch, cgst_c, sgst_c, igst_c = self._compute_tax(
+                _additional_charges_as_items(additional_charges),
+                is_inter_state,
+                vendor_gst_registered,
+                invoice_type,
+            )
+            taxable = taxable_lines + taxable_ch
+            cgst += cgst_c
+            sgst += sgst_c
+            igst += igst_c
+        else:
+            taxable = taxable_lines
+        return computed_items, taxable, cgst, sgst, igst
+
+    def _raw_items_from_stored(self, stored_items: list) -> list:
+        raw = []
+        for item in stored_items or []:
+            if not isinstance(item, dict):
+                continue
+            raw.append({
+                "name": item.get("name", ""),
+                "description": item.get("description"),
+                "hsn_sac": item.get("hsn_sac"),
+                "qty": item.get("qty", 0),
+                "rate": item.get("rate", 0),
+                "discount": item.get("discount", 0),
+                "tax_rate": item.get("tax_rate", 0),
+            })
+        return raw
+
     async def create_invoice(
         self,
         vendor_id: UUID,
@@ -182,19 +345,27 @@ class InvoiceService:
             raise ValueError("Vendor not found")
 
         invoice_type = data.get("invoice_type", "invoice")
-        prefix_map = {"estimate": "EST", "invoice": "INV", "receipt": "RCT", "credit_note": "CN"}
-        prefix = prefix_map.get(invoice_type, "INV")
-
-        fy = self._get_financial_year()
-        seq = await self._next_sequence(vendor_id, invoice_type)
-        invoice_number = self._generate_number(prefix, fy, seq)
+        has_prefix = "number_prefix" in data
+        has_suffix = "number_suffix" in data
+        seq_override = None
+        if data.get("number_sequence") is not None and str(data.get("number_sequence")).strip() != "":
+            seq_override = int(data["number_sequence"])
+        invoice_number, fy, seq = await self._allocate_invoice_number(
+            vendor,
+            vendor_id,
+            invoice_type,
+            prefix_override=data.get("number_prefix") if has_prefix else None,
+            suffix_override=data.get("number_suffix") if has_suffix else None,
+            sequence_override=seq_override,
+        )
 
         is_inter_state = data.get("is_inter_state", False)
         vendor_gst = bool(vendor.gstin)
 
         raw_items = data.get("items", [])
-        computed_items, taxable, cgst, sgst, igst = self._compute_tax(
-            raw_items, is_inter_state, vendor_gst, invoice_type
+        additional_charges = _normalize_invoice_additional_charges(data.get("additional_charges"))
+        computed_items, taxable, cgst, sgst, igst = self._rollup_line_and_charge_tax(
+            raw_items, additional_charges, is_inter_state, vendor_gst, invoice_type
         )
 
         subtotal = sum(i["qty"] * i["rate"] for i in raw_items)
@@ -226,10 +397,15 @@ class InvoiceService:
             source_sales_area_id=getattr(linked, "sales_area_id", None) if linked else None,
         )
 
+        order_number = (data.get("order_number") or "").strip() or None
+        if linked and not order_number:
+            order_number = getattr(linked, "order_number", None)
+
         invoice = Invoice(
             vendor_id=vendor_id,
             customer_id=cust_uuid,
             order_id=order_uuid,
+            order_number=order_number,
             store_id=store_id,
             sales_area_id=sales_area_id,
             invoice_number=invoice_number,
@@ -253,6 +429,7 @@ class InvoiceService:
             items=computed_items,
             item_count=len(computed_items),
             subtotal=subtotal,
+            additional_charges=additional_charges,
             discount_amount=discount_amount,
             taxable_amount=taxable,
             cgst_amount=cgst,
@@ -295,6 +472,18 @@ class InvoiceService:
         await _try_generate_einvoice(self.db, invoice, vendor)
         await self.db.commit()
         await self.db.refresh(invoice)
+
+        init_pay = data.get("initial_payment")
+        if init_pay and invoice.invoice_type != "estimate":
+            try:
+                amt = float(init_pay.get("amount") or 0)
+            except (TypeError, ValueError):
+                amt = 0
+            if amt > 0:
+                cap = min(amt, float(invoice.total or 0))
+                if cap > 0:
+                    invoice = await self.record_payment(invoice.id, vendor_id, cap)
+
         return invoice
 
     async def update_invoice(self, invoice_id: UUID, vendor_id: UUID, data: dict) -> Invoice:
@@ -330,27 +519,44 @@ class InvoiceService:
             )
             data = {k: v for k, v in data.items() if k != "sales_area_id"}
 
+        if "additional_charges" in data:
+            data = {
+                **data,
+                "additional_charges": _normalize_invoice_additional_charges(data.get("additional_charges")),
+            }
+
         for key, value in data.items():
             if value is not None and hasattr(invoice, key) and key not in ("id", "vendor_id", "invoice_number"):
                 setattr(invoice, key, value)
 
-        if data.get("items"):
+        recalc = bool(data.get("items")) or "additional_charges" in data or "discount_amount" in data
+        if recalc:
             vendor_result = await self.db.execute(select(Vendor).where(Vendor.id == vendor_id))
             vendor = vendor_result.scalar_one_or_none()
-            computed, taxable, cgst, sgst, igst = self._compute_tax(
-                data["items"],
+            raw_items = data.get("items") or self._raw_items_from_stored(invoice.items or [])
+            charges = (
+                _normalize_invoice_additional_charges(data.get("additional_charges"))
+                if "additional_charges" in data
+                else _normalize_invoice_additional_charges(getattr(invoice, "additional_charges", None))
+            )
+            computed, taxable, cgst, sgst, igst = self._rollup_line_and_charge_tax(
+                raw_items,
+                charges,
                 invoice.is_inter_state,
                 bool(vendor and vendor.gstin),
                 invoice.invoice_type,
             )
-            invoice.items = computed
-            invoice.item_count = len(computed)
+            if data.get("items"):
+                invoice.items = computed
+                invoice.item_count = len(computed)
+            if "additional_charges" in data:
+                invoice.additional_charges = charges
             invoice.taxable_amount = taxable
             invoice.cgst_amount = cgst
             invoice.sgst_amount = sgst
             invoice.igst_amount = igst
             invoice.total_tax = cgst + sgst + igst
-            invoice.subtotal = sum(i["qty"] * i["rate"] for i in data["items"])
+            invoice.subtotal = sum(i["qty"] * i["rate"] for i in raw_items)
             grand = taxable - float(invoice.discount_amount or 0) + invoice.total_tax
             invoice.round_off = round(grand) - grand
             invoice.total = round(grand)
@@ -425,6 +631,7 @@ class InvoiceService:
             "billing_address": estimate.billing_address,
             "shipping_address": estimate.shipping_address,
             "items": estimate.items,
+            "additional_charges": getattr(estimate, "additional_charges", None) or [],
             "discount_amount": float(estimate.discount_amount or 0),
             "place_of_supply": estimate.place_of_supply,
             "is_inter_state": estimate.is_inter_state,
@@ -624,9 +831,7 @@ class InvoiceService:
                 "total": float(taxable + cgst_amt + sgst_amt + igst_amt),
             })
 
-        fy = self._get_financial_year()
-        seq = await self._next_sequence(order.vendor_id, "invoice")
-        invoice_number = self._generate_number("INV", fy, seq)
+        invoice_number, fy, seq = await self._allocate_invoice_number(vendor, order.vendor_id, "invoice")
 
         subtotal = float(order.subtotal or 0)
         discount = float(order.discount_amount or 0)
@@ -753,9 +958,7 @@ class InvoiceService:
                 "total": float(taxable + cgst_amt + sgst_amt),
             })
 
-        fy = self._get_financial_year()
-        seq = await self._next_sequence(txn.vendor_id, "invoice")
-        invoice_number = self._generate_number("INV", fy, seq)
+        invoice_number, fy, seq = await self._allocate_invoice_number(vendor, txn.vendor_id, "invoice")
 
         subtotal = float(txn.subtotal or 0)
         discount = float(txn.discount_amount or 0)
@@ -875,9 +1078,7 @@ class InvoiceService:
             "total": float(taxable + cgst_amt + sgst_amt),
         }]
 
-        fy = self._get_financial_year()
-        seq = await self._next_sequence(booking.vendor_id, "invoice")
-        invoice_number = self._generate_number("INV", fy, seq)
+        invoice_number, fy, seq = await self._allocate_invoice_number(vendor, booking.vendor_id, "invoice")
 
         total_tax = cgst_amt + sgst_amt
         grand = taxable + total_tax

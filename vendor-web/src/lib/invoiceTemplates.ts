@@ -184,6 +184,10 @@ export interface InvoiceSettings {
   default_notes?: string
   default_terms?: string
   default_payment_terms?: string
+  /** Prefix for auto-generated document numbers (e.g. INV, CAR/HO). Empty uses the system default. */
+  number_prefix?: string
+  /** Optional suffix appended after the sequence segment (e.g. BR01). */
+  number_suffix?: string
   /** Show a sequential item number (#) column in the line-items table. */
   show_item_numbers?: boolean
   /** Show the Discount column in the line-items table. */
@@ -263,6 +267,10 @@ export interface InvoiceSettings {
   show_due_date?: boolean
   /** Show booking/reference number in the header. Default true. */
   show_booking_number?: boolean
+  /** Show PO / sales order number in the invoice meta panel. Default true. */
+  show_order_number?: boolean
+  /** Label for PO / order ref in the meta panel (default "PO No."). */
+  order_number_label?: string
   /** Show the copy label ("ORIGINAL FOR RECIPIENT") in the header. Default true. */
   show_copy_label?: boolean
   /** Show the Amount Paid row in totals. Default true. */
@@ -333,6 +341,8 @@ export const DEFAULT_INVOICE_SETTINGS: InvoiceSettings = {
   show_financial_year: true,
   show_due_date: true,
   show_booking_number: true,
+  show_order_number: true,
+  order_number_label: 'PO No.',
   show_copy_label: true,
   show_amount_paid: true,
   show_balance_due: true,
@@ -416,10 +426,12 @@ export function applyAllInvoiceComponentsPreset(base: InvoiceSettings): InvoiceS
     show_qr_code: true,
     qr_code_position: base.qr_code_position ?? 'footer',
     show_customer_email: true,
-    show_financial_year: true,
-    show_due_date: true,
-    show_booking_number: true,
-    show_copy_label: true,
+  show_financial_year: true,
+  show_due_date: true,
+  show_booking_number: true,
+  show_order_number: true,
+  order_number_label: 'PO No.',
+  show_copy_label: true,
     show_amount_paid: true,
     show_balance_due: true,
     show_legal_note: true,
@@ -519,6 +531,52 @@ function fmt(n: unknown): string {
 function fmtDate(d?: string | null): string {
   if (!d) return ''
   try { return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) } catch { return d }
+}
+
+function invoiceDisplayDate(inv: InvData): string {
+  return fmtDate((inv.invoice_date as string) || (inv.created_at as string))
+}
+
+function invoicePoOrOrderRef(inv: InvData): string {
+  return String(inv.order_number || inv.po_number || '').trim()
+}
+
+function orderRefMetaLabel(settings: InvoiceSettings): string {
+  const custom = String(settings.order_number_label || '').trim()
+  return custom || 'PO No.'
+}
+
+/** Left meta panel rows: invoice no, date, due date, F.Y., PO / order ref (classic-style box). */
+function classicMetaDetailBoxHtml(inv: InvData, settings: InvoiceSettings): string {
+  const rows: string[] = []
+  rows.push(`<div style="display:flex;justify-content:space-between;margin-bottom:6px">
+        <span style="color:#6b7280;font-size:11px">Invoice No.</span>
+        <span style="font-weight:700;font-family:monospace">${inv.invoice_number}</span>
+      </div>`)
+  rows.push(`<div style="display:flex;justify-content:space-between;margin-bottom:6px">
+        <span style="color:#6b7280;font-size:11px">Date</span>
+        <span>${invoiceDisplayDate(inv)}</span>
+      </div>`)
+  if (settings.show_due_date ?? true) {
+    rows.push(`<div style="display:flex;justify-content:space-between;margin-bottom:6px">
+        <span style="color:#6b7280;font-size:11px">Due Date</span>
+        <span>${inv.due_date ? fmtDate(inv.due_date as string) : '—'}</span>
+      </div>`)
+  }
+  if ((settings.show_financial_year ?? true) && inv.financial_year) {
+    rows.push(`<div style="display:flex;justify-content:space-between;margin-bottom:6px">
+        <span style="color:#6b7280;font-size:11px">F.Y.</span>
+        <span>${inv.financial_year}</span>
+      </div>`)
+  }
+  const poRef = invoicePoOrOrderRef(inv)
+  if ((settings.show_order_number ?? true) && poRef) {
+    rows.push(`<div style="display:flex;justify-content:space-between">
+        <span style="color:#6b7280;font-size:11px">${orderRefMetaLabel(settings)}</span>
+        <span style="font-family:monospace;font-weight:600">${poRef}</span>
+      </div>`)
+  }
+  return rows.join('')
 }
 
 const TH_DESC_VARIANT = '[Variant note]'
@@ -762,6 +820,32 @@ export function panFromGstin(gstin?: string): string {
   return /^[A-Z]{5}\d{4}[A-Z]$/.test(pan) ? pan : ''
 }
 
+/** Indian financial year as used in invoice numbers (e.g. 202526 for FY 2025–26). */
+export function currentIndianFinancialYearShort(date = new Date()): string {
+  const y = date.getFullYear()
+  const m = date.getMonth() + 1
+  if (m >= 4) return `${y}${String(y + 1).slice(-2)}`
+  return `${y - 1}${String(y).slice(-2)}`
+}
+
+/** Preview next number format from prefix/suffix settings (sequence shown as 0001). */
+export function previewDocumentNumber(
+  prefix: string | undefined,
+  suffix: string | undefined,
+  defaultPrefix: string,
+): string {
+  const cleaned = (prefix || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9/]/g, '')
+    .replace(/\/+/g, '/')
+    .replace(/^\/|\/$/g, '')
+  const p = (cleaned || defaultPrefix).slice(0, 24)
+  const base = `${p}/${currentIndianFinancialYearShort()}/0001`
+  const s = (suffix || '').trim().replace(/[^A-Za-z0-9_-]/g, '').slice(0, 16)
+  return s ? `${base}-${s}` : base
+}
+
 function resolveVendorPan(inv: InvData): string {
   const pan = String(inv.vendor_pan || '').trim().toUpperCase()
   if (pan) return pan
@@ -774,9 +858,51 @@ function resolveCustomerPan(inv: InvData): string {
   return panFromGstin(String(inv.customer_gstin || ''))
 }
 
-function panNumberLine(pan: string, extraClass = ''): string {
+function panNumberLine(pan: string, extraClass = '', textAlign?: 'left' | 'center'): string {
   const cls = extraClass ? `inv-pan-line ${extraClass}` : 'inv-pan-line'
-  return `<div class="${cls}" style="font-size:10px;color:#6b7280;margin-top:2px">PAN Number: ${pan}</div>`
+  const align = textAlign ? `text-align:${textAlign};` : ''
+  return `<div class="${cls}" style="font-size:10px;color:#6b7280;margin-top:2px;${align}">PAN Number: ${pan}</div>`
+}
+
+/** Vendor name, address, GSTIN/PAN — centered in the header bar (logo and title stay left/right). */
+function vendorHeaderMetaCentered(inv: InvData, settings: InvoiceSettings, addr: string, metaColor = '#6b7280'): string {
+  const parts: string[] = []
+  const name = String(inv.vendor_name || '').trim()
+  if (name) {
+    parts.push(
+      `<div class="inv-vendor-name" style="font-size:20px;font-weight:700;color:#111;line-height:1.25;text-align:center">${name}</div>`,
+    )
+  }
+  if (settings.show_vendor_address !== false && addr) {
+    parts.push(
+      `<div class="inv-vendor-address" style="font-size:10px;color:${metaColor};margin-top:4px;line-height:1.5;text-align:center">${addr}</div>`,
+    )
+  }
+  const taxRow: string[] = []
+  if ((settings.show_vendor_phone ?? false) && inv.vendor_phone) {
+    taxRow.push(`<span class="inv-vendor-phone" style="white-space:nowrap">Mobile: ${inv.vendor_phone}</span>`)
+  }
+  if (settings.show_gstin && inv.vendor_gstin) {
+    taxRow.push(`<span class="inv-vendor-gstin" style="white-space:nowrap">GSTIN: ${inv.vendor_gstin}</span>`)
+  }
+  if ((settings.show_pan ?? true) && resolveVendorPan(inv)) {
+    taxRow.push(
+      `<span class="inv-vendor-pan inv-pan-line" style="white-space:nowrap">PAN Number: ${resolveVendorPan(inv)}</span>`,
+    )
+  }
+  if (taxRow.length) {
+    parts.push(
+      `<div style="display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:6px 16px;font-size:10px;color:${metaColor};margin-top:4px;text-align:center">${taxRow.join('')}</div>`,
+    )
+  }
+  const vendorEmail = String(inv.vendor_email || '').trim()
+  if ((settings.show_vendor_email ?? false) && vendorEmail) {
+    parts.push(
+      `<div class="inv-vendor-email" style="font-size:10px;color:${metaColor};margin-top:2px;text-align:center">Email: <a href="mailto:${vendorEmail.replace(/"/g, '&quot;')}" style="color:inherit">${vendorEmail}</a></div>`,
+    )
+  }
+  if (!parts.length) return ''
+  return `<div class="inv-vendor-identity inv-vendor-header-meta" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;text-align:center;padding:0 10px;min-width:0">${parts.join('\n')}<div class="inv-url-slot" style="text-align:center;width:100%"></div></div>`
 }
 
 /** Insert PAN + optional vendor mobile after GSTIN lines (all themes). */
@@ -1152,6 +1278,11 @@ function totalsBlock(inv: InvData, settings: InvoiceSettings): string {
   const paid   = Number(inv.amount_paid || 0)
   const bal    = Number(inv.balance_due || 0)
 
+  const extraCharges = Array.isArray((inv as { additional_charges?: unknown }).additional_charges)
+    ? ((inv as { additional_charges: { name?: string; amount?: number }[] }).additional_charges || [])
+        .filter((c) => c && String(c.name || '').trim() && Number(c.amount) > 0)
+    : []
+
   const discLabel   = settings.discount_label   || 'Discount'
   const taxLabel    = settings.tax_label        || 'Tax'
   const cgstLabel   = settings.cgst_label       || 'CGST'
@@ -1168,6 +1299,7 @@ function totalsBlock(inv: InvData, settings: InvoiceSettings): string {
 
   return `
     <tr><td style="${lbl}">Subtotal</td><td style="${val}">${fmt(sub)}</td></tr>
+    ${extraCharges.map((c) => `<tr><td style="${lbl}">${String(c.name).replace(/</g, '&lt;')}</td><td style="${val}">${fmt(Number(c.amount) || 0)}</td></tr>`).join('')}
     ${showDiscSum ? `<tr><td style="${lbl}">${discLabel}</td><td style="${val};color:#dc2626">-${fmt(disc)}</td></tr>` : ''}
     ${settings.show_taxable_amount ? `<tr><td style="${lbl}">Taxable Amount</td><td style="${val}">${fmt(taxable)}</td></tr>` : ''}
     ${settings.show_tax_breakdown && cgst > 0 ? `<tr><td style="${lbl}">${cgstRowLabel}</td><td style="${val}">${fmt(cgst)}</td></tr>` : ''}
@@ -1417,16 +1549,12 @@ function classicTemplate(inv: InvData, settings: InvoiceSettings, backendApiBase
 </style></head>
 <body><div class="page">
 ${sec('header', `
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;padding-bottom:10px;border-bottom:3px solid ${color}">
-    <div style="display:flex;align-items:flex-start;gap:14px;min-width:0">
+  <div class="inv-header-row" style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;padding-bottom:10px;border-bottom:3px solid ${color}">
+    <div style="display:flex;align-items:flex-start;min-width:0;flex:0 0 auto;text-align:left">
       ${logoHeaderSlot(logoUrl, 'height:64px;max-width:120px', settings)}
-      <div style="min-width:0;flex:1">
-        <div style="font-size:20px;font-weight:700;color:#111">${inv.vendor_name || ''}</div>
-        ${settings.show_gstin && inv.vendor_gstin ? `<div style="font-size:10px;color:#6b7280;margin-top:2px">GSTIN: ${inv.vendor_gstin}</div>` : ''}
-        ${settings.show_vendor_address !== false && addr ? `<div style="font-size:10px;color:#6b7280;margin-top:2px;line-height:1.5">${addr}</div>` : ''}
-      </div>
     </div>
-    <div style="display:flex;align-items:flex-start;gap:16px">
+    ${vendorHeaderMetaCentered(inv, settings, addr)}
+    <div style="display:flex;align-items:flex-start;gap:16px;flex:0 0 auto">
       ${qrBlockHeader(settings)}
       <div style="text-align:right">
         <div style="font-size:22px;font-weight:800;color:${color};letter-spacing:2px">TAX INVOICE</div>
@@ -1438,16 +1566,7 @@ ${sec('header', `
 ${sec('meta', `
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:12px">
     <div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:6px;padding:8px 10px">
-      <div style="display:flex;justify-content:space-between;margin-bottom:6px">
-        <span style="color:#6b7280;font-size:11px">Invoice No.</span>
-        <span style="font-weight:700;font-family:monospace">${inv.invoice_number}</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;margin-bottom:6px">
-        <span style="color:#6b7280;font-size:11px">Date</span>
-        <span>${fmtDate(inv.created_at as string)}</span>
-      </div>
-      ${(settings.show_due_date ?? true) && inv.due_date ? `<div style="display:flex;justify-content:space-between"><span style="color:#6b7280;font-size:11px">Due Date</span><span>${fmtDate(inv.due_date as string)}</span></div>` : ''}
-      ${(settings.show_financial_year ?? true) && inv.financial_year ? `<div style="display:flex;justify-content:space-between;margin-top:6px"><span style="color:#6b7280;font-size:11px">F.Y.</span><span>${inv.financial_year}</span></div>` : ''}
+      ${classicMetaDetailBoxHtml(inv, settings)}
     </div>
     ${settings.show_customer_address !== false ? `<div>
       <div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Bill To</div>
@@ -1817,8 +1936,24 @@ function isNarrow(paperSize: PaperSize): boolean {
   return paperSize === '2inch' || paperSize === '3inch' || paperSize === '4inch'
 }
 
+/** Sheet width on screen matches A4 (or thermal roll); print/PDF use full printable area. */
+function documentPageShellCss(paperSize: PaperSize): string {
+  const narrow = isNarrow(paperSize)
+  const p = PAPER_SIZES.find(s => s.id === paperSize) || PAPER_SIZES[0]
+  const maxW = narrow ? p.maxWidth : '794px'
+  const pageW = narrow ? p.maxWidth : '210mm'
+  return `
+  html,body{margin:0;padding:0;background:#fff;width:auto;max-width:100%;text-align:left}
+  .page{width:${pageW};max-width:${maxW};margin:0 auto;border-radius:0;box-shadow:none;background:#fff;box-sizing:border-box;text-align:left}
+  .inv-vendor-identity:not(.inv-vendor-header-meta){text-align:left;align-items:flex-start}
+  .inv-vendor-header-meta{text-align:center;align-items:center}
+  .inv-header-row{display:flex;justify-content:space-between;align-items:flex-start;width:100%;text-align:left}
+  @media print{html,body{width:100%;background:#fff}.page{width:100%;max-width:100%;margin:0}}
+  `
+}
+
 function injectPageCss(html: string, paperSize: PaperSize, settings: InvoiceSettings): string {
-  const css = pageCss(paperSize) + layoutCss(settings)
+  const css = documentPageShellCss(paperSize) + pageCss(paperSize) + layoutCss(settings)
   return html.replace('</style>', `  ${css}\n</style>`)
 }
 
@@ -2924,35 +3059,29 @@ function taxcomplianceTemplate(inv: InvData, settings: InvoiceSettings, backendA
 </style></head>
 <body><div class="page">
 ${sec('header', `
-  <div style="display:flex;gap:16px;align-items:flex-start;margin-bottom:14px">
-    ${logoHeaderSlot(logoUrl, 'height:56px;max-width:110px', settings, 110, 56)}
-    <div style="flex:1;min-width:0">
-      <div style="font-size:20px;font-weight:700;color:#111;line-height:1.25">${inv.vendor_name || ''}</div>
-      ${settings.show_vendor_address !== false && addr ? `<div style="font-size:10px;color:#4b5563;margin-top:6px;line-height:1.55">${addr}</div>` : ''}
-      ${(settings.show_vendor_phone ?? false) && inv.vendor_phone ? `<div class="inv-vendor-phone" style="font-size:10px;color:#4b5563;margin-top:4px">Mobile: ${inv.vendor_phone}</div>` : ''}
-      ${settings.show_gstin && inv.vendor_gstin ? `<div style="font-size:10px;color:#4b5563;margin-top:2px">GSTIN: ${inv.vendor_gstin}</div>` : ''}
-      <div class="inv-url-slot"></div>
-    </div>
+  <div class="inv-header-row" style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;width:100%;text-align:left">
+    <div style="flex:0 0 auto">${logoHeaderSlot(logoUrl, 'height:56px;max-width:110px', settings, 110, 56)}</div>
+    ${vendorHeaderMetaCentered(inv, settings, addr, '#4b5563')}
     <div style="text-align:right;min-width:150px;flex-shrink:0">
       <div style="font-size:18px;font-weight:800;color:${settings.color || '#1a56db'};letter-spacing:1px">TAX INVOICE</div>
       ${(settings.show_copy_label ?? true) ? '<div style="font-size:9px;color:#9ca3af;margin-top:3px;text-transform:uppercase;letter-spacing:.06em">Original for recipient</div>' : ''}
     </div>
   </div>`)}
 ${sec('meta', `
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:4px;margin-bottom:14px;font-size:11px">
-    <div style="padding:10px 12px;border-right:1px solid #e5e7eb"><span style="color:#6b7280">Invoice No.</span><div style="font-weight:700;font-family:monospace;margin-top:2px">${inv.invoice_number}</div></div>
-    <div style="padding:10px 12px;border-right:1px solid #e5e7eb"><span style="color:#6b7280">Invoice Date</span><div style="font-weight:600;margin-top:2px">${fmtDate(inv.created_at as string)}</div></div>
-    <div style="padding:10px 12px"><span style="color:#6b7280">Due Date</span><div style="font-weight:600;margin-top:2px">${(settings.show_due_date ?? true) && inv.due_date ? fmtDate(inv.due_date as string) : '—'}</div></div>
-  </div>
-  ${settings.show_customer_address !== false ? `<div style="margin-bottom:14px">
-    <div style="font-size:10px;font-weight:700;letter-spacing:.12em;color:#6b7280;margin-bottom:6px">BILL TO</div>
-    <div style="font-size:13px;font-weight:700;color:#111">${inv.customer_name || ''}</div>
-    ${billAddr ? `<div style="font-size:10px;color:#4b5563;margin-top:4px;line-height:1.5">${billAddr}</div>` : ''}
-    ${settings.show_phone && inv.customer_phone ? `<div style="font-size:10px;color:#4b5563;margin-top:4px">Mobile: ${inv.customer_phone}</div>` : ''}
-    ${settings.show_gstin && inv.customer_gstin ? `<div style="font-size:10px;color:#4b5563;margin-top:2px">GSTIN: ${inv.customer_gstin}</div>` : ''}
-    ${(settings.show_pan ?? true) && resolveCustomerPan(inv) ? `<div class="inv-customer-pan" style="font-size:10px;color:#4b5563;margin-top:2px">PAN Number: ${resolveCustomerPan(inv)}</div>` : ''}
-    ${settings.show_place_of_supply && placeOfSupply ? `<div style="font-size:10px;color:#4b5563;margin-top:2px">Place of Supply: ${placeOfSupply}</div>` : ''}
-  </div>` : ''}`)}
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+    <div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:6px;padding:8px 10px;font-size:11px">
+      ${classicMetaDetailBoxHtml(inv, settings)}
+    </div>
+    ${settings.show_customer_address !== false ? `<div>
+      <div style="font-size:10px;font-weight:700;letter-spacing:.12em;color:#6b7280;margin-bottom:6px">BILL TO</div>
+      <div style="font-size:13px;font-weight:700;color:#111">${inv.customer_name || ''}</div>
+      ${billAddr ? `<div style="font-size:10px;color:#4b5563;margin-top:4px;line-height:1.5">${billAddr}</div>` : ''}
+      ${settings.show_phone && inv.customer_phone ? `<div style="font-size:10px;color:#4b5563;margin-top:4px">Mobile: ${inv.customer_phone}</div>` : ''}
+      ${settings.show_gstin && inv.customer_gstin ? `<div style="font-size:10px;color:#4b5563;margin-top:2px">GSTIN: ${inv.customer_gstin}</div>` : ''}
+      ${(settings.show_pan ?? true) && resolveCustomerPan(inv) ? `<div class="inv-customer-pan" style="font-size:10px;color:#4b5563;margin-top:2px">PAN Number: ${resolveCustomerPan(inv)}</div>` : ''}
+      ${settings.show_place_of_supply && placeOfSupply ? `<div style="font-size:10px;color:#4b5563;margin-top:2px">Place of Supply: ${placeOfSupply}</div>` : ''}
+    </div>` : '<div></div>'}
+  </div>`)}
 ${sec('items', invoiceItemsSection(items, settings, color, true, {
   itemLabel,
   subtotalFooter: true,

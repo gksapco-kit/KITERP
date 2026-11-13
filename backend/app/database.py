@@ -3448,6 +3448,20 @@ async def ensure_invoice_soft_delete() -> None:
     logger.info("ensure_invoice_soft_delete: invoice.deleted_at ready")
 
 
+async def ensure_invoice_additional_charges() -> None:
+    """Freight / packing-style charges on sales invoices."""
+    if "postgresql" not in settings.DATABASE_URL.lower():
+        return
+    async with engine.begin() as conn:
+        await conn.execute(
+            text(
+                "ALTER TABLE invoice ADD COLUMN IF NOT EXISTS additional_charges "
+                "JSONB NOT NULL DEFAULT '[]'::jsonb"
+            )
+        )
+    logger.info("ensure_invoice_additional_charges: invoice.additional_charges ready")
+
+
 async def ensure_storage_location_plant_nullable() -> None:
     """Allow storage locations under a branch without a plant."""
     if "postgresql" not in settings.DATABASE_URL.lower():

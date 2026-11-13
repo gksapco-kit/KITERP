@@ -2741,6 +2741,23 @@ export const vendorApi = {
     const response = await apiClient.post('/vendors/me/invoices', data)
     return response.data
   },
+  previewInvoiceNumber: async (params: {
+    invoice_type?: string
+    number_prefix?: string
+    number_suffix?: string
+    number_sequence?: number
+  }) => {
+    const response = await apiClient.get('/vendors/me/invoices/number-preview', { params })
+    return response.data as {
+      invoice_number: string
+      prefix: string
+      suffix: string
+      financial_year: string
+      sequence_number: number
+      suggested_sequence: number
+      available: boolean
+    }
+  },
   getInvoice: async (id: string) => {
     const response = await apiClient.get(`/vendors/me/invoices/${id}`)
     return response.data

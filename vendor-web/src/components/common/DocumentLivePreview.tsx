@@ -3,10 +3,10 @@ import { Eye, Loader2, Pencil, FilePlus, Trash2, ExternalLink, Layers } from 'lu
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
 import { extractOfferTemplateFromDoc, addOfferPage, removeOfferPage } from '@/lib/offerPages'
-import { createDefaultContinuationPage, injectPreviewFitCss } from '@/lib/documentPreview'
+import { A4_SHEET_WIDTH_PX, createDefaultContinuationPage, injectPreviewFitCss } from '@/lib/documentPreview'
 
 const DEFAULT_SCALE = 1
-const DEFAULT_WIDTH = 720
+const DEFAULT_WIDTH = A4_SHEET_WIDTH_PX
 
 export const DocumentLivePreview = memo(function DocumentLivePreview({
   html,
@@ -20,6 +20,7 @@ export const DocumentLivePreview = memo(function DocumentLivePreview({
   documentWidth = DEFAULT_WIDTH,
   previewScale,
   containerWidth,
+  paperSize,
   headerExtra,
   emptyMessage = 'Generating preview…',
   iframeTitle = 'Document preview',
@@ -37,6 +38,8 @@ export const DocumentLivePreview = memo(function DocumentLivePreview({
   documentWidth?: number
   previewScale?: number
   containerWidth?: string
+  /** Invoice paper size — A4 preview uses fixed sheet width; thermal uses full narrow width. */
+  paperSize?: string
   headerExtra?: ReactNode
   emptyMessage?: string
   iframeTitle?: string
@@ -44,6 +47,8 @@ export const DocumentLivePreview = memo(function DocumentLivePreview({
   createBlankPage?: (nextPageNumber: number) => string
 }) {
   const scale = previewScale ?? (documentWidth < 400 ? 1 : DEFAULT_SCALE)
+  const thermal = paperSize === '2inch' || paperSize === '3inch' || paperSize === '4inch'
+  const sheetContainerWidth = containerWidth ?? (thermal ? undefined : `${documentWidth}px`)
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const [frameHeight, setFrameHeight] = useState(480)
@@ -87,12 +92,15 @@ export const DocumentLivePreview = memo(function DocumentLivePreview({
     if (!doc.getElementById('kiterp-preview-fit')) {
       const style = doc.createElement('style')
       style.id = 'kiterp-preview-fit'
+      const pageW = thermal ? '100%' : `${documentWidth}px`
       style.textContent = `
-        html, body { background: #fff !important; margin: 0 !important; padding: 0 !important; overflow-x: auto !important; overflow-y: hidden !important; width: 100% !important; }
-        .page { margin: 0 auto !important; min-height: 0 !important; max-width: 100% !important; }
+        html, body { background: #fff !important; margin: 0 !important; padding: 0 !important; overflow-x: hidden !important; overflow-y: hidden !important; width: ${thermal ? '100%' : `${documentWidth}px`} !important; max-width: 100% !important; text-align: left !important; }
+        .page { margin: 0 auto !important; min-height: 0 !important; max-width: ${pageW} !important; width: 100% !important; box-sizing: border-box !important; text-align: left !important; }
+        .inv-header-row { text-align: left !important; }
+        .inv-vendor-identity:not(.inv-vendor-header-meta) { text-align: left !important; }
+        .inv-vendor-header-meta { text-align: center !important; align-items: center !important; }
         .page[data-doc-page-active="true"] { box-shadow: inset 0 0 0 2px rgba(59,130,246,.35); }
         .body-content { overflow-wrap: break-word; word-break: normal; }
-        /* Keep auto layout so sidebar templates (e.g. Colorblock) don't crush columns. */
         .body-content table, table { table-layout: auto; width: 100%; }
         th, td { word-break: normal; overflow-wrap: break-word; }
       `
@@ -115,7 +123,7 @@ export const DocumentLivePreview = memo(function DocumentLivePreview({
       h = doc.documentElement.scrollHeight || doc.body.scrollHeight
     }
     setFrameHeight(Math.max(120, h + 8))
-  }, [selectedPage])
+  }, [selectedPage, documentWidth, thermal])
 
   const syncBodyFromPreview = useCallback((commit = false) => {
     if (!onBodyChange) return
@@ -206,12 +214,12 @@ export const DocumentLivePreview = memo(function DocumentLivePreview({
     const doc = iframe.contentDocument
     if (!doc) return
     doc.open()
-    doc.write(injectPreviewFitCss(html))
+    doc.write(injectPreviewFitCss(html, paperSize))
     doc.close()
     setupEditable(doc)
     const t = window.setTimeout(resizeFrame, 80)
     return () => window.clearTimeout(t)
-  }, [html, resizeFrame, setupEditable])
+  }, [html, resizeFrame, setupEditable, paperSize])
 
   useEffect(() => () => {
     cleanupEditRef.current?.()
@@ -253,8 +261,8 @@ export const DocumentLivePreview = memo(function DocumentLivePreview({
     setSelectedPage(prev => Math.min(prev, Math.max(1, pageCount - 1)))
   }
 
-  const scaledWidth = containerWidth ?? '100%'
-  const scaledHeight = scale < 1 && containerWidth ? Math.ceil(frameHeight * scale) : frameHeight
+  const scaledWidth = sheetContainerWidth ?? '100%'
+  const scaledHeight = scale < 1 && sheetContainerWidth ? Math.ceil(frameHeight * scale) : frameHeight
   const multiPage = pageCount > 1
 
   return (
@@ -365,7 +373,7 @@ export const DocumentLivePreview = memo(function DocumentLivePreview({
 
       <div
         ref={scrollRef}
-        className={containerWidth
+        className={sheetContainerWidth
           ? 'border rounded-xl overflow-auto bg-gray-100 min-h-[560px] max-h-[85vh] flex items-start justify-center py-3 px-2 relative'
           : 'border rounded-xl overflow-auto bg-white min-h-[560px] max-h-[85vh] w-full relative'}
       >
@@ -376,7 +384,7 @@ export const DocumentLivePreview = memo(function DocumentLivePreview({
           </div>
         ) : (
           <div
-            className={`relative ${containerWidth ? 'mx-auto shrink-0 shadow-lg rounded-lg bg-white overflow-hidden' : 'w-full bg-white overflow-hidden'}`}
+            className={`relative ${sheetContainerWidth ? 'mx-auto shrink-0 shadow-lg rounded-lg bg-white overflow-hidden' : 'w-full bg-white overflow-hidden'}`}
             style={{
               width: scaledWidth,
               height: scaledHeight,
@@ -402,7 +410,10 @@ export const DocumentLivePreview = memo(function DocumentLivePreview({
                     transform: `scale(${scale})`,
                     transformOrigin: 'top left',
                   }
-                  : { width: '100%', height: frameHeight }
+                  : {
+                    width: thermal ? '100%' : documentWidth,
+                    height: frameHeight,
+                  }
               }
             >
               <iframe
@@ -415,7 +426,7 @@ export const DocumentLivePreview = memo(function DocumentLivePreview({
                 }}
                 scrolling="no"
                 className={`border-0 block bg-white w-full ${editable ? 'cursor-text' : ''}`}
-                style={{ height: frameHeight, width: scale < 1 ? documentWidth : '100%' }}
+                style={{ height: frameHeight, width: thermal ? '100%' : documentWidth }}
               />
             </div>
           </div>

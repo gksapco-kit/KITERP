@@ -159,7 +159,7 @@ export async function downloadAsPdf(
   const container = document.createElement('div')
   container.style.cssText = [
     'position:absolute', 'left:-9999px', 'top:0',
-    'width:900px',        // wider than any template's max-width (800 px)
+    'width:794px',        // A4 content width at 96dpi — matches full-bleed .page
     'background:#ffffff',
   ].join(';')
   container.innerHTML = styleBlocks + bodyContent

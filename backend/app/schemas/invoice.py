@@ -45,6 +45,20 @@ class InvoiceLineItem(BaseModel):
     tax_rate: float = 0  # overall tax rate (e.g. 18 for 18%)
 
 
+class InvoiceAdditionalCharge(BaseModel):
+    id: Optional[str] = None
+    name: str = Field(min_length=1, max_length=120)
+    amount: float = Field(gt=0)
+    tax_rate: float = Field(default=18, ge=0, le=100)
+
+
+class InitialPaymentOnCreate(BaseModel):
+    amount: float = Field(gt=0)
+    payment_method: str = "cash"
+    reference: Optional[str] = None
+    notes: Optional[str] = None
+
+
 class InvoiceCreate(BaseModel):
     invoice_type: InvoiceType = InvoiceType.INVOICE
     store_id: Optional[str] = None
@@ -57,6 +71,7 @@ class InvoiceCreate(BaseModel):
     billing_address: Optional[dict] = None
     shipping_address: Optional[dict] = None
     items: List[InvoiceLineItem]
+    additional_charges: List[InvoiceAdditionalCharge] = Field(default_factory=list)
     discount_amount: float = 0
     place_of_supply: Optional[str] = None
     is_inter_state: bool = False
@@ -67,7 +82,14 @@ class InvoiceCreate(BaseModel):
     notes: Optional[str] = None
     terms_and_conditions: Optional[str] = None
     order_id: Optional[str] = None
+    order_number: Optional[str] = None
     extra_fields: Optional[List[QuotationExtraField]] = None
+    # Per-create overrides; saved template defaults apply when omitted
+    number_prefix: Optional[str] = None
+    number_suffix: Optional[str] = None
+    # Optional sequence segment (1–999999); omit for auto next number in the FY
+    number_sequence: Optional[int] = Field(default=None, ge=1, le=999999)
+    initial_payment: Optional[InitialPaymentOnCreate] = None
 
 
 class InvoiceUpdate(BaseModel):
@@ -79,6 +101,7 @@ class InvoiceUpdate(BaseModel):
     billing_address: Optional[dict] = None
     shipping_address: Optional[dict] = None
     items: Optional[List[InvoiceLineItem]] = None
+    additional_charges: Optional[List[InvoiceAdditionalCharge]] = None
     discount_amount: Optional[float] = None
     place_of_supply: Optional[str] = None
     is_inter_state: Optional[bool] = None
@@ -128,6 +151,7 @@ class InvoiceResponse(BaseModel):
     items: list
     item_count: int
     subtotal: float
+    additional_charges: list = Field(default_factory=list)
     discount_amount: float
     taxable_amount: float
     cgst_amount: float

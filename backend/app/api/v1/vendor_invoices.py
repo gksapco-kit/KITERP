@@ -103,7 +103,9 @@ def _inv_dict(inv, include_qr: bool = False, vendor: Vendor | None = None) -> di
         "vendor_name": inv.vendor_name, "vendor_gstin": inv.vendor_gstin,
         "vendor_pan": getattr(inv, "vendor_pan", None),
         "items": inv.items or [], "item_count": inv.item_count or 0,
-        "subtotal": float(inv.subtotal or 0), "discount_amount": float(inv.discount_amount or 0),
+        "subtotal": float(inv.subtotal or 0),
+        "additional_charges": getattr(inv, "additional_charges", None) or [],
+        "discount_amount": float(inv.discount_amount or 0),
         "taxable_amount": float(inv.taxable_amount or 0),
         "cgst_amount": float(inv.cgst_amount or 0), "sgst_amount": float(inv.sgst_amount or 0),
         "igst_amount": float(inv.igst_amount or 0), "total_tax": float(inv.total_tax or 0),
@@ -169,9 +171,34 @@ async def create_invoice(data: InvoiceCreate, user: User = Depends(get_current_a
         payload["items"] = [i.model_dump() for i in data.items]
         if data.extra_fields is not None:
             payload["extra_fields"] = [f.model_dump() for f in data.extra_fields]
+        if data.initial_payment is not None:
+            payload["initial_payment"] = data.initial_payment.model_dump()
         inv = await svc.create_invoice(vid, payload, user.id)
         vendor = await db.get(Vendor, vid)
         return JSONResponse(content=_inv_dict(inv, vendor=vendor), status_code=201)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.get("/number-preview")
+async def preview_invoice_number(
+    invoice_type: str = Query("invoice"),
+    number_prefix: str | None = None,
+    number_suffix: str | None = None,
+    number_sequence: int | None = Query(default=None, ge=1, le=999999),
+    vid: UUID = Depends(_vendor_id),
+    db: AsyncSession = Depends(get_db),
+):
+    svc = InvoiceService(db)
+    try:
+        payload = await svc.preview_invoice_number(
+            vid,
+            invoice_type,
+            prefix_override=number_prefix if number_prefix is not None else None,
+            suffix_override=number_suffix if number_suffix is not None else None,
+            sequence_override=number_sequence,
+        )
+        return JSONResponse(content=payload)
     except ValueError as e:
         raise HTTPException(400, str(e))
 

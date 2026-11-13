@@ -783,10 +783,12 @@ interface AddPartyModalProps {
   onCreated?: (party: Record<string, unknown>) => void
   /** When provided the modal opens in edit mode, pre-filling all fields from the existing record. */
   editRecord?: { raw: Customer | Supplier; kind: 'customer' | 'supplier' }
+  /** Partial fields from Quick Create → Enter full details */
+  initialDraft?: { full_name?: string; phone?: string; email?: string }
 }
 
 export function AddPartyModal({
- onClose, defaultType, onCreated, editRecord }: AddPartyModalProps) {
+ onClose, defaultType, onCreated, editRecord, initialDraft }: AddPartyModalProps) {
   const isEditMode = !!editRecord
   const stored = localStorage.getItem('lastPartyType')
   const [partyType, setPartyType] = useState<string>(() => {
@@ -882,17 +884,21 @@ export function AddPartyModal({
 
   // Primary fields — seeded from editRecord on mount so avatar/initials render immediately
   const [name, setName] = useState<string>(() => {
-    if (!editRecord) return ''
-    return editRecord.kind === 'customer'
-      ? (editRecord.raw as Customer).full_name || ''
-      : (editRecord.raw as Supplier).name || ''
+    if (editRecord) {
+      return editRecord.kind === 'customer'
+        ? (editRecord.raw as Customer).full_name || ''
+        : (editRecord.raw as Supplier).name || ''
+    }
+    return initialDraft?.full_name?.trim() || ''
   })
-  const [phone, setPhone] = useState<string>(() =>
-    editRecord ? ((editRecord.raw as unknown as Record<string, string>).phone ?? '') : ''
-  )
-  const [email, setEmail] = useState<string>(() =>
-    editRecord ? ((editRecord.raw as unknown as Record<string, string>).email ?? '') : ''
-  )
+  const [phone, setPhone] = useState<string>(() => {
+    if (editRecord) return (editRecord.raw as unknown as Record<string, string>).phone ?? ''
+    return initialDraft?.phone?.trim() || ''
+  })
+  const [email, setEmail] = useState<string>(() => {
+    if (editRecord) return (editRecord.raw as unknown as Record<string, string>).email ?? ''
+    return initialDraft?.email?.trim() || ''
+  })
 
   // More Details
   const [expanded, setExpanded] = useState(true)

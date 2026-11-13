@@ -1635,7 +1635,7 @@ export default function POS() {
           <QuickCreateCustomerModal
             onSelect={handleQuickCreateSelect}
             onClose={() => setShowQuickCreate(false)}
-            returnTo="?returnTo=pos"
+            returnTo="pos"
           />
         )}
 

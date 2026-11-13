@@ -1196,6 +1196,7 @@ class PurchaseOrderService:
         self, vendor_id: UUID,
         status_filter: str | None = None,
         supplier_id: UUID | None = None,
+        search: str | None = None,
         page: int = 1, size: int = 20,
         pending_my_approval: bool = False,
         approver_id: UUID | None = None,
@@ -1204,6 +1205,10 @@ class PurchaseOrderService:
             return await self.list_pending_for_approver(vendor_id, approver_id, page=page, size=size)
 
         conditions = [PurchaseOrder.vendor_id == vendor_id]
+        q = (search or "").strip()
+        if q:
+            like = f"%{q}%"
+            conditions.append(PurchaseOrder.po_number.ilike(like))
         if status_filter:
             statuses = [s.strip() for s in status_filter.split(",") if s.strip()]
             if len(statuses) == 1:

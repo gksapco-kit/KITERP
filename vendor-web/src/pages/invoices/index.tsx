@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label'
 import { vendorApi } from '@/api/vendor'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useInvoiceSettings, useProducts, useServices, useUpdateInvoice, useRestoreInvoice } from '@/hooks/useVendor'
+import { useInvoiceSettings, useQuotationSettings, useProducts, useServices, useUpdateInvoice, useRestoreInvoice } from '@/hooks/useVendor'
 import { useHasPermission } from '@/hooks/usePermissions'
 import { formatCurrency, formatDate, cn } from '@/lib/utils'
 import { resolveServiceDisplayAmount } from '@/lib/servicePricing'
@@ -44,7 +44,9 @@ import { InlineEditCell } from '@/components/table/InlineEditCell'
 import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import { processRows, type SortDir } from '@/lib/tableList'
 import { ThemeSelect } from '@/components/common/ThemeSelect'
-import { printInvoice, downloadInvoiceWithTemplate, type InvoiceSettings } from '@/lib/invoiceTemplates'
+import type { InvoiceSettings } from '@/lib/invoiceTemplates'
+import { previewDocumentNumber } from '@/lib/invoiceNumberPreview'
+import { useAuthStore } from '@/stores/authStore'
 import {
   invoiceBadgeClass,
   invoiceNumberLinkClass,
@@ -53,6 +55,19 @@ import {
   invoiceTypeBadge,
 } from '@/lib/invoiceBadges'
 import { onAuthenticatedAnchorClick } from '@/lib/openAuthenticatedTab'
+import { InvoiceCreateTotalsPanel } from '@/components/invoices/InvoiceCreateTotalsPanel'
+import { INVOICE_PENDING_CUSTOMER_KEY } from '@/pages/master-data/MasterDataNew'
+import {
+  invoiceAdditionalChargesForSave,
+  normalizeInvoiceAdditionalCharges,
+  type InvoiceAdditionalChargeRow,
+} from '@/lib/invoiceAdditionalCharges'
+import {
+  computeInvoiceTotalsPreview,
+  discountPctFromLine,
+  lineGrossTotal,
+  lineTaxTotal,
+} from '@/lib/invoiceTotalsPreview'
 
 const TABLE_ICON_BTN =
   'inline-flex shrink-0 items-center justify-center rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground dark:hover:bg-muted/70 dark:hover:text-foreground'
@@ -60,6 +75,7 @@ const TABLE_ICON_BTN =
 async function downloadInvoicePdf(id: string, invSettings: Partial<InvoiceSettings>) {
   try {
     const inv = await vendorApi.getInvoice(id)
+    const { downloadInvoiceWithTemplate } = await import('@/lib/invoiceTemplates')
     await downloadInvoiceWithTemplate(inv as Record<string, unknown>, invSettings)
   } catch {
     toast.error('Could not download invoice PDF — check template settings and try again')
@@ -176,6 +192,7 @@ export default function InvoicesPage() {
   const [showDeleted, setShowDeleted] = useState(false)
   const [sortKey, setSortKey] = useState('created_at')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
+  const isAuthenticated = useAuthStore(s => s.isAuthenticated)
   const { data: invSettings } = useInvoiceSettings()
   const canManageInvoice = useHasPermission('invoices.manage')
   const restoreInvoice = useRestoreInvoice()
@@ -189,6 +206,29 @@ export default function InvoicesPage() {
   }, [searchInput])
 
   useEffect(() => {
+    const rawCustomer = sessionStorage.getItem(INVOICE_PENDING_CUSTOMER_KEY)
+    if (rawCustomer) {
+      sessionStorage.removeItem(INVOICE_PENDING_CUSTOMER_KEY)
+      try {
+        const c = JSON.parse(rawCustomer) as {
+          id?: string
+          full_name?: string
+          phone?: string
+          email?: string
+        }
+        if (c?.id && c.full_name) {
+          setCopyPrefill({
+            customer_id: c.id,
+            customer_name: c.full_name,
+            customer_phone: c.phone,
+            customer_email: c.email,
+          })
+          setShowCreate(true)
+          return
+        }
+      } catch { /* fall through */ }
+    }
+
     const raw = sessionStorage.getItem(SALES_DOC_COPY_FROM_KEY)
     if (!raw) return
     sessionStorage.removeItem(SALES_DOC_COPY_FROM_KEY)
@@ -202,7 +242,15 @@ export default function InvoicesPage() {
     } catch { /* ignore */ }
   }, [])
 
-  const { data, isLoading, isError, error, refetch } = useQuery({
+  const {
+    data,
+    isPending,
+    isFetching,
+    isError,
+    error,
+    refetch,
+    failureCount,
+  } = useQuery({
     queryKey: ['invoices', page, pageSize, typeFilter, statusFilter, storeFilter, branchFilter, salesAreaFilter, search, showDeleted],
     queryFn: () => vendorApi.listInvoices({
       page,
@@ -215,9 +263,11 @@ export default function InvoicesPage() {
       search: search || undefined,
       deleted: showDeleted || undefined,
     }),
-    retry: (failureCount, err) => isAxiosNetworkError(err) && failureCount < 4,
-    retryDelay: (attempt) => Math.min(1500 * 2 ** attempt, 12_000),
+    enabled: isAuthenticated,
+    retry: (count, err) => isAxiosNetworkError(err) && count < 2,
+    retryDelay: (attempt) => Math.min(2000 * 2 ** attempt, 8_000),
   })
+  const listLoading = isAuthenticated && (isPending || (isFetching && data === undefined))
   const { data: trashMeta } = useQuery({
     queryKey: ['invoices', 'trash-count'],
     queryFn: () => vendorApi.listInvoices({ deleted: true, page: 1, size: 1, exclude_invoice_type: 'estimate' }),
@@ -413,12 +463,22 @@ export default function InvoicesPage() {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {isLoading ? (
-                <tr><td colSpan={9} className="py-12 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" /></td></tr>
+              {!isAuthenticated ? (
+                <tr><td colSpan={9} className="py-12 text-center text-sm text-muted-foreground">Sign in to view invoices.</td></tr>
+              ) : listLoading ? (
+                <tr>
+                  <td colSpan={9} className="py-12 text-center text-sm text-muted-foreground space-y-2">
+                    <Loader2 className="w-6 h-6 animate-spin mx-auto" />
+                    {failureCount > 0 ? (
+                      <p className="text-xs">Still trying to reach the server…</p>
+                    ) : null}
+                  </td>
+                </tr>
               ) : isError ? (
                 <tr>
                   <td colSpan={9} className="py-12 text-center text-sm text-muted-foreground space-y-2">
                     <p className="text-red-600 dark:text-red-400">{extractApiError(error, 'Could not load invoices')}</p>
+                    <p className="text-xs">If this persists after a refresh, confirm the API is up (port 8000) or hard-refresh the page after Vite reloads.</p>
                     <Button type="button" variant="outline" size="sm" onClick={() => refetch()}>Retry</Button>
                   </td>
                 </tr>
@@ -514,7 +574,10 @@ export default function InvoicesPage() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => printInvoice(inv as Record<string, unknown>, (invSettings || {}) as Partial<InvoiceSettings>, window.location.origin)}
+                          onClick={async () => {
+                            const { printInvoice } = await import('@/lib/invoiceTemplates')
+                            printInvoice(inv as Record<string, unknown>, (invSettings || {}) as Partial<InvoiceSettings>, window.location.origin)
+                          }}
                           title="Print / Save as PDF"
                           className={TABLE_ICON_BTN}
                           aria-label="Print invoice"
@@ -605,6 +668,8 @@ type LineItemDraft = {
   lineKey: string
   name: string
   description: string
+  /** Editable variant name (manual entry or from catalogue); merged into API description on save */
+  variant_label: string
   /** Shown under Variant; merged into API description on save */
   variant_note: string
   /** Shown under HSN/SAC; merged into API description on save */
@@ -619,6 +684,8 @@ type LineItemDraft = {
   qty: number
   rate: number
   discount: number
+  /** UI-only; kept in sync when qty/rate/discount changes; API stores flat discount only */
+  discount_pct: number
   tax_rate: number
   product_id?: string
   variant_id?: string
@@ -645,13 +712,14 @@ const LINE_NOTE_TAGS: Array<{
 /** Split stored API description into main + per-column notes */
 function parseLineDescription(raw?: string): Pick<
   LineItemDraft,
-  'description' | 'variant_note' | 'hsn_note' | 'qty_note' | 'rate_note' | 'tax_note'
+  'description' | 'variant_label' | 'variant_note' | 'hsn_note' | 'qty_note' | 'rate_note' | 'tax_note'
 > {
   const s = String(raw || '')
   const hits = LINE_NOTE_TAGS.map(({ key, tag }) => ({ key, tag, idx: s.indexOf(tag) }))
     .filter(h => h.idx >= 0)
   const empty = {
     description: s,
+    variant_label: '',
     variant_note: '',
     hsn_note: '',
     qty_note: '',
@@ -670,6 +738,11 @@ function parseLineDescription(raw?: string): Pick<
     const end = i + 1 < hits.length ? hits[i + 1].idx : s.length
     out[key] = stripLead(s.slice(start, end))
   }
+  if (out.variant_note && !out.variant_label) {
+    const lines = out.variant_note.split('\n')
+    out.variant_label = lines[0] || ''
+    out.variant_note = lines.slice(1).join('\n').trim()
+  }
   return out
 }
 
@@ -677,7 +750,12 @@ function mergeLineDescriptionForApi(row: LineItemDraft): string | undefined {
   const main = (row.description || '').trim()
   const blocks: string[] = []
   if (main) blocks.push(main)
+  const variantCombined = [(row.variant_label || '').trim(), (row.variant_note || '').trim()]
+    .filter(Boolean)
+    .join('\n')
+  if (variantCombined) blocks.push(`${VARIANT_NOTE_TAG}\n${variantCombined}`)
   for (const { key, tag } of LINE_NOTE_TAGS) {
+    if (key === 'variant_note') continue
     const t = (row[key] || '').trim()
     if (t) blocks.push(`${tag}\n${t}`)
   }
@@ -696,6 +774,7 @@ function emptySalesLine(): LineItemDraft {
     lineKey: newLineKey(),
     name: '',
     description: '',
+    variant_label: '',
     variant_note: '',
     hsn_note: '',
     qty_note: '',
@@ -705,8 +784,67 @@ function emptySalesLine(): LineItemDraft {
     qty: 1,
     rate: 0,
     discount: 0,
+    discount_pct: 0,
     tax_rate: 18,
   }
+}
+
+function syncLineDiscountFromPct(row: LineItemDraft, qty?: number, rate?: number): LineItemDraft {
+  const q = qty ?? row.qty
+  const r = rate ?? row.rate
+  const base = Number(q) * Number(r)
+  const pct = Math.max(0, Math.min(100, Number(row.discount_pct) || 0))
+  if (pct > 0 && base > 0) {
+    return { ...row, qty: q, rate: r, discount: Math.round(base * pct) / 100, discount_pct: pct }
+  }
+  const disc = Math.max(0, Math.min(base, Number(row.discount) || 0))
+  return {
+    ...row,
+    qty: q,
+    rate: r,
+    discount: disc,
+    discount_pct: base > 0 ? Math.round((disc / base) * 10000) / 100 : 0,
+  }
+}
+
+/** Top Rate field must be a number > 0 (text in the note row does not count). */
+function isValidInvoiceLine(row: LineItemDraft): boolean {
+  const name = (row.name || '').trim()
+  const rate = Number(row.rate)
+  const qty = Number(row.qty)
+  return (
+    name.length > 0
+    && Number.isFinite(rate)
+    && rate > 0
+    && Number.isFinite(qty)
+    && qty > 0
+  )
+}
+
+function createInvoiceBlockReason(
+  items: LineItemDraft[],
+  opts: {
+    isQuotation: boolean
+    customerId: string
+    customerName: string
+    invoiceNumberAvailable?: boolean
+  },
+): string | null {
+  if (!opts.isQuotation) {
+    const hasCustomer = Boolean(opts.customerId) || Boolean((opts.customerName || '').trim())
+    if (!hasCustomer) return 'Select or create a customer.'
+  }
+  if (opts.invoiceNumberAvailable === false) {
+    return 'This invoice number is already used — change the sequence or prefix.'
+  }
+  if (items.some(isValidInvoiceLine)) return null
+  if (!items.some(i => (i.name || '').trim())) {
+    return 'Add at least one line item with an item name.'
+  }
+  if (!items.some(i => Number(i.qty) > 0)) {
+    return 'Enter quantity greater than 0.'
+  }
+  return 'Enter a unit rate greater than 0 in the top Rate box (not the “Rate note” line below).'
 }
 
 function activeVariantsOf(item: CatalogueItem | undefined): CatalogueVariant[] {
@@ -720,7 +858,7 @@ function isSingleDefaultVariant(item: CatalogueItem) {
 }
 
 function ItemSearchRow({
-  item, index, onUpdate, onPatch, onRemove, catalogue, compact = false,
+  item, index, onUpdate, onPatch, onRemove, catalogue, compact = false, isInterState = false,
 }: {
   item: LineItemDraft
   index: number
@@ -729,6 +867,7 @@ function ItemSearchRow({
   onRemove: () => void
   catalogue: CatalogueItem[]
   compact?: boolean
+  isInterState?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState<'all' | 'product' | 'service'>('all')
@@ -812,6 +951,7 @@ function ItemSearchRow({
       onPatch({
         name: c.name,
         description: '',
+        variant_label: '',
         variant_note: '',
         hsn_note: '',
         qty_note: '',
@@ -836,6 +976,7 @@ function ItemSearchRow({
     onPatch({
       name: displayName,
       description: '',
+      variant_label: chosen?.name || '',
       variant_note: '',
       hsn_note: '',
       qty_note: '',
@@ -862,6 +1003,11 @@ function ItemSearchRow({
   const fieldClass = compact
     ? 'h-7 w-full rounded-md border border-gray-200 px-1.5 text-[11px] focus:outline-none focus:ring-1 focus:ring-blue-400'
     : 'h-10 w-full rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400'
+
+  const taxRateOptions = useMemo(() => {
+    const rates = new Set([0, 5, 12, 18, 28, Number(item.tax_rate) || 0])
+    return [...rates].sort((a, b) => a - b).map(v => ({ value: String(v), label: `${v}%` }))
+  }, [item.tax_rate])
 
   const menu =
     open && menuPos && typeof document !== 'undefined'
@@ -1048,6 +1194,7 @@ function ItemSearchRow({
                 name: e.target.value,
                 product_id: undefined,
                 variant_id: undefined,
+                variant_label: '',
                 kind: undefined,
               })
               setVariantPickFor(null)
@@ -1082,12 +1229,11 @@ function ItemSearchRow({
           />
         ) : (
           <input
-            className={cn(fieldClass, 'bg-gray-50 text-gray-400')}
-            value={rowVariants[0]?.name || (item.kind === 'service' ? '—' : '')}
-            readOnly
-            tabIndex={-1}
+            className={cn(fieldClass, 'bg-white')}
             placeholder="Variant"
-            title={rowVariants[0]?.name || 'No variants'}
+            aria-label={`Line ${index + 1} variant`}
+            value={item.variant_label || rowVariants[0]?.name || ''}
+            onChange={e => onUpdate('variant_label', e.target.value)}
           />
         )}
         <input
@@ -1127,9 +1273,23 @@ function ItemSearchRow({
           onChange={e => onUpdate('qty_note', e.target.value)}
         />
       </div>
-      <div className="flex w-[6.5rem] shrink-0 flex-col gap-0.5 sm:w-28">
-        <input type="number" min={0} placeholder="Rate" className={fieldClass}
-          value={item.rate} onChange={e => onUpdate('rate', Number(e.target.value))} />
+      <div className="flex w-[6.5rem] shrink-0 flex-col gap-0.5 sm:w-[7.25rem]">
+        <div className="relative">
+          <span className={cn('pointer-events-none absolute top-1/2 -translate-y-1/2 text-gray-400', compact ? 'left-1 text-[10px]' : 'left-2 text-xs')}>₹</span>
+          <input
+            type="number"
+            min={0}
+            step="any"
+            placeholder="0.00"
+            title="Price per item"
+            className={cn(fieldClass, compact ? 'pl-4' : 'pl-6')}
+            value={Number.isFinite(item.rate) ? item.rate : ''}
+            onChange={e => {
+              const n = parseFloat(e.target.value)
+              onUpdate('rate', Number.isFinite(n) ? n : 0)
+            }}
+          />
+        </div>
         <input
           className={noteFieldClass}
           placeholder="Rate note"
@@ -1138,9 +1298,69 @@ function ItemSearchRow({
           onChange={e => onUpdate('rate_note', e.target.value)}
         />
       </div>
-      <div className="flex w-12 shrink-0 flex-col gap-0.5 sm:w-14">
-        <input type="number" min={0} max={100} placeholder="Tax%" className={cn(fieldClass, 'text-center')}
-          value={item.tax_rate} onChange={e => onUpdate('tax_rate', Number(e.target.value))} />
+      <div className="flex w-[5.25rem] shrink-0 flex-col gap-0.5 sm:w-24">
+        <div className="relative">
+          <span className={cn('pointer-events-none absolute top-1/2 -translate-y-1/2 text-gray-400', compact ? 'left-1 text-[10px]' : 'left-2 text-xs')}>₹</span>
+          <input
+            type="number"
+            min={0}
+            step="any"
+            title="Discount amount"
+            className={cn(fieldClass, compact ? 'pl-4' : 'pl-6')}
+            value={Number.isFinite(item.discount) ? item.discount : ''}
+            onChange={e => {
+              const n = parseFloat(e.target.value)
+              const disc = Number.isFinite(n) ? Math.max(0, n) : 0
+              const base = item.qty * item.rate
+              const capped = Math.min(disc, base)
+              const pct = base > 0 ? Math.round((capped / base) * 10000) / 100 : 0
+              onPatch({ discount: capped, discount_pct: pct })
+            }}
+          />
+        </div>
+        <div className="relative">
+          <input
+            type="number"
+            min={0}
+            max={100}
+            step="any"
+            title="Discount %"
+            placeholder="%"
+            className={cn(fieldClass, 'pr-4 text-center')}
+            value={Number.isFinite(item.discount_pct) ? item.discount_pct : ''}
+            onChange={e => {
+              const n = parseFloat(e.target.value)
+              const pct = Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 0
+              const base = item.qty * item.rate
+              onPatch({ discount_pct: pct, discount: base > 0 ? Math.round(base * pct) / 100 : 0 })
+            }}
+          />
+          <span className={cn('pointer-events-none absolute top-1/2 -translate-y-1/2 text-gray-400', compact ? 'right-1 text-[10px]' : 'right-2 text-xs')}>%</span>
+        </div>
+      </div>
+      <div className="flex w-[4.75rem] shrink-0 flex-col gap-0.5 sm:w-[5.25rem]">
+        <Select
+          className={cn(fieldClass, 'bg-white px-0.5')}
+          triggerClassName={compact ? 'h-7 px-1 text-[11px]' : 'h-10 px-2 text-sm'}
+          value={String(item.tax_rate)}
+          onChange={v => onUpdate('tax_rate', Number(v))}
+          options={taxRateOptions}
+          aria-label={`Line ${index + 1} tax rate`}
+        />
+        <p className={cn('text-center text-gray-500 leading-tight', compact ? 'text-[9px]' : 'text-[10px]')}>
+          ({formatCurrency(lineTaxTotal(item, isInterState))})
+        </p>
+      </div>
+      <div className={cn('flex shrink-0 flex-col justify-start', compact ? 'w-[5.5rem] sm:w-24' : 'w-28')}>
+        <div
+          className={cn(
+            'flex w-full items-center justify-end rounded-md border border-gray-200 bg-gray-50 font-medium text-gray-800',
+            compact ? 'h-7 px-1 text-[11px]' : 'h-10 px-2 text-sm',
+          )}
+          title="Line total (after discount + tax)"
+        >
+          {formatCurrency(lineGrossTotal(item, isInterState))}
+        </div>
         <input
           className={noteFieldClass}
           placeholder="Tax note"
@@ -1160,6 +1380,144 @@ function ItemSearchRow({
         <Trash2 className={cn('text-red-400', compact ? 'h-3.5 w-3.5' : 'h-4 w-4')} />
       </button>
     </div>
+    </div>
+  )
+}
+
+function parseNetDaysFromTerms(terms: string): number | null {
+  const t = terms.trim()
+  if (!t) return null
+  if (/due\s+on\s+receipt/i.test(t)) return 0
+  const m = t.match(/(\d+)\s*days?/i)
+  return m ? parseInt(m[1], 10) : null
+}
+
+function formatNetTerms(days: number): string {
+  if (days === 0) return 'Due on receipt'
+  return `Net ${days} day${days === 1 ? '' : 's'}`
+}
+
+function addDaysToDateString(isoDate: string, days: number): string {
+  const d = new Date(isoDate.slice(0, 10))
+  d.setDate(d.getDate() + days)
+  return d.toISOString().slice(0, 10)
+}
+
+function daysBetweenInvoiceAndDue(invoiceDate: string, dueDate: string): number | null {
+  if (!invoiceDate || !dueDate) return null
+  const a = new Date(invoiceDate.slice(0, 10))
+  const b = new Date(dueDate.slice(0, 10))
+  const diff = Math.round((b.getTime() - a.getTime()) / 86_400_000)
+  return diff >= 0 ? diff : null
+}
+
+type PoPickRow = { id: string; po_number: string; supplier_name?: string; status?: string }
+
+function PurchaseOrderRefPicker({
+  value,
+  onChange,
+}: {
+  value: string
+  onChange: (poNumber: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState(value)
+  const [debounced, setDebounced] = useState('')
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(query.trim()), 300)
+    return () => clearTimeout(t)
+  }, [query])
+
+  useEffect(() => {
+    if (!open) setQuery(value)
+  }, [value, open])
+
+  const canPickPo = useHasPermission('procurement.view')
+  const { data, isFetching, isError, error } = useQuery({
+    queryKey: ['invoice-create-po-picker', debounced],
+    queryFn: () => vendorApi.listPurchaseOrders({ size: 100, search: debounced || undefined }),
+    enabled: open && canPickPo,
+    staleTime: 20_000,
+  })
+  const rows = (data?.items ?? []) as PoPickRow[]
+
+  return (
+    <div className="relative min-w-0">
+      <Label className="text-xs">PO / order ref (on print)</Label>
+      <div className="relative mt-0.5">
+        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          className="h-8 w-full pl-8 pr-8 font-mono text-sm"
+          placeholder="Search or select a purchase order…"
+          value={query}
+          onFocus={() => setOpen(true)}
+          onChange={e => {
+            setQuery(e.target.value)
+            onChange(e.target.value)
+            setOpen(true)
+          }}
+        />
+        {query ? (
+          <button
+            type="button"
+            aria-label="Clear PO reference"
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
+            onClick={() => {
+              setQuery('')
+              onChange('')
+              setOpen(false)
+            }}
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        ) : null}
+      </div>
+      <p className="mt-0.5 text-[10px] text-muted-foreground">Shown in the invoice meta box with due date.</p>
+      {open ? (
+        <div className="absolute left-0 right-0 top-full z-40 mt-1 max-h-48 overflow-y-auto rounded-lg border border-border bg-card shadow-lg">
+          {!canPickPo ? (
+            <p className="px-3 py-3 text-xs text-muted-foreground">
+              You need procurement view access to pick a PO. You can still type a reference manually above.
+            </p>
+          ) : isFetching ? (
+            <p className="flex items-center justify-center gap-2 px-3 py-3 text-xs text-muted-foreground">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Loading POs…
+            </p>
+          ) : isError ? (
+            <p className="px-3 py-3 text-xs text-red-600">{extractApiError(error, 'Could not load purchase orders')}</p>
+          ) : rows.length === 0 ? (
+            <p className="px-3 py-3 text-xs text-muted-foreground">No purchase orders found.</p>
+          ) : (
+            rows.map(po => (
+              <button
+                key={po.id}
+                type="button"
+                className="w-full border-b border-border px-3 py-2 text-left transition-colors last:border-0 hover:bg-muted/60"
+                onClick={() => {
+                  const num = po.po_number || ''
+                  setQuery(num)
+                  onChange(num)
+                  setOpen(false)
+                }}
+              >
+                <p className="font-mono text-sm font-medium text-foreground">{po.po_number}</p>
+                <p className="text-xs text-muted-foreground">
+                  {[po.supplier_name, po.status?.replace(/_/g, ' ')].filter(Boolean).join(' · ')}
+                </p>
+              </button>
+            ))
+          )}
+          <button
+            type="button"
+            className="w-full px-3 py-2 text-xs text-muted-foreground hover:bg-muted/40"
+            onClick={() => setOpen(false)}
+          >
+            Close
+          </button>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -1197,6 +1555,7 @@ export function CreateInvoiceModal({
   const [form, setForm] = useState({
     invoice_type: defaultType,
     order_id: prefill?.order_id || '',
+    order_number: '',
     customer_id: prefill?.customer_id || '',
     sales_area_id: prefill?.sales_area_id || '',
     customer_name: prefill?.customer_name || '',
@@ -1213,6 +1572,9 @@ export function CreateInvoiceModal({
     terms_and_conditions: prefill?.terms_and_conditions || (defaultType === 'estimate'
       ? 'This quotation is valid until the date shown above. Prices are subject to change after expiry.'
       : ''),
+    number_prefix: '',
+    number_suffix: '',
+    number_sequence: '',
   })
   const [items, setItems] = useState<LineItemDraft[]>(
     prefill?.items?.length
@@ -1222,6 +1584,7 @@ export function CreateInvoiceModal({
           lineKey: row.lineKey ?? newLineKey(),
           name: row.name ?? '',
           description: fromApi.description,
+          variant_label: fromApi.variant_label,
           variant_note: fromApi.variant_note,
           hsn_note: fromApi.hsn_note,
           qty_note: fromApi.qty_note,
@@ -1231,6 +1594,12 @@ export function CreateInvoiceModal({
           qty: row.qty ?? 1,
           rate: row.rate ?? 0,
           discount: row.discount ?? 0,
+          discount_pct: discountPctFromLine({
+            qty: row.qty ?? 1,
+            rate: row.rate ?? 0,
+            discount: row.discount ?? 0,
+            tax_rate: row.tax_rate ?? 18,
+          }),
           tax_rate: row.tax_rate ?? 18,
           product_id: row.product_id,
           variant_id: row.variant_id,
@@ -1246,10 +1615,72 @@ export function CreateInvoiceModal({
   const [custOpen, setCustOpen] = useState(false)
   const [showQuickCreate, setShowQuickCreate] = useState(false)
   const [extraFields, setExtraFields] = useState<QuotationExtraField[]>([])
+  const [additionalCharges, setAdditionalCharges] = useState<InvoiceAdditionalChargeRow[]>([])
+  const [discountAmount, setDiscountAmount] = useState(0)
+  const [paymentReceived, setPaymentReceived] = useState(0)
+  const [paymentMethod, setPaymentMethod] = useState('cash')
+  const [markFullyPaid, setMarkFullyPaid] = useState(false)
   const [storeId, setStoreId] = useState(prefill?.store_id || '')
   const [branchId, setBranchId] = useState('')
   const effectiveStoreId = branchId || storeId
   const isQuotation = defaultType === 'estimate'
+  const { data: invSettings } = useInvoiceSettings()
+  const { data: quoteSettings } = useQuotationSettings()
+  const savedNumbering = isQuotation ? quoteSettings : invSettings
+  const defaultDocPrefix = defaultType === 'estimate' ? 'EST' : defaultType === 'credit_note' ? 'CN' : 'INV'
+  const parsedSequence = form.number_sequence.trim()
+    ? Math.max(1, parseInt(form.number_sequence, 10) || 1)
+    : undefined
+
+  const { data: numberPreview, isFetching: numberPreviewLoading } = useQuery({
+    queryKey: [
+      'invoice-number-preview',
+      defaultType,
+      form.number_prefix,
+      form.number_suffix,
+      parsedSequence,
+    ],
+    queryFn: () => vendorApi.previewInvoiceNumber({
+      invoice_type: defaultType,
+      number_prefix: form.number_prefix,
+      number_suffix: form.number_suffix,
+      number_sequence: parsedSequence,
+    }),
+    staleTime: 4_000,
+  })
+
+  const docNumberPreview = numberPreview?.invoice_number
+    ?? previewDocumentNumber(
+      form.number_prefix,
+      form.number_suffix,
+      defaultDocPrefix,
+      parsedSequence ?? 1,
+    )
+
+  const numberAvailable = numberPreview?.available !== false
+
+  useEffect(() => {
+    if (!savedNumbering) return
+    setForm((f) => {
+      if (f.number_prefix !== '' || f.number_suffix !== '') return f
+      return {
+        ...f,
+        number_prefix: String(savedNumbering.number_prefix || ''),
+        number_suffix: String(savedNumbering.number_suffix || ''),
+      }
+    })
+  }, [savedNumbering])
+
+  const sequenceBootstrapped = useRef(false)
+  useEffect(() => {
+    if (sequenceBootstrapped.current || !numberPreview?.suggested_sequence) return
+    sequenceBootstrapped.current = true
+    setForm((f) => (
+      f.number_sequence.trim()
+        ? f
+        : { ...f, number_sequence: String(numberPreview.suggested_sequence) }
+    ))
+  }, [numberPreview?.suggested_sequence])
 
   // Catalogue — products + services scoped to the selected business unit
   const { data: productsData } = useProducts({ size: 200, store_id: effectiveStoreId || undefined })
@@ -1293,6 +1724,23 @@ export function CreateInvoiceModal({
     queryFn: () => vendorApi.listInvoices({ invoice_type: defaultType, size: 100 }),
     staleTime: 30_000,
   })
+  const { data: linkableOrdersData } = useQuery({
+    queryKey: ['invoice-create-orders', effectiveStoreId, form.customer_id],
+    queryFn: () => vendorApi.listOrders({
+      size: 50,
+      store_id: effectiveStoreId || undefined,
+      customer_id: form.customer_id || undefined,
+    }),
+    enabled: !isQuotation,
+    staleTime: 30_000,
+  })
+  const linkableOrders = (linkableOrdersData?.items ?? []) as Array<{
+    id: string
+    order_number?: string
+    customer_id?: string
+    customer_name?: string
+    status?: string
+  }>
   const copySuggestions = useMemo(() => {
     const items = (copyDocs?.items ?? []) as Array<Record<string, unknown>>
     return items.map(inv => ({
@@ -1324,13 +1772,10 @@ export function CreateInvoiceModal({
       // Build payment terms label + auto-compute due date from customer master
       let payment_terms = f.payment_terms
       let due_date = f.due_date
-      if (c.payment_terms_days) {
-        payment_terms = `Net ${c.payment_terms_days} days`
-        // Base the due date on today's invoice date (or the one already in the form)
+      if (c.payment_terms_days != null && c.payment_terms_days >= 0) {
+        payment_terms = formatNetTerms(c.payment_terms_days)
         const base = f.invoice_date || new Date().toISOString().slice(0, 10)
-        const d = new Date(base)
-        d.setDate(d.getDate() + c.payment_terms_days)
-        due_date = d.toISOString().slice(0, 10)
+        due_date = addDaysToDateString(base, c.payment_terms_days)
       }
       return {
         ...f,
@@ -1354,7 +1799,11 @@ export function CreateInvoiceModal({
   const updateLine = useCallback((i: number, field: string, value: string | number) => {
     setItems(prev => {
       const updated = [...prev]
-      updated[i] = { ...updated[i], [field]: value }
+      let row = { ...updated[i], [field]: value }
+      if (field === 'qty' || field === 'rate') {
+        row = syncLineDiscountFromPct(row)
+      }
+      updated[i] = row
       return updated
     })
   }, [])
@@ -1395,6 +1844,7 @@ export function CreateInvoiceModal({
               lineKey: it.lineKey ?? newLineKey(),
               name: it.name ?? '',
               description: parsed.description,
+              variant_label: parsed.variant_label,
               variant_note: parsed.variant_note,
               hsn_note: parsed.hsn_note,
               qty_note: parsed.qty_note,
@@ -1404,6 +1854,12 @@ export function CreateInvoiceModal({
               qty: it.qty ?? 1,
               rate: it.rate ?? 0,
               discount: it.discount ?? 0,
+              discount_pct: discountPctFromLine({
+                qty: it.qty ?? 1,
+                rate: it.rate ?? 0,
+                discount: it.discount ?? 0,
+                tax_rate: it.tax_rate ?? 18,
+              }),
               tax_rate: it.tax_rate ?? 18,
               product_id: it.product_id,
               variant_id: it.variant_id,
@@ -1412,6 +1868,15 @@ export function CreateInvoiceModal({
           }),
         )
       }
+      setDiscountAmount(Number(inv.discount_amount) || 0)
+      setAdditionalCharges(
+        normalizeInvoiceAdditionalCharges(inv.additional_charges).map((c) => ({
+          id: c.id,
+          name: c.name,
+          amount: String(c.amount),
+          tax_rate: String(c.tax_rate),
+        })),
+      )
       setCopiedFromNumber(String(inv.invoice_number || number))
       toast.success(`Copied from ${String(inv.invoice_number || number)}. A new number is assigned when you save.`)
     } catch (err) {
@@ -1422,11 +1887,27 @@ export function CreateInvoiceModal({
     }
   }
 
-  const subtotal = items.reduce((s, i) => s + i.qty * i.rate, 0)
-  const totalTax = items.reduce((s, i) => {
-    const taxable = i.qty * i.rate - i.discount
-    return s + taxable * i.tax_rate / 100
-  }, 0)
+  const totalsPreview = useMemo(
+    () => computeInvoiceTotalsPreview(items, additionalCharges, discountAmount, form.is_inter_state),
+    [items, additionalCharges, discountAmount, form.is_inter_state],
+  )
+
+  useEffect(() => {
+    if (markFullyPaid) {
+      setPaymentReceived(totalsPreview.grandTotal)
+    }
+  }, [markFullyPaid, totalsPreview.grandTotal])
+
+  const createBlockReason = useMemo(
+    () => createInvoiceBlockReason(items, {
+      isQuotation,
+      customerId: form.customer_id,
+      customerName: form.customer_name,
+      invoiceNumberAvailable: numberAvailable,
+    }),
+    [items, isQuotation, form.customer_id, form.customer_name, numberAvailable],
+  )
+  const canCreate = createBlockReason === null
 
   const handleCreate = async () => {
     setLoading(true)
@@ -1435,6 +1916,7 @@ export function CreateInvoiceModal({
         ...form,
         store_id: effectiveStoreId || undefined,
         order_id: form.order_id || undefined,
+        order_number: form.order_number?.trim() || undefined,
         customer_id: form.customer_id || undefined,
         sales_area_id: form.sales_area_id || undefined,
         items: items.map((row) => ({
@@ -1446,7 +1928,20 @@ export function CreateInvoiceModal({
           discount: row.discount,
           tax_rate: row.tax_rate,
         })),
+        additional_charges: invoiceAdditionalChargesForSave(additionalCharges),
+        discount_amount: discountAmount,
         ...(isQuotation ? { extra_fields: serializeQuotationExtraFields(extraFields) } : {}),
+        number_prefix: form.number_prefix,
+        number_suffix: form.number_suffix,
+        ...(parsedSequence ? { number_sequence: parsedSequence } : {}),
+        ...(!isQuotation && paymentReceived > 0
+          ? {
+            initial_payment: {
+              amount: Math.min(paymentReceived, totalsPreview.grandTotal),
+              payment_method: paymentMethod,
+            },
+          }
+          : {}),
       }
       const created = await vendorApi.createInvoice(payload)
       const kind = defaultType === 'estimate' ? 'Quotation' : 'Invoice'
@@ -1520,6 +2015,81 @@ export function CreateInvoiceModal({
                   className="mt-0.5 min-w-0 w-full"
                   triggerClassName="h-8"
                 />
+              </div>
+
+              <div className="min-w-0 sm:col-span-6 rounded-md border border-border bg-muted/40 px-3 py-2.5">
+                <div className="grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-12">
+                  <div className="flex min-w-0 flex-col sm:col-span-3">
+                    <Label className="h-4 text-xs leading-4">
+                      {isQuotation ? 'Quotation prefix' : 'Invoice prefix'}
+                    </Label>
+                    <Input
+                      className="mt-1 h-8 font-mono text-sm"
+                      placeholder={defaultDocPrefix}
+                      value={form.number_prefix}
+                      onChange={e => setForm(f => ({ ...f, number_prefix: e.target.value }))}
+                    />
+                    <p className="mt-0.5 h-4 text-[10px] leading-4 text-transparent select-none" aria-hidden>
+                      –
+                    </p>
+                  </div>
+                  <div className="flex min-w-0 flex-col sm:col-span-3">
+                    <Label className="h-4 text-xs leading-4">Invoice number</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={999999}
+                      className="mt-1 h-8 font-mono text-sm"
+                      placeholder="Auto"
+                      value={form.number_sequence}
+                      onChange={e => setForm(f => ({ ...f, number_sequence: e.target.value }))}
+                    />
+                    <p className="mt-0.5 h-4 text-[10px] leading-4 text-muted-foreground">
+                      Next free: {numberPreview?.suggested_sequence ?? '…'}
+                    </p>
+                  </div>
+                  <div className="flex min-w-0 flex-col sm:col-span-3">
+                    <Label className="h-4 text-xs leading-4">Suffix (optional)</Label>
+                    <Input
+                      className="mt-1 h-8 font-mono text-sm"
+                      placeholder="e.g. BR01"
+                      value={form.number_suffix}
+                      onChange={e => setForm(f => ({ ...f, number_suffix: e.target.value }))}
+                    />
+                    <p className="mt-0.5 h-4 text-[10px] leading-4 text-transparent select-none" aria-hidden>
+                      –
+                    </p>
+                  </div>
+                  <div className="flex min-w-0 flex-col sm:col-span-3">
+                    <Label className="h-4 text-xs leading-4">
+                      Preview{numberPreviewLoading ? '…' : ''}
+                    </Label>
+                    <div
+                      className={cn(
+                        'mt-1 flex h-8 min-w-0 items-center rounded-md border border-border bg-background px-2',
+                        !numberAvailable && 'border-destructive/50 bg-destructive/5',
+                      )}
+                      title={docNumberPreview}
+                    >
+                      <span
+                        className={cn(
+                          'truncate font-mono text-[11px] font-medium',
+                          numberAvailable ? 'text-foreground' : 'text-destructive',
+                        )}
+                      >
+                        {docNumberPreview}
+                      </span>
+                    </div>
+                    <p
+                      className={cn(
+                        'mt-0.5 h-4 text-[10px] leading-4',
+                        numberAvailable ? 'text-muted-foreground' : 'text-destructive',
+                      )}
+                    >
+                      {numberAvailable ? 'Available' : 'Already in use'}
+                    </p>
+                  </div>
+                </div>
               </div>
 
               <div className="relative min-w-0 sm:col-span-2">
@@ -1657,6 +2227,47 @@ export function CreateInvoiceModal({
               )}
 
               {!isQuotation && (
+                <div className="min-w-0 sm:col-span-4">
+                  <Label className="text-xs">Link sales order (optional)</Label>
+                  <Select
+                    className="mt-0.5 w-full"
+                    triggerClassName="h-8 text-sm"
+                    value={form.order_id || ''}
+                    placeholder="Optional — pick an open order"
+                    onChange={(orderId) => {
+                      const hit = linkableOrders.find(o => o.id === orderId)
+                      setForm(f => ({
+                        ...f,
+                        order_id: orderId,
+                        order_number: hit?.order_number || f.order_number,
+                        ...(hit?.customer_id ? { customer_id: hit.customer_id } : {}),
+                        ...(hit?.customer_name
+                          ? { customer_name: hit.customer_name }
+                          : {}),
+                      }))
+                      if (hit?.customer_name) setCustSearch(hit.customer_name)
+                    }}
+                    options={[
+                      { value: '', label: '— None —' },
+                      ...linkableOrders.map(o => ({
+                        value: o.id,
+                        label: `${o.order_number || o.id}${o.customer_name ? ` · ${o.customer_name}` : ''}`,
+                      })),
+                    ]}
+                  />
+                </div>
+              )}
+
+              {!isQuotation && (
+                <div className="min-w-0 sm:col-span-2">
+                  <PurchaseOrderRefPicker
+                    value={form.order_number}
+                    onChange={order_number => setForm(f => ({ ...f, order_number }))}
+                  />
+                </div>
+              )}
+
+              {!isQuotation && (
                 <div className="min-w-0 sm:col-span-2">
                   <Label className="text-xs">Invoice date</Label>
                   <Input
@@ -1666,15 +2277,16 @@ export function CreateInvoiceModal({
                     onChange={e => {
                       const invoice_date = e.target.value
                       setForm(f => {
-                        // Re-compute due date when invoice date changes and we have payment terms
                         let due_date = f.due_date
-                        const termMatch = f.payment_terms?.match(/(\d+)\s*days?/i)
-                        if (termMatch && invoice_date) {
-                          const d = new Date(invoice_date)
-                          d.setDate(d.getDate() + parseInt(termMatch[1]))
-                          due_date = d.toISOString().slice(0, 10)
+                        let payment_terms = f.payment_terms
+                        const netDays = parseNetDaysFromTerms(f.payment_terms || '')
+                        if (netDays != null && invoice_date) {
+                          due_date = addDaysToDateString(invoice_date, netDays)
+                        } else if (f.due_date && invoice_date) {
+                          const gap = daysBetweenInvoiceAndDue(invoice_date, f.due_date)
+                          if (gap != null) payment_terms = formatNetTerms(gap)
                         }
-                        return { ...f, invoice_date, due_date }
+                        return { ...f, invoice_date, due_date, payment_terms }
                       })
                     }}
                   />
@@ -1700,7 +2312,17 @@ export function CreateInvoiceModal({
                     type="date"
                     className="mt-0.5 h-8 w-full min-w-0 text-sm"
                     value={form.due_date}
-                    onChange={e => setForm({ ...form, due_date: e.target.value })}
+                    onChange={e => {
+                      const due_date = e.target.value
+                      setForm(f => {
+                        let payment_terms = f.payment_terms
+                        if (f.invoice_date && due_date) {
+                          const gap = daysBetweenInvoiceAndDue(f.invoice_date, due_date)
+                          if (gap != null) payment_terms = formatNetTerms(gap)
+                        }
+                        return { ...f, due_date, payment_terms }
+                      })
+                    }}
                   />
                 </div>
               )}
@@ -1715,13 +2337,10 @@ export function CreateInvoiceModal({
                     onChange={e => {
                       const payment_terms = e.target.value
                       setForm(f => {
-                        // Re-compute due date on manual terms edit
                         let due_date = f.due_date
-                        const termMatch = payment_terms.match(/(\d+)\s*days?/i)
-                        if (termMatch && f.invoice_date) {
-                          const d = new Date(f.invoice_date)
-                          d.setDate(d.getDate() + parseInt(termMatch[1]))
-                          due_date = d.toISOString().slice(0, 10)
+                        const netDays = parseNetDaysFromTerms(payment_terms)
+                        if (netDays != null && f.invoice_date) {
+                          due_date = addDaysToDateString(f.invoice_date, netDays)
                         }
                         return { ...f, payment_terms, due_date }
                       })
@@ -1789,8 +2408,10 @@ export function CreateInvoiceModal({
               <FormColumnLabel className="w-[6.25rem] shrink-0 text-[9px] sm:w-24">Variant</FormColumnLabel>
               <FormColumnLabel className="w-20 shrink-0 text-[9px] sm:w-[5.25rem]">HSN</FormColumnLabel>
               <FormColumnLabel className="w-[4.25rem] shrink-0 text-center text-[9px] sm:w-24">Qty</FormColumnLabel>
-              <FormColumnLabel className="w-[6.5rem] shrink-0 text-[9px] sm:w-28">Rate</FormColumnLabel>
-              <FormColumnLabel className="w-12 shrink-0 text-center text-[9px] sm:w-14">Tax</FormColumnLabel>
+              <FormColumnLabel className="w-[6.5rem] shrink-0 text-[9px] sm:w-[7.25rem]">Price/item</FormColumnLabel>
+              <FormColumnLabel className="w-[5.25rem] shrink-0 text-center text-[9px] sm:w-24">Discount</FormColumnLabel>
+              <FormColumnLabel className="w-[4.75rem] shrink-0 text-center text-[9px] sm:w-[5.25rem]">Tax</FormColumnLabel>
+              <FormColumnLabel className="w-[5.5rem] shrink-0 text-right text-[9px] sm:w-24">Amount</FormColumnLabel>
               <div className="w-6 shrink-0" />
             </div>
             <div className="max-h-[min(40vh,22rem)] space-y-1 overflow-y-auto overflow-x-auto pr-0.5 [scrollbar-gutter:stable]">
@@ -1804,6 +2425,7 @@ export function CreateInvoiceModal({
                   onRemove={() => removeLine(i)}
                   catalogue={catalogue}
                   compact
+                  isInterState={form.is_inter_state}
                 />
               ))}
             </div>
@@ -1832,27 +2454,74 @@ export function CreateInvoiceModal({
               </div>
             </div>
           ) : (
-            <div>
-              <Label className="text-xs">Notes</Label>
-              <textarea
-                rows={1}
-                className="mt-0.5 min-h-[2.25rem] w-full resize-none rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
-                value={form.notes}
-                onChange={e => setForm({ ...form, notes: e.target.value })}
-                placeholder="Payment notes, delivery instructions…"
-              />
+            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+              <div className="min-w-0">
+                <Label className="text-xs">Notes</Label>
+                <textarea
+                  rows={1}
+                  className="mt-0.5 min-h-[2.25rem] w-full resize-none rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+                  value={form.notes}
+                  onChange={e => setForm({ ...form, notes: e.target.value })}
+                  placeholder="Payment notes, delivery instructions…"
+                />
+              </div>
+              <div className="min-w-0">
+                <Label className="text-xs">Terms &amp; Conditions</Label>
+                <textarea
+                  rows={1}
+                  className="mt-0.5 min-h-[2.25rem] w-full resize-none rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+                  value={form.terms_and_conditions}
+                  onChange={e => setForm({ ...form, terms_and_conditions: e.target.value })}
+                  placeholder="Printed on invoice…"
+                />
+              </div>
             </div>
           )}
+
+          {!isQuotation && (invSettings?.bank_name || invSettings?.account_number) ? (
+            <div className="rounded-md border border-border bg-muted/30 px-2.5 py-2 text-xs text-muted-foreground">
+              <p className="font-medium text-foreground">Bank details (on print)</p>
+              <p className="mt-0.5 font-mono text-[11px]">
+                {[invSettings?.bank_name, invSettings?.account_number, invSettings?.ifsc_code]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </p>
+              <p className="mt-1 text-[10px]">
+                From invoice template settings — edit under Invoices → Templates.
+              </p>
+            </div>
+          ) : null}
 
           {defaultType === 'estimate' && (
             <QuotationExtraFieldsEditor fields={extraFields} onChange={setExtraFields} compact />
           )}
+
+          <div className="flex justify-stretch sm:justify-end">
+            <InvoiceCreateTotalsPanel
+              totals={totalsPreview}
+              isInterState={form.is_inter_state}
+              additionalCharges={additionalCharges}
+              onAdditionalChargesChange={setAdditionalCharges}
+              discountAmount={discountAmount}
+              onDiscountAmountChange={setDiscountAmount}
+              showPaymentSection={!isQuotation}
+              paymentReceived={paymentReceived}
+              onPaymentReceivedChange={setPaymentReceived}
+              paymentMethod={paymentMethod}
+              onPaymentMethodChange={setPaymentMethod}
+              markFullyPaid={markFullyPaid}
+              onMarkFullyPaidChange={setMarkFullyPaid}
+            />
+          </div>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-border bg-muted/15 px-3 py-1.5 sm:gap-3">
           <div className="mr-auto flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-xs">
-            <span className="text-muted-foreground">Subtotal: <span className="font-medium text-foreground">{formatCurrency(subtotal)}</span></span>
-            <span className="text-muted-foreground">Tax: <span className="font-medium text-foreground">{formatCurrency(totalTax)}</span></span>
-            <span className="text-sm font-semibold text-foreground">Total: {formatCurrency(Math.round(subtotal + totalTax))}</span>
+            <span className="text-muted-foreground">Subtotal: <span className="font-medium text-foreground">{formatCurrency(totalsPreview.lineTaxable)}</span></span>
+            {totalsPreview.chargesTotal > 0 && (
+              <span className="text-muted-foreground">Charges: <span className="font-medium text-foreground">{formatCurrency(totalsPreview.chargesTotal)}</span></span>
+            )}
+            <span className="text-muted-foreground">Tax: <span className="font-medium text-foreground">{formatCurrency(totalsPreview.totalTax)}</span></span>
+            <span className="text-sm font-semibold text-foreground">Total: {formatCurrency(totalsPreview.grandTotal)}</span>
           </div>
           <div className="flex shrink-0 gap-2">
             <CopyFromDocumentField
@@ -1864,10 +2533,20 @@ export function CreateInvoiceModal({
               suggestionsLoading={copyDocsLoading}
             />
             <Button variant="cancel" onClick={onClose} className="h-8 px-3 text-sm">Cancel</Button>
-            <Button onClick={handleCreate} disabled={loading || !items.some(i => i.name && i.rate > 0)} className="h-8 gap-2 px-3 text-sm">
+            <Button
+              onClick={handleCreate}
+              disabled={loading || !canCreate}
+              title={createBlockReason ?? undefined}
+              className="h-8 gap-2 px-3 text-sm"
+            >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}Create
             </Button>
           </div>
+          {createBlockReason ? (
+            <p className="w-full text-[11px] text-amber-700 dark:text-amber-400" role="status">
+              {createBlockReason}
+            </p>
+          ) : null}
         </div>
       </div>
 
@@ -1883,7 +2562,8 @@ export function CreateInvoiceModal({
             setShowQuickCreate(false)
           }}
           onClose={() => setShowQuickCreate(false)}
-          returnTo="?returnTo=quotations"
+          onNavigateAway={onClose}
+          returnTo="invoices"
         />
       )}
     </div>,

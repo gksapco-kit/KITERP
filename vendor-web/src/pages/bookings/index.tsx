@@ -1663,7 +1663,7 @@ export default function BookingsPage() {
             setShowQuickCreate(false)
           }}
           onClose={() => setShowQuickCreate(false)}
-          returnTo="?returnTo=bookings"
+          returnTo="bookings"
         />
       )}
 

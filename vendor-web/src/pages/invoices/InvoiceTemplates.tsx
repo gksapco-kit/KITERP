@@ -33,6 +33,7 @@ import {
   REFERENCE_GST_TEMPLATE_ID,
   LOGO_SHAPES, URL_POSITION_OPTIONS,
   INVOICE_TEMPLATE_LABELS, normalizeInvoiceTemplateId, panFromGstin,
+  previewDocumentNumber,
 } from '@/lib/invoiceTemplates'
 import type { InvoiceSettings, PaperSize, LayoutSection, LogoShape, InvoiceTemplateId } from '@/lib/invoiceTemplates'
 import { DocumentLivePreview } from '@/components/common/DocumentLivePreview'
@@ -260,7 +261,7 @@ function InvoiceDocumentPreview({
   const documentWidth = paperSize === '2inch' ? 220
     : paperSize === '3inch' ? 302
     : paperSize === '4inch' ? 393
-    : 720
+    : 794
 
   return (
     <DocumentLivePreview
@@ -274,6 +275,7 @@ function InvoiceDocumentPreview({
       documentWidth={documentWidth}
       previewScale={previewScale}
       containerWidth={containerWidth}
+      paperSize={paperSize}
       headerExtra={templateSelectControl(templateId, onTemplateChange)}
       createBlankPage={createBlankPage}
       emptyMessage={emptyMessage}
@@ -568,6 +570,53 @@ function WebsiteUrlSettings({
   )
 }
 
+function DocumentNumberingSettings({
+  settings,
+  set,
+  defaultPrefix,
+  documentLabel,
+}: {
+  settings: InvoiceSettings
+  set: <K extends keyof InvoiceSettings>(key: K, value: InvoiceSettings[K]) => void
+  defaultPrefix: string
+  documentLabel: string
+}) {
+  const sample = previewDocumentNumber(settings.number_prefix, settings.number_suffix, defaultPrefix)
+  return (
+    <AccordionSection title="Document numbering" defaultOpen>
+      <p className="text-xs text-gray-500 leading-relaxed mb-2">
+        New {documentLabel}s use <span className="font-mono text-gray-700">prefix / financial year / sequence</span>
+        {settings.number_suffix?.trim() ? ' plus your suffix' : ''}. Existing numbers are not changed.
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <Label className="text-xs text-gray-500">Number prefix</Label>
+          <Input
+            className="mt-0.5 text-sm h-8 font-mono"
+            placeholder={defaultPrefix}
+            value={settings.number_prefix || ''}
+            onChange={e => set('number_prefix', e.target.value)}
+          />
+          <p className="text-[10px] text-gray-400 mt-0.5">Default: {defaultPrefix}</p>
+        </div>
+        <div>
+          <Label className="text-xs text-gray-500">Number suffix (optional)</Label>
+          <Input
+            className="mt-0.5 text-sm h-8 font-mono"
+            placeholder="e.g. BR01"
+            value={settings.number_suffix || ''}
+            onChange={e => set('number_suffix', e.target.value)}
+          />
+          <p className="text-[10px] text-gray-400 mt-0.5">Appended after the sequence</p>
+        </div>
+      </div>
+      <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-500 mt-2">
+        Next number preview: <span className="font-mono font-medium text-gray-800">{sample}</span>
+      </div>
+    </AccordionSection>
+  )
+}
+
 // ── Signature drawing canvas ──────────────────────────────────────────────────
 
 function SignaturePad({ onSave, onClear }: { onSave: (dataUrl: string) => void; onClear: () => void }) {
@@ -667,8 +716,9 @@ const SAMPLE_INVOICE = {
   invoice_type: 'invoice',
   status: 'paid',
   created_at: new Date().toISOString(),
-  due_date: null,
+  due_date: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
   financial_year: '2025-26',
+  order_number: 'PO/2025-26/0042',
   vendor_name: 'Your Business Name',
   vendor_gstin: '29ABCDE1234F1Z5',
   vendor_pan: 'ABCDE1234F',
@@ -1021,10 +1071,19 @@ export default function InvoiceSettingsPage() {
       try {
         const generated = await buildInvoicePreviewHtml(sampleData, settings, window.location.origin)
         if (cancelled) return
-        const stored = previewPagesHtmlRef.current || settings.template_pages_html
-        setPreviewHtml(mergeInvoiceTemplatePages(generated, { template_pages_html: stored }, true))
+        const stored = (previewPagesHtmlRef.current || settings.template_pages_html || '').trim()
+        setPreviewHtml(mergeInvoiceTemplatePages(generated, { template_pages_html: stored || undefined }, true))
       } catch {
-        /* keep last good previewHtml on transient fetch/generate errors */
+        if (cancelled) return
+        try {
+          const fallback = generateInvoiceHtml(sampleData, settings, window.location.origin)
+          const stored = (previewPagesHtmlRef.current || settings.template_pages_html || '').trim()
+          setPreviewHtml(
+            mergeInvoiceTemplatePages(fallback, { template_pages_html: stored || undefined }, true),
+          )
+        } catch {
+          /* keep last good previewHtml on transient fetch/generate errors */
+        }
       } finally {
         if (!cancelled) setPreviewAssetsLoading(false)
       }
@@ -1158,8 +1217,16 @@ export default function InvoiceSettingsPage() {
   const uploadLogo = async (file: File) => {
     try {
       const { url } = await uploadAsset.mutateAsync({ kind: 'logo', file })
-      set('logo_url', url)
-      toast.success('Logo set for this template — click Save to apply (company logo is unchanged)')
+      // Fresh canvas: drop inline preview edits / copied sample so the layout + new logo show again.
+      setPreviewSampleOverrides(null)
+      setPreviewCopiedFrom(null)
+      setPreviewPagesHtml('')
+      setSettings(prev => ({
+        ...prev,
+        logo_url: url,
+        template_pages_html: '',
+      }))
+      toast.success('Logo uploaded — preview reset to a clean template. Save when finished.')
     } catch { /* error toast shown by the mutation */ }
   }
 
@@ -1411,6 +1478,12 @@ export default function InvoiceSettingsPage() {
               settings={posMerged()}
               set={(k, v) => setPos(k, v)}
               vendorWebsiteFallback={vendorWebsiteFallback}
+            />
+            <DocumentNumberingSettings
+              settings={posMerged()}
+              set={(k, v) => setPos(k, v)}
+              defaultPrefix="RCT"
+              documentLabel="receipt"
             />
             {/* ── POS: Discounts ── */}
             <AccordionSection title="Discounts" defaultOpen>
@@ -2016,7 +2089,7 @@ export default function InvoiceSettingsPage() {
                 ))}
               </div>
               <p className="text-xs text-gray-400 mt-1.5">
-                Shape applies in preview and print. The logo sits in a fixed header slot so uploading or changing shape does not shift the Classic layout.
+                Shape applies in preview and print. Uploading a new logo clears custom preview edits and shows a fresh template with your logo.
               </p>
             </div>
           </AccordionSection>
@@ -2393,6 +2466,26 @@ export default function InvoiceSettingsPage() {
             </div>
           </AccordionSection>
 
+          <DocumentNumberingSettings
+            settings={settings}
+            set={set}
+            defaultPrefix={isQuotationMode ? 'EST' : 'INV'}
+            documentLabel={isQuotationMode ? 'quotation' : 'invoice'}
+          />
+
+          {!isQuotationMode && (
+            <div className="border rounded-xl px-3 py-2.5 space-y-2">
+              <SectionLabel>PO label on printed invoice</SectionLabel>
+              <Input
+                className="h-8 text-sm"
+                placeholder="PO No."
+                value={settings.order_number_label || ''}
+                onChange={e => set('order_number_label', e.target.value)}
+              />
+              <p className="text-xs text-gray-400">Used in the meta box next to invoice date and due date (e.g. PO No., Order No., SO No.).</p>
+            </div>
+          )}
+
           {/* ── Payment & Bank Details ── */}
           <AccordionSection title="Payment & Bank Details">
             <div className="mb-2">
@@ -2456,6 +2549,7 @@ export default function InvoiceSettingsPage() {
                 // ── Invoice Meta ──
                 { label: 'Financial Year (F.Y.)',   key: 'show_financial_year',   val: settings.show_financial_year ?? true },
                 { label: isQuotationMode ? 'Valid Until' : 'Due Date', key: 'show_due_date', val: settings.show_due_date ?? true },
+                { label: 'PO / order no. (meta)',   key: 'show_order_number',     val: settings.show_order_number ?? true },
                 { label: 'Booking / Ref. No.',      key: 'show_booking_number',   val: settings.show_booking_number ?? true },
                 // ── Bill To ──
                 { label: 'Customer / Bill To',      key: 'show_customer_address', val: settings.show_customer_address ?? true },
