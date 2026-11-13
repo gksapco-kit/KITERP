@@ -11,7 +11,7 @@ const LS_SECTION_VERSION = 'kiterp.vendor.sidebar.section-order-version'
 export const SIDEBAR_SECTION_ORDER_VERSION = 5
 
 /** Bump when a pinned item must move inside a module (saved placements otherwise keep the old slot). */
-export const SIDEBAR_NAV_PLACEMENTS_VERSION = 2
+export const SIDEBAR_NAV_PLACEMENTS_VERSION = 6
 
 /** Canonical module order — must match `allSections` in DashboardLayout.tsx. */
 export const CANONICAL_SIDEBAR_SECTION_IDS = [
@@ -76,6 +76,17 @@ export const NAV_PINNED_SECTION_HOME: Record<string, string> = {
   '/crm/sales-area-dues': 'sales',
   /** POS belongs only under Sales — hide it when Sales app is uninstalled. */
   '/pos': 'sales',
+  /** General Accounting cluster: Payment Terms → … → Posting Rules. */
+  '/finance/payment-terms': 'finance',
+  '/finance/posting-controls': 'finance',
+  '/finance/parallel-ledgers': 'finance',
+  '/finance/fx-revaluation': 'finance',
+  '/finance/field-rules': 'finance',
+  '/finance/statement-versions': 'finance',
+  '/finance/profit-centers': 'finance',
+  '/finance/posting-rules': 'finance',
+  /** Trial Balance belongs under Financial Reporting (first report). */
+  '/finance/trial-balance': 'finance',
 }
 
 /** When pinning, insert after this sibling route when it exists in that section. */
@@ -95,6 +106,14 @@ const NAV_PINNED_INSERT_AFTER: Record<string, string> = {
   '/procurement/goods': '/storage-locations',
   '/crm/sales-area-dues': '/sales/sales-area',
   '/pos': '/projects',
+  '/finance/payment-terms': '/finance/periods',
+  '/finance/posting-controls': '/finance/payment-terms',
+  '/finance/parallel-ledgers': '/finance/posting-controls',
+  '/finance/fx-revaluation': '/finance/parallel-ledgers',
+  '/finance/field-rules': '/finance/fx-revaluation',
+  '/finance/statement-versions': '/finance/field-rules',
+  '/finance/profit-centers': '/finance/statement-versions',
+  '/finance/posting-rules': '/finance/profit-centers',
 }
 
 /** When pinning, insert before this sibling route (wins over INSERT_AFTER when both resolve). */
@@ -103,6 +122,7 @@ const NAV_PINNED_INSERT_BEFORE: Record<string, string> = {
   '/purchase-orders': '/procurement/requisitions',
   '/procurement/reports': '/purchase-orders',
   '/inventory/analytics': '/products',
+  '/finance/trial-balance': '/finance/reports/pnl',
 }
 
 export type NavOrderScope = {
@@ -405,6 +425,47 @@ export function reconcileNavPlacements(
     const ordered = restaurantOrder.filter((to) => restaurantRoutes.includes(to))
     const rest = restaurantRoutes.filter((to) => !ordered.includes(to))
     out.restaurant = [...ordered, ...rest]
+  }
+
+  // Document Types and Number Ranges belong under General Accounting.
+  // Saved placements append new routes at the section end, which nests them under Governance.
+  const generalAccountingGroupEnds = new Set([
+    '/finance/ar',
+    '/finance/ap',
+    '/finance/bank',
+    '/finance/assets',
+    '/finance/budgets',
+    '/finance/reports/pnl',
+    '/finance/approvals',
+  ])
+  const generalAccountingPins = [
+    '/finance/document-types',
+    '/finance/number-ranges',
+  ].filter((to) => validTos.has(to))
+  if (generalAccountingPins.length && out.finance) {
+    for (const sid of Object.keys(out)) {
+      out[sid] = out[sid].filter((to) => !generalAccountingPins.includes(to))
+    }
+    const list = out.finance
+    const storesIdx = list.indexOf('/stores')
+    let gaEnd = list.length
+    if (storesIdx >= 0) {
+      for (let i = storesIdx + 1; i < list.length; i++) {
+        if (generalAccountingGroupEnds.has(list[i])) {
+          gaEnd = i
+          break
+        }
+      }
+    }
+    const journalIdx = list.indexOf('/finance/journal')
+    const insertAt =
+      storesIdx >= 0 && journalIdx > storesIdx && journalIdx < gaEnd
+        ? journalIdx + 1
+        : storesIdx >= 0
+          ? gaEnd
+          : list.length
+    list.splice(insertAt, 0, ...generalAccountingPins)
+    out.finance = list
   }
 
   // Asset Accounting routes stay together under Finance (new links were landing at section end).

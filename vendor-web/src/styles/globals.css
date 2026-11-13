@@ -3323,6 +3323,38 @@ html[dir='rtl'] [data-sonner-toast][data-styled='true']:has([data-close-button])
     }
   }
 
+  /* POS / full-viewport tools: keep chrome padding minimal so the working surface fills the screen */
+  .vendor-main-pad--dense {
+    padding-top: 0.5rem;
+    padding-right: max(0.5rem, env(safe-area-inset-right, 0px));
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+    padding-left: max(0.5rem, env(safe-area-inset-left, 0px));
+  }
+  @media (min-width: 640px) {
+    .vendor-main-pad--dense {
+      padding-top: 0.5rem;
+      padding-right: max(0.5rem, env(safe-area-inset-right, 0px));
+      padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+      padding-left: max(0.5rem, env(safe-area-inset-left, 0px));
+    }
+  }
+  @media (min-width: 768px) {
+    .vendor-main-pad--dense {
+      padding-top: 0.5rem;
+      padding-right: max(0.625rem, env(safe-area-inset-right, 0px));
+      padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+      padding-left: max(0.625rem, env(safe-area-inset-left, 0px));
+    }
+  }
+  @media (min-width: 1024px) {
+    .vendor-main-pad--dense {
+      padding-top: 0.5rem;
+      padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
+      padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+      padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
+    }
+  }
+
   /* Horizontal table/scroll regions: smooth touch pan without breaking desktop */
   .vendor-scroll-x {
     overflow-x: auto;

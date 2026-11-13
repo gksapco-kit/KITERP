@@ -38,6 +38,7 @@ import { openAuthenticatedTab } from '@/lib/openAuthenticatedTab'
 import { escapeHtml, withNoScriptCsp, writeSafeHtml } from '@/lib/htmlSafety'
 import { buildPosOverrides, previewPosSettings, type PosModalValues } from '@/lib/posOverrides'
 import { posCatalogProduct, posSellableVariants, gramSaleUnit } from '@/lib/posSellableVariants'
+import { variantSelectOption } from '@/lib/productVariants'
 import { cn } from '@/lib/utils'
 import {
   Search, Plus, Minus, Trash2, ShoppingCart, Receipt,
@@ -67,6 +68,8 @@ import { useVendorStore } from '@/stores/vendorStore'
 import { isPharmaNavVisible } from '@/lib/vendorModuleSettings'
 import type { Customer } from '@/types'
 import { StaffPicker, type StaffPickerValue } from '@/components/commission/StaffPicker'
+import { usePanelResize } from '@/hooks/usePanelResize'
+import { DragHandle } from '@/components/common/DragHandle'
 type TxnMode = 'sale' | 'return'
 
 interface CartItem {
@@ -119,14 +122,15 @@ function CatalogImage({ url, type, size = 'sm' }: {
   url?: string | null; type: 'product' | 'service'; size?: 'sm' | 'md' | 'row' | 'tile'
 }) {
   const [failed, setFailed] = useState(false)
-  const dim = size === 'tile' ? 'aspect-[4/3] w-full' : size === 'row' ? 'w-14 h-14' : size === 'sm' ? 'w-9 h-9' : 'w-10 h-10'
+  const dim = size === 'tile' ? 'aspect-[4/3] w-full' : size === 'row' ? 'w-6 h-6' : size === 'sm' ? 'w-6 h-6' : 'w-7 h-7'
+  const iconCls = size === 'row' || size === 'sm' ? 'w-3 h-3' : 'w-3.5 h-3.5'
   const safeUrl = url && url !== 'null' && url !== 'undefined' ? url : null
   if (!safeUrl || failed) {
     return (
       <div className={`${dim} rounded flex items-center justify-center shrink-0 ${type === 'service' ? 'bg-accent' : 'bg-blue-50'}`}>
         {type === 'service'
-          ? <Wrench className="w-4 h-4 text-primary/70" />
-          : <Package className="w-4 h-4 text-blue-400" />}
+          ? <Wrench className={`${iconCls} text-primary/70`} />
+          : <Package className={`${iconCls} text-blue-400`} />}
       </div>
     )
   }
@@ -178,26 +182,26 @@ export default function POS() {
     name: string; sub: string; priceLabel: string
   }) => catalogView === 'list' ? (
     <button key={key} type="button" onClick={onClick}
-      className="group flex w-full items-center gap-3 rounded-xl border bg-card p-2 text-left shadow-sm transition hover:border-primary/40 hover:shadow-md">
+      className="group flex w-full items-center gap-1.5 rounded-md border bg-card px-1.5 py-0.5 text-left shadow-sm transition hover:border-primary/40 hover:shadow-md">
       <CatalogImage url={imgUrl} type={type} size="row" />
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">{name}</p>
-        <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{sub}</p>
+      <div className="min-w-0 flex-1 leading-tight">
+        <p className="truncate text-xs font-medium leading-tight">{name}</p>
+        {sub ? <p className="truncate text-[10px] leading-tight text-muted-foreground">{sub}</p> : null}
       </div>
-      <p className="shrink-0 text-sm font-bold">{priceLabel}</p>
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
-        <Plus className="h-4 w-4" />
+      <p className="shrink-0 text-xs font-bold leading-none">{priceLabel}</p>
+      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+        <Plus className="h-3 w-3" />
       </span>
     </button>
   ) : (
     <button key={key} type="button" onClick={onClick}
-      className="group flex flex-col rounded-xl border bg-card p-2 text-left shadow-sm transition hover:border-primary/40 hover:shadow-md">
+      className="group flex flex-col rounded-md border bg-card p-1.5 text-left shadow-sm transition hover:border-primary/40 hover:shadow-md">
       <CatalogImage url={imgUrl} type={type} size="tile" />
-      <p className="mt-2 line-clamp-2 text-sm font-medium leading-snug">{name}</p>
-      <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{sub}</p>
-      <div className="mt-auto flex items-center justify-between gap-2 pt-2">
-        <p className="text-sm font-bold">{priceLabel}</p>
-        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground">
+      <p className="mt-1 line-clamp-2 text-sm font-medium leading-snug">{name}</p>
+      <p className="truncate text-[11px] leading-tight text-muted-foreground">{sub}</p>
+      <div className="mt-auto flex items-center justify-between gap-2 pt-1">
+        <p className="text-sm font-bold leading-none">{priceLabel}</p>
+        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground">
           <Plus className="h-3.5 w-3.5" />
         </span>
       </div>
@@ -282,6 +286,13 @@ export default function POS() {
   const scanQueueRef = useRef<string[]>([])
   const scanProcessingRef = useRef(false)
   const scanInputRef = useRef<HTMLInputElement>(null)
+
+  // Catalog | cart split — drag handle between panels, persisted
+  const { widths: posPanelWidths, startResize: startPosPanelResize } = usePanelResize(
+    'pos-main-cols',
+    [680],
+    { min: [360], max: [1400] },
+  )
 
   // Booking slot panel — index of the cart service item whose panel is open
   const [bookingPanelIdx, setBookingPanelIdx] = useState<number | null>(null)
@@ -717,7 +728,21 @@ export default function POS() {
           continue
         }
         const price = v?.price ?? p.price ?? 0
-        const name = p.name
+        const variantLabel = v
+          ? variantSelectOption({
+              id: v.id,
+              name: v.name,
+              sku: v.sku,
+              barcode: (v as { barcode?: string }).barcode,
+              uom: v.uom,
+              uom_quantity: v.uom_quantity,
+              price: v.price,
+              attributes: (v as { attributes?: Record<string, unknown> }).attributes,
+              color: (v as { color?: string }).color,
+            }).label
+          : ''
+        const detail = variantLabel && variantLabel !== p.name ? variantLabel : (v?.sku || v?.name || '')
+        const name = detail && detail !== p.name ? `${p.name} · ${detail}` : p.name
         const sku = v?.sku ?? p.sku
         const taxRate = v?.tax_rate ?? (p as any).tax_rate ?? (p as any).gst_rate ?? 0
         const hsnCode = v?.hsn_code ?? (p as any).hsn_code
@@ -1006,9 +1031,9 @@ export default function POS() {
   )
 
   return (
-    <div className="flex h-[calc(100dvh-5.25rem)] max-lg:h-auto max-lg:min-h-[calc(100dvh-7rem)] flex-col gap-3">
+    <div className="flex h-[calc(100dvh-4.25rem)] max-lg:h-auto max-lg:min-h-[calc(100dvh-5.5rem)] flex-col gap-2">
       {tableFromUrl && restaurantTableLabel && (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm shrink-0">
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm shrink-0">
           <span className="flex items-center gap-2 text-amber-950 font-medium">
             <UtensilsCrossed className="w-4 h-4 text-amber-700 shrink-0" />
             Restaurant · {restaurantTableLabel}
@@ -1026,117 +1051,61 @@ export default function POS() {
           </div>
         </div>
       )}
-      <div className="flex flex-col lg:flex-row gap-3 flex-1 min-h-0">
+      <div className="flex flex-col lg:flex-row gap-2 lg:gap-0 flex-1 min-h-0">
       {/* ── Left: Catalog ── */}
-      <div className="flex min-h-0 min-w-0 flex-[6] flex-col gap-2 overflow-hidden rounded-2xl border bg-card p-3 shadow-sm max-lg:min-h-[min(55vh,28rem)]">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-lg font-bold flex flex-wrap items-center gap-2">
-            <ShoppingCart className="w-5 h-5 text-blue-600" /> POS Billing
+      <div
+        className="flex min-h-0 min-w-0 flex-[6] flex-col gap-1.5 overflow-hidden rounded-xl border bg-card p-2 shadow-sm max-lg:min-h-[min(55vh,28rem)] max-lg:!w-full lg:flex-none lg:shrink-0"
+        style={{ width: posPanelWidths[0] }}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-1.5">
+          <h1 className="text-base font-bold flex flex-wrap items-center gap-1.5">
+            <ShoppingCart className="w-4 h-4 text-blue-600" /> POS Billing
             {lockedStoreName && (
               <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
                 {lockedStoreName}
               </span>
             )}
           </h1>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
             {loyaltyProgram?.is_active && (
-              <div className="flex items-center gap-1 px-2 py-1 bg-amber-50 border border-amber-200 rounded text-xs text-amber-700 font-medium">
+              <div className="flex items-center gap-1 px-2 py-0.5 bg-amber-50 border border-amber-200 rounded text-xs text-amber-700 font-medium">
                 <Award className="w-3 h-3" /> Loyalty Active
               </div>
             )}
             {yieldProducts.length > 0 && (
-              <Button variant="outline" size="sm" onClick={() => setShowCuttingSheet(true)} className="gap-1" title="Raw stock to cut for a customer's order">
+              <Button variant="outline" size="sm" onClick={() => setShowCuttingSheet(true)} className="h-8 gap-1" title="Raw stock to cut for a customer's order">
                 <Scissors className="w-4 h-4" />Cutting sheet
               </Button>
             )}
-            <Button variant="outline" size="sm" onClick={() => setShowPosSettings(true)} className="gap-1" title="Invoice Settings">
+            <Button variant="outline" size="sm" onClick={() => setShowPosSettings(true)} className="h-8 gap-1" title="Invoice Settings">
               <Settings className="w-4 h-4" />
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setPosView('history')} className="gap-1">
+            <Button variant="outline" size="sm" onClick={() => setPosView('history')} className="h-8 gap-1">
               <History className="w-4 h-4" />History
             </Button>
-            <Button variant="outline" size="sm" onClick={closeSession} disabled={loading} className="gap-1 text-red-600 border-red-200 hover:bg-red-50">
+            <Button variant="outline" size="sm" onClick={closeSession} disabled={loading} className="h-8 gap-1 text-red-600 border-red-200 hover:bg-red-50">
               <StopCircle className="w-4 h-4" />End
             </Button>
           </div>
         </div>
 
-        {/* Transaction mode */}
-        <div className="flex gap-1 bg-muted rounded-lg p-1">
-          {([
-            { key: 'sale' as TxnMode, label: 'Sale', icon: ShoppingCart, color: 'text-green-600' },
-            { key: 'return' as TxnMode, label: 'Return', icon: RotateCcw, color: 'text-red-600' },
-          ]).map(m => (
-            <button key={m.key} onClick={() => switchMode(m.key)}
-              className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                txnMode === m.key ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-              }`}
-            ><m.icon className={`w-3.5 h-3.5 ${txnMode === m.key ? m.color : ''}`} /> {m.label}</button>
-          ))}
-        </div>
-
-        {/* Return: compact order selection */}
-        {txnMode === 'return' && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-3 space-y-2">
-            <p className="text-xs font-medium text-red-700 uppercase tracking-wide">Return / Refund</p>
-            {originalTxn ? (
-              <div className="flex items-center justify-between text-xs bg-white rounded-lg p-2.5 border border-green-200" onClick={e => e.stopPropagation()}>
-                <div className="flex items-center gap-2">
-                  <Check className="w-3.5 h-3.5 text-green-600" />
-                  <span className="font-semibold">{originalTxn.transaction_number as string}</span>
-                  <span className="text-gray-500">{formatCurrency(originalTxn.total as number)}</span>
-                  <span className="text-gray-400">{(originalTxn.item_count as number)} items</span>
-                </div>
-                <button type="button" aria-label="Close" onClick={() => { setOriginalTxn(null); setCart([]); setSelectedSalesPerson(null) }} className="text-gray-400 hover:text-red-500">
-                <X className="w-3.5 h-3.5" /></button>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <div className="flex gap-1.5">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                    <input type="text" value={returnSearch}
-                      onChange={e => { setReturnSearch(e.target.value); loadReturnOrders(e.target.value) }}
-                      placeholder="Search orders..."
-                      className="w-full h-8 pl-8 pr-3 text-xs border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-red-300 focus:outline-none"
-                    />
-                  </div>
-                  <Input
-                    placeholder="POS-XXXXXX"
-                    value={returnLookup}
-                    onChange={e => setReturnLookup(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && lookupOriginalTxn()}
-                    className="h-8 text-xs w-28"
-                  />
-                  <Button size="sm" variant="outline" onClick={lookupOriginalTxn} disabled={lookupLoading} className="h-8 px-2">
-                    {lookupLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Search className="w-3 h-3" />}
-                  </Button>
-                </div>
-                <div className="max-h-32 overflow-y-auto space-y-0.5 bg-white rounded-lg border p-1">
-                  {returnOrdersLoading ? (
-                    <div className="flex justify-center py-3"><Loader2 className="w-4 h-4 animate-spin text-gray-400" /></div>
-                  ) : returnOrders.length === 0 ? (
-                    <p className="text-xs text-gray-400 text-center py-3">No recent sales found</p>
-                  ) : returnOrders.map((o: any) => (
-                    <button key={o.id} onClick={() => selectReturnOrder(o)}
-                      className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-red-50 text-left text-xs">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="font-semibold text-blue-600 shrink-0">{o.order_number || o.transaction_number}</span>
-                        <span className="text-gray-400 truncate">{o.customer_name || 'Walk-in'}</span>
-                      </div>
-                      <span className="font-bold shrink-0 ml-2">{formatCurrency(o.total)}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+        {/* Mode + search + camera + view — one toolbar row */}
+        <div className="flex min-w-0 items-center gap-1.5">
+          <div className="flex h-8 shrink-0 gap-0.5 rounded-md bg-muted p-0.5">
+            {([
+              { key: 'sale' as TxnMode, label: 'Sale', icon: ShoppingCart, color: 'text-green-600' },
+              { key: 'return' as TxnMode, label: 'Return', icon: RotateCcw, color: 'text-red-600' },
+            ]).map(m => (
+              <button key={m.key} onClick={() => switchMode(m.key)}
+                className={`flex h-full items-center justify-center gap-1 rounded-md px-2.5 text-xs font-medium transition-colors ${
+                  txnMode === m.key ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              ><m.icon className={`w-3.5 h-3.5 ${txnMode === m.key ? m.color : ''}`} /> {m.label}</button>
+            ))}
           </div>
-        )}
 
-        {/* Search + suggestion dropdown + barcode scan + view toggle */}
-        <div className="flex flex-wrap gap-2 items-center">
-          <div ref={searchContainerRef} className="relative min-w-0 flex-1 basis-[12rem]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none z-10" />
+          <div ref={searchContainerRef} className="relative min-w-0 flex-1">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none z-10" />
             <Input
               ref={scanInputRef}
               placeholder="Search name, SKU, barcode…"
@@ -1160,11 +1129,11 @@ export default function POS() {
                 }
                 else if (e.key === 'Escape') { setShowSuggestions(false); setHighlightIdx(-1) }
               }}
-              className="pl-10"
+              className="h-8 pl-8"
             />
             {search && (
-              <button type="button" aria-label="Close" onClick={() => { setSearch(''); setShowSuggestions(false) }} className="absolute right-3 top-1/2 -translate-y-1/2 z-10">
-                <X className="w-4 h-4 text-gray-400 hover:text-gray-600" />
+              <button type="button" aria-label="Close" onClick={() => { setSearch(''); setShowSuggestions(false) }} className="absolute right-2.5 top-1/2 -translate-y-1/2 z-10">
+                <X className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600" />
               </button>
             )}
 
@@ -1243,45 +1212,104 @@ export default function POS() {
               </div>
             )}
           </div>
+
           {/* Camera scan */}
           <button
             title="Scan barcode with camera (hardware scanner also always active)"
             onClick={() => setShowCameraScanner(true)}
             disabled={scanLoading}
-            className="shrink-0 flex items-center gap-1.5 px-3 h-9 rounded-lg border bg-white hover:bg-blue-50 hover:border-blue-300 transition-colors disabled:opacity-50 text-xs font-medium text-blue-600"
+            className="shrink-0 flex items-center gap-1.5 px-2.5 h-8 rounded-md border bg-white hover:bg-blue-50 hover:border-blue-300 transition-colors disabled:opacity-50 text-xs font-medium text-blue-600"
           >
-            {scanLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ScanLine className="w-4 h-4" />}
+            {scanLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ScanLine className="w-3.5 h-3.5" />}
             {scanLoading ? 'Looking up…' : 'Camera'}
           </button>
           {/* View toggle: list / grid / table */}
-          <div className="flex border rounded-lg overflow-hidden shrink-0">
+          <div className="flex border rounded-md overflow-hidden shrink-0">
             <button title="List view"
               onClick={() => setCatalogView('list')}
-              className={`px-2 h-9 flex items-center transition-colors ${catalogView === 'list' ? 'bg-primary text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>
-              <LayoutList className="w-4 h-4" />
+              className={`px-2 h-8 flex items-center transition-colors ${catalogView === 'list' ? 'bg-primary text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>
+              <LayoutList className="w-3.5 h-3.5" />
             </button>
             <button title="Grid view"
               onClick={() => setCatalogView('grid')}
-              className={`px-2 h-9 flex items-center border-l transition-colors ${catalogView === 'grid' ? 'bg-primary text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>
-              <LayoutGrid className="w-4 h-4" />
+              className={`px-2 h-8 flex items-center border-l transition-colors ${catalogView === 'grid' ? 'bg-primary text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>
+              <LayoutGrid className="w-3.5 h-3.5" />
             </button>
             <button title="Table view with configurable filters"
               onClick={() => setCatalogView('table')}
-              className={`px-2 h-9 flex items-center border-l transition-colors ${catalogView === 'table' ? 'bg-primary text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>
-              <Table2 className="w-4 h-4" />
+              className={`px-2 h-8 flex items-center border-l transition-colors ${catalogView === 'table' ? 'bg-primary text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>
+              <Table2 className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
+
+        {/* Return: compact order selection */}
+        {txnMode === 'return' && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-2 space-y-1.5">
+            <p className="text-[11px] font-medium text-red-700 uppercase tracking-wide">Return / Refund</p>
+            {originalTxn ? (
+              <div className="flex items-center justify-between text-xs bg-white rounded-lg p-2.5 border border-green-200" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center gap-2">
+                  <Check className="w-3.5 h-3.5 text-green-600" />
+                  <span className="font-semibold">{originalTxn.transaction_number as string}</span>
+                  <span className="text-gray-500">{formatCurrency(originalTxn.total as number)}</span>
+                  <span className="text-gray-400">{(originalTxn.item_count as number)} items</span>
+                </div>
+                <button type="button" aria-label="Close" onClick={() => { setOriginalTxn(null); setCart([]); setSelectedSalesPerson(null) }} className="text-gray-400 hover:text-red-500">
+                <X className="w-3.5 h-3.5" /></button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex gap-1.5">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                    <input type="text" value={returnSearch}
+                      onChange={e => { setReturnSearch(e.target.value); loadReturnOrders(e.target.value) }}
+                      placeholder="Search orders..."
+                      className="w-full h-8 pl-8 pr-3 text-xs border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-red-300 focus:outline-none"
+                    />
+                  </div>
+                  <Input
+                    placeholder="POS-XXXXXX"
+                    value={returnLookup}
+                    onChange={e => setReturnLookup(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && lookupOriginalTxn()}
+                    className="h-8 text-xs w-28"
+                  />
+                  <Button size="sm" variant="outline" onClick={lookupOriginalTxn} disabled={lookupLoading} className="h-8 px-2">
+                    {lookupLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Search className="w-3 h-3" />}
+                  </Button>
+                </div>
+                <div className="max-h-32 overflow-y-auto space-y-0.5 bg-white rounded-lg border p-1">
+                  {returnOrdersLoading ? (
+                    <div className="flex justify-center py-3"><Loader2 className="w-4 h-4 animate-spin text-gray-400" /></div>
+                  ) : returnOrders.length === 0 ? (
+                    <p className="text-xs text-gray-400 text-center py-3">No recent sales found</p>
+                  ) : returnOrders.map((o: any) => (
+                    <button key={o.id} onClick={() => selectReturnOrder(o)}
+                      className="w-full flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-red-50 text-left text-xs">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-semibold text-blue-600 shrink-0">{o.order_number || o.transaction_number}</span>
+                        <span className="text-gray-400 truncate">{o.customer_name || 'Walk-in'}</span>
+                      </div>
+                      <span className="font-bold shrink-0 ml-2">{formatCurrency(o.total)}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         {/* Scanner ready indicator + Scan Report badge */}
-        <div className="flex items-center justify-between px-1">
-          <div className="flex items-center gap-1.5">
-            <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-            <span className="text-xs text-gray-400">Hardware scanner ready — just scan any barcode</span>
+        <div className="flex items-center justify-between gap-2 leading-none">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse shrink-0" />
+            <span className="text-[11px] text-gray-400 truncate">Hardware scanner ready — just scan any barcode</span>
           </div>
           {scanReport.length > 0 && (
             <button
               onClick={() => setScanReportOpen(o => !o)}
-              className="flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-0.5 hover:bg-amber-100 transition-colors"
+              className="flex items-center gap-1 text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 hover:bg-amber-100 transition-colors shrink-0"
             >
               <AlertTriangle className="w-3 h-3" />
               Scan Report ({scanReport.length})
@@ -1394,27 +1422,27 @@ export default function POS() {
         ) : (
           <>
             {/* Filter tabs — card view */}
-            <div className="flex gap-1 bg-muted rounded-lg p-1">
+            <div className="flex gap-1 bg-muted rounded-md p-0.5">
               <button onClick={() => setFilter('all')}
-                className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md text-xs font-medium transition-colors ${filter === 'all' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                className={`flex-1 flex items-center justify-center gap-1 py-1 rounded-md text-xs font-medium transition-colors ${filter === 'all' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
               >All ({products.length + services.length})</button>
               <button onClick={() => setFilter('products')}
-                className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md text-xs font-medium transition-colors ${filter === 'products' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                className={`flex-1 flex items-center justify-center gap-1 py-1 rounded-md text-xs font-medium transition-colors ${filter === 'products' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
               ><Package className="w-3.5 h-3.5" /> Products ({products.length})</button>
               <button onClick={() => setFilter('services')}
-                className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md text-xs font-medium transition-colors ${filter === 'services' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                className={`flex-1 flex items-center justify-center gap-1 py-1 rounded-md text-xs font-medium transition-colors ${filter === 'services' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
               ><Wrench className="w-3.5 h-3.5" /> Services ({services.length})</button>
             </div>
 
             {/* Catalog — tiles (grid) or one item per row (list) */}
-            <div className="min-h-0 flex-1 overflow-y-auto rounded-xl bg-muted/40 p-2">
+            <div className="min-h-0 flex-1 overflow-y-auto rounded-lg bg-muted/40 p-1.5">
               <div className={catalogView === 'list'
-                ? 'flex flex-col gap-1.5'
-                : 'grid content-start grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4'}>
+                ? 'flex flex-col gap-0.5'
+                : 'grid content-start grid-cols-2 gap-1.5 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6'}>
               {(filter === 'all' || filter === 'products') && products.length > 0 && (
                 <>
                   {filter === 'all' && (
-                    <div className="col-span-full flex items-center gap-1.5 px-1 py-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    <div className="col-span-full flex items-center gap-1.5 px-1 py-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                       <Package className="w-3 h-3 text-blue-500" /> Products
                     </div>
                   )}
@@ -1448,12 +1476,31 @@ export default function POS() {
                       const v = activeVariants[0]
                       const unit = gramSaleUnit(v)
                       const price = v.price || p.price || 0
+                      const variantLabel = variantSelectOption({
+                        id: v.id,
+                        name: v.name,
+                        sku: v.sku,
+                        barcode: v.barcode,
+                        uom: v.uom,
+                        uom_quantity: v.uom_quantity,
+                        price: v.price,
+                        attributes: v.attributes,
+                        color: v.color,
+                      }).label
+                      const variantDetail = variantLabel && variantLabel !== p.name ? variantLabel : (v.sku || v.name || '')
+                      const cartName = variantDetail && variantDetail !== p.name
+                        ? `${p.name} · ${variantDetail}`
+                        : p.name
+                      const stockBit = `Stock ${v.quantity ?? '—'}${unit ? ` · per ${unit}` : ''}`
+                      const sub = variantDetail && variantDetail !== p.name
+                        ? `${variantDetail} · ${stockBit}`
+                        : stockBit
                       return renderCatalogItem({
                         key: `p-${p.id}`,
                         onClick: () => handleProductAdd({
                           id: p.id,
                           variant_id: v.id,
-                          name: p.name,
+                          name: cartName,
                           sku: v.sku || p.sku,
                           price,
                           tax_rate: v.tax_rate ?? p.tax_rate ?? p.gst_rate ?? 0,
@@ -1465,7 +1512,7 @@ export default function POS() {
                         imgUrl,
                         type: 'product',
                         name: p.name,
-                        sub: `Stock ${v.quantity ?? '—'}${unit ? ` · per ${unit}` : ''}`,
+                        sub,
                         priceLabel: `${formatCurrency(price)}${unit ? ` / ${unit}` : ''}`,
                       })
                     }
@@ -1486,7 +1533,7 @@ export default function POS() {
               {(filter === 'all' || filter === 'services') && services.length > 0 && (
                 <>
                   {filter === 'all' && (
-                    <div className="col-span-full flex items-center gap-1.5 px-1 py-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    <div className="col-span-full flex items-center gap-1.5 px-1 py-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                       <Wrench className="w-3 h-3 text-primary/80" /> Services
                     </div>
                   )}
@@ -1520,35 +1567,40 @@ export default function POS() {
         )}
       </div>
 
+      <DragHandle
+        onMouseDown={e => startPosPanelResize(0, e.clientX)}
+        className="hidden lg:flex self-stretch"
+      />
+
       {/* ── Right: Cart ── */}
-      <div className="flex min-h-0 min-w-0 flex-[4] flex-col overflow-hidden rounded-2xl border bg-card shadow-sm max-lg:min-h-[min(50vh,26rem)] lg:min-w-[340px]">
-        <div className={`px-4 py-2.5 border-b flex items-center gap-2 ${
+      <div className="flex min-h-0 min-w-0 flex-[4] flex-col overflow-hidden rounded-xl border bg-card shadow-sm max-lg:min-h-[min(50vh,26rem)] lg:min-w-[320px] lg:flex-1">
+        <div className={`px-3 py-1.5 border-b flex items-center gap-2 ${
           txnMode === 'return' ? 'bg-red-50' : 'bg-gray-50'
         }`}>
-          {txnMode === 'return' ? <RotateCcw className="w-4 h-4 text-red-600" /> :
-           <ShoppingCart className="w-4 h-4 text-gray-600" />}
+          {txnMode === 'return' ? <RotateCcw className="w-3.5 h-3.5 text-red-600" /> :
+           <ShoppingCart className="w-3.5 h-3.5 text-gray-600" />}
           <span className="font-semibold text-sm text-gray-700">
             {txnMode === 'sale' ? 'Cart' : 'Return'} ({cart.length})
           </span>
         </div>
 
         {/* Customer and salesperson on one line; recent names use the full width */}
-        <div className="space-y-2 border-b px-3 py-2">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="space-y-1 border-b px-2 py-1">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-center">
           <div className="min-w-0 flex-1">
             {selectedCustomer ? (
-              <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
-                <div className="flex items-center gap-2 text-sm min-w-0">
-                  <User className="w-4 h-4 text-blue-600 shrink-0" />
+              <div className="flex h-7 items-center justify-between rounded-md border border-blue-200 bg-blue-50 px-2">
+                <div className="flex min-w-0 items-center gap-1.5 text-xs">
+                  <User className="h-3 w-3 shrink-0 text-blue-600" />
                   <div className="min-w-0 truncate">
                     <span className="font-medium text-blue-800">{selectedCustomer.full_name}</span>
-                    {selectedCustomer.phone && <span className="text-xs text-blue-600 ml-2">{selectedCustomer.phone}</span>}
+                    {selectedCustomer.phone && <span className="ml-1.5 text-[10px] text-blue-600">{selectedCustomer.phone}</span>}
                     {selectedCustomer.id === defaultCustomerId && (
-                      <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded ml-2">Default</span>
+                      <span className="ml-1.5 rounded bg-blue-100 px-1 py-px text-[10px] text-blue-600">Default</span>
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="flex shrink-0 items-center gap-0.5">
                   {selectedCustomer.id !== defaultCustomerId && (
                     <button
                       onClick={async () => {
@@ -1559,22 +1611,22 @@ export default function POS() {
                           toast.success(`${selectedCustomer.full_name} set as default POS customer`)
                         } catch { toast.error('Could not save default customer') }
                       }}
-                      className="text-blue-400 hover:text-blue-600 p-0.5" title="Set as default POS customer"
+                      className="p-0.5 text-blue-400 hover:text-blue-600" title="Set as default POS customer"
                     >
-                      <Award className="w-3.5 h-3.5" />
+                      <Award className="h-3 w-3" />
                     </button>
                   )}
-                  <button type="button" aria-label="Close" onClick={() => { setSelectedCustomer(null); setCustomerSearch('') }} className="text-blue-400 hover:text-blue-600">
-                  <X className="w-4 h-4" />
+                  <button type="button" aria-label="Close" onClick={() => { setSelectedCustomer(null); setCustomerSearch('') }} className="p-0.5 text-blue-400 hover:text-blue-600">
+                  <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
               </div>
             ) : (
               <>
                 <div className="relative">
-                  <div className="flex gap-1.5">
+                  <div className="flex gap-1">
                     <div className="relative flex-1">
-                      <User className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                      <User className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-gray-400" />
                       <input
                         type="text"
                         value={customerSearch}
@@ -1582,14 +1634,14 @@ export default function POS() {
                         onFocus={() => customerResults.length > 0 && setShowCustomerDropdown(true)}
                         onBlur={() => setTimeout(() => setShowCustomerDropdown(false), 200)}
                         placeholder="Search customer..."
-                        className="w-full h-8 pl-8 pr-3 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                        className="h-7 w-full rounded-md border border-gray-200 pl-7 pr-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
                     <button onClick={() => setShowQuickCreate(true)}
-                      className="flex items-center gap-1 px-2 h-8 text-xs bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100"
+                      className="flex h-7 items-center gap-1 rounded-md border border-green-200 bg-green-50 px-1.5 text-xs text-green-700 hover:bg-green-100"
                       title="Quick create customer"
                     >
-                      <UserPlus className="w-3.5 h-3.5" />
+                      <UserPlus className="h-3 w-3" />
                     </button>
                   </div>
                   {showCustomerDropdown && customerResults.length > 0 && (
@@ -1612,15 +1664,15 @@ export default function POS() {
 
           {txnMode === 'sale' && (
             <div className="min-w-0 flex-1">
-              <StaffPicker selected={selectedSalesPerson} onSelect={setSelectedSalesPerson} />
+              <StaffPicker selected={selectedSalesPerson} onSelect={setSelectedSalesPerson} compact />
             </div>
           )}
           </div>
           {!selectedCustomer && !customerSearch && recentCustomers.length > 0 && (
-            <div className="flex gap-1.5 overflow-x-auto scrollbar-thin">
+            <div className="flex gap-1 overflow-x-auto scrollbar-thin">
               {recentCustomers.map(cust => (
                 <button key={cust.id} onClick={() => selectCustomer(cust)}
-                  className="flex shrink-0 items-center gap-1.5 rounded-full border bg-background px-2.5 py-1 text-xs transition-colors hover:border-primary/30 hover:bg-accent"
+                  className="flex shrink-0 items-center gap-1 rounded-full border bg-background px-2 py-0.5 text-xs transition-colors hover:border-primary/30 hover:bg-accent"
                 >
                   <User className="h-3 w-3 text-muted-foreground" />
                   <span className="max-w-[7rem] truncate font-medium">{cust.full_name}</span>
@@ -1640,26 +1692,47 @@ export default function POS() {
         )}
 
         {/* Cart items sit at the top; the open area below shows the amount */}
-        <div className={`min-h-0 space-y-2 overflow-y-auto p-2 ${cart.length ? 'max-h-[46%] shrink-0' : 'flex flex-1 flex-col items-center justify-center'}`}>
+        <div className={`min-h-0 space-y-0.5 overflow-y-auto p-1 ${cart.length ? 'max-h-[46%] shrink-0' : 'flex flex-1 flex-col items-center justify-center'}`}>
           {!cart.length ? (
             <div className="flex flex-col items-center justify-center text-muted-foreground">
-              <ShoppingCart className="mb-2 h-10 w-10 opacity-40" />
+              <ShoppingCart className="mb-1.5 h-8 w-8 opacity-40" />
               <p className="text-sm">Add products or services</p>
-              <p className="mt-1 text-xs opacity-70">Search or click items from the catalog</p>
+              <p className="mt-0.5 text-xs opacity-70">Search or click items from the catalog</p>
             </div>
           ) : cart.map((item, idx) => (
-            <div key={idx} className="space-y-1.5 rounded-xl border bg-background px-3 py-2.5 shadow-sm">
-              <div className="flex items-center gap-2">
-                <CatalogImage url={item.image_url} type={item.item_type} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{item.name}</p>
-                  <p className="text-xs text-gray-500">
-                    {formatCurrency(item.price)}{item.unit ? ` / ${item.unit}` : ''} x {item.qty}{item.unit ? ` ${item.unit}` : ''}
+            <div key={idx} className="rounded-md border bg-background px-1.5 py-0.5 shadow-sm">
+              <div className="flex items-center gap-1.5">
+                <CatalogImage url={item.image_url} type={item.item_type} size="sm" />
+                <div className="min-w-0 flex-1 leading-tight">
+                  <p className="truncate text-xs font-medium leading-tight">{item.name}</p>
+                  <p className="truncate text-[10px] leading-tight text-muted-foreground">
+                    {formatCurrency(item.price)}{item.unit ? ` / ${item.unit}` : ''} × {item.qty}{item.unit ? ` ${item.unit}` : ''}
                     {item.tax_rate > 0 && <span className="ml-1 text-amber-600">({item.tax_rate}%)</span>}
+                    {item.discount > 0 ? (
+                      <span className="ml-1.5 inline-flex items-center gap-1 text-green-600">
+                        −
+                        <input
+                          type="number"
+                          min={0}
+                          value={item.discount}
+                          onChange={e => updateItemDiscount(idx, Number(e.target.value))}
+                          className="h-4 w-12 border-0 border-b border-green-300 bg-transparent px-0.5 text-[10px] text-green-700 focus:outline-none"
+                          aria-label={`Discount for ${item.name}`}
+                        />
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => updateItemDiscount(idx, 1)}
+                        className="ml-1.5 text-[10px] text-muted-foreground hover:text-green-600"
+                      >
+                        + disc
+                      </button>
+                    )}
                   </p>
                 </div>
-                <div className="flex items-center gap-1">
-                  <button onClick={() => updateQty(idx, -1)} className="p-1 rounded hover:bg-gray-100"><Minus className="w-3 h-3" /></button>
+                <div className="flex shrink-0 items-center gap-0.5">
+                  <button type="button" onClick={() => updateQty(idx, -1)} className="rounded p-0.5 hover:bg-gray-100"><Minus className="h-3 w-3" /></button>
                   <input
                     type="number"
                     inputMode="numeric"
@@ -1672,30 +1745,18 @@ export default function POS() {
                     aria-label={item.unit === 'g' ? `Grams for ${item.name}` : `Quantity for ${item.name}`}
                     className="w-16 h-8 text-center text-sm font-semibold border rounded-md px-1.5 tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                   />
-                  <button onClick={() => updateQty(idx, 1)} className="p-1 rounded hover:bg-gray-100"><Plus className="w-3 h-3" /></button>
+                  <button type="button" onClick={() => updateQty(idx, 1)} className="rounded p-0.5 hover:bg-gray-100"><Plus className="h-3 w-3" /></button>
                 </div>
-                <p className="text-sm font-bold w-16 text-right">{formatCurrency(item.price * item.qty)}</p>
-                <button onClick={() => removeFromCart(idx)} className="p-1 rounded hover:bg-red-50"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
+                <p className="w-14 shrink-0 text-right text-xs font-bold leading-none">{formatCurrency(item.price * item.qty)}</p>
+                <button type="button" onClick={() => removeFromCart(idx)} className="rounded p-0.5 hover:bg-red-50"><Trash2 className="h-3.5 w-3.5 text-red-400" /></button>
               </div>
-              {/* Item-level discount */}
-              {item.discount > 0 && (
-                <div className="flex items-center gap-2 pl-5">
-                  <span className="text-xs text-green-600">Discount:</span>
-                  <input type="number" min={0} value={item.discount} onChange={e => updateItemDiscount(idx, Number(e.target.value))}
-                    className="w-20 h-6 text-xs border rounded px-1.5" />
-                </div>
-              )}
-              {item.discount === 0 && (
-                <button onClick={() => updateItemDiscount(idx, 1)} className="text-xs text-gray-400 hover:text-green-600 pl-5">+ Add discount</button>
-              )}
               {/* Booking slot picker for service items */}
               {item.item_type === 'service' && txnMode === 'sale' && (
-                <div className="ml-5 mt-1">
+                <div className="mt-0.5 pl-7">
                   {item.booking_date && item.booking_time ? (
-                    /* Slot confirmed — show summary with edit button */
-                    <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-accent/70 px-3 py-1.5">
-                      <CalendarDays className="w-3.5 h-3.5 text-primary/80 shrink-0" />
-                      <span className="text-xs text-primary font-medium flex-1">
+                    <div className="flex items-center gap-1.5 rounded-md border border-primary/30 bg-accent/70 px-2 py-0.5">
+                      <CalendarDays className="h-3 w-3 shrink-0 text-primary/80" />
+                      <span className="flex-1 text-[10px] font-medium text-primary">
                         {formatDate(item.booking_date)}
                         {' · '}
                         {item.booking_time}
@@ -1703,26 +1764,27 @@ export default function POS() {
                           <span className="text-primary/70"> – {item.booking_notes.slice(3)}</span>
                         )}
                         {item.duration_minutes && (
-                          <span className="text-primary/70 ml-1">· {item.duration_minutes} min</span>
+                          <span className="ml-1 text-primary/70">· {item.duration_minutes} min</span>
                         )}
                       </span>
                       <button
+                        type="button"
                         onClick={() => setBookingPanelIdx(idx)}
-                        className="flex items-center gap-1 text-xs text-primary/80 hover:text-primary font-medium"
+                        className="flex items-center gap-0.5 text-[10px] font-medium text-primary/80 hover:text-primary"
                       >
-                        <Pencil className="w-3 h-3" /> Change
+                        <Pencil className="h-2.5 w-2.5" /> Change
                       </button>
                     </div>
                   ) : (
-                    /* No slot yet — prompt to open panel */
                     <button
+                      type="button"
                       onClick={() => setBookingPanelIdx(idx)}
-                      className="w-full flex items-center gap-2 rounded-lg border border-primary/30 border-dashed bg-accent/70 px-3 py-1.5 text-xs text-primary hover:bg-primary/12/60 hover:border-primary/40 transition-colors"
+                      className="flex w-full items-center gap-1.5 rounded-md border border-dashed border-primary/30 bg-accent/70 px-2 py-0.5 text-[10px] text-primary hover:border-primary/40 hover:bg-primary/12"
                     >
-                      <CalendarDays className="w-3.5 h-3.5 shrink-0" />
+                      <CalendarDays className="h-3 w-3 shrink-0" />
                       <span className="font-medium">Book Slot</span>
-                      <span className="text-primary/70 ml-auto flex items-center gap-1">
-                        <AlertTriangle className="w-3 h-3 text-amber-400" /> Set date &amp; time
+                      <span className="ml-auto flex items-center gap-1 text-primary/70">
+                        <AlertTriangle className="h-2.5 w-2.5 text-amber-400" /> Set date &amp; time
                       </span>
                     </button>
                   )}
@@ -1734,12 +1796,12 @@ export default function POS() {
 
         {/* Open area: the amount due fills the space under the items */}
         {cart.length > 0 && (
-          <div className={`flex min-h-0 flex-1 flex-col items-center justify-center px-4 py-3 text-center ${txnMode === 'return' ? 'text-red-600' : ''}`}>
+          <div className={`flex min-h-0 flex-1 flex-col items-center justify-center px-3 py-2 text-center ${txnMode === 'return' ? 'text-red-600' : ''}`}>
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               {txnMode === 'return' ? 'Refund' : 'To pay'}
             </p>
-            <p className="mt-1 text-4xl font-bold tracking-tight">{txnMode === 'return' ? '-' : ''}{formatCurrency(grandTotal)}</p>
-            <div className="mt-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+            <p className="mt-0.5 text-3xl font-bold tracking-tight">{txnMode === 'return' ? '-' : ''}{formatCurrency(grandTotal)}</p>
+            <div className="mt-1.5 flex flex-wrap items-center justify-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
               <span>Subtotal {formatCurrency(subtotal)}</span>
               {manualDiscount > 0 && <span className="text-green-600">Discount -{formatCurrency(manualDiscount)}</span>}
               {couponDiscountAmt > 0 && <span className="text-green-600">{couponApplied?.code} -{formatCurrency(couponDiscountAmt)}</span>}
@@ -1750,11 +1812,11 @@ export default function POS() {
         )}
 
         {/* Coupon, discount, and note stay in one short bar above Charge */}
-        <div className="space-y-2 border-t bg-card px-3 py-2.5">
-          <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-1.5 border-t bg-card px-2.5 py-2">
+          <div className="flex w-full min-w-0 items-center gap-1.5">
             {txnMode === 'sale' && (
               couponApplied ? (
-                <div className="flex h-8 items-center justify-between rounded-lg border border-green-200 bg-green-50 px-2">
+                <div className="flex h-8 min-w-0 flex-[1.1] basis-0 items-center justify-between rounded-lg border border-green-200 bg-green-50 px-2">
                   <span className="flex min-w-0 items-center gap-1 text-xs">
                     <Tag className="h-3 w-3 shrink-0 text-green-600" />
                     <span className="truncate font-semibold text-green-700">{couponApplied.code}</span>
@@ -1764,21 +1826,21 @@ export default function POS() {
                   </button>
                 </div>
               ) : (
-                <div className="flex gap-1">
+                <div className="flex min-w-0 flex-[1.1] basis-0 gap-1">
                   <input
                     type="text" value={couponCode} onChange={e => setCouponCode(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && handleApplyCoupon()}
                     placeholder="Coupon"
                     aria-label="Coupon code"
-                    className="h-8 min-w-0 flex-1 rounded-lg border border-input bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                    className="h-8 w-0 min-w-0 flex-1 rounded-lg border border-input bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
                   />
-                  <Button size="sm" variant="outline" onClick={handleApplyCoupon} disabled={couponLoading || !couponCode.trim()} className="h-8 px-2 text-xs">
+                  <Button size="sm" variant="outline" onClick={handleApplyCoupon} disabled={couponLoading || !couponCode.trim()} className="h-8 shrink-0 px-2 text-xs">
                     {couponLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Apply'}
                   </Button>
                 </div>
               )
             )}
-            <div className={`flex gap-1 ${txnMode !== 'sale' ? 'col-span-2' : ''}`}>
+            <div className={`flex min-w-0 gap-1 ${txnMode === 'sale' ? 'flex-[0.95] basis-0' : 'flex-1 basis-0'}`}>
               <Select
                 value={discountType}
                 onChange={v => setDiscountType(v as 'flat' | 'percentage')}
@@ -1795,18 +1857,18 @@ export default function POS() {
                 onChange={(e) => setCartDiscount(Number(e.target.value))}
                 placeholder={discountType === 'percentage' ? 'Discount %' : 'Discount'}
                 aria-label={discountType === 'percentage' ? 'Discount percent' : 'Discount amount'}
-                className="h-8 text-xs"
+                className="h-8 w-0 min-w-0 flex-1 text-xs"
               />
             </div>
+            <input
+              type="text"
+              value={cartNotes}
+              onChange={e => setCartNotes(e.target.value)}
+              placeholder="Note for the receipt"
+              aria-label="Note"
+              className="h-8 w-0 min-w-0 flex-[1.35] basis-0 rounded-lg border border-input bg-background px-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+            />
           </div>
-          <input
-            type="text"
-            value={cartNotes}
-            onChange={e => setCartNotes(e.target.value)}
-            placeholder="Note for the receipt"
-            aria-label="Note"
-            className="h-8 w-full rounded-lg border border-input bg-background px-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
-          />
 
           {loyaltyProgram?.is_active && loyaltyAccount && selectedCustomer && txnMode === 'sale' && (
             <div className="rounded-lg bg-amber-50 px-2.5 py-1.5">
@@ -1941,6 +2003,20 @@ export default function POS() {
               {posSellableVariants(variantPickerProduct.variants)
                 .map((v: any) => {
                   const imgUrl = variantPickerProduct.images?.[0]?.url || variantPickerProduct.images?.[0]?.file_url
+                  const variantLabel = variantSelectOption({
+                    id: v.id,
+                    name: v.name,
+                    sku: v.sku,
+                    barcode: v.barcode,
+                    uom: v.uom,
+                    uom_quantity: v.uom_quantity,
+                    price: v.price,
+                    attributes: v.attributes,
+                    color: v.color,
+                  }).label
+                  const detail = variantLabel && variantLabel !== variantPickerProduct.name
+                    ? variantLabel
+                    : (v.sku || v.name || '')
                   return (
                     <button
                       key={v.id}
@@ -1948,7 +2024,9 @@ export default function POS() {
                         void handleProductAdd({
                           id: variantPickerProduct.id,
                           variant_id: v.id,
-                          name: variantPickerProduct.name,
+                          name: detail && detail !== variantPickerProduct.name
+                            ? `${variantPickerProduct.name} · ${detail}`
+                            : variantPickerProduct.name,
                           sku: v.sku || variantPickerProduct.sku,
                           price: v.price || variantPickerProduct.price || 0,
                           tax_rate: v.tax_rate ?? variantPickerProduct.tax_rate ?? variantPickerProduct.gst_rate ?? 0,
@@ -1962,7 +2040,9 @@ export default function POS() {
                       className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg border hover:bg-accent hover:border-primary/30 transition-colors text-left"
                     >
                       <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{v.name || variantPickerProduct.name}</p>
+                        <p className="text-sm font-medium truncate">
+                          {variantLabel || v.name || variantPickerProduct.name}
+                        </p>
                         <p className="text-xs text-gray-400">{v.sku || '—'} · Stock: {v.quantity ?? '—'}</p>
                       </div>
                       <div className="text-right ml-3 shrink-0">

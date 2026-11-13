@@ -180,8 +180,8 @@ BUILTIN_PLATFORM_JOB_ROLE_DEFS.update(
             module_grant(
                 "finance",
                 view=["dashboard", "trial-balance", "statement-versions", "profit-centers",
-                      "fx-revaluation", "posting-rules", "parallel-ledgers", "field-rules",
-                      "reports-pnl", "reports-balance-sheet", "reports-cash-flow",
+                      "fx-revaluation", "posting-rules", "number-ranges", "parallel-ledgers",
+                      "field-rules", "reports-pnl", "reports-balance-sheet", "reports-cash-flow",
                       "reports-cost-analysis", "reports-gl", "audit"],
                 manage=["coa", "journal", "ar", "open-items", "ap", "bank", "assets",
                         "assets-reports", "assets-depreciation", "assets-gl-reconciliation",

@@ -125,12 +125,49 @@ export const useSearchAccounts = (q: string, companyId?: string) =>
   })
 
 // ── Journal Entry (enterprise) ─────────────────────────────────────────────
+/** Everything a journal change can make stale: the list, the single entry, GL reports, approvals. */
+const invalidateJournalCaches = (qc: ReturnType<typeof useQueryClient>) => {
+  for (const key of ['journal-entries', 'journal-entry', 'journal-timeline', 'trial-balance', 'ledger', 'dashboard', 'approvals']) {
+    qc.invalidateQueries({ queryKey: ['finance', key] })
+  }
+}
+
 export const useUpdateJournalEntry = () => {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
       api.updateJournalEntry(id, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'journal-entries'] }),
+    onSuccess: () => invalidateJournalCaches(qc),
+  })
+}
+
+/** Dry-run: nothing is saved server-side, so no cache invalidation. */
+export const useSimulateJournalEntry = () =>
+  useMutation({ mutationFn: (data: Record<string, unknown>) => api.simulateJournalEntry(data) })
+
+export const useJournalTimeline = (id: string) =>
+  useQuery<import('@/types/finance').JETimeline>({
+    queryKey: ['finance', 'journal-timeline', id],
+    queryFn: () => api.getJournalEntryTimeline(id),
+    enabled: !!id,
+  })
+
+export const useSubmitJournalEntry = () => {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: (id: string) => api.submitJournalEntry(id), onSuccess: () => invalidateJournalCaches(qc) })
+}
+
+export const useWithdrawJournalEntry = () => {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: (id: string) => api.withdrawJournalEntry(id), onSuccess: () => invalidateJournalCaches(qc) })
+}
+
+export const useReverseJournalEntry = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { reversal_date?: string; reason?: string } }) =>
+      api.reverseJournalEntry(id, data),
+    onSuccess: () => invalidateJournalCaches(qc),
   })
 }
 
@@ -266,25 +303,27 @@ export const useJournalEntry = (id: string) =>
 export const useCreateJournalEntry = () => {
   const qc = useQueryClient()
   return useMutation({ mutationFn: api.createJournalEntry,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'journal-entries'] }) })
+    onSuccess: () => invalidateJournalCaches(qc) })
 }
 
 export const usePostJournalEntry = () => {
   const qc = useQueryClient()
   return useMutation({ mutationFn: (id: string) => api.postJournalEntry(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'journal-entries'] }) })
+    onSuccess: () => invalidateJournalCaches(qc) })
 }
 
 export const useVoidJournalEntry = () => {
   const qc = useQueryClient()
-  return useMutation({ mutationFn: (id: string) => api.voidJournalEntry(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'journal-entries'] }) })
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) => api.voidJournalEntry(id, reason),
+    onSuccess: () => invalidateJournalCaches(qc),
+  })
 }
 
 export const usePostManualJournal = () => {
   const qc = useQueryClient()
   return useMutation({ mutationFn: api.postManualJournal,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'journal-entries'] }) })
+    onSuccess: () => invalidateJournalCaches(qc) })
 }
 
 export const useTrialBalance = (params?: Record<string, unknown>) =>
@@ -689,7 +728,7 @@ export const useApproveRequest = () => {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => api.approveRequest(id, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'approvals'] }),
+    onSuccess: () => invalidateJournalCaches(qc),   // approvals may move a journal entry to "approved"
   })
 }
 
@@ -697,7 +736,7 @@ export const useRejectRequest = () => {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => api.rejectRequest(id, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'approvals'] }),
+    onSuccess: () => invalidateJournalCaches(qc),
   })
 }
 
@@ -981,6 +1020,14 @@ export const useUpsertExchangeRate = () => {
   })
 }
 
+export const useDeleteExchangeRate = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: api.deleteExchangeRate,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'fx-rates'] }),
+  })
+}
+
 export const useFxRevalRuns = () =>
   useQuery({ queryKey: ['finance', 'fx-reval-runs'], queryFn: api.listFxRevalRuns })
 
@@ -1052,6 +1099,46 @@ export const useDeleteSubstitutionRule = () => {
   })
 }
 
+// ── Document Types ─────────────────────────────────────────────────────────
+export const useDocumentTypes = (activeOnly = false) =>
+  useQuery({
+    queryKey: ['finance', 'document-types', activeOnly],
+    queryFn: () => api.listDocumentTypes(activeOnly),
+  })
+
+export const useSeedDocumentTypes = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.seedDocumentTypes(),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'document-types'] }),
+  })
+}
+
+export const useCreateDocumentType = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: api.createDocumentType,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'document-types'] }),
+  })
+}
+
+export const useUpdateDocumentType = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Omit<api.DocumentType, 'id'> }) =>
+      api.updateDocumentType(id, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'document-types'] }),
+  })
+}
+
+export const useDeleteDocumentType = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.deleteDocumentType(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'document-types'] }),
+  })
+}
+
 // ── Number Ranges ──────────────────────────────────────────────────────────
 export const useNumberRanges = () =>
   useQuery({ queryKey: ['finance', 'number-ranges'], queryFn: api.listNumberRanges })
@@ -1068,6 +1155,23 @@ export const useCreateNumberRange = () => {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: api.createNumberRange,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'number-ranges'] }),
+  })
+}
+
+export const useUpdateNumberRange = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Parameters<typeof api.updateNumberRange>[1] }) =>
+      api.updateNumberRange(id, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'number-ranges'] }),
+  })
+}
+
+export const useDeleteNumberRange = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.deleteNumberRange(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'number-ranges'] }),
   })
 }

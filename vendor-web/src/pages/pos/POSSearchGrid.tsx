@@ -11,6 +11,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { formatCurrency } from '@/lib/utils'
 import { posSellableVariants, gramSaleUnit } from '@/lib/posSellableVariants'
+import { variantSelectOption } from '@/lib/productVariants'
 import { Input } from '@/components/ui/input'
 import {
   Settings2, X, Package, Wrench, Plus, Check,
@@ -62,6 +63,8 @@ export interface POSGridVariant {
   is_pos_only?: boolean
   uom?: string
   uom_quantity?: number | null
+  attributes?: Record<string, unknown> | null
+  color?: string | null
 }
 
 export interface AddToCartItem {
@@ -314,18 +317,35 @@ function CellContent({
   const hsn = item.hsn_code ?? item.sac_code
 
   switch (colKey) {
-    case 'name':
+    case 'name': {
+      const variantLabel = variant
+        ? variantSelectOption({
+            id: variant.id,
+            name: variant.name,
+            sku: variant.sku,
+            barcode: variant.barcode,
+            uom: variant.uom,
+            uom_quantity: variant.uom_quantity,
+            price: variant.price,
+            attributes: variant.attributes,
+            color: variant.color,
+          }).label
+        : ''
+      const variantDetail = variantLabel && variantLabel !== item.name ? variantLabel : ''
       return (
         <div className="min-w-0">
           <div className="text-xs font-medium text-gray-900 truncate leading-tight">{item.name}</div>
           {collapsedMulti && (
             <div className="text-xs text-blue-600 truncate">{activeVariants.length} variants — tap to choose</div>
           )}
-          {item.item_type === 'service' && item.service_type && (
+          {variantDetail ? (
+            <div className="text-[10px] text-muted-foreground truncate leading-tight">{variantDetail}</div>
+          ) : item.item_type === 'service' && item.service_type ? (
             <div className="text-xs text-primary/80 truncate">{item.service_type}</div>
-          )}
+          ) : null}
         </div>
       )
+    }
     case 'sku':     return <span className="font-mono text-xs text-gray-600">{sku || '—'}</span>
     case 'type':    return (
       <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${item.item_type === 'service' ? 'bg-primary/12 text-primary' : 'bg-blue-100 text-blue-700'}`}>
@@ -545,10 +565,24 @@ export function POSSearchGrid({ products, services, onAddToCart, onVariantPick, 
     const tax_rate = variant?.tax_rate ?? item.tax_rate ?? item.gst_rate ?? 0
     const hsn_code = variant?.hsn_code ?? item.hsn_code ?? item.sac_code
     const imgUrl = item.images?.[0]?.url || item.images?.[0]?.file_url || item.image_url
+    const variantLabel = variant
+      ? variantSelectOption({
+          id: variant.id,
+          name: variant.name,
+          sku: variant.sku,
+          barcode: variant.barcode,
+          uom: variant.uom,
+          uom_quantity: variant.uom_quantity,
+          price: variant.price,
+          attributes: variant.attributes,
+          color: variant.color,
+        }).label
+      : ''
+    const detail = variantLabel && variantLabel !== item.name ? variantLabel : (variant?.sku || variant?.name || '')
     onAddToCart({
       id: item.id,
       variant_id: variant?.id,
-      name: item.name,
+      name: detail && detail !== item.name ? `${item.name} · ${detail}` : item.name,
       sku: variant?.sku ?? item.sku,
       price,
       tax_rate,

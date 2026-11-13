@@ -32,6 +32,7 @@ from app.database import (
     ensure_loyalty_tables,
     ensure_crm_tables,
     ensure_pos_transaction_accounting_columns,
+    ensure_journal_entry_attachments_column,
     ensure_website_tables,
     ensure_pm_tables,
     ensure_restaurant_schema,
@@ -107,6 +108,7 @@ async def lifespan(app: FastAPI):
         await ensure_loyalty_tables()
         await ensure_crm_tables()
         await ensure_pos_transaction_accounting_columns()
+        await ensure_journal_entry_attachments_column()
         await ensure_website_tables()
         await ensure_pm_tables()
         await ensure_restaurant_schema()

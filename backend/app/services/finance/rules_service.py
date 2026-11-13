@@ -16,7 +16,12 @@ from uuid import UUID
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.finance import FinNumberRange, FinSubstitutionRule, FinValidationRule
+from app.models.finance import (
+    FinDocumentType,
+    FinNumberRange,
+    FinSubstitutionRule,
+    FinValidationRule,
+)
 
 log = logging.getLogger(__name__)
 
@@ -314,6 +319,166 @@ async def apply_substitutions(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Document Types (SAP OBA7)
+# ─────────────────────────────────────────────────────────────────────────────
+
+DEFAULT_DOCUMENT_TYPES = [
+    # code  name                        prefix  reverse  sort
+    ("SA",  "G/L Account Document",     "JV",   None,    10),
+    ("DR",  "Customer Invoice",         "ARJ",  "DG",    20),
+    ("DG",  "Customer Credit Memo",     "CNJ",  "DR",    30),
+    ("RE",  "Sales Return",             "SRJ",  None,    40),
+    ("DZ",  "Customer Payment",         "CRJ",  None,    50),
+    ("KR",  "Vendor Invoice",           "APJ",  None,    60),
+    ("KZ",  "Vendor Payment",           "VPJ",  None,    70),
+    ("AB",  "Accounting Document",      None,   None,    80),
+    ("MNL", "Manual Journal",           "MNL",  None,    90),
+]
+
+
+async def seed_default_document_types(
+    db: AsyncSession,
+    vendor_id: UUID,
+) -> list[FinDocumentType]:
+    existing = {
+        row[0] for row in (await db.execute(
+            select(FinDocumentType.code).where(FinDocumentType.vendor_id == vendor_id)
+        )).all()
+    }
+    created: list[FinDocumentType] = []
+    for code, name, prefix, reversal, sort_order in DEFAULT_DOCUMENT_TYPES:
+        if code in existing:
+            continue
+        dt = FinDocumentType(
+            vendor_id=vendor_id,
+            code=code,
+            name=name,
+            number_range_prefix=prefix,
+            reversal_doc_type=reversal,
+            sort_order=sort_order,
+            is_active=True,
+        )
+        db.add(dt)
+        created.append(dt)
+    await db.flush()
+    return created
+
+
+async def list_document_types(
+    db: AsyncSession,
+    vendor_id: UUID,
+    *,
+    active_only: bool = False,
+) -> list[FinDocumentType]:
+    q = select(FinDocumentType).where(FinDocumentType.vendor_id == vendor_id)
+    if active_only:
+        q = q.where(FinDocumentType.is_active == True)  # noqa: E712
+    q = q.order_by(FinDocumentType.sort_order, FinDocumentType.code)
+    return list((await db.execute(q)).scalars().all())
+
+
+async def get_document_type(
+    db: AsyncSession, dt_id: UUID, vendor_id: UUID
+) -> FinDocumentType | None:
+    return (await db.execute(
+        select(FinDocumentType).where(
+            FinDocumentType.id == dt_id,
+            FinDocumentType.vendor_id == vendor_id,
+        )
+    )).scalar_one_or_none()
+
+
+async def create_document_type(
+    db: AsyncSession,
+    vendor_id: UUID,
+    *,
+    code: str,
+    name: str,
+    description: str | None = None,
+    number_range_prefix: str | None = None,
+    reversal_doc_type: str | None = None,
+    is_active: bool = True,
+    sort_order: int = 10,
+) -> FinDocumentType:
+    code = (code or "").strip().upper()
+    if not code or len(code) > 4:
+        raise ValueError("Document type code must be 1–4 characters.")
+    dup = (await db.execute(
+        select(FinDocumentType.id).where(
+            FinDocumentType.vendor_id == vendor_id,
+            FinDocumentType.code == code,
+        )
+    )).scalar_one_or_none()
+    if dup:
+        raise ValueError(f"Document type '{code}' already exists.")
+    dt = FinDocumentType(
+        vendor_id=vendor_id,
+        code=code,
+        name=name.strip(),
+        description=description,
+        number_range_prefix=(number_range_prefix or None),
+        reversal_doc_type=(reversal_doc_type or None),
+        is_active=is_active,
+        sort_order=sort_order,
+    )
+    db.add(dt)
+    await db.flush()
+    return dt
+
+
+async def update_document_type(
+    db: AsyncSession,
+    dt_id: UUID,
+    vendor_id: UUID,
+    **kwargs: Any,
+) -> FinDocumentType:
+    dt = await get_document_type(db, dt_id, vendor_id)
+    if not dt:
+        raise LookupError("Document type not found.")
+    if "code" in kwargs and kwargs["code"] is not None:
+        new_code = str(kwargs["code"]).strip().upper()
+        if not new_code or len(new_code) > 4:
+            raise ValueError("Document type code must be 1–4 characters.")
+        if new_code != dt.code:
+            dup = (await db.execute(
+                select(FinDocumentType.id).where(
+                    FinDocumentType.vendor_id == vendor_id,
+                    FinDocumentType.code == new_code,
+                    FinDocumentType.id != dt_id,
+                )
+            )).scalar_one_or_none()
+            if dup:
+                raise ValueError(f"Document type '{new_code}' already exists.")
+            kwargs["code"] = new_code
+    for k, v in kwargs.items():
+        if hasattr(dt, k) and k != "id" and k != "vendor_id":
+            setattr(dt, k, v)
+    await db.flush()
+    return dt
+
+
+async def delete_document_type(
+    db: AsyncSession, dt_id: UUID, vendor_id: UUID
+) -> None:
+    dt = await get_document_type(db, dt_id, vendor_id)
+    if not dt:
+        raise LookupError("Document type not found.")
+    in_use = (await db.execute(
+        select(FinNumberRange.id).where(
+            FinNumberRange.vendor_id == vendor_id,
+            FinNumberRange.document_type == dt.code,
+        ).limit(1)
+    )).scalar_one_or_none()
+    if in_use:
+        raise ValueError(
+            f"Cannot delete '{dt.code}' — number range(s) still reference it. "
+            "Deactivate it instead, or delete the number ranges first."
+        )
+    await db.delete(dt)
+    await db.flush()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Number Ranges
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -402,3 +567,73 @@ async def list_number_ranges(db: AsyncSession, vendor_id: UUID) -> list[FinNumbe
         .order_by(FinNumberRange.document_type, FinNumberRange.fiscal_year)
     )).scalars().all()
     return list(rows)
+
+
+async def get_number_range(
+    db: AsyncSession, nr_id: UUID, vendor_id: UUID
+) -> FinNumberRange | None:
+    return (await db.execute(
+        select(FinNumberRange).where(
+            FinNumberRange.id == nr_id,
+            FinNumberRange.vendor_id == vendor_id,
+        )
+    )).scalar_one_or_none()
+
+
+async def update_number_range(
+    db: AsyncSession,
+    nr_id: UUID,
+    vendor_id: UUID,
+    *,
+    document_type: str,
+    fiscal_year: int,
+    number_from: int,
+    number_to: int,
+    prefix: str | None = None,
+    is_external: bool = False,
+    current_number: int | None = None,
+) -> FinNumberRange:
+    nr = await get_number_range(db, nr_id, vendor_id)
+    if not nr:
+        raise ValueError("Number range not found")
+    if number_to <= number_from:
+        raise ValueError("number_to must be greater than number_from")
+
+    next_current = current_number if current_number is not None else nr.current_number
+    if next_current < number_from or next_current > number_to + 1:
+        raise ValueError(
+            f"current_number must be between {number_from} and {number_to + 1}"
+        )
+
+    # Guard unique (vendor, document_type, fiscal_year) when keys change
+    if document_type != nr.document_type or fiscal_year != nr.fiscal_year:
+        clash = (await db.execute(
+            select(FinNumberRange.id).where(
+                FinNumberRange.vendor_id == vendor_id,
+                FinNumberRange.document_type == document_type,
+                FinNumberRange.fiscal_year == fiscal_year,
+                FinNumberRange.id != nr_id,
+            )
+        )).scalar_one_or_none()
+        if clash:
+            raise ValueError(
+                f"A number range for '{document_type}' FY {fiscal_year} already exists"
+            )
+
+    nr.document_type = document_type
+    nr.fiscal_year = fiscal_year
+    nr.number_from = number_from
+    nr.number_to = number_to
+    nr.prefix = prefix
+    nr.is_external = is_external
+    nr.current_number = next_current
+    await db.flush()
+    return nr
+
+
+async def delete_number_range(db: AsyncSession, nr_id: UUID, vendor_id: UUID) -> None:
+    nr = await get_number_range(db, nr_id, vendor_id)
+    if not nr:
+        raise ValueError("Number range not found")
+    await db.delete(nr)
+    await db.flush()

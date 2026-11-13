@@ -152,8 +152,8 @@ export function MasterDataPicker({
     ? ([selected.phone, selected.email].filter(Boolean) as string[])
     : []
 
-  const fieldH = compact ? 'h-8' : 'h-10'
-  const avatarSz = compact ? 'h-5 w-5 text-[9px]' : 'h-6 w-6 text-[10px]'
+  const fieldH = compact ? 'h-7' : 'h-10'
+  const avatarSz = compact ? 'h-4 w-4 text-[8px]' : 'h-6 w-6 text-[10px]'
 
   const menu =
     open && menuPos && typeof document !== 'undefined'
@@ -256,9 +256,9 @@ export function MasterDataPicker({
           }
         }}
         className={cn(
-          'flex min-w-0 cursor-pointer items-center gap-2 border px-2.5 transition-colors',
+          'flex min-w-0 cursor-pointer items-center border transition-colors',
           fieldH,
-          compact ? 'rounded-md' : 'rounded-lg',
+          compact ? 'gap-1.5 rounded-md px-2' : 'gap-2 rounded-lg px-2.5',
           open
             ? 'border-ring ring-2 ring-ring/30 bg-background'
             : selected
@@ -277,10 +277,13 @@ export function MasterDataPicker({
             >
               {selected.initials || selected.label.charAt(0).toUpperCase()}
             </div>
-            <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden text-sm">
+            <div className={cn(
+              'flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden',
+              compact ? 'text-xs' : 'text-sm',
+            )}>
               <span className="truncate font-medium text-foreground">{selected.label}</span>
               {detailParts.map((part) => (
-                <span key={part} className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+                <span key={part} className={cn('flex min-w-0 items-center gap-1.5 text-muted-foreground', compact ? 'text-[10px]' : 'text-xs')}>
                   <span className="shrink-0 text-muted-foreground/40">·</span>
                   <span className="truncate">{part}</span>
                 </span>
@@ -293,19 +296,20 @@ export function MasterDataPicker({
                 className="shrink-0 text-muted-foreground hover:text-destructive"
                 aria-label="Clear selection"
               >
-                <X className="h-3.5 w-3.5" />
+                <X className={cn(compact ? 'h-3 w-3' : 'h-3.5 w-3.5')} />
               </button>
             )}
           </>
         ) : (
           <>
-            <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">{placeholder}</span>
+            <Search className={cn('shrink-0 text-muted-foreground', compact ? 'h-3 w-3' : 'h-3.5 w-3.5')} />
+            <span className={cn('min-w-0 flex-1 truncate text-muted-foreground', compact ? 'text-xs' : 'text-sm')}>{placeholder}</span>
           </>
         )}
         <ChevronDown
           className={cn(
-            'h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform',
+            'shrink-0 text-muted-foreground transition-transform',
+            compact ? 'h-3 w-3' : 'h-3.5 w-3.5',
             open && 'rotate-180',
           )}
         />

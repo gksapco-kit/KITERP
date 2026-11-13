@@ -1533,6 +1533,20 @@ async def ensure_pos_transaction_accounting_columns() -> None:
             await conn.execute(text(s))
 
 
+async def ensure_journal_entry_attachments_column() -> None:
+    """Add supporting-document attachments JSONB on fin_journal_entry."""
+    if "postgresql" not in settings.DATABASE_URL.lower():
+        return
+    async with engine.begin() as conn:
+        await conn.execute(text(
+            "ALTER TABLE fin_journal_entry "
+            "ADD COLUMN IF NOT EXISTS attachments JSONB DEFAULT '[]'::jsonb"
+        ))
+        await conn.execute(text(
+            "UPDATE fin_journal_entry SET attachments = '[]'::jsonb WHERE attachments IS NULL"
+        ))
+
+
 async def ensure_fiscal_year_schema() -> None:
     """
     Align fin_fiscal_year / fin_period with app.models.finance when Alembic fin005–fin007

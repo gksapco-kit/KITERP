@@ -16,6 +16,9 @@ export const createAccount = (data: Record<string, unknown>) =>
   axios.post(`${BASE}/coa`, data).then(r => r.data)
 export const updateAccount = (id: string, data: Record<string, unknown>) =>
   axios.put(`${BASE}/coa/${id}`, data).then(r => r.data)
+export interface PartySearchResult { id: string; code: string | null; name: string }
+export const searchParties = (params: { party_type: 'customer' | 'supplier'; q?: string; limit?: number }) =>
+  axios.get(`${BASE}/parties/search`, { params }).then(r => r.data as PartySearchResult[])
 export const searchAccounts = (params: { q?: string; company_id?: string; account_type?: string; limit?: number }) =>
   axios.get(`${BASE}/coa/search`, { params }).then(r => r.data as AccountSearchResult[])
 
@@ -105,10 +108,41 @@ export const createJournalEntry = (data: Record<string, unknown>) =>
   axios.post(`${BASE}/journal-entries`, data).then(r => r.data)
 export const updateJournalEntry = (id: string, data: Record<string, unknown>) =>
   axios.put(`${BASE}/journal-entries/${id}`, data).then(r => r.data)
+
+export interface JournalDocumentUpload {
+  url: string
+  filename: string
+  content_type?: string
+  size?: number
+  is_image?: boolean
+}
+
+/** Upload a supporting document for a journal entry (before or after save). */
+export const uploadJournalDocument = (file: File) => {
+  const form = new FormData()
+  form.append('file', file)
+  return axios
+    .post<JournalDocumentUpload>('/uploads/finance/journal-document', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    .then(r => r.data)
+}
 export const postJournalEntry = (id: string) =>
   axios.post(`${BASE}/journal-entries/${id}/post`).then(r => r.data)
-export const voidJournalEntry = (id: string) =>
-  axios.post(`${BASE}/journal-entries/${id}/void`).then(r => r.data)
+export const voidJournalEntry = (id: string, reason?: string) =>
+  axios.post(`${BASE}/journal-entries/${id}/void`, { reason: reason || null }).then(r => r.data)
+export const simulateJournalEntry = (data: Record<string, unknown>) =>
+  axios.post(`${BASE}/journal-entries/simulate`, data).then(r => r.data)
+export const getJournalEntryTimeline = (id: string) =>
+  axios.get(`${BASE}/journal-entries/${id}/timeline`).then(r => r.data)
+export const getJournalPostCheck = (id: string) =>
+  axios.get(`${BASE}/journal-entries/${id}/post-check`).then(r => r.data)
+export const submitJournalEntry = (id: string) =>
+  axios.post(`${BASE}/journal-entries/${id}/submit`).then(r => r.data)
+export const withdrawJournalEntry = (id: string) =>
+  axios.post(`${BASE}/journal-entries/${id}/withdraw`).then(r => r.data)
+export const reverseJournalEntry = (id: string, data: { reversal_date?: string; reason?: string }) =>
+  axios.post(`${BASE}/journal-entries/${id}/reverse`, data).then(r => r.data)
 export const postManualJournal = (data: Record<string, unknown>) =>
   axios.post(`${BASE}/journal/manual`, data).then(r => r.data)
 export const getTrialBalance = (params?: Record<string, unknown>) =>
@@ -224,6 +258,11 @@ export const getAssetReconciliationReport = (params?: Record<string, unknown>) =
 // ── Tax ────────────────────────────────────────────────────────────────────
 export const listTaxCodes = () =>
   axios.get(`${BASE}/tax/codes`).then(r => r.data)
+export interface TaxPostingAccount { id: string; code: string; name: string }
+export const getTaxPostingAccounts = (): Promise<{
+  input: TaxPostingAccount | null
+  output: TaxPostingAccount | null
+}> => axios.get(`${BASE}/tax/posting-accounts`).then(r => r.data)
 export const createTaxCode = (data: Record<string, unknown>) =>
   axios.post(`${BASE}/tax/codes`, data).then(r => r.data)
 export const updateTaxCode = (id: string, data: Record<string, unknown>) =>
@@ -508,6 +547,8 @@ export interface ExchangeRate {
   from_currency: string
   to_currency: string
   rate: string
+  from_rate?: string
+  to_rate?: string | null
   rate_date: string
   rate_type: string
 }
@@ -534,6 +575,8 @@ export const upsertExchangeRate = (data: { from_currency: string; to_currency: s
   axios.post(`${BASE}/fx/rates`, data).then(r => r.data as ExchangeRate)
 export const listExchangeRates = (params?: { from_currency?: string; to_currency?: string }) =>
   axios.get(`${BASE}/fx/rates`, { params }).then(r => r.data as ExchangeRate[])
+export const deleteExchangeRate = (rateId: string) =>
+  axios.delete(`${BASE}/fx/rates/${rateId}`).then(() => undefined)
 export const simulateFxReval = (data: { currency: string; run_date: string; local_currency?: string; rate_type?: string }) =>
   axios.post(`${BASE}/fx/reval/simulate`, data).then(r => r.data as FxRevalRun)
 export const listFxRevalRuns = () =>
@@ -576,6 +619,29 @@ export const listSubstitutions = () => axios.get(`${BASE}/substitutions`).then(r
 export const createSubstitution = (data: Omit<SubstitutionRule, 'id' | 'is_active'>) => axios.post(`${BASE}/substitutions`, data).then(r => r.data as SubstitutionRule)
 export const deleteSubstitution = (id: string) => axios.delete(`${BASE}/substitutions/${id}`)
 
+// ── Document Types ────────────────────────────────────────────────────────────
+export interface DocumentType {
+  id: string
+  code: string
+  name: string
+  description: string | null
+  number_range_prefix: string | null
+  reversal_doc_type: string | null
+  is_active: boolean
+  sort_order: number
+}
+export const seedDocumentTypes = () =>
+  axios.post(`${BASE}/document-types/seed`).then(r => r.data as { seeded: number })
+export const listDocumentTypes = (activeOnly = false) =>
+  axios.get(`${BASE}/document-types`, { params: { active_only: activeOnly } })
+    .then(r => r.data as DocumentType[])
+export const createDocumentType = (data: Omit<DocumentType, 'id'>) =>
+  axios.post(`${BASE}/document-types`, data).then(r => r.data as DocumentType)
+export const updateDocumentType = (id: string, data: Omit<DocumentType, 'id'>) =>
+  axios.put(`${BASE}/document-types/${id}`, data).then(r => r.data as DocumentType)
+export const deleteDocumentType = (id: string) =>
+  axios.delete(`${BASE}/document-types/${id}`)
+
 // ── Number Ranges ─────────────────────────────────────────────────────────────
 export interface NumberRange {
   id: string
@@ -590,6 +656,11 @@ export interface NumberRange {
 export const seedNumberRanges = (fiscal_year: number) => axios.post(`${BASE}/number-ranges/seed`, null, { params: { fiscal_year } }).then(r => r.data)
 export const listNumberRanges = () => axios.get(`${BASE}/number-ranges`).then(r => r.data as NumberRange[])
 export const createNumberRange = (data: Omit<NumberRange, 'id' | 'current_number'>) => axios.post(`${BASE}/number-ranges`, data).then(r => r.data as NumberRange)
+export const updateNumberRange = (
+  id: string,
+  data: Omit<NumberRange, 'id'> & { current_number?: number },
+) => axios.put(`${BASE}/number-ranges/${id}`, data).then(r => r.data as NumberRange)
+export const deleteNumberRange = (id: string) => axios.delete(`${BASE}/number-ranges/${id}`)
 
 // ── Document Splitting ────────────────────────────────────────────────────────
 export interface SplitRule {

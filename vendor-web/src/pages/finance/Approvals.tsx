@@ -1,16 +1,32 @@
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { useApprovals, useApproveRequest, useRejectRequest, useApprovalPolicies } from '@/hooks/useFinance'
-import { CheckCircle, XCircle, Clock } from 'lucide-react'
+import { CheckCircle, XCircle } from 'lucide-react'
 
 const STATUS_COLORS: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-700',
   approved: 'bg-green-100 text-green-700',
   rejected: 'bg-red-100 text-red-600',
+  cancelled: 'bg-gray-100 text-gray-500',
   auto_approved: 'bg-blue-100 text-blue-700',
 }
 
-function fmt(n: number) {
-  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n)
+const ENTITY_LABELS: Record<string, string> = {
+  journal_entry: 'Journal entry',
+  vendor_bill: 'Vendor bill',
+  payment_run: 'Payment run',
+  budget: 'Budget',
+}
+
+function fmt(n: number | string) {
+  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(n) || 0)
+}
+
+function errorText(e: any, fallback: string): string {
+  const d = e?.response?.data?.detail
+  if (typeof d === 'string') return d
+  if (Array.isArray(d)) return d.map((x: any) => x?.msg || String(x)).join('; ')
+  return e?.message || fallback
 }
 
 export default function Approvals() {
@@ -25,6 +41,22 @@ export default function Approvals() {
 
   const approvals = Array.isArray(approvalsData) ? approvalsData : (approvalsData?.items || [])
   const filtered = filter ? approvals.filter((a: any) => a.status === filter) : approvals
+
+  const decide = (kind: 'approve' | 'reject', a: any) => {
+    const mut = kind === 'approve' ? approveMut : rejectMut
+    // The server decides which level this action satisfies; `step` is only a hint for single-level requests.
+    mut.mutate({ id: a.id, data: { comments: comments[a.id] || '' } }, {
+      onSuccess: () => {
+        setComments(c => ({ ...c, [a.id]: '' }))
+        toast.success(kind === 'approve'
+          ? (a.levels_required > 1 && a.levels_approved + 1 < a.levels_required
+            ? `Level ${a.levels_approved + 1} approved — waiting for the next approver`
+            : 'Approved')
+          : 'Rejected')
+      },
+      onError: (e: any) => toast.error(errorText(e, `Could not ${kind}`)),
+    })
+  }
 
   return (
     <div className="p-6 space-y-4">
@@ -59,34 +91,58 @@ export default function Approvals() {
               <div key={a.id} className="bg-white rounded-xl border border-gray-200 p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-gray-800 capitalize">{a.request_type}</span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-semibold text-gray-800">
+                        {ENTITY_LABELS[a.entity_type] || a.entity_type}
+                        {a.entity_label ? <span className="ml-1 font-mono text-sm text-gray-600">{a.entity_label}</span> : null}
+                      </span>
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[a.status] || ''}`}>{a.status}</span>
+                      {a.levels_required > 1 && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                          Level {a.status === 'pending' ? Math.min(a.levels_approved + 1, a.levels_required) : a.levels_approved} of {a.levels_required}
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-gray-500 mt-1">
-                      Ref: {a.ref_id?.slice(0,8)}… · Amount: {fmt(a.amount || 0)} · {a.created_at?.slice(0,10)}
+                      {a.entity_label ? '' : `Ref: ${String(a.entity_id || '').slice(0, 8)}… · `}
+                      Amount: {fmt(a.amount || 0)} · {a.created_at?.slice(0, 10)}
+                      {a.requested_by_name ? ` · raised by ${a.requested_by_name}` : ''}
                     </p>
-                    {a.reason && <p className="text-sm text-gray-600 mt-1">{a.reason}</p>}
-                    {a.comments && <p className="text-xs text-gray-400 mt-1 italic">{a.comments}</p>}
+                    {a.notes && <p className="text-sm text-gray-600 mt-1">{a.notes}</p>}
+                    {(a.steps || []).length > 0 && (
+                      <ol className="mt-2 space-y-0.5 text-xs text-gray-500">
+                        {a.steps.map((s: any) => (
+                          <li key={s.id}>
+                            Level {s.step_number}: <span className="capitalize">{s.status}</span>
+                            {s.approver_name ? ` by ${s.approver_name}` : ''}
+                            {s.comments ? <span className="italic"> — “{s.comments}”</span> : null}
+                          </li>
+                        ))}
+                      </ol>
+                    )}
                   </div>
                   {a.status === 'pending' && (
-                    <div className="flex flex-col gap-2 min-w-[200px]">
-                      <input placeholder="Add comment…" value={comments[a.id] || ''}
-                        onChange={e => setComments(c => ({ ...c, [a.id]: e.target.value }))}
-                        className="border border-gray-300 rounded px-2 py-1 text-xs" />
-                      <div className="flex gap-2">
-                        <button onClick={() => approveMut.mutate({ id: a.id, data: { comments: comments[a.id] || '' } })}
-                          disabled={approveMut.isPending}
-                          className="flex items-center gap-1 px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 disabled:opacity-50">
-                          <CheckCircle className="w-3 h-3" /> Approve
-                        </button>
-                        <button onClick={() => rejectMut.mutate({ id: a.id, data: { comments: comments[a.id] || '' } })}
-                          disabled={rejectMut.isPending}
-                          className="flex items-center gap-1 px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700 disabled:opacity-50">
-                          <XCircle className="w-3 h-3" /> Reject
-                        </button>
+                    a.can_act ? (
+                      <div className="flex flex-col gap-2 min-w-[200px]">
+                        <input placeholder="Add comment…" value={comments[a.id] || ''}
+                          onChange={e => setComments(c => ({ ...c, [a.id]: e.target.value }))}
+                          className="border border-gray-300 rounded px-2 py-1 text-xs" />
+                        <div className="flex gap-2">
+                          <button onClick={() => decide('approve', a)}
+                            disabled={approveMut.isPending || rejectMut.isPending}
+                            className="flex items-center gap-1 px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 disabled:opacity-50">
+                            <CheckCircle className="w-3 h-3" /> Approve
+                          </button>
+                          <button onClick={() => decide('reject', a)}
+                            disabled={approveMut.isPending || rejectMut.isPending}
+                            className="flex items-center gap-1 px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700 disabled:opacity-50">
+                            <XCircle className="w-3 h-3" /> Reject
+                          </button>
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <p className="max-w-[220px] text-xs italic text-gray-400">{a.cannot_act_reason}</p>
+                    )
                   )}
                 </div>
               </div>
@@ -103,8 +159,11 @@ export default function Approvals() {
             <div key={p.id} className="bg-white rounded-xl border border-gray-200 p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-semibold text-gray-800">{p.name}</p>
-                  <p className="text-xs text-gray-500 capitalize mt-1">{p.request_type} · Threshold: {fmt(p.amount_threshold || 0)}</p>
+                  <p className="font-semibold text-gray-800">{ENTITY_LABELS[p.entity_type] || p.entity_type}</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {p.threshold_amount != null ? `Above ${fmt(p.threshold_amount)}` : 'Always requires approval'}
+                    {' · '}{p.levels > 1 ? `${p.levels}-level approval` : 'Single approval'}
+                  </p>
                 </div>
                 <span className={`text-xs px-2 py-0.5 rounded-full ${p.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                   {p.is_active ? 'Active' : 'Inactive'}

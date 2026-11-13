@@ -209,6 +209,8 @@ const FinancePostingControls = lazy(() => import('@/pages/finance/PostingControl
 const FinanceProfitCenters = lazy(() => import('@/pages/finance/ProfitCenters'))
 const FinanceFxRevaluation = lazy(() => import('@/pages/finance/FxRevaluation'))
 const FinancePostingRules = lazy(() => import('@/pages/finance/PostingRules'))
+const FinanceDocumentTypes = lazy(() => import('@/pages/finance/DocumentTypes'))
+const FinanceNumberRanges = lazy(() => import('@/pages/finance/NumberRanges'))
 const FinanceDocumentSplitting = lazy(() => import('@/pages/finance/DocumentSplitting'))
 const FinanceParallelLedgers = lazy(() => import('@/pages/finance/ParallelLedgers'))
 const FinanceAP = lazy(() => import('@/pages/finance/AccountsPayable'))
@@ -629,6 +631,8 @@ const appRoutes: RouteObject[] = [
       { path: 'finance/profit-centers',         element: <FinanceProfitCenters /> },
       { path: 'finance/fx-revaluation',         element: <FinanceFxRevaluation /> },
       { path: 'finance/posting-rules',          element: <FinancePostingRules /> },
+      { path: 'finance/document-types',         element: <FinanceDocumentTypes /> },
+      { path: 'finance/number-ranges',          element: <FinanceNumberRanges /> },
       { path: 'finance/document-splitting',     element: <FinanceDocumentSplitting /> },
       { path: 'finance/parallel-ledgers',       element: <FinanceParallelLedgers /> },
       { path: 'finance/ar',                     element: <FinanceAR /> },

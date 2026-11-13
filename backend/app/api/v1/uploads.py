@@ -35,6 +35,7 @@ from app.services.media_upload import (
     save_hr_document,
     save_supplier_document,
     save_crm_document,
+    save_journal_document,
     delete_stored_file,
     detect_media_type,
     fetch_image_bytes_from_url,
@@ -251,6 +252,17 @@ async def upload_crm_document(
     """Upload a CRM attachment (contact/account documents) and return its URL + metadata."""
     vendor_id = await _get_vendor_id(current_user, db)
     return JSONResponse(content=await save_crm_document(file, vendor_id))
+
+
+@router.post("/finance/journal-document")
+async def upload_journal_document(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Upload a journal-entry supporting document and return its URL + metadata."""
+    vendor_id = await _get_vendor_id(current_user, db)
+    return JSONResponse(content=await save_journal_document(file, vendor_id))
 
 
 @router.post("/crm/template-media")

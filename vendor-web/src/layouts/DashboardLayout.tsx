@@ -892,16 +892,17 @@ const allSections: NavSection[] = [
       { to: '/stores', icon: Building2, label: 'Business Units', requiresPermission: 'settings.edit', requiresFinanceMode: 'advanced', groupLabel: 'General Accounting', groupColor: 'blue' },
       { to: '/finance/coa', icon: BookMarked, label: 'Chart of Accounts', requiresPermission: 'finance.view', requiresFinanceMode: 'advanced' },
       { to: '/finance/journal', icon: ScrollText, label: 'Journal Entries', requiresPermission: 'finance.view', requiresFinanceMode: 'advanced' },
-      { to: '/finance/trial-balance', icon: Scale, label: 'Trial Balance', requiresPermission: 'finance.reports.view', requiresFinanceMode: 'advanced' },
-      { to: '/finance/statement-versions', icon: BarChart3, label: 'Statement Versions (FSV)', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
-      { to: '/finance/posting-controls', icon: ShieldCheck, label: 'Posting Controls', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
-      { to: '/finance/profit-centers', icon: TrendingUp, label: 'Profit Centers & Segments', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
-      { to: '/finance/fx-revaluation', icon: ArrowLeftRight, label: 'FX Reval & Year-End Close', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
-      { to: '/finance/posting-rules', icon: ListChecks, label: 'Posting Rules & Number Ranges', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
-      { to: '/finance/parallel-ledgers', icon: BookMarked, label: 'Parallel Ledgers / Multi-GAAP', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
+      { to: '/finance/document-types', icon: FileText, label: 'Document Types', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
+      { to: '/finance/number-ranges', icon: Hash, label: 'Number Ranges', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
       { to: '/finance/periods', icon: Lock, label: 'Posting Periods', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
-      { to: '/finance/field-rules', icon: ListChecks, label: 'GL Field Rules', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
       { to: '/finance/payment-terms', icon: CalendarClock, label: 'Payment Terms', requiresPermission: 'finance.view', requiresFinanceMode: 'advanced' },
+      { to: '/finance/posting-controls', icon: ShieldCheck, label: 'Posting Controls', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
+      { to: '/finance/parallel-ledgers', icon: BookMarked, label: 'Parallel Ledgers / Multi-GAAP', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
+      { to: '/finance/fx-revaluation', icon: ArrowLeftRight, label: 'FX Reval & Year-End Close', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
+      { to: '/finance/field-rules', icon: ListChecks, label: 'GL Field Rules', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
+      { to: '/finance/statement-versions', icon: BarChart3, label: 'Statement Versions (FSV)', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
+      { to: '/finance/profit-centers', icon: TrendingUp, label: 'Profit Centers & Segments', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
+      { to: '/finance/posting-rules', icon: ListChecks, label: 'Posting Rules', requiresPermission: 'finance.coa.manage', requiresFinanceMode: 'advanced' },
       // ── Accounts Receivable
       { to: '/finance/ar', icon: ArrowLeftRight, label: 'Accounts Receivable', requiresPermission: 'finance.ar.manage', requiresFinanceMode: 'advanced', groupLabel: 'Accounts Receivable', groupColor: 'emerald' },
       { to: '/finance/open-items', icon: ListChecks, label: 'Open-Item Clearing', requiresPermission: 'finance.ar.manage', requiresFinanceMode: 'advanced' },
@@ -918,7 +919,8 @@ const allSections: NavSection[] = [
       { to: '/finance/budgets', icon: Calculator, label: 'Budgets & Forecasts', requiresPermission: 'finance.budget.manage', requiresFinanceMode: 'advanced', groupLabel: 'Planning & Treasury', groupColor: 'violet' },
       { to: '/finance/capital', icon: Shuffle, label: 'Loans & Investments', requiresPermission: 'finance.capital.manage', requiresFinanceMode: 'advanced' },
       // ── Financial Reporting
-      { to: '/finance/reports/pnl', icon: LineChart, label: 'P&L Statement', requiresPermission: 'finance.reports.view', requiresFinanceMode: 'advanced', groupLabel: 'Financial Reporting', groupColor: 'rose' },
+      { to: '/finance/trial-balance', icon: Scale, label: 'Trial Balance', requiresPermission: 'finance.reports.view', requiresFinanceMode: 'advanced', groupLabel: 'Financial Reporting', groupColor: 'rose' },
+      { to: '/finance/reports/pnl', icon: LineChart, label: 'P&L Statement', requiresPermission: 'finance.reports.view', requiresFinanceMode: 'advanced' },
       { to: '/finance/reports/balance-sheet', icon: FilePieChart, label: 'Balance Sheet', requiresPermission: 'finance.reports.view', requiresFinanceMode: 'advanced' },
       { to: '/finance/reports/cash-flow', icon: TrendingUp, label: 'Cash Flow', requiresPermission: 'finance.reports.view', requiresFinanceMode: 'advanced' },
       { to: '/finance/reports/cost-analysis', icon: BarChart3, label: 'Cost Analysis', requiresPermission: 'finance.reports.view', requiresFinanceMode: 'advanced' },
@@ -1394,6 +1396,9 @@ const pageTitles: Record<string, string> = {
   '/websites/templates': 'Business Website Templates',
   '/blog': 'Blog Manager',
   '/finance/basic': 'Finance',
+  '/finance/document-types': 'Document Types',
+  '/finance/number-ranges': 'Number Ranges',
+  '/finance/posting-rules': 'Posting Rules',
   '/finance/assets': 'Fixed Assets',
   '/finance/assets/reports': 'Asset Register',
   '/finance/assets/depreciation-schedule': 'Depreciation Schedule',
@@ -1696,6 +1701,8 @@ export default function DashboardLayout() {
   const navScrollRef = useRef<HTMLElement>(null)
   const sectionScrollAnchors = useRef<Map<string, HTMLDivElement>>(new Map())
   const pendingScrollSectionId = useRef<string | null>(null)
+  const collapsedSectionsRef = useRef(collapsedSections)
+  collapsedSectionsRef.current = collapsedSections
   /** After keyboard collapse, keep focus on the module row without scrollIntoView jump. */
   const skipNavFocusScrollRef = useRef(false)
   /** Arrow-key focus target in the sidebar module tree */
@@ -2790,7 +2797,10 @@ export default function DashboardLayout() {
 
     userPinnedAccordionRef.current = false
     routeAccordionNavToRef.current = activeNavTo
-    pendingScrollSectionId.current = section.id
+    // Only scroll the sidebar when this navigation opens a module that was closed.
+    // Clicking another item inside the already-open module must not jump the sidebar.
+    const sectionWasCollapsed = (collapsedSectionsRef.current[section.title] ?? true) !== false
+    if (sectionWasCollapsed) pendingScrollSectionId.current = section.id
     setCollapsedSections(accordionCollapsedSections(sidebarSections, section.title))
 
     const items = orderedNavItemsBySectionId.get(section.id) ?? section.items
@@ -2874,20 +2884,19 @@ export default function DashboardLayout() {
   const toggleGroup = useCallback((grpKey: string, sectionId: string, groupItems: NavItem[]) => {
     const activeInGroup =
       activeNavTo && groupItems.some((it) => it.to === activeNavTo) ? activeNavTo : null
-    setCollapsedGroups((prev) => {
-      const wasCollapsed = resolveNavGroupCollapsed(grpKey, prev)
-      if (!wasCollapsed) {
-        return { ...prev, [grpKey]: true }
-      }
-      if (activeInGroup && !isNavRouteActive(location.pathname, location.search, activeInGroup)) {
-        navigate(activeInGroup)
-      }
-      if (activeInGroup) {
-        setNavFocusKey(itemFocusKey(sectionId, activeInGroup))
-      }
-      return { ...prev, [grpKey]: false }
-    })
-  }, [activeNavTo, location.pathname, location.search, navigate])
+    const wasCollapsed = resolveNavGroupCollapsed(grpKey, collapsedGroups)
+    if (!wasCollapsed) {
+      setCollapsedGroups((prev) => ({ ...prev, [grpKey]: true }))
+      return
+    }
+    if (activeInGroup && !isNavRouteActive(location.pathname, location.search, activeInGroup)) {
+      navigate(activeInGroup)
+    }
+    if (activeInGroup) {
+      setNavFocusKey(itemFocusKey(sectionId, activeInGroup))
+    }
+    setCollapsedGroups((prev) => ({ ...prev, [grpKey]: false }))
+  }, [activeNavTo, collapsedGroups, location.pathname, location.search, navigate])
 
   const roleBadge = vendorRole?.role_name || 'Member'
   const profileName = user?.full_name?.trim() || ''
@@ -2925,6 +2934,10 @@ export default function DashboardLayout() {
          location.pathname.startsWith('/rental/bookings/') ? 'Booking Details' :
          location.pathname.startsWith('/rental/assets/') ? 'Asset Details' :
          'Dashboard')
+
+  /** POS screens need the working surface, not the usual page chrome padding. */
+  const denseMainPad =
+    location.pathname === '/pos' || location.pathname.startsWith('/restaurant/pos')
 
   useEffect(() => {
     const title = vendorAppPageTitle(pageTitle)
@@ -4291,7 +4304,12 @@ export default function DashboardLayout() {
   if (isVendorAdminEmbed()) {
     return (
       <div className="min-h-full min-w-0 overflow-x-clip bg-background font-sans text-foreground">
-        <main className="vendor-main-pad min-h-full min-w-0 overflow-x-clip overflow-y-auto [overscroll-behavior-y:none] bg-background font-sans text-sm">
+        <main
+          className={cn(
+            'vendor-main-pad min-h-full min-w-0 overflow-x-clip overflow-y-auto [overscroll-behavior-y:none] bg-background font-sans text-sm',
+            denseMainPad && 'vendor-main-pad--dense',
+          )}
+        >
           <RestaurantScopeBanner />
           <FieldMappingProvider>
             <DashboardMainOutlet />
@@ -4349,14 +4367,21 @@ export default function DashboardLayout() {
             aria-valuemax={SIDEBAR_WIDTH_MAX_PX}
             aria-valuenow={sidebarWidthPx}
             tabIndex={0}
-            onPointerDown={startSidebarResize}
-            onDoubleClick={resetSidebarWidth}
             onKeyDown={onSidebarResizeKeyDown}
             className={cn(
-              'absolute right-0 top-0 bottom-0 z-[55] hidden w-3 cursor-col-resize touch-none lg:block',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring/50',
+              // Outer box is non-interactive so nav chevrons stay clickable; only the
+              // thin right-edge grip captures drag/resize pointer events.
+              'absolute right-0 top-0 bottom-0 z-[55] hidden w-3 touch-none lg:block',
+              'pointer-events-none focus-visible:pointer-events-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring/50',
             )}
-          />
+          >
+            <div
+              aria-hidden
+              onPointerDown={startSidebarResize}
+              onDoubleClick={resetSidebarWidth}
+              className="pointer-events-auto absolute right-0 top-0 bottom-0 w-1 cursor-col-resize"
+            />
+          </div>
         )}
       </aside>
 
@@ -4899,7 +4924,7 @@ export default function DashboardLayout() {
         />
 
         {/* Page content — hide outlet for uninstalled apps so page never flashes */}
-        <main className="vendor-main-pad min-w-0 overflow-x-clip [overscroll-behavior-y:none] bg-background font-sans text-sm">
+        <main className={cn('vendor-main-pad min-w-0 overflow-x-clip [overscroll-behavior-y:none] bg-background font-sans text-sm', denseMainPad && 'vendor-main-pad--dense')}>
           <RestaurantScopeBanner />
           {blockedRouteSectionId ? (
             <Navigate to="/" replace />

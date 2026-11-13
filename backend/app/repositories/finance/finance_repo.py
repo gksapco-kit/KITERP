@@ -190,13 +190,12 @@ class FinJournalRepo:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def list_entries(self, vendor_id: UUID, status: str = None, source_type: str = None,
-                           from_date: date = None, to_date: date = None,
-                           skip: int = 0, limit: int = 50) -> list[FinJournalEntry]:
-        q = (select(FinJournalEntry)
-             .where(FinJournalEntry.vendor_id == vendor_id)
-             .options(selectinload(FinJournalEntry.lines).selectinload(FinJournalLine.account))
-             .order_by(FinJournalEntry.entry_date.desc(), FinJournalEntry.created_at.desc()))
+    @staticmethod
+    def _apply_entry_filters(q, vendor_id: UUID, status: str = None, source_type: str = None,
+                             from_date: date = None, to_date: date = None,
+                             company_id: UUID = None, search: str = None):
+        """Shared by list + count so the total always matches the filtered list."""
+        q = q.where(FinJournalEntry.vendor_id == vendor_id)
         if status:
             q = q.where(FinJournalEntry.status == status)
         if source_type:
@@ -205,14 +204,35 @@ class FinJournalRepo:
             q = q.where(FinJournalEntry.entry_date >= from_date)
         if to_date:
             q = q.where(FinJournalEntry.entry_date <= to_date)
+        if company_id:
+            q = q.where(FinJournalEntry.company_id == company_id)
+        if search and search.strip():
+            like = f"%{search.strip()}%"
+            q = q.where(or_(
+                FinJournalEntry.entry_no.ilike(like),
+                FinJournalEntry.reference.ilike(like),
+                FinJournalEntry.narration.ilike(like),
+            ))
+        return q
+
+    async def list_entries(self, vendor_id: UUID, status: str = None, source_type: str = None,
+                           from_date: date = None, to_date: date = None,
+                           skip: int = 0, limit: int = 50,
+                           company_id: UUID = None, search: str = None) -> list[FinJournalEntry]:
+        q = (select(FinJournalEntry)
+             .options(selectinload(FinJournalEntry.lines).selectinload(FinJournalLine.account))
+             .order_by(FinJournalEntry.entry_date.desc(), FinJournalEntry.created_at.desc()))
+        q = self._apply_entry_filters(q, vendor_id, status, source_type, from_date, to_date,
+                                      company_id, search)
         r = await self.db.execute(q.offset(skip).limit(limit))
         return list(r.scalars().all())
 
-    async def count_entries(self, vendor_id: UUID, status: str = None) -> int:
-        q = select(func.count()).select_from(FinJournalEntry).where(
-            FinJournalEntry.vendor_id == vendor_id)
-        if status:
-            q = q.where(FinJournalEntry.status == status)
+    async def count_entries(self, vendor_id: UUID, status: str = None, source_type: str = None,
+                            from_date: date = None, to_date: date = None,
+                            company_id: UUID = None, search: str = None) -> int:
+        q = select(func.count()).select_from(FinJournalEntry)
+        q = self._apply_entry_filters(q, vendor_id, status, source_type, from_date, to_date,
+                                      company_id, search)
         r = await self.db.execute(q)
         return r.scalar() or 0
 
@@ -220,7 +240,11 @@ class FinJournalRepo:
         r = await self.db.execute(
             select(FinJournalEntry)
             .where(FinJournalEntry.id == je_id, FinJournalEntry.vendor_id == vendor_id)
-            .options(selectinload(FinJournalEntry.lines).selectinload(FinJournalLine.account))
+            .options(
+                selectinload(FinJournalEntry.lines).selectinload(FinJournalLine.account),
+                selectinload(FinJournalEntry.lines).selectinload(FinJournalLine.cost_center),
+                selectinload(FinJournalEntry.lines).selectinload(FinJournalLine.project),
+            )
         )
         return r.scalar_one_or_none()
 
@@ -2284,6 +2308,39 @@ class FinControlsRepo:
     async def action_step(self, request: FinApprovalRequest, step_number: int,
                           approver_id: UUID, action: str, comments: str = None) -> FinApprovalRequest:
         from datetime import datetime
+
+        # Multi-level policies: the server decides which level this approval satisfies
+        # (never the client), each level needs a different approver, and the request only
+        # becomes 'approved' once the last level signs off. Rejection at any level is final.
+        levels = 1
+        if request.policy_id:
+            policy = (await self.db.execute(
+                select(FinApprovalPolicy).where(FinApprovalPolicy.id == request.policy_id)
+            )).scalar_one_or_none()
+            levels = max(1, int(policy.levels or 1)) if policy else 1
+        if levels > 1 and action == "approved":
+            if request.status != "pending":
+                raise ValueError(f"This approval request is already {request.status}.")
+            done = (await self.db.execute(
+                select(FinApprovalStep).where(
+                    FinApprovalStep.request_id == request.id,
+                    FinApprovalStep.status == "approved",
+                )
+            )).scalars().all()
+            if any(s.approver_id == approver_id for s in done):
+                raise ValueError("You already approved an earlier level; a different approver must sign off the next level.")
+            step_number = len(done) + 1
+            self.db.add(FinApprovalStep(
+                id=uuid.uuid4(), request_id=request.id, step_number=step_number,
+                approver_id=approver_id, status="approved",
+                action_at=datetime.utcnow(), comments=comments,
+            ))
+            if step_number >= levels:
+                request.status = "approved"
+                request.resolved_at = datetime.utcnow()
+            await self.db.flush()
+            return request
+
         r = await self.db.execute(
             select(FinApprovalStep).where(
                 FinApprovalStep.request_id == request.id,

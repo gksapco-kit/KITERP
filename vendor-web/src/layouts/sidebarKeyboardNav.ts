@@ -369,6 +369,37 @@ export function resolveSidebarNavKeyAction(
     if ((current.kind === 'item' || current.kind === 'flyout') && current.to) {
       return { type: 'navigate', to: current.to, focusKey: current.key }
     }
+    if (current.kind === 'section') {
+      const collapsed = ctx.collapsedSections[current.sectionTitle ?? ''] ?? true
+      if (collapsed) {
+        const activeChild = activeDescendantKey(nodes, current.key, ctx.activeNavTo)
+        return {
+          type: 'expandSection',
+          title: current.sectionTitle ?? '',
+          sectionId: current.sectionId,
+          focusKey: activeChild ?? current.key,
+          navigateTo: activeChild ? ctx.activeNavTo ?? undefined : undefined,
+        }
+      }
+      return {
+        type: 'collapseSection',
+        title: current.sectionTitle ?? '',
+        sectionId: current.sectionId,
+      }
+    }
+    if (current.kind === 'group') {
+      const collapsed = resolveNavGroupCollapsed(current.grpKey ?? '', ctx.collapsedGroups)
+      if (collapsed) {
+        const activeChild = activeDescendantKey(nodes, current.key, ctx.activeNavTo)
+        return {
+          type: 'expandGroup',
+          grpKey: current.grpKey ?? '',
+          focusKey: activeChild ?? current.key,
+          navigateTo: activeChild ? ctx.activeNavTo ?? undefined : undefined,
+        }
+      }
+      return { type: 'collapseGroup', grpKey: current.grpKey ?? '' }
+    }
     return null
   }
 

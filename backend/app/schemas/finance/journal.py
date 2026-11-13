@@ -10,6 +10,11 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+# Sign convention for amount_fc:
+#   debit lines  → amount_fc > 0
+#   credit lines → amount_fc < 0
+# This matches the base_debit - base_credit sign used by the revaluation engine.
+
 
 # ─── Line schemas ─────────────────────────────────────────────────────────────
 
@@ -21,6 +26,10 @@ class JournalLineIn(BaseModel):
     credit: Decimal = Field(default=Decimal("0"), ge=0)
     currency: str = "INR"
     fx_rate: Decimal = Field(default=Decimal("1"), gt=0)
+    # Foreign-currency amount (signed: debit positive, credit negative).
+    # If omitted and fx_rate != 1 the posting service auto-computes debit - credit.
+    # Must be NULL for local-currency lines (fx_rate == 1).
+    amount_fc: Optional[Decimal] = None
     # Dimensions
     cost_center_id: Optional[UUID] = None
     project_id: Optional[UUID] = None
@@ -64,6 +73,8 @@ class JournalLineOut(BaseModel):
     fx_rate: Decimal
     base_debit: Decimal
     base_credit: Decimal
+    amount_fc: Optional[Decimal] = None
+    exchange_rate: Optional[Decimal] = None
     cost_center_id: Optional[UUID] = None
     project_id: Optional[UUID] = None
     intercompany_partner_id: Optional[UUID] = None
@@ -84,6 +95,15 @@ class JournalLineOut(BaseModel):
 
 # ─── Header schemas ───────────────────────────────────────────────────────────
 
+class JournalAttachment(BaseModel):
+    """Supporting document linked on a journal entry header."""
+    url: str
+    filename: str = "document"
+    content_type: Optional[str] = None
+    size: Optional[int] = None
+    is_image: bool = False
+
+
 class JournalEntryCreate(BaseModel):
     # Business unit (posting entity; fin_company row)
     company_id: Optional[UUID] = None          # defaults to vendor's default business unit
@@ -101,6 +121,7 @@ class JournalEntryCreate(BaseModel):
     reference: Optional[str] = None
     narration: Optional[str] = None
     header_text: Optional[str] = None
+    attachments: list[JournalAttachment] = Field(default_factory=list)
 
     # Currency
     currency: str = "INR"
@@ -137,6 +158,7 @@ class JournalEntryUpdate(BaseModel):
     reference: Optional[str] = None
     narration: Optional[str] = None
     header_text: Optional[str] = None
+    attachments: Optional[list[JournalAttachment]] = None
     currency: Optional[str] = None
     period_id: Optional[UUID] = None
     lines: Optional[list[JournalLineIn]] = None
@@ -171,6 +193,7 @@ class JournalEntryOut(BaseModel):
     reference: Optional[str] = None
     narration: Optional[str] = None
     header_text: Optional[str] = None
+    attachments: list[JournalAttachment] = Field(default_factory=list)
     currency: str
     total_debit: Decimal
     total_credit: Decimal

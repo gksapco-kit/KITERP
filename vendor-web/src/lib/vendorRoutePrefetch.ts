@@ -66,6 +66,8 @@ const LOADERS: Record<string, () => Promise<unknown>> = {
   "/finance/payment-terms": () => import("@/pages/finance/PaymentTerms"),
   "/finance/periods": () => import("@/pages/finance/PeriodControl"),
   "/finance/posting-controls": () => import("@/pages/finance/PostingControls"),
+  "/finance/document-types": () => import("@/pages/finance/DocumentTypes"),
+  "/finance/number-ranges": () => import("@/pages/finance/NumberRanges"),
   "/finance/posting-rules": () => import("@/pages/finance/PostingRules"),
   "/finance/profit-centers": () => import("@/pages/finance/ProfitCenters"),
   "/finance/reports/balance-sheet": () => import("@/pages/finance/reports/BalanceSheet"),

@@ -305,6 +305,8 @@ class FinJournalEntry(Base):
     reference = Column(String(100))
     # Header-level text note (separate from line narration)
     header_text = Column(Text)
+    # Supporting documents: [{url, filename, content_type, size, is_image}]
+    attachments = Column(JSONB, nullable=False, default=list)
     currency = Column(String(3), default="INR")
     total_debit = Column(Numeric(18, 4), default=0)
     total_credit = Column(Numeric(18, 4), default=0)
@@ -372,10 +374,13 @@ class FinJournalLine(Base):
     # Profit centre & segment dimensions (Feature 5)
     profit_center_id = Column(UUID(as_uuid=True), ForeignKey("fin_profit_center.id", ondelete="SET NULL"), nullable=True)
     segment_id       = Column(UUID(as_uuid=True), ForeignKey("fin_segment.id", ondelete="SET NULL"), nullable=True)
-    # FX columns (Feature 6) — NULL means local-currency posting
-    currency      = Column(String(3),       nullable=True)
-    amount_fc     = Column(Numeric(18, 4),  nullable=True)
-    exchange_rate = Column(Numeric(20, 8),  nullable=True)
+    # FX columns (Feature 6) — NULL means local-currency posting.
+    # NOTE: `currency` and `fx_rate` are already declared above (lines ~346-348);
+    # these two columns extend the same line with the signed FC amount and the
+    # booking rate used so that period-end revaluation can find the original
+    # local-currency equivalent without recalculating.
+    amount_fc     = Column(Numeric(18, 4),  nullable=True)   # signed: debit positive, credit negative
+    exchange_rate = Column(Numeric(20, 8),  nullable=True)   # rate that was used when the line was booked
 
     entry = relationship("FinJournalEntry", back_populates="lines")
     account = relationship("FinAccount", back_populates="journal_lines")
@@ -766,6 +771,29 @@ class FinSubstitutionRule(Base):
     is_active           = Column(Boolean, default=True, server_default="true")
     sort_order          = Column(Integer, default=10, server_default="10")
     created_at          = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class FinDocumentType(Base):
+    """
+    FI document type master (SAP OBA7 / document type).
+    Codes such as SA, DR, KR drive journal classification and number ranges.
+    """
+    __tablename__ = "fin_document_type"
+
+    id                 = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id          = Column(UUID(as_uuid=True), ForeignKey("vendor.id", ondelete="CASCADE"), nullable=False, index=True)
+    code               = Column(String(4), nullable=False)
+    name               = Column(String(120), nullable=False)
+    description        = Column(Text, nullable=True)
+    number_range_prefix = Column(String(10), nullable=True)
+    reversal_doc_type  = Column(String(4), nullable=True)
+    is_active          = Column(Boolean, default=True, server_default="true", nullable=False)
+    sort_order         = Column(Integer, default=10, server_default="10", nullable=False)
+    created_at         = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("vendor_id", "code", name="uq_fin_doc_type_vendor_code"),
+    )
 
 
 class FinNumberRange(Base):

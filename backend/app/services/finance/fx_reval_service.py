@@ -69,6 +69,25 @@ async def upsert_exchange_rate(
     return er
 
 
+async def delete_exchange_rate(
+    db: AsyncSession,
+    vendor_id: UUID,
+    rate_id: UUID,
+) -> bool:
+    """Delete an exchange rate owned by the vendor. Returns False if not found."""
+    existing = (await db.execute(
+        select(FinExchangeRate).where(
+            FinExchangeRate.id == rate_id,
+            FinExchangeRate.vendor_id == vendor_id,
+        )
+    )).scalar_one_or_none()
+    if not existing:
+        return False
+    await db.delete(existing)
+    await db.flush()
+    return True
+
+
 async def get_rate(
     db: AsyncSession,
     vendor_id: UUID,
@@ -119,16 +138,21 @@ async def simulate_fx_reval(
             f"No exchange rate found for {currency}/{local_currency} on or before {run_date}."
         )
 
-    # Find open FX journal lines for this vendor + currency
+    # Find open FX journal lines for this vendor + currency.
+    # Conditions:
+    #   1. The parent JE is posted and dated on or before the run date (no future lines).
+    #   2. The line carries an amount_fc (non-local-currency lines set this on posting).
+    #   3. The line is still open or only partially cleared.
     open_lines = (await db.execute(
         select(FinJournalLine)
         .join(FinJournalEntry, FinJournalLine.journal_entry_id == FinJournalEntry.id)
         .where(
             FinJournalEntry.vendor_id == vendor_id,
             FinJournalEntry.status == "posted",
+            FinJournalEntry.entry_date <= run_date,          # no future-dated lines
             FinJournalLine.currency == currency.upper(),
             FinJournalLine.amount_fc.isnot(None),
-            FinJournalLine.open_item_status == "open",
+            FinJournalLine.open_item_status.in_(["open", "partial"]),
         )
     )).scalars().all()
 
@@ -147,8 +171,11 @@ async def simulate_fx_reval(
     total_loss = Decimal(0)
 
     for jl in open_lines:
+        # amount_fc is signed (debit positive, credit negative).
         fc_amount = Decimal(str(jl.amount_fc))
-        original_lc = Decimal(str(jl.debit or 0)) - Decimal(str(jl.credit or 0))
+        # Use the booked local-currency amounts (base_debit/base_credit) rather
+        # than debit/credit which hold the foreign-currency amounts for FC lines.
+        original_lc = Decimal(str(jl.base_debit or 0)) - Decimal(str(jl.base_credit or 0))
         revalued_lc = fc_amount * rate
         adjustment  = revalued_lc - original_lc
 
@@ -205,8 +232,9 @@ async def post_fx_reval(
         raise ValueError(f"FX revaluation run {reval_run_id} not found for this vendor.")
     if run.status == "posted":
         raise ValueError(f"FX revaluation run {reval_run_id} is already posted.")
-    if run.status == "cancelled":
-        raise ValueError(f"FX revaluation run {reval_run_id} is cancelled and cannot be posted.")
+    # 'reversed' is the terminal non-postable state in the model (not 'cancelled').
+    if run.status == "reversed":
+        raise ValueError(f"FX revaluation run {reval_run_id} is reversed and cannot be re-posted.")
 
     reval_lines = (await db.execute(
         select(FinFxRevalLine).where(FinFxRevalLine.reval_run_id == reval_run_id)
@@ -244,13 +272,21 @@ async def post_fx_reval(
         created_by_id=posted_by_id,
     )
 
+    # post_event returns None when a required GL account is not configured.
+    # Fail loudly rather than silently marking the run as posted with no JE.
+    if je is None:
+        raise ValueError(
+            "FX revaluation adjustment could not be posted: one or more required GL accounts "
+            "(FX Gain, FX Loss, or FX Reval Suspense) are not configured for this entity. "
+            "Set up the missing accounts in the Chart of Accounts and retry."
+        )
+
     run.status = "posted"
-    if je is not None:
-        run.journal_entry_id = je.id
+    run.journal_entry_id = je.id
     await db.flush()
     log.info(
         "FX reval run %s posted → JE %s (gain=%s loss=%s)",
-        reval_run_id, je.id if je else None, gain, loss,
+        reval_run_id, je.id, gain, loss,
     )
     return run
 

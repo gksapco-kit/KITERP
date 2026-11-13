@@ -67,7 +67,84 @@ export interface RefDocResult {
 // ─── Journal Entry ──────────────────────────────────────────────────────────
 
 export type DocType = 'SA' | 'DR' | 'CR' | 'AB' | 'ML'
-export type JEStatus = 'draft' | 'pending_approval' | 'posted' | 'void'
+export type JEStatus = 'draft' | 'pending_approval' | 'approved' | 'rejected' | 'posted' | 'void'
+
+/** Actions the backend allows for an entry in its current state (single source of truth). */
+export type JEAction = 'edit' | 'simulate' | 'submit' | 'withdraw' | 'approve' | 'reject' | 'post' | 'reverse' | 'void'
+
+export interface JEIssue {
+  severity: 'error' | 'warning' | 'info'
+  /** 0-based index into the submitted lines; null for header / document level. */
+  line: number | null
+  field?: string | null
+  message: string
+}
+
+export interface JESimulationLine {
+  index: number
+  account_id: string
+  account_code?: string | null
+  account_name?: string | null
+  description?: string | null
+  debit: string
+  credit: string
+  base_debit: string
+  base_credit: string
+  currency: string
+  fx_rate: string
+  cost_center_id?: string | null
+  project_id?: string | null
+  open_item?: string | null
+}
+
+export interface JESimulationResult {
+  ok: boolean
+  issues: JEIssue[]
+  entry?: {
+    entry_no: string
+    provisional: boolean
+    status_after_save: JEStatus
+    entry_date: string
+    total_debit: string
+    total_credit: string
+    period_id?: string | null
+    period_name?: string | null
+    period_status?: string | null
+  }
+  approval?: { required: boolean; amount: string }
+  can_post_after_save?: boolean
+  post_blockers?: JEIssue[]
+  lines: JESimulationLine[]
+  split_items: {
+    line_index: number | null
+    debit: string
+    credit: string
+    split_pct: string
+    profit_center_id?: string | null
+    segment_id?: string | null
+  }[]
+}
+
+export interface JETimeline {
+  audit: { id: string; action: string; performed_by_id?: string; created_at: string; diff_json?: Record<string, unknown> }[]
+  approval: null | {
+    id: string
+    status: string
+    amount?: number | string
+    created_at?: string
+    resolved_at?: string
+    levels_required: number
+    levels_approved: number
+    requested_by_name?: string | null
+    can_act: boolean
+    cannot_act_reason?: string | null
+    steps: {
+      id: string; step_number: number; status: string; action_at?: string; comments?: string
+      approver_name?: string | null
+    }[]
+  }
+  split_items: { id: string; line_index: number | null; debit: number; credit: number; split_pct: number }[]
+}
 export type PartyType = 'customer' | 'supplier'
 export type RefDocType =
   | 'purchase_order' | 'sales_order' | 'invoice' | 'bill' | 'payment' | 'asset' | 'manual'
@@ -103,6 +180,14 @@ export interface JournalLineOut extends JournalLineIn {
   base_credit: number
 }
 
+export interface JournalAttachment {
+  url: string
+  filename: string
+  content_type?: string
+  size?: number
+  is_image?: boolean
+}
+
 export interface JournalEntryCreate {
   company_id?: string
   entry_date: string           // ISO date
@@ -112,6 +197,7 @@ export interface JournalEntryCreate {
   reference?: string
   narration?: string
   header_text?: string
+  attachments?: JournalAttachment[]
   currency?: string
   /** GL posting period; when set, must contain entry_date. */
   period_id?: string
@@ -126,6 +212,7 @@ export interface JournalEntryUpdate {
   reference?: string
   narration?: string
   header_text?: string
+  attachments?: JournalAttachment[]
   currency?: string
   period_id?: string
   lines?: JournalLineIn[]
@@ -147,6 +234,7 @@ export interface JournalEntry {
   reference?: string
   narration?: string
   header_text?: string
+  attachments?: JournalAttachment[]
   currency: string
   total_debit: number
   total_credit: number
@@ -154,6 +242,17 @@ export interface JournalEntry {
   approval_request_id?: string
   created_by_id?: string
   posted_by_id?: string
+  /** Server-computed; drives which buttons the UI shows. */
+  allowed_actions?: JEAction[]
+  approval_status?: string | null
+  /** Present while an approval request is open. */
+  approval_progress?: { levels_required: number; levels_approved: number }
+  /** Why the current user can't approve/reject this entry (they raised it / already signed a level). */
+  approval_blocked_reason?: string | null
+  reversed_by_id?: string | null
+  reversed_by_entry_no?: string | null
+  reverses_id?: string | null
+  reverses_entry_no?: string | null
   lines: JournalLineOut[]
 }
 

@@ -49,6 +49,14 @@ from app.services.finance.posting import (
     create_journal_draft,
     post_entry_with_approval_check,
     update_journal_draft,
+    JournalValidationError,
+    simulate_journal,
+    check_journal_postable,
+    reconcile_approval_state,
+    apply_approval_decision_to_journal,
+    submit_journal_for_approval,
+    withdraw_journal_approval,
+    reverse_journal_entry,
 )
 from app.schemas.finance.journal import (
     JournalEntryCreate, JournalEntryUpdate,
@@ -114,6 +122,35 @@ def _d(obj) -> dict:
             v = str(v)
         data[col.name] = v
     return data
+
+
+def _journal_line_out(ln) -> dict:
+    """Serialize a journal line with account (and dimension) display fields."""
+    out = _d(ln)
+    # API / UI use `description`; the column is stored as `narration`.
+    out["description"] = getattr(ln, "narration", None) or out.get("narration") or None
+    acc = getattr(ln, "account", None)
+    if acc is not None:
+        out["account_code"] = acc.code
+        out["account_name"] = acc.name
+    else:
+        out.setdefault("account_code", None)
+        out.setdefault("account_name", None)
+    cc = getattr(ln, "cost_center", None)
+    if cc is not None:
+        out["cost_center_code"] = cc.code
+        out["cost_center_name"] = cc.name
+    proj = getattr(ln, "project", None)
+    if proj is not None:
+        out["project_code"] = proj.code
+        out["project_name"] = proj.name
+    return out
+
+
+def _journal_entry_out(je) -> dict:
+    result = _d(je)
+    result["lines"] = [_journal_line_out(ln) for ln in (je.lines or [])]
+    return result
 
 
 def _d_fiscal_year(fy) -> dict:
@@ -540,7 +577,10 @@ async def list_exchange_rates(
     vu: VendorUser = Depends(require_permission("finance.view")),
     db: AsyncSession = Depends(get_db),
 ):
-    rates = await FinCOARepo(db).list_exchange_rates(vu.vendor_id, from_currency)
+    # Upper-case so the filter works regardless of what the caller typed.
+    rates = await FinCOARepo(db).list_exchange_rates(
+        vu.vendor_id, from_currency.upper() if from_currency else None
+    )
     return [_d(r) for r in rates]
 
 
@@ -559,21 +599,129 @@ async def create_exchange_rate(
 # JOURNAL ENTRIES
 # ═══════════════════════════════════════════════════════════════════════════
 
+def _je_http_error(exc: ValueError) -> HTTPException:
+    """Structured per-line issues for validation failures, plain string otherwise."""
+    if isinstance(exc, JournalValidationError) and exc.issues:
+        return HTTPException(400, [
+            {"msg": i["message"], "line": i.get("line"), "field": i.get("field"),
+             "severity": i.get("severity", "error")}
+            for i in exc.issues if i.get("severity") == "error"
+        ])
+    return HTTPException(400, str(exc))
+
+
+def _je_allowed_actions(je) -> list[str]:
+    """Single source of truth for which buttons the UI may show for an entry."""
+    s = je.status
+    if s == "draft":
+        return ["edit", "simulate", "submit", "post"]
+    if s == "pending_approval":
+        return ["withdraw", "approve", "reject"]
+    if s == "approved":
+        return ["edit", "simulate", "post"]
+    if s == "rejected":
+        return ["edit", "submit"]
+    if s == "posted":
+        acts = ["void"]
+        if not je.reversed_by_id and not je.reverses_id:
+            acts.insert(0, "reverse")
+        return acts
+    return []
+
+
+async def _je_decorate(db: AsyncSession, vendor_id, entries: list, viewer_id=None) -> None:
+    """Attach company name, approval status/progress and linked-entry numbers (in place on the dicts).
+
+    With `viewer_id`, approve/reject are dropped from `allowed_actions` when that user can't decide the
+    open request (they raised it, or already signed an earlier level)."""
+    # entries is a list of (orm, dict) tuples
+    company_ids = {je.company_id for je, _ in entries if je.company_id}
+    names: dict = {}
+    if company_ids:
+        r = await db.execute(select(FinCompany.id, FinCompany.name).where(
+            FinCompany.id.in_(company_ids), FinCompany.vendor_id == vendor_id))
+        names = {row[0]: row[1] for row in r.all()}
+    req_ids = {je.approval_request_id for je, _ in entries if je.approval_request_id}
+    req_status: dict = {}
+    if req_ids:
+        from app.models.finance import FinApprovalRequest as _AR
+        r = await db.execute(select(_AR.id, _AR.status).where(_AR.id.in_(req_ids), _AR.vendor_id == vendor_id))
+        req_status = {row[0]: row[1] for row in r.all()}
+    link_ids = {x for je, _ in entries for x in (je.reversed_by_id, je.reverses_id) if x}
+    link_nos: dict = {}
+    if link_ids:
+        r = await db.execute(select(FinJournalEntry.id, FinJournalEntry.entry_no).where(
+            FinJournalEntry.id.in_(link_ids), FinJournalEntry.vendor_id == vendor_id))
+        link_nos = {row[0]: row[1] for row in r.all()}
+    views: dict = {}
+    pending_ids = {je.approval_request_id for je, _ in entries
+                   if je.approval_request_id and je.status == "pending_approval"}
+    if pending_ids:
+        from app.models.finance import FinApprovalRequest as _AR
+        from sqlalchemy.orm import selectinload as _sil
+        reqs = (await db.execute(select(_AR).options(_sil(_AR.steps)).where(
+            _AR.id.in_(pending_ids), _AR.vendor_id == vendor_id))).scalars().all()
+        views = {UUID(v["id"]): v for v in await _approval_views(db, vendor_id, reqs, viewer_id)}
+    for je, out in entries:
+        out["company_name"] = names.get(je.company_id)
+        out["approval_status"] = req_status.get(je.approval_request_id)
+        out["reversed_by_entry_no"] = link_nos.get(je.reversed_by_id)
+        out["reverses_entry_no"] = link_nos.get(je.reverses_id)
+        acts = _je_allowed_actions(je)
+        view = views.get(je.approval_request_id)
+        if view:
+            out["approval_progress"] = {
+                "levels_required": view["levels_required"], "levels_approved": view["levels_approved"],
+            }
+            if viewer_id is not None and not view["can_act"]:
+                acts = [a for a in acts if a not in ("approve", "reject")]
+                out["approval_blocked_reason"] = view["cannot_act_reason"]
+        out["allowed_actions"] = acts
+
+
+async def _je_party_names(db: AsyncSession, vendor_id, out: dict) -> None:
+    """Add `party_name` to each line of a single serialised entry (for edit/detail display)."""
+    from app.models.customer import Customer
+    from app.models.procurement import Supplier
+    for ptype, model, col in (("customer", Customer, Customer.full_name), ("supplier", Supplier, Supplier.name)):
+        ids = {UUID(str(l["party_id"])) for l in out.get("lines", [])
+               if l.get("party_id") and l.get("party_type") == ptype}
+        if not ids:
+            continue
+        rows = (await db.execute(select(model.id, col).where(model.id.in_(ids), model.vendor_id == vendor_id))).all()
+        names = {str(r[0]): r[1] for r in rows}
+        for l in out["lines"]:
+            if l.get("party_type") == ptype and l.get("party_id"):
+                l["party_name"] = names.get(str(l["party_id"]))
+
+
 @router.get("/journal-entries")
 async def list_journal_entries(
     status: Optional[str] = None,
     source_type: Optional[str] = None,
     from_date: Optional[date] = None,
     to_date: Optional[date] = None,
+    company_id: Optional[UUID] = None,
+    q: Optional[str] = None,
     skip: int = 0,
-    limit: int = 50,
+    limit: int = Query(50, ge=1, le=500),
     vu: VendorUser = Depends(require_permission("finance.view")),
     db: AsyncSession = Depends(get_db),
 ):
     repo = FinJournalRepo(db)
-    entries = await repo.list_entries(vu.vendor_id, status, source_type, from_date, to_date, skip, limit)
-    total = await repo.count_entries(vu.vendor_id, status)
-    return {"items": [_d(e) for e in entries], "total": total}
+    entries = await repo.list_entries(
+        vu.vendor_id, status, source_type, from_date, to_date, skip, limit,
+        company_id=company_id, search=q,
+    )
+    healed = await reconcile_approval_state(db, entries)   # entries approved before status sync existed
+    total = await repo.count_entries(
+        vu.vendor_id, status, source_type, from_date, to_date, company_id=company_id, search=q,
+    )
+    items = [(e, _d(e)) for e in entries]
+    await _je_decorate(db, vu.vendor_id, items, vu.id)
+    if healed:
+        await db.commit()   # only after serialising: avoids lazy-loading expired attributes
+    return {"items": [o for _, o in items], "total": total}
 
 
 @router.post("/journal-entries", status_code=201)
@@ -586,13 +734,28 @@ async def create_journal_entry(
     try:
         je = await create_journal_draft(db, vu.vendor_id, body, created_by_id=vu.id)
     except ValueError as exc:
-        raise HTTPException(400, str(exc))
+        raise _je_http_error(exc)
     await db.commit()
     # Reload with eager-loaded lines — avoid AsyncSession lazy-load / greenlet error
     je = await FinJournalRepo(db).get_entry(je.id, vu.vendor_id)
-    result = _d(je)
-    result["lines"] = [_d(ln) for ln in (je.lines or [])]
-    return result
+    out = _journal_entry_out(je)
+    await _je_decorate(db, vu.vendor_id, [(je, out)], vu.id)
+    await _je_party_names(db, vu.vendor_id, out)
+    return out
+
+
+@router.post("/journal-entries/simulate")
+async def simulate_journal_entry(
+    body: JournalEntryCreate,
+    vu: VendorUser = Depends(require_permission("finance.journal.create")),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Dry-run a journal entry through the exact create pipeline (validation, substitutions,
+    document splitting, period and approval resolution). Nothing is saved.
+    """
+    # simulate_journal runs inside a SAVEPOINT that it always rolls back; nothing is committed here.
+    return await simulate_journal(db, vu.vendor_id, body, actor_id=vu.id)
 
 
 @router.get("/journal-entries/{je_id}")
@@ -601,12 +764,49 @@ async def get_journal_entry(
     vu: VendorUser = Depends(require_permission("finance.view")),
     db: AsyncSession = Depends(get_db),
 ):
+    repo = FinJournalRepo(db)
+    je = await repo.get_entry(je_id, vu.vendor_id)
+    if not je:
+        raise HTTPException(404, "Journal entry not found")
+    healed = await reconcile_approval_state(db, [je])
+    out = _journal_entry_out(je)
+    await _je_decorate(db, vu.vendor_id, [(je, out)], vu.id)
+    await _je_party_names(db, vu.vendor_id, out)
+    if healed:
+        await db.commit()
+    return out
+
+
+@router.get("/journal-entries/{je_id}/timeline")
+async def journal_entry_timeline(
+    je_id: UUID,
+    vu: VendorUser = Depends(require_permission("finance.view")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Audit trail + approval request/steps + split items for one entry."""
+    from app.models.finance import FinApprovalRequest as _AR, FinApprovalStep as _AS, FinAuditLog as _AL
+    from app.services.finance import split_service as _split
     je = await FinJournalRepo(db).get_entry(je_id, vu.vendor_id)
     if not je:
         raise HTTPException(404, "Journal entry not found")
-    result = _d(je)
-    result["lines"] = [_d(ln) for ln in (je.lines or [])]
-    return result
+    logs = (await db.execute(
+        select(_AL).where(_AL.vendor_id == vu.vendor_id, _AL.entity_type == "journal_entry",
+                          _AL.entity_id == je.id).order_by(_AL.created_at.asc())
+    )).scalars().all()
+    approval = None
+    if je.approval_request_id:
+        req = (await db.execute(select(_AR).where(
+            _AR.id == je.approval_request_id, _AR.vendor_id == vu.vendor_id))).scalar_one_or_none()
+        if req:
+            await db.refresh(req, ["steps"])
+            approval = (await _approval_views(db, vu.vendor_id, [req], vu.id))[0]
+    splits = await _split.get_split_items(db, je.id)
+    line_idx = {ln.id: i for i, ln in enumerate(sorted(je.lines or [], key=lambda x: x.sequence or 0))}
+    return {
+        "audit": [_d(x) for x in logs],
+        "approval": approval,
+        "split_items": [{**_d(s), "line_index": line_idx.get(s.journal_line_id)} for s in splits],
+    }
 
 
 @router.put("/journal-entries/{je_id}")
@@ -616,20 +816,83 @@ async def update_journal_entry(
     vu: VendorUser = Depends(require_permission("finance.journal.create")),
     db: AsyncSession = Depends(get_db),
 ):
-    """Edit a draft journal entry (header + lines replacement)."""
+    """Edit a draft / approved / rejected journal entry (header + lines replacement)."""
     je = await FinJournalRepo(db).get_entry(je_id, vu.vendor_id)
     if not je:
         raise HTTPException(404, "Journal entry not found")
     try:
         je = await update_journal_draft(db, je, body, actor_vendor_user_id=vu.id)
     except ValueError as exc:
-        raise HTTPException(400, str(exc))
+        raise _je_http_error(exc)
     await db.commit()
     # Reload with eager-loaded lines — avoid AsyncSession lazy-load / greenlet error
     je = await FinJournalRepo(db).get_entry(je.id, vu.vendor_id)
-    result = _d(je)
-    result["lines"] = [_d(ln) for ln in (je.lines or [])]
-    return result
+    out = _journal_entry_out(je)
+    await _je_decorate(db, vu.vendor_id, [(je, out)], vu.id)
+    await _je_party_names(db, vu.vendor_id, out)
+    return out
+
+
+@router.get("/journal-entries/{je_id}/post-check")
+async def journal_entry_post_check(
+    je_id: UUID,
+    vu: VendorUser = Depends(require_permission("finance.view")),
+    db: AsyncSession = Depends(get_db),
+):
+    """What would block posting right now? (read-only; used by the post confirmation dialog)"""
+    je = await FinJournalRepo(db).get_entry(je_id, vu.vendor_id)
+    if not je:
+        raise HTTPException(404, "Journal entry not found")
+    await reconcile_approval_state(db, [je])   # flushed only; the request never commits
+    issues = await check_journal_postable(db, je)
+    return {"can_post": not [i for i in issues if i["severity"] == "error"], "issues": issues}
+
+
+@router.post("/journal-entries/{je_id}/submit")
+async def submit_journal_entry(
+    je_id: UUID,
+    vu: VendorUser = Depends(require_permission("finance.journal.create")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Submit a draft/rejected entry for approval (no-op message when no policy applies)."""
+    repo = FinJournalRepo(db)
+    je = await repo.get_entry(je_id, vu.vendor_id)
+    if not je:
+        raise HTTPException(404, "Journal entry not found")
+    try:
+        raised = await submit_journal_for_approval(db, je, vu.id)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    await db.commit()
+    je = await repo.get_entry(je_id, vu.vendor_id)
+    out = _journal_entry_out(je)
+    await _je_decorate(db, vu.vendor_id, [(je, out)], vu.id)
+    await _je_party_names(db, vu.vendor_id, out)
+    out["approval_raised"] = raised
+    return out
+
+
+@router.post("/journal-entries/{je_id}/withdraw")
+async def withdraw_journal_entry(
+    je_id: UUID,
+    vu: VendorUser = Depends(require_permission("finance.journal.create")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Pull an entry back from approval so it can be edited."""
+    repo = FinJournalRepo(db)
+    je = await repo.get_entry(je_id, vu.vendor_id)
+    if not je:
+        raise HTTPException(404, "Journal entry not found")
+    try:
+        await withdraw_journal_approval(db, je, vu.id)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    await db.commit()
+    je = await repo.get_entry(je_id, vu.vendor_id)
+    out = _journal_entry_out(je)
+    await _je_decorate(db, vu.vendor_id, [(je, out)], vu.id)
+    await _je_party_names(db, vu.vendor_id, out)
+    return out
 
 
 @router.post("/journal-entries/{je_id}/post")
@@ -647,9 +910,37 @@ async def post_journal_entry(
     try:
         je = await post_entry_with_approval_check(db, je, vu.id)
     except ValueError as exc:
-        raise HTTPException(400, str(exc))
+        raise _je_http_error(exc)
     await db.commit()
     return _d(je)
+
+
+class ReverseJERequest(BaseModel):
+    reversal_date: Optional[date] = None
+    reason: Optional[str] = None
+
+
+@router.post("/journal-entries/{je_id}/reverse")
+async def reverse_journal_entry_endpoint(
+    je_id: UUID,
+    body: ReverseJERequest = ReverseJERequest(),
+    vu: VendorUser = Depends(require_permission("finance.journal.post")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Reverse a posted entry with a linked mirror entry (keeps the audit trail intact)."""
+    repo = FinJournalRepo(db)
+    je = await repo.get_entry(je_id, vu.vendor_id)
+    if not je:
+        raise HTTPException(404, "Journal entry not found")
+    try:
+        rev = await reverse_journal_entry(
+            db, je, reversal_date=body.reversal_date, reason=(body.reason or "").strip(), user_id=vu.id,
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    out = {"reversal_id": str(rev.id), "reversal_entry_no": rev.entry_no, "original_id": str(je_id)}
+    await db.commit()
+    return out
 
 
 class VoidJERequest(BaseModel):
@@ -669,6 +960,10 @@ async def void_journal_entry(
         raise HTTPException(404, "Journal entry not found")
     if je.status == "void":
         raise HTTPException(400, "Journal entry is already void")
+    if je.reversed_by_id:
+        raise HTTPException(400, "Journal entry has already been reversed; voiding it would double-count the reversal.")
+    if je.status == "pending_approval":
+        raise HTTPException(400, "Withdraw the entry from approval before voiding it.")
     try:
         je = await repo.void_entry(je, voided_by_id=vu.id, reason=body.reason or "")
     except ValueError as e:
@@ -1017,6 +1312,30 @@ async def search_accounts(
         }
         for a in accounts
     ]
+
+
+@router.get("/parties/search")
+async def search_parties(
+    party_type: str = Query(..., pattern="^(customer|supplier)$"),
+    q: str = Query(default=""),
+    limit: int = Query(default=20, le=50),
+    vu: VendorUser = Depends(require_permission("finance.view")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Typeahead for the party (customer / supplier) of an open-item journal line."""
+    if party_type == "customer":
+        from app.models.customer import Customer as _Party
+        name_col, label = _Party.full_name, "full_name"
+        stmt = select(_Party).where(_Party.vendor_id == vu.vendor_id)
+    else:
+        from app.models.procurement import Supplier as _Party
+        name_col, label = _Party.name, "name"
+        stmt = select(_Party).where(_Party.vendor_id == vu.vendor_id, _Party.is_active == True)
+    if q.strip():
+        like = f"%{q.strip()}%"
+        stmt = stmt.where(or_(name_col.ilike(like), _Party.master_code.ilike(like)))
+    rows = (await db.execute(stmt.order_by(name_col).limit(limit))).scalars().all()
+    return [{"id": str(p.id), "code": p.master_code, "name": getattr(p, label)} for p in rows]
 
 
 @router.get("/reference-docs/search")
@@ -2584,6 +2903,31 @@ async def list_tax_codes(
     return [_d(c) for c in codes]
 
 
+@router.get("/tax/posting-accounts")
+async def tax_posting_accounts(
+    vu: VendorUser = Depends(require_any_permission(
+        "finance.journal.create", "finance.journal.post",
+        "finance.tax.view", "finance.tax.manage",
+    )),
+    db: AsyncSession = Depends(get_db),
+):
+    """GL accounts that tax lines on a journal entry post to.
+
+    - input:  GST Input Credit  (asset)     — debited when the base line is a debit (purchase / expense)
+    - output: GST Output Payable (liability) — credited when the base line is a credit (sale / income)
+    """
+    from app.services.finance.posting import _find_account
+
+    async def _pick(acc_type: str, subtype: str, hint: str):
+        acc = await _find_account(db, vu.vendor_id, acc_type, subtype, hint)
+        return {"id": str(acc.id), "code": acc.code, "name": acc.name} if acc else None
+
+    return {
+        "input": await _pick("Asset", "Current Asset", "GST Input"),
+        "output": await _pick("Liability", "Current Liability", "GST Output"),
+    }
+
+
 @router.post("/tax/codes", status_code=201)
 async def create_tax_code(
     body: TaxCodeCreate,
@@ -3074,6 +3418,60 @@ async def create_policy(
     return _d(p)
 
 
+async def _approval_views(db: AsyncSession, vendor_id, requests, viewer_id=None) -> list[dict]:
+    """Serialise approval requests with level progress, readable names and a per-viewer `can_act`."""
+    from app.models.user import User as _User
+    from app.models.finance import FinApprovalPolicy as _Pol
+
+    policy_ids = {r.policy_id for r in requests if r.policy_id}
+    levels_by_policy: dict = {}
+    if policy_ids:
+        rows = (await db.execute(select(_Pol.id, _Pol.levels).where(_Pol.id.in_(policy_ids)))).all()
+        levels_by_policy = {pid: max(1, int(lv or 1)) for pid, lv in rows}
+
+    user_ids = {r.requested_by_id for r in requests if r.requested_by_id}
+    for r in requests:
+        user_ids |= {s.approver_id for s in (r.steps or []) if s.approver_id}
+    names: dict = {}
+    if user_ids:
+        rows = (await db.execute(
+            select(VendorUser.id, _User.full_name)
+            .join(_User, _User.id == VendorUser.user_id)
+            .where(VendorUser.id.in_(user_ids)))).all()
+        names = {uid: nm for uid, nm in rows}
+
+    je_ids = {r.entity_id for r in requests if r.entity_type == "journal_entry"}
+    je_labels: dict = {}
+    if je_ids:
+        rows = (await db.execute(
+            select(FinJournalEntry.id, FinJournalEntry.entry_no)
+            .where(FinJournalEntry.id.in_(je_ids), FinJournalEntry.vendor_id == vendor_id))).all()
+        je_labels = {i: no for i, no in rows}
+
+    out = []
+    for r in requests:
+        steps = sorted(r.steps or [], key=lambda s: s.step_number or 0)
+        approved = [s for s in steps if s.status == "approved"]
+        required = levels_by_policy.get(r.policy_id, 1)
+        d = _d(r)
+        d["levels_required"] = required
+        d["levels_approved"] = len(approved) if r.status != "approved" else max(len(approved), required)
+        d["steps"] = [{**_d(s), "approver_name": names.get(s.approver_id)} for s in steps]
+        d["requested_by_name"] = names.get(r.requested_by_id)
+        d["entity_label"] = je_labels.get(r.entity_id)
+        reason = None
+        if r.status != "pending":
+            reason = f"Already {r.status}."
+        elif viewer_id is not None and r.requested_by_id == viewer_id:
+            reason = "You raised this request, so someone else must decide it."
+        elif viewer_id is not None and any(s.approver_id == viewer_id for s in approved):
+            reason = "You already approved an earlier level; a different approver must sign off the next one."
+        d["can_act"] = viewer_id is not None and reason is None
+        d["cannot_act_reason"] = reason
+        out.append(d)
+    return out
+
+
 @router.get("/controls/approvals")
 async def list_approvals(
     status: Optional[str] = None,
@@ -3082,7 +3480,7 @@ async def list_approvals(
     db: AsyncSession = Depends(get_db),
 ):
     requests = await FinControlsRepo(db).list_requests(vu.vendor_id, status, entity_type)
-    return [_d(r) for r in requests]
+    return await _approval_views(db, vu.vendor_id, requests, vu.id)
 
 
 class ApprovalRequestCreate(BaseModel):
@@ -3126,9 +3524,16 @@ async def approve_request(
     # Block self-approval
     if req.requested_by_id and str(req.requested_by_id) == str(vu.id):
         raise HTTPException(400, "You cannot approve your own approval request.")
-    req = await repo.action_step(req, body.step, vu.id, "approved", body.comments)
+    if req.entity_type == "journal_entry" and req.status != "pending":
+        raise HTTPException(400, f"This approval request is already {req.status}.")
+    try:
+        req = await repo.action_step(req, body.step, vu.id, "approved", body.comments)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    await apply_approval_decision_to_journal(db, req, vu.id)   # JE: pending_approval → approved (last level)
+    out = _d(req)
     await db.commit()
-    return _d(req)
+    return out
 
 
 @router.post("/controls/approvals/{req_id}/reject")
@@ -3145,9 +3550,16 @@ async def reject_request(
     # Block self-rejection (same logic — prevents approval-bypass attacks)
     if req.requested_by_id and str(req.requested_by_id) == str(vu.id):
         raise HTTPException(400, "You cannot reject your own approval request.")
-    req = await repo.action_step(req, body.step, vu.id, "rejected", body.comments)
+    if req.entity_type == "journal_entry" and req.status != "pending":
+        raise HTTPException(400, f"This approval request is already {req.status}.")
+    try:
+        req = await repo.action_step(req, body.step, vu.id, "rejected", body.comments)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    await apply_approval_decision_to_journal(db, req, vu.id)   # JE: pending_approval → rejected
+    out = _d(req)
     await db.commit()
-    return _d(req)
+    return out
 
 
 @router.get("/audit-log")
@@ -3704,9 +4116,19 @@ from decimal import Decimal as _FxD
 class ExchangeRateUpsert(BaseModel):
     from_currency: str
     to_currency: str
-    rate: float
+    rate: float = Field(gt=0, description="Exchange rate (must be > 0)")
     rate_date: date
     rate_type: str = "M"
+
+    @field_validator("from_currency", "to_currency", mode="before")
+    @classmethod
+    def _upper_currency(cls, v: str) -> str:
+        return v.strip().upper()
+
+    @field_validator("rate_type", mode="before")
+    @classmethod
+    def _upper_rate_type(cls, v: str) -> str:
+        return v.strip().upper()
 
 
 class FxRevalRunCreate(BaseModel):
@@ -3733,11 +4155,27 @@ async def upsert_exchange_rate(
         _FxD(str(body.rate)), body.rate_date, body.rate_type,
     )
     await db.commit()
+    from_rate = _FxD(str(er.rate))
+    to_rate = (_FxD("1") / from_rate) if from_rate else None
     return {
         "id": str(er.id), "from_currency": er.from_currency,
         "to_currency": er.to_currency, "rate": str(er.rate),
-        "rate_date": str(er.rate_date), "rate_type": er.rate_type,
+        "from_rate": str(er.rate),
+        "to_rate": str(to_rate) if to_rate is not None else None,
+        "rate_date": str(er.effective_date), "rate_type": er.rate_type,
     }
+
+
+@router.delete("/fx/rates/{rate_id}", status_code=204)
+async def delete_exchange_rate(
+    rate_id: UUID,
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    deleted = await _fx.delete_exchange_rate(db, vu.vendor_id, rate_id)
+    if not deleted:
+        raise HTTPException(404, "Exchange rate not found")
+    await db.commit()
 
 
 @router.get("/fx/rates")
@@ -3753,16 +4191,20 @@ async def list_exchange_rates(
         stmt = stmt.where(FinExchangeRate.from_currency == from_currency.upper())
     if to_currency:
         stmt = stmt.where(FinExchangeRate.to_currency == to_currency.upper())
-    stmt = stmt.order_by(FinExchangeRate.rate_date.desc())
+    stmt = stmt.order_by(FinExchangeRate.effective_date.desc())
     rows = (await db.execute(stmt)).scalars().all()
-    return [
-        {
+    result = []
+    for r in rows:
+        from_rate = _FxD(str(r.rate))
+        to_rate = (_FxD("1") / from_rate) if from_rate else None
+        result.append({
             "id": str(r.id), "from_currency": r.from_currency,
             "to_currency": r.to_currency, "rate": str(r.rate),
-            "rate_date": str(r.rate_date), "rate_type": r.rate_type,
-        }
-        for r in rows
-    ]
+            "from_rate": str(r.rate),
+            "to_rate": str(to_rate) if to_rate is not None else None,
+            "rate_date": str(r.effective_date), "rate_type": r.rate_type,
+        })
+    return result
 
 
 @router.post("/fx/reval/simulate", status_code=201)
@@ -3867,7 +4309,7 @@ async def list_carry_forwards(
 # ─────────────────────────────────────────────────────────────────────────────
 
 from app.services.finance import rules_service as _rules_svc
-from app.models.finance import FinValidationRule, FinSubstitutionRule, FinNumberRange
+from app.models.finance import FinValidationRule, FinSubstitutionRule, FinNumberRange, FinDocumentType
 
 
 # ── Validation Rules ──────────────────────────────────────────────────────────
@@ -3994,6 +4436,93 @@ async def delete_substitution(
         raise HTTPException(404, str(e))
 
 
+# ── Document Types ────────────────────────────────────────────────────────────
+
+class DocumentTypeCreate(BaseModel):
+    code: str
+    name: str
+    description: Optional[str] = None
+    number_range_prefix: Optional[str] = None
+    reversal_doc_type: Optional[str] = None
+    is_active: bool = True
+    sort_order: int = 10
+
+
+class DocumentTypeOut(DocumentTypeCreate):
+    id: UUID
+
+    class Config:
+        from_attributes = True
+
+
+@router.post("/document-types/seed", status_code=201)
+async def seed_document_types(
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    created = await _rules_svc.seed_default_document_types(db, vu.vendor_id)
+    await db.commit()
+    return {"seeded": len(created)}
+
+
+@router.get("/document-types")
+async def list_document_types(
+    active_only: bool = Query(False),
+    vu: VendorUser = Depends(require_permission("finance.view")),
+    db: AsyncSession = Depends(get_db),
+):
+    rows = await _rules_svc.list_document_types(db, vu.vendor_id, active_only=active_only)
+    return [DocumentTypeOut.model_validate(r) for r in rows]
+
+
+@router.post("/document-types", status_code=201)
+async def create_document_type(
+    body: DocumentTypeCreate,
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        dt = await _rules_svc.create_document_type(db, vu.vendor_id, **body.model_dump())
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    await db.commit()
+    await db.refresh(dt)
+    return DocumentTypeOut.model_validate(dt)
+
+
+@router.put("/document-types/{dt_id}")
+async def update_document_type(
+    dt_id: UUID,
+    body: DocumentTypeCreate,
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        dt = await _rules_svc.update_document_type(db, dt_id, vu.vendor_id, **body.model_dump())
+    except LookupError as e:
+        raise HTTPException(404, str(e))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    await db.commit()
+    await db.refresh(dt)
+    return DocumentTypeOut.model_validate(dt)
+
+
+@router.delete("/document-types/{dt_id}", status_code=204)
+async def delete_document_type(
+    dt_id: UUID,
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        await _rules_svc.delete_document_type(db, dt_id, vu.vendor_id)
+    except LookupError as e:
+        raise HTTPException(404, str(e))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    await db.commit()
+
+
 # ── Number Ranges ─────────────────────────────────────────────────────────────
 
 class NumberRangeCreate(BaseModel):
@@ -4019,6 +4548,8 @@ async def seed_number_ranges(
     vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
+    # Ensure document types exist first so number ranges have a master to reference
+    await _rules_svc.seed_default_document_types(db, vu.vendor_id)
     created = await _rules_svc.seed_default_number_ranges(db, vu.vendor_id, fiscal_year)
     await db.commit()
     return {"seeded": len(created)}
@@ -4039,15 +4570,81 @@ async def create_number_range(
     vu: VendorUser = Depends(require_permission("finance.coa.manage")),
     db: AsyncSession = Depends(get_db),
 ):
+    if body.number_to <= body.number_from:
+        raise HTTPException(400, "number_to must be greater than number_from")
+    doc_type = (body.document_type or "").strip().upper()
+    known = (await db.execute(
+        select(FinDocumentType.id).where(
+            FinDocumentType.vendor_id == vu.vendor_id,
+            FinDocumentType.code == doc_type,
+        )
+    )).scalar_one_or_none()
+    if not known:
+        raise HTTPException(
+            400,
+            f"Unknown document type '{doc_type}'. Create it under Finance → Document Types first.",
+        )
+    payload = body.model_dump()
+    payload["document_type"] = doc_type
     nr = FinNumberRange(
         vendor_id=vu.vendor_id,
         current_number=body.number_from,
-        **body.model_dump(),
+        **payload,
     )
     db.add(nr)
     await db.commit()
     await db.refresh(nr)
     return NumberRangeOut.model_validate(nr)
+
+
+class NumberRangeUpdate(NumberRangeCreate):
+    current_number: Optional[int] = None
+
+
+@router.put("/number-ranges/{nr_id}")
+async def update_number_range(
+    nr_id: UUID,
+    body: NumberRangeUpdate,
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    doc_type = (body.document_type or "").strip().upper()
+    known = (await db.execute(
+        select(FinDocumentType.id).where(
+            FinDocumentType.vendor_id == vu.vendor_id,
+            FinDocumentType.code == doc_type,
+        )
+    )).scalar_one_or_none()
+    if not known:
+        raise HTTPException(
+            400,
+            f"Unknown document type '{doc_type}'. Create it under Finance → Document Types first.",
+        )
+    try:
+        payload = body.model_dump()
+        payload["document_type"] = doc_type
+        nr = await _rules_svc.update_number_range(
+            db, nr_id, vu.vendor_id, **payload
+        )
+        await db.commit()
+        await db.refresh(nr)
+        return NumberRangeOut.model_validate(nr)
+    except ValueError as e:
+        msg = str(e)
+        raise HTTPException(404 if "not found" in msg.lower() else 400, msg)
+
+
+@router.delete("/number-ranges/{nr_id}", status_code=204)
+async def delete_number_range(
+    nr_id: UUID,
+    vu: VendorUser = Depends(require_permission("finance.coa.manage")),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        await _rules_svc.delete_number_range(db, nr_id, vu.vendor_id)
+        await db.commit()
+    except ValueError as e:
+        raise HTTPException(404, str(e))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -4881,7 +5478,7 @@ async def go_live_check(
         "Document Number Ranges",
         nr_count > 0,
         f"{nr_count} number range(s) configured.",
-        remedy="" if nr_count > 0 else "Configure number ranges under Finance → Setup → Number Ranges.",
+        remedy="" if nr_count > 0 else "Configure number ranges under Finance → General Accounting → Number Ranges.",
     ))
 
     # 7. Bank accounts linked to GL accounts
