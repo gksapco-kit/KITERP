@@ -1942,9 +1942,12 @@ function documentPageShellCss(paperSize: PaperSize): string {
   const p = PAPER_SIZES.find(s => s.id === paperSize) || PAPER_SIZES[0]
   const maxW = narrow ? p.maxWidth : '794px'
   const pageW = narrow ? p.maxWidth : '210mm'
+  const screenW = narrow ? maxW : '794px'
   return `
-  html,body{margin:0;padding:0;background:#fff;width:auto;max-width:100%;text-align:left}
-  .page{width:${pageW};max-width:${maxW};margin:0 auto;border-radius:0;box-shadow:none;background:#fff;box-sizing:border-box;text-align:left}
+  @media screen{
+    html,body{margin:0;padding:0;background:#fff;width:auto;max-width:100%;text-align:left}
+    .page{width:${screenW};max-width:${screenW};margin:0 auto;border-radius:0;box-shadow:none;background:#fff;box-sizing:border-box;text-align:left}
+  }
   .inv-vendor-identity:not(.inv-vendor-header-meta){text-align:left;align-items:flex-start}
   .inv-vendor-header-meta{text-align:center;align-items:center}
   .inv-header-row{display:flex;justify-content:space-between;align-items:flex-start;width:100%;text-align:left}
@@ -3459,75 +3462,25 @@ export function generateInvoiceHtml(
 }
 
 /**
- * Async version: pre-fetches logo + signature as data URLs (with auth token)
- * so the print popup needs no network requests and images always appear.
+ * Single HTML pipeline for invoice detail preview, print, and PDF download.
+ * Applies template design + refreshed page 1 from the live generator (not stale snapshot-only layout).
  */
-export async function printInvoice(
+export async function buildInvoiceDocumentHtml(
   inv: InvData,
   settings: Partial<InvoiceSettings>,
   _backendApiBase = '',
-): Promise<void> {
-  const s = { ...DEFAULT_INVOICE_SETTINGS, ...settings }
-
-  // Resolve raw paths
-  const rawLogo = resolveInvoiceTemplateLogoPath(s, inv.vendor_logo_url as string, inv)
-  const rawSig  = s.signature_url || ''
-  const items   = (inv.items as InvData[]) || []
-
-  // Pre-fetch logo, signature, and (when enabled) all item images as data URLs.
-  // This ensures the print popup needs zero network requests and images always render.
-  const needItemImages = s.show_product_images || s.template === 'visual'
-
-  const [logoDataUrl, sigDataUrl, ...itemDataUrls] = await Promise.all([
-    s.show_logo      && rawLogo ? fetchAsDataUrl(rawLogo) : Promise.resolve(''),
-    s.show_signature && rawSig  ? fetchAsDataUrl(rawSig)  : Promise.resolve(''),
-    ...items.map(it => {
-      const url = (it.image_url || it.image || '') as string
-      return needItemImages && url ? fetchAsDataUrl(url).catch(() => '') : Promise.resolve('')
-    }),
-  ])
-
-  // Embed pre-fetched item images back onto the item objects
-  const enrichedItems = items.map((it, i) => ({
-    ...it,
-    image_url: itemDataUrls[i] || (it.image_url as string) || '',
-  }))
-
-  // Build enriched settings with embedded images; pass '' as base since
-  // all URLs are now data: — no network needed inside the popup.
-  const enriched: InvoiceSettings = {
-    ...s,
-    logo_url:      logoDataUrl || undefined,
-    signature_url: sigDataUrl  || undefined,
-  }
-
-  const html = mergeInvoiceTemplatePages(
-    generateInvoiceHtml(
-      { ...inv, vendor_logo_url: logoDataUrl || inv.vendor_logo_url, items: enrichedItems },
-      enriched,
-      '',
-    ),
-    enriched,
-    false,
-  )
-  openPrintWindow(html)
-}
-
-/** PDF download using the same HTML template as Print (not the server ReportLab layout). */
-export async function downloadInvoiceWithTemplate(
-  inv: InvData,
-  settings: Partial<InvoiceSettings>,
-  _backendApiBase = '',
-): Promise<void> {
-  const s = { ...DEFAULT_INVOICE_SETTINGS, ...settings }
+): Promise<string> {
+  const s: InvoiceSettings = { ...DEFAULT_INVOICE_SETTINGS, ...settings }
   const rawLogo = resolveInvoiceTemplateLogoPath(s, inv.vendor_logo_url as string, inv)
   const rawSig = s.signature_url || ''
+  const rawQr = (s.qr_code_url || '').trim()
   const items = (inv.items as InvData[]) || []
   const needItemImages = s.show_product_images || s.template === 'visual'
 
-  const [logoDataUrl, sigDataUrl, ...itemDataUrls] = await Promise.all([
-    s.show_logo && rawLogo ? fetchAsDataUrl(rawLogo) : Promise.resolve(''),
+  const [logoDataUrl, sigDataUrl, qrDataUrl, ...itemDataUrls] = await Promise.all([
+    s.show_logo !== false && rawLogo ? fetchAsDataUrl(rawLogo) : Promise.resolve(''),
     s.show_signature && rawSig ? fetchAsDataUrl(rawSig) : Promise.resolve(''),
+    s.show_qr_code && rawQr ? fetchAsDataUrl(rawQr) : Promise.resolve(''),
     ...items.map(it => {
       const url = (it.image_url || it.image || '') as string
       return needItemImages && url ? fetchAsDataUrl(url).catch(() => '') : Promise.resolve('')
@@ -3543,9 +3496,10 @@ export async function downloadInvoiceWithTemplate(
     ...s,
     logo_url: logoDataUrl || undefined,
     signature_url: sigDataUrl || undefined,
+    qr_code_url: qrDataUrl || s.qr_code_url,
   }
 
-  const html = mergeInvoiceTemplatePages(
+  return mergeInvoiceTemplatePages(
     generateInvoiceHtml(
       { ...inv, vendor_logo_url: logoDataUrl || inv.vendor_logo_url, items: enrichedItems },
       enriched,
@@ -3554,6 +3508,26 @@ export async function downloadInvoiceWithTemplate(
     enriched,
     false,
   )
+}
+
+/** Pre-fetches assets, then opens the browser print dialog. */
+export async function printInvoice(
+  inv: InvData,
+  settings: Partial<InvoiceSettings>,
+  backendApiBase = '',
+): Promise<void> {
+  const html = await buildInvoiceDocumentHtml(inv, settings, backendApiBase)
+  openPrintWindow(html)
+}
+
+/** PDF download — same HTML layout as preview / print (html2pdf). */
+export async function downloadInvoiceWithTemplate(
+  inv: InvData,
+  settings: Partial<InvoiceSettings>,
+  _backendApiBase = '',
+): Promise<void> {
+  const s = { ...DEFAULT_INVOICE_SETTINGS, ...settings }
+  const html = await buildInvoiceDocumentHtml(inv, s, _backendApiBase)
   const filename = `${String(inv.invoice_number || 'invoice').replace(/\//g, '-')}.pdf`
   await downloadAsPdf(html, filename, {
     margin: s.pdf_margin ?? 5,
@@ -3613,17 +3587,15 @@ export function mergeInvoiceTemplatePages(
   if (!stored) {
     return buildDocumentPreviewHtml(generatedHtml, undefined, editable)
   }
-  // Multi-page docs: keep continuation pages, but always refresh page 1 from the
-  // live generator so Design settings (template, columns, totals) apply.
-  if (countOfferPages(stored) > 1) {
-    const refreshed = refreshStoredFirstPage(stored, generatedHtml)
-    if (editable) return wrapStoredDocumentPages(refreshed, true)
-    return mergeStoredPagesForPrint(generatedHtml, refreshed)
-  }
+  // Always rebuild page 1 from the live generator for print/PDF; editor keeps stored HTML for typing.
+  const refreshed = refreshStoredFirstPage(stored, generatedHtml)
   if (editable) {
+    if (countOfferPages(stored) > 1) {
+      return wrapStoredDocumentPages(refreshed, true)
+    }
     return wrapStoredDocumentPages(stored, true)
   }
-  return mergeStoredPagesForPrint(generatedHtml, stored)
+  return mergeStoredPagesForPrint(generatedHtml, refreshed)
 }
 
 export type InvoiceDocKind = 'invoice' | 'quotation' | 'receipt'

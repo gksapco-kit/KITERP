@@ -16,6 +16,8 @@ const EDITABLE_STYLES = `
 
 /** A4 sheet width at 96 dpi — matches html2pdf export container in printUtils. */
 export const A4_SHEET_WIDTH_PX = 794
+/** A4 portrait height at 96 dpi (297mm). */
+export const A4_SHEET_HEIGHT_PX = 1123
 
 const PREVIEW_FIT_STYLES_THERMAL = `
 html,body{margin:0!important;padding:0!important;background:#fff!important;width:100%!important;overflow-x:hidden!important;text-align:left!important}
@@ -30,8 +32,34 @@ function previewFitStyles(paperSize?: string): string {
   if (thermal) return PREVIEW_FIT_STYLES_THERMAL
   const w = A4_SHEET_WIDTH_PX
   return `
-html,body{margin:0!important;padding:0!important;background:#fff!important;width:${w}px!important;max-width:100%!important;overflow-x:hidden!important;text-align:left!important}
-.page{margin:0 auto!important;max-width:${w}px!important;width:100%!important;box-sizing:border-box!important;border-radius:0!important;box-shadow:none!important;text-align:left!important}
+@media screen{
+  html,body{margin:0!important;padding:0!important;background:#fff!important;width:${w}px!important;max-width:${w}px!important;min-width:${w}px!important;overflow-x:hidden!important;text-align:left!important}
+  .page{margin:0!important;max-width:${w}px!important;width:${w}px!important;min-width:0!important;box-sizing:border-box!important;border-radius:0!important;box-shadow:none!important;text-align:left!important}
+}
+@media print{
+  html,body{width:auto!important;max-width:none!important;min-width:0!important;background:#fff!important}
+  .page{width:100%!important;max-width:100%!important;margin:0!important}
+}
+.inv-header-row{text-align:left!important}
+.inv-vendor-identity:not(.inv-vendor-header-meta){text-align:left!important}
+.inv-vendor-header-meta{text-align:center!important;align-items:center!important}
+`
+}
+
+/** Full-window preview: grey backdrop + centred A4 sheet (PDF-like). */
+function previewFitStylesFullWindow(paperSize?: string): string {
+  const thermal = paperSize === '2inch' || paperSize === '3inch' || paperSize === '4inch'
+  if (thermal) return PREVIEW_FIT_STYLES_THERMAL
+  const w = A4_SHEET_WIDTH_PX
+  return `
+@media screen{
+  html,body{margin:0!important;padding:16px 0 32px!important;background:#e5e7eb!important;width:100%!important;max-width:none!important;min-height:100vh!important;display:flex!important;flex-direction:column!important;align-items:center!important;text-align:left!important}
+  .page{margin:0 auto!important;width:${w}px!important;max-width:${w}px!important;min-width:0!important;box-sizing:border-box!important;background:#fff!important;box-shadow:0 4px 24px rgba(0,0,0,.12)!important;text-align:left!important}
+}
+@media print{
+  html,body{width:auto!important;max-width:none!important;padding:0!important;background:#fff!important;display:block!important}
+  .page{width:100%!important;max-width:100%!important;margin:0!important;box-shadow:none!important}
+}
 .inv-header-row{text-align:left!important}
 .inv-vendor-identity:not(.inv-vendor-header-meta){text-align:left!important}
 .inv-vendor-header-meta{text-align:center!important;align-items:center!important}
@@ -39,10 +67,22 @@ html,body{margin:0!important;padding:0!important;background:#fff!important;width
 }
 
 export function injectPreviewFitCss(html: string, paperSize?: string): string {
+  return injectPreviewFitCssInner(html, paperSize, false)
+}
+
+/** Screen preview in a new tab — A4 sheet centred on grey (matches PDF proportions). */
+export function wrapHtmlForScreenPreview(html: string, paperSize?: string): string {
+  return injectPreviewFitCssInner(html, paperSize, true)
+}
+
+function injectPreviewFitCssInner(html: string, paperSize?: string | undefined, fullWindow: boolean): string {
   if (!html) return html
   let out = html
-  if (!out.includes('data-kiterp-preview-fit')) {
-    const tag = `<style data-kiterp-preview-fit>${previewFitStyles(paperSize)}</style>`
+  const css = fullWindow ? previewFitStylesFullWindow(paperSize) : previewFitStyles(paperSize)
+  const tag = `<style data-kiterp-preview-fit>${css}</style>`
+  if (out.includes('data-kiterp-preview-fit')) {
+    out = out.replace(/<style data-kiterp-preview-fit>[\s\S]*?<\/style>/, tag)
+  } else {
     out = out.includes('</head>') ? out.replace('</head>', `${tag}</head>`) : `${tag}${out}`
   }
   // Addresses, GSTINs, and invoice numbers are not prose — skip the red spell-check underlines.

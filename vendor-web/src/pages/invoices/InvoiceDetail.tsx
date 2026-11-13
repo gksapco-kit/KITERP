@@ -24,17 +24,24 @@ import {
 } from 'lucide-react'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { processRows, type SortDir } from '@/lib/tableList'
-import { printInvoice, generateInvoiceHtml, downloadInvoiceWithTemplate, DEFAULT_INVOICE_SETTINGS, DEFAULT_QUOTATION_SETTINGS, resolveInvoiceTemplateLogoPath } from '@/lib/invoiceTemplates'
-import type { InvoiceSettings } from '@/lib/invoiceTemplates'
+import {
+  printInvoice,
+  buildInvoiceDocumentHtml,
+  downloadInvoiceWithTemplate,
+  DEFAULT_INVOICE_SETTINGS,
+  DEFAULT_QUOTATION_SETTINGS,
+  type InvoiceSettings,
+  type PaperSize,
+} from '@/lib/invoiceTemplates'
 import {
   invoiceBadgeClass,
   invoiceRefLinkClass,
   invoiceStatusBadge,
   invoiceTypeBadge,
 } from '@/lib/invoiceBadges'
-import { fetchAsDataUrl, downloadAsPdf, shareViaWhatsApp, shareViaSms, buildShareMessage } from '@/lib/printUtils'
+import { shareViaWhatsApp, shareViaSms, buildShareMessage } from '@/lib/printUtils'
 import { withNoScriptCsp, writeSafeHtml } from '@/lib/htmlSafety'
-import { A4_SHEET_WIDTH_PX, injectPreviewFitCss } from '@/lib/documentPreview'
+import { A4_SHEET_WIDTH_PX, injectPreviewFitCss, wrapHtmlForScreenPreview } from '@/lib/documentPreview'
 import { useHasPermission } from '@/hooks/usePermissions'
 import { SALES_DOC_COPY_FROM_KEY } from '@/lib/copyDocument'
 import { QuotationExtraFieldsEditor, QuotationExtraFieldsDisplay } from '@/components/quotations/QuotationExtraFieldsEditor'
@@ -320,9 +327,11 @@ function InvoiceDocumentPreview({
   focus,
   onTogglePanel,
   onClose,
+  paperSize = 'A4',
 }: {
   html: string
   loading: boolean
+  paperSize?: PaperSize
   title: string
   onPrint: () => void
   onDownload: () => void
@@ -354,10 +363,10 @@ function InvoiceDocumentPreview({
       html, body {
         margin: 0 !important; padding: 0 !important; background: #fff !important;
         overflow-x: hidden !important; overflow-y: visible !important;
-        width: ${sheetW}px !important; max-width: 100% !important; height: auto !important;
+        width: ${sheetW}px !important; max-width: ${sheetW}px !important; height: auto !important;
       }
       .page {
-        margin: 0 auto !important; max-width: ${sheetW}px !important; width: 100% !important;
+        margin: 0 !important; max-width: ${sheetW}px !important; width: ${sheetW}px !important;
         min-height: 0 !important; height: auto !important;
         box-shadow: none !important; border-radius: 0 !important;
         box-sizing: border-box !important;
@@ -397,7 +406,7 @@ function InvoiceDocumentPreview({
   const openFullPreview = () => {
     if (!html) return
     const w = window.open('', '_blank')
-    if (w) writeSafeHtml(w, html)
+    if (w) writeSafeHtml(w, wrapHtmlForScreenPreview(html, paperSize))
   }
 
   return (
@@ -503,7 +512,7 @@ function InvoiceDocumentPreview({
         ) : (
           <iframe
             ref={iframeRef}
-            srcDoc={withNoScriptCsp(injectPreviewFitCss(html))}
+            srcDoc={withNoScriptCsp(injectPreviewFitCss(html, paperSize))}
             title={title}
             onLoad={layoutPreview}
             className="border-0 block bg-white shrink-0 shadow-md rounded-sm"
@@ -682,24 +691,9 @@ export default function InvoiceDetail() {
       setPreviewLoading(true)
       const invRecord = inv as Record<string, unknown>
       const s = fullLayoutInvoiceSettings(invRecord, resolveDocSettings(invRecord, effectiveSettings(invRecord)))
-      const rawLogo = resolveInvoiceTemplateLogoPath(s, inv.vendor_logo_url as string, inv)
-      const rawSig = s.signature_url || ''
       try {
-        const [logoDataUrl, sigDataUrl] = await Promise.all([
-          s.show_logo && rawLogo ? fetchAsDataUrl(rawLogo) : Promise.resolve(''),
-          s.show_signature && rawSig ? fetchAsDataUrl(rawSig) : Promise.resolve(''),
-        ])
+        const html = await buildInvoiceDocumentHtml(invRecord, s, '')
         if (cancelled) return
-        const enriched: InvoiceSettings = {
-          ...s,
-          logo_url: logoDataUrl || undefined,
-          signature_url: sigDataUrl || undefined,
-        }
-        const html = generateInvoiceHtml(
-          { ...invRecord, vendor_logo_url: logoDataUrl || inv.vendor_logo_url },
-          enriched,
-          '',
-        )
         setPreviewHtml(html)
       } catch {
         if (!cancelled) setPreviewHtml('')
@@ -1547,6 +1541,7 @@ export default function InvoiceDetail() {
         >
           <InvoiceDocumentPreview
             html={previewHtml}
+            paperSize={docSettings.paper_size ?? 'A4'}
             loading={previewLoading || settingsLoading}
             title={`${docLabel} Document`}
             actionsDisabled={settingsLoading}

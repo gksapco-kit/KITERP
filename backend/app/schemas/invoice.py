@@ -148,6 +148,7 @@ class InvoiceResponse(BaseModel):
     vendor_name: Optional[str] = None
     vendor_gstin: Optional[str] = None
     vendor_pan: Optional[str] = None
+    vendor_address: Optional[dict] = None
     items: list
     item_count: int
     subtotal: float

@@ -102,6 +102,7 @@ def _inv_dict(inv, include_qr: bool = False, vendor: Vendor | None = None) -> di
         "billing_address": inv.billing_address, "shipping_address": inv.shipping_address,
         "vendor_name": inv.vendor_name, "vendor_gstin": inv.vendor_gstin,
         "vendor_pan": getattr(inv, "vendor_pan", None),
+        "vendor_address": inv.vendor_address,
         "items": inv.items or [], "item_count": inv.item_count or 0,
         "subtotal": float(inv.subtotal or 0),
         "additional_charges": getattr(inv, "additional_charges", None) or [],

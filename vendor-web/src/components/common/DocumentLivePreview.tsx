@@ -3,7 +3,12 @@ import { Eye, Loader2, Pencil, FilePlus, Trash2, ExternalLink, Layers } from 'lu
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
 import { extractOfferTemplateFromDoc, addOfferPage, removeOfferPage } from '@/lib/offerPages'
-import { A4_SHEET_WIDTH_PX, createDefaultContinuationPage, injectPreviewFitCss } from '@/lib/documentPreview'
+import {
+  A4_SHEET_WIDTH_PX,
+  createDefaultContinuationPage,
+  injectPreviewFitCss,
+  wrapHtmlForScreenPreview,
+} from '@/lib/documentPreview'
 
 const DEFAULT_SCALE = 1
 const DEFAULT_WIDTH = A4_SHEET_WIDTH_PX
@@ -95,7 +100,7 @@ export const DocumentLivePreview = memo(function DocumentLivePreview({
       const pageW = thermal ? '100%' : `${documentWidth}px`
       style.textContent = `
         html, body { background: #fff !important; margin: 0 !important; padding: 0 !important; overflow-x: hidden !important; overflow-y: hidden !important; width: ${thermal ? '100%' : `${documentWidth}px`} !important; max-width: 100% !important; text-align: left !important; }
-        .page { margin: 0 auto !important; min-height: 0 !important; max-width: ${pageW} !important; width: 100% !important; box-sizing: border-box !important; text-align: left !important; }
+        .page { margin: 0 !important; min-height: 0 !important; max-width: ${pageW} !important; width: ${thermal ? '100%' : `${documentWidth}px`} !important; box-sizing: border-box !important; text-align: left !important; }
         .inv-header-row { text-align: left !important; }
         .inv-vendor-identity:not(.inv-vendor-header-meta) { text-align: left !important; }
         .inv-vendor-header-meta { text-align: center !important; align-items: center !important; }
@@ -231,7 +236,7 @@ export const DocumentLivePreview = memo(function DocumentLivePreview({
     if (!html) return
     const w = window.open('', '_blank')
     if (w) {
-      w.document.write(html)
+      w.document.write(wrapHtmlForScreenPreview(html, paperSize))
       w.document.close()
     }
   }
