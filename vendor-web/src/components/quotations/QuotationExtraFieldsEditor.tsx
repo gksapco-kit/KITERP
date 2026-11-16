@@ -6,6 +6,7 @@ import { Select } from '@/components/ui/select'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { vendorApi } from '@/api/vendor'
 import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
 import { Plus, Trash2, X, Link2, Mail, Phone, ImageIcon, Type } from 'lucide-react'
 import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
 import {
@@ -161,8 +162,8 @@ export function QuotationExtraFieldsEditor({
       }
       appendImages(id, urls)
       toast.success(urls.length > 1 ? `${urls.length} images added` : 'Image added')
-    } catch {
-      toast.error('Could not upload image — use PNG or JPG under 2MB')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Could not upload image'))
     } finally {
       setUploadingId(null)
     }

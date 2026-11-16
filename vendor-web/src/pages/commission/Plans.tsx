@@ -124,8 +124,8 @@ export default function PlansPage() {
     try {
       await update.mutateAsync({ id: plan.id, data: { status: newStatus } })
       toast.success(`Plan ${newStatus}`)
-    } catch {
-      toast.error('Failed to update status')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Failed to update status'))
     }
   }
 

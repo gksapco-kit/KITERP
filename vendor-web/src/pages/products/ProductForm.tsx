@@ -1059,8 +1059,8 @@ function VariantMediaEdit({
     try {
       const result = await vendorApi.reorderVariantMedia(variantId, urls)
       commitMedia(result.media)
-    } catch {
-      toast.error('Failed to reorder media')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Failed to reorder media'))
     }
   }
 
@@ -1312,8 +1312,8 @@ function ProductDisplay({ product, onEdit, onEditVariant, onDeleteVariant, onBac
                     if (loneDefault.id) {
                       try {
                         await onDeleteVariant(loneDefault.id)
-                      } catch {
-                        toast.error('Could not delete the existing variant')
+                      } catch (apiErr) {
+                        toast.error(extractApiError(apiErr, 'Could not delete the existing variant'))
                         return
                       }
                     }

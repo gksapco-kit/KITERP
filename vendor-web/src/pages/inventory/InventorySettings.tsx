@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
+import { apiError } from '@/lib/errorMessages'
 import { cn } from '@/lib/utils'
 
 export default function InventorySettingsPage() {
@@ -34,7 +35,7 @@ export default function InventorySettingsPage() {
       setDirty(false)
       toast.success('Inventory settings saved')
     },
-    onError: () => toast.error('Could not save settings'),
+    onError: apiError('Could not save settings'),
   })
 
   if (isLoading) {

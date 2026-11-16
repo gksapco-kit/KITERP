@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dialog'
 import { Select } from '@/components/ui/select'
 import { toast } from 'sonner'
+import { apiError } from '@/lib/errorMessages'
 import { cn } from '@/lib/utils'
 import { VariantDetailsDrawer } from '@/components/products/VariantDetailsDrawer'
 import { VariantFastEditGrid } from '@/components/products/VariantFastEditGrid'
@@ -67,7 +68,7 @@ export function VariantManagementPanel({
     mutationFn: (vars: { id: string; field: string; value: unknown }) =>
       vendorApi.productPatchVariant(productId, vars.id, { [vars.field]: vars.value }),
     onSuccess: () => qc.invalidateQueries({ queryKey }),
-    onError: () => toast.error('Could not save — please retry'),
+    onError: apiError('Could not save'),
   })
 
   const bulkUpdateMutation = useMutation({
@@ -78,7 +79,7 @@ export function VariantManagementPanel({
       toast.success(`Updated ${res.updated_count} variant${res.updated_count === 1 ? '' : 's'}`)
       setPriceDialogOpen(false)
     },
-    onError: () => toast.error('Bulk update failed'),
+    onError: apiError('Bulk update failed'),
   })
 
   const bulkDeleteMutation = useMutation({
@@ -92,7 +93,7 @@ export function VariantManagementPanel({
       setSelected(new Set())
       setConfirmDeleteOpen(false)
     },
-    onError: () => toast.error('Could not delete selected variants'),
+    onError: apiError('Could not delete selected variants'),
   })
 
   const toggleActive = (v: VariantListItem) =>

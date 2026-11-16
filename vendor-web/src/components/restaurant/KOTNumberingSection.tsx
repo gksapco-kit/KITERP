@@ -6,6 +6,7 @@ import type { RestaurantKOTSettings } from '@/api/vendor'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
+import { apiError } from '@/lib/errorMessages'
 import { Select } from '@/components/ui/select'
 
 import { askConfirm } from '@/components/common/ConfirmProvider'
@@ -67,7 +68,7 @@ export function KOTNumberingSection({
       qc.invalidateQueries({ queryKey: ['restaurant', 'kot-settings', restaurantId] })
       toast.success(`Counter reset — next KOT will be #${data.next_preview}`)
     },
-    onError: () => toast.error('Could not reset counter'),
+    onError: apiError('Could not reset counter'),
   })
 
   const settings = settingsQ.data

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { essApi } from '@/api/ess'
+import { apiError } from '@/lib/errorMessages'
 
 const K = {
   profile:       ['ess-profile'] as const,
@@ -35,7 +36,7 @@ export function useESSUpdateProfile() {
       qc.invalidateQueries({ queryKey: K.profile })
       toast.success('Profile updated')
     },
-    onError: () => toast.error('Could not update profile'),
+    onError: apiError('Could not update profile'),
   })
 }
 
@@ -65,7 +66,7 @@ export function useESSClockIn() {
       qc.invalidateQueries({ queryKey: K.todayAtt })
       toast.success('Clocked in successfully')
     },
-    onError: () => toast.error('Could not clock in — please try again'),
+    onError: apiError('Could not clock in'),
   })
 }
 
@@ -85,7 +86,7 @@ export function useESSClockOut() {
       qc.invalidateQueries({ queryKey: K.todayAtt })
       toast.success('Clocked out successfully')
     },
-    onError: () => toast.error('Could not clock out — please try again'),
+    onError: apiError('Could not clock out'),
   })
 }
 
@@ -138,10 +139,7 @@ export function useESSMarkAttendance() {
       qc.invalidateQueries({ queryKey: ['ess-attendance'] })
       toast.success('Attendance marked')
     },
-    onError: (err: unknown) => {
-      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-      toast.error(typeof msg === 'string' ? msg : 'Could not mark attendance')
-    },
+    onError: apiError('Could not mark attendance'),
   })
 }
 
@@ -154,10 +152,7 @@ export function useESSMarkAttendanceRange() {
       qc.invalidateQueries({ queryKey: ['ess-attendance'] })
       toast.success(res?.message ?? 'Attendance range marked')
     },
-    onError: (err: unknown) => {
-      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-      toast.error(typeof msg === 'string' ? msg : 'Could not mark attendance range')
-    },
+    onError: apiError('Could not mark attendance range'),
   })
 }
 
@@ -179,7 +174,7 @@ export function useESSSubmitLeave() {
       qc.invalidateQueries({ queryKey: K.leaves })
       toast.success('Leave request submitted')
     },
-    onError: () => toast.error('Could not submit leave request'),
+    onError: apiError('Could not submit leave request'),
   })
 }
 
@@ -191,7 +186,7 @@ export function useESSCancelLeave() {
       qc.invalidateQueries({ queryKey: K.leaves })
       toast.success('Leave request cancelled')
     },
-    onError: () => toast.error('Could not cancel leave request'),
+    onError: apiError('Could not cancel leave request'),
   })
 }
 
@@ -228,7 +223,7 @@ export function useESSCompleteCourse() {
       qc.invalidateQueries({ queryKey: K.enrollment(v.eid) })
       qc.invalidateQueries({ queryKey: K.training })
     },
-    onError: () => toast.error('Could not save course progress'),
+    onError: apiError('Could not save course progress'),
   })
 }
 
@@ -256,7 +251,7 @@ export function useESSSubmitSelfReview() {
       qc.invalidateQueries({ queryKey: K.performance })
       toast.success('Self-review submitted')
     },
-    onError: () => toast.error('Could not submit self-review'),
+    onError: apiError('Could not submit self-review'),
   })
 }
 
@@ -269,7 +264,7 @@ export function useESSAcknowledgeReview() {
       qc.invalidateQueries({ queryKey: K.performance })
       toast.success('Review acknowledged')
     },
-    onError: () => toast.error('Could not acknowledge review'),
+    onError: apiError('Could not acknowledge review'),
   })
 }
 
@@ -287,7 +282,7 @@ export function useESSCreateExpense() {
       qc.invalidateQueries({ queryKey: K.expenses })
       toast.success('Expense claim created')
     },
-    onError: () => toast.error('Could not create expense claim'),
+    onError: apiError('Could not create expense claim'),
   })
 }
 
@@ -299,7 +294,7 @@ export function useESSUpdateExpense() {
       qc.invalidateQueries({ queryKey: K.expenses })
       toast.success('Expense claim updated')
     },
-    onError: () => toast.error('Could not update expense claim'),
+    onError: apiError('Could not update expense claim'),
   })
 }
 
@@ -311,7 +306,7 @@ export function useESSDeleteExpense() {
       qc.invalidateQueries({ queryKey: K.expenses })
       toast.success('Expense claim deleted')
     },
-    onError: () => toast.error('Could not delete expense claim'),
+    onError: apiError('Could not delete expense claim'),
   })
 }
 
@@ -334,7 +329,7 @@ export function useESSAcknowledgePolicy() {
       qc.invalidateQueries({ queryKey: K.policy(policyId) })
       toast.success('Policy acknowledged')
     },
-    onError: () => toast.error('Could not acknowledge policy'),
+    onError: apiError('Could not acknowledge policy'),
   })
 }
 
@@ -360,7 +355,7 @@ export function useESSCreateTicket() {
       qc.invalidateQueries({ queryKey: K.tickets })
       toast.success('Ticket raised successfully')
     },
-    onError: () => toast.error('Could not raise ticket'),
+    onError: apiError('Could not raise ticket'),
   })
 }
 
@@ -381,7 +376,7 @@ export function useESSAddTicketComment() {
       qc.invalidateQueries({ queryKey: K.ticket(v.id) })
       qc.invalidateQueries({ queryKey: K.tickets })
     },
-    onError: () => toast.error('Could not post comment'),
+    onError: apiError('Could not post comment'),
   })
 }
 

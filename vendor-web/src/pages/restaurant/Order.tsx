@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { formatCurrency, cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { apiError } from '@/lib/errorMessages'
 import { askConfirm } from '@/components/common/ConfirmProvider'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 
@@ -270,7 +271,7 @@ export default function RestaurantOrderPage() {
       setKotNotes('')
       toast.success('KOT sent to kitchen')
     },
-    onError: () => toast.error('Could not send KOT'),
+    onError: apiError('Could not send KOT'),
   })
 
   const requestBill = useMutation({
@@ -283,7 +284,7 @@ export default function RestaurantOrderPage() {
         navigate(`/restaurant/pos?${params.toString()}`)
       }
     },
-    onError: () => toast.error('Could not request bill'),
+    onError: apiError('Could not request bill'),
   })
 
   const voidOrder = useMutation({
@@ -293,7 +294,7 @@ export default function RestaurantOrderPage() {
       toast.success('Order voided')
       navigate('/restaurant/floor')
     },
-    onError: () => toast.error('Could not void order'),
+    onError: apiError('Could not void order'),
   })
 
   const transferOrder = useMutation({
@@ -316,7 +317,7 @@ export default function RestaurantOrderPage() {
       qc.invalidateQueries({ queryKey: ['restaurant', 'order', orderId] })
       toast.success('Adjustments saved')
     },
-    onError: () => toast.error('Could not save adjustments'),
+    onError: apiError('Could not save adjustments'),
   })
 
   if (orderQ.isLoading) {

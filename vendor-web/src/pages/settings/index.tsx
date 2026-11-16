@@ -1049,8 +1049,8 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
         })
         profileDirtyRef.current = false
         toast.success('Business profile updated for this unit')
-      } catch {
-        toast.error('Could not save business profile for this unit')
+      } catch (apiErr) {
+        toast.error(extractApiError(apiErr, 'Could not save business profile for this unit'))
       } finally {
         profileSavingRef.current = false
         setProfileSaving(false)
@@ -1230,8 +1230,8 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
         /* file cleanup best-effort */
       }
       toast.success('Banner removed')
-    } catch {
-      toast.error('Could not remove banner')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Could not remove banner'))
     }
   }
 
@@ -1245,8 +1245,8 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
     try {
       await persistBannerOrder(next)
       toast.success('Primary banner updated')
-    } catch {
-      toast.error('Could not update primary banner')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Could not update primary banner'))
     }
   }
 
@@ -1281,8 +1281,8 @@ function ProfileSection({ vendor, activeStore: activeStoreProp, unitProfileEdita
       syncThemeExtraBanners(extra_banners)
       void qc.invalidateQueries({ queryKey: vendorKeys.me() })
       toast.success('Banner removed')
-    } catch {
-      toast.error('Could not remove banner')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Could not remove banner'))
     }
   }
 

@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { toast } from 'sonner'
+import { apiError } from '@/lib/errorMessages'
 import { BusinessUnitSelect, useDefaultBusinessUnitId } from '@/components/common/BusinessUnitSelect'
 
 // ─── constants ───────────────────────────────────────────────────────────────
@@ -83,7 +84,7 @@ function EditRangeForm({ range, storeId, onSaved, onDeleted }: EditFormProps) {
       toast.success('Number range deleted')
       onDeleted?.()
     },
-    onError: () => toast.error('Failed to delete number range'),
+    onError: apiError('Failed to delete number range'),
   })
 
   const nextNum = form.last_value + 1

@@ -3,6 +3,7 @@ import { ShoppingCart, Trash2, Minus, Plus, ArrowRight, ShoppingBag } from 'luci
 import { Button } from '@/components/ui/button'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { apiError } from '@/lib/errorMessages'
 import { storefrontApi } from '@/api/storefront.api'
 import type { StorefrontVendor } from '@/api/storefront.api'
 
@@ -26,7 +27,7 @@ export default function StorefrontCart() {
     onSuccess: (data) => {
       qc.setQueryData(['storefront', 'cart', vendorSlug], data)
     },
-    onError: () => toast.error('Failed to update item'),
+    onError: apiError('Failed to update item'),
   })
 
   const removeItem = useMutation({
@@ -35,7 +36,7 @@ export default function StorefrontCart() {
       qc.setQueryData(['storefront', 'cart', vendorSlug], data)
       toast.success('Item removed')
     },
-    onError: () => toast.error('Failed to remove item'),
+    onError: apiError('Failed to remove item'),
   })
 
   const clearCart = useMutation({

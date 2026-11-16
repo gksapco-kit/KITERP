@@ -11,6 +11,7 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { apiError } from '@/lib/errorMessages'
 import { Users, Plus, Pencil, Trash2, Loader2, X, Building2, User, Mail, Phone } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -157,7 +158,7 @@ function PartnerCard({
       toast.success('Partner removed')
       qc.invalidateQueries({ queryKey: ['order', orderId] })
     },
-    onError: () => toast.error('Could not remove partner'),
+    onError: apiError('Could not remove partner'),
   })
 
   const isReadOnly = partner.role === 'buyer' || isTerminal

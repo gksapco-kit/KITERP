@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ExternalLink } from 'lucide-react'
 import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
 import { pharmaApi } from '@/api/pharma'
 import { vendorApi } from '@/api/vendor'
 import { Button } from '@/components/ui/button'
@@ -364,8 +365,8 @@ export function PharmaTrackTracePage() {
       setPartners(pt.items || [])
       setRegion(settings.track_trace_region || 'none')
       setSerials(sn.items || [])
-    } catch {
-      toast.error('Failed to load track & trace')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Failed to load track & trace'))
     } finally {
       setLoading(false)
     }

@@ -12,6 +12,7 @@ import { formatCurrency, formatDate, cn, searchFieldInnerInputClassName, searchF
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { apiClient } from '@/api/client'
 import { toast } from 'sonner'
+import { apiError } from '@/lib/errorMessages'
 import {
   BarChart3, TrendingUp, ShoppingCart, Users, Package, Star,
   Download, FileText, ChevronDown, ChevronUp, Loader2, IndianRupee,
@@ -751,7 +752,7 @@ export default function ReportsPage() {
       return merged
     },
     onSuccess: (d) => { qc.setQueryData(['notification-preferences'], d); toast.success('Saved') },
-    onError: () => toast.error('Failed to save'),
+    onError: apiError('Failed to save'),
   })
 
   // ── Derived data ───────────────────────────────────────────────────────

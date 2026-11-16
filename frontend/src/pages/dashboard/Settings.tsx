@@ -12,6 +12,7 @@ import { useUpdateVendor } from '@/hooks/useVendor'
 import { adminApi } from '@/api/admin.api'
 import { formatPhoneDisplay, normalizePhoneE164 } from '@/lib/phoneE164'
 import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
 import { Save, Eye, EyeOff, Key, Loader2, ExternalLink } from 'lucide-react'
 
 function formatAddress(vendor: {
@@ -180,8 +181,8 @@ export default function Settings() {
         setPlatformContact({ email, phone, street, city, state, postal })
         setEditingContact(false)
         toast.success('Contact information saved')
-      } catch {
-        toast.error('Failed to save contact information')
+      } catch (apiErr) {
+        toast.error(extractApiError(apiErr, 'Failed to save contact information'))
       } finally {
         setSavingContact(false)
       }
@@ -218,8 +219,8 @@ export default function Settings() {
     try {
       await adminApi.updatePlatformSettings({ gst_api_key: gstApiKey || null })
       toast.success('API key saved successfully')
-    } catch {
-      toast.error('Failed to save API key')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Failed to save API key'))
     } finally {
       setSavingKey(false)
     }
@@ -232,8 +233,8 @@ export default function Settings() {
       // First save, then test via vendor gst-lookup (uses platform key as fallback)
       await adminApi.updatePlatformSettings({ gst_api_key: gstApiKey })
       toast.success('Key saved. Test it by entering a GSTIN when adding a party in vendor-web.')
-    } catch {
-      toast.error('Failed to save key for testing')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Failed to save key for testing'))
     } finally {
       setSavingKey(false)
     }

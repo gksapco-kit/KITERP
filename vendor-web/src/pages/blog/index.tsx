@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react'
 import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
 import {
   Plus, Search, Pencil, Trash2, Eye, EyeOff, Loader2,
   Newspaper, Tag, Clock, Calendar, X, Image as ImageIcon,
@@ -87,8 +88,8 @@ function BlogEditor({ initial, onSave, onCancel, saving }: EditorProps) {
       const { cover_url } = await vendorApi.uploadBlogCover(file)
       setCoverUrl(cover_url)
       toast.success('Cover image uploaded')
-    } catch {
-      toast.error('Upload failed — try again or pick another image')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Upload failed'))
     } finally {
       setCoverUploading(false)
     }

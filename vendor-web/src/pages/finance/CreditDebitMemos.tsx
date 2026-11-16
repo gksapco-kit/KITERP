@@ -18,6 +18,7 @@ import { PhoneInput } from '@/components/ui/PhoneInput'
 import { vendorApi } from '@/api/vendor'
 import { formatCurrency } from '@/lib/utils'
 import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
 import { TableToolbar } from '@/components/table/TableToolbar'
 import { ThemeSelect } from '@/components/common/ThemeSelect'
 import { processRows, type SortDir } from '@/lib/tableList'
@@ -474,8 +475,8 @@ export default function CreditDebitMemos() {
       }
       const order = await vendorApi.getOrder(pick.id)
       applySalesOrderToForm(order)
-    } catch {
-      toast.error('Could not load sales order lines')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Could not load sales order lines'))
     } finally {
       setSoOrderLoading(false)
     }
@@ -578,8 +579,8 @@ export default function CreditDebitMemos() {
       setLinkedOrder(null)
       setSalesOrderRef('')
       setView('create')
-    } catch {
-      toast.error('Could not load memo for editing')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Could not load memo for editing'))
     } finally {
       setMemoRowBusyId(null)
     }
@@ -601,8 +602,8 @@ export default function CreditDebitMemos() {
         await queryClient.invalidateQueries({ queryKey: [...vendorKeys.all, 'memos'] })
         await queryClient.invalidateQueries({ queryKey: ['pos-txn-detail'] })
         setSelectedTxn(null)
-      } catch {
-        toast.error('Could not void memo')
+      } catch (apiErr) {
+        toast.error(extractApiError(apiErr, 'Could not void memo'))
       } finally {
         setVoidingId(null)
       }

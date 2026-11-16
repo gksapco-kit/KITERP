@@ -30,6 +30,7 @@ import {
 } from '@/lib/mediaImageEdit'
 import { cn, mediaUrl } from '@/lib/utils'
 import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
 
 export type LightboxMediaItem = {
   id: string
@@ -187,8 +188,8 @@ export function CatalogMediaLightbox({
       toast.success('Media updated')
       resetView()
       onClose()
-    } catch {
-      toast.error('Failed to save changes')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Failed to save changes'))
     } finally {
       setSaving(false)
     }

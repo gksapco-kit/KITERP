@@ -7,6 +7,7 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { apiError } from '@/lib/errorMessages'
 import { actionDocMessage, createdDocMessage, pickDocNo } from '@/lib/documentToast'
 import {
   Truck, Plus, CheckCircle2, Clock, PackageCheck,
@@ -177,7 +178,7 @@ function DeliveryRow({ delivery, orderId, isTerminal }: { delivery: OrderDeliver
       toast.success(actionDocMessage('Delivery', delivery.delivery_number, 'cancelled'))
       qc.invalidateQueries({ queryKey: ['order', orderId] })
     },
-    onError: () => toast.error('Could not cancel delivery'),
+    onError: apiError('Could not cancel delivery'),
   })
 
   const canGI = !isTerminal && delivery.status !== 'goods_issued' && delivery.status !== 'cancelled'

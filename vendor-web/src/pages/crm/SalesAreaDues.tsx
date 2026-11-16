@@ -17,6 +17,7 @@ import { useSalesScopeFilter } from '@/hooks/useSalesScopeFilter'
 import { Pager, LoadingRow, EmptyRow } from './_shared'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { apiError } from '@/lib/errorMessages'
 
 function money(n: number | string | null | undefined) {
   const v = Number(n ?? 0)
@@ -267,7 +268,7 @@ function AreaCustomerRows({
       },
       {
         onSuccess: () => toast.success(`Follow-up created for ${row.customer_name}`),
-        onError: () => toast.error('Failed to create follow-up'),
+        onError: apiError('Failed to create follow-up'),
       },
     )
   }

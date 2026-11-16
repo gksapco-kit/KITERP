@@ -8,7 +8,11 @@ import type { InvoiceSettings } from '@/lib/invoiceTemplates'
  * on the Invoice settings page would silently stop reaching POS receipts.
  */
 
-/** What the modal's controls edit. Booleans are the resolved "shown" state of each toggle. */
+/**
+ * What the modal's controls edit. Booleans are the resolved "shown" state of each toggle.
+ * The optional keys (receipt text / sizing) use `undefined` or `''` to mean "use the default",
+ * which removes the override.
+ */
 export interface PosModalValues {
   template: InvoiceSettings['template']
   paper_size: InvoiceSettings['paper_size']
@@ -18,17 +22,35 @@ export interface PosModalValues {
   show_tax_breakdown: boolean
   show_notes: boolean
   show_signature: boolean
+  show_legal_note?: boolean
+  receipt_title?: string
+  receipt_footer_text?: string
+  receipt_signature_label?: string
+  receipt_font_size?: number
+  receipt_header_font_size?: number
+  receipt_url_font_size?: number
+  receipt_title_font_size?: number
+  receipt_logo_height?: number
+  receipt_line_spacing?: number
 }
 
 const VALUE_KEYS: (keyof PosModalValues)[] = [
   'template', 'paper_size', 'color',
-  'show_logo', 'show_hsn', 'show_tax_breakdown', 'show_notes', 'show_signature',
+  'show_logo', 'show_hsn', 'show_tax_breakdown', 'show_notes', 'show_signature', 'show_legal_note',
+  'receipt_title', 'receipt_footer_text', 'receipt_signature_label',
+  'receipt_font_size', 'receipt_header_font_size', 'receipt_url_font_size', 'receipt_title_font_size',
+  'receipt_logo_height', 'receipt_line_spacing',
 ]
 
 // Toggles are "on" unless explicitly false (matches how the templates read them).
 const BOOLEAN_KEYS = new Set<keyof PosModalValues>([
-  'show_logo', 'show_hsn', 'show_tax_breakdown', 'show_notes', 'show_signature',
+  'show_logo', 'show_hsn', 'show_tax_breakdown', 'show_notes', 'show_signature', 'show_legal_note',
 ])
+
+/** A control left blank means "no override" (follow the invoice settings / built-in default). */
+function isUnset(v: unknown): boolean {
+  return v === undefined || v === null || v === ''
+}
 
 function baseValue(base: Partial<InvoiceSettings>, key: keyof PosModalValues): unknown {
   const v = (base as Record<string, unknown>)[key]
@@ -47,8 +69,9 @@ export function buildPosOverrides(
 ): Partial<InvoiceSettings> {
   const out: Record<string, unknown> = { ...existing }
   for (const key of VALUE_KEYS) {
-    if (values[key] === baseValue(base, key)) delete out[key]
-    else out[key] = values[key]
+    const v = values[key]
+    if (isUnset(v) || v === baseValue(base, key)) delete out[key]
+    else out[key] = v
   }
   return out as Partial<InvoiceSettings>
 }
@@ -59,5 +82,11 @@ export function previewPosSettings(
   existing: Partial<InvoiceSettings>,
   values: PosModalValues,
 ): Partial<InvoiceSettings> {
-  return { ...base, ...existing, ...values } as Partial<InvoiceSettings>
+  const live: Record<string, unknown> = { ...existing }
+  // A blank control must not wipe out a value coming from the invoice settings.
+  for (const key of VALUE_KEYS) {
+    if (isUnset(values[key])) delete live[key]
+    else live[key] = values[key]
+  }
+  return { ...base, ...live } as Partial<InvoiceSettings>
 }

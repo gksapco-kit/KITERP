@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { VariantMediaUpload, type VariantMediaItem } from '@/components/common/ImageUpload'
 import { UOM_OPTIONS } from '@/lib/uomOptions'
 import { toast } from 'sonner'
-import { extractApiError } from '@/lib/errorMessages'
+import { extractApiError, apiError } from '@/lib/errorMessages'
 import { cn } from '@/lib/utils'
 import { Select } from '@/components/ui/select'
 
@@ -48,7 +48,7 @@ export function VariantDetailsDrawer({ productId, variantId, onClose, initialTab
       qc.invalidateQueries({ queryKey: detailKey })
       qc.invalidateQueries({ queryKey: ['product-variants', productId] })
     },
-    onError: () => toast.error('Could not save change'),
+    onError: apiError('Could not save change'),
   })
 
   const save = (fields: VariantPatchFields) => patchMutation.mutate(fields)
@@ -350,8 +350,8 @@ function VariantMediaTab({
       setMedia(result.media)
       refreshLists()
       toast.success('Media removed')
-    } catch {
-      toast.error('Failed to delete media')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Failed to delete media'))
     }
   }
   const handleSetPrimary = async (url: string) => {
@@ -360,8 +360,8 @@ function VariantMediaTab({
       setMedia(result.media)
       refreshLists()
       toast.success('Primary image updated')
-    } catch {
-      toast.error('Failed to set primary')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Failed to set primary'))
     }
   }
   const handleReorder = async (urls: string[]) => {
@@ -369,8 +369,8 @@ function VariantMediaTab({
       const result = await vendorApi.reorderVariantMedia(variantId, urls)
       setMedia(result.media)
       refreshLists()
-    } catch {
-      toast.error('Failed to reorder media')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Failed to reorder media'))
     }
   }
 

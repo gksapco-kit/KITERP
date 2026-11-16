@@ -4,6 +4,7 @@ import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
 import {
   Plus, Trash2, Star, ArrowLeft, Copy,
   Building2, Users, Store, Check, Loader2,
@@ -361,8 +362,8 @@ export default function OfferTemplatesPage() {
       const result = await vendorApi.uploadDocumentAsset('logo', file)
       setForm(f => ({ ...f, logo_url: result.url, show_logo: true }))
       toast.success('Template logo uploaded (company logo is unchanged)')
-    } catch {
-      toast.error('Could not upload logo — use PNG or JPG under 2MB')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Could not upload logo'))
     }
   }
 

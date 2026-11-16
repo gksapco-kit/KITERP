@@ -38,7 +38,7 @@ import { TableToolbar } from '@/components/table/TableToolbar'
 import { InlineEditCell } from '@/components/table/InlineEditCell'
 import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import { processRows, type SortDir } from '@/lib/tableList'
-import { extractApiError } from '@/lib/errorMessages'
+import { extractApiError, apiError } from '@/lib/errorMessages'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { employeeContactEmail, employeeContactPhone, employeeDisplayName } from '@/lib/hrEmployeeDisplay'
 import {
@@ -97,7 +97,7 @@ export default function TeamPage() {
       qc.invalidateQueries({ queryKey: ['team'] })
       qc.invalidateQueries({ queryKey: [...vendorKeys.all, 'stores'] })
     },
-    onError: () => toast.error('Failed to update store assignment'),
+    onError: apiError('Failed to update store assignment'),
   })
 
   const [showInvite, setShowInvite] = useState(false)

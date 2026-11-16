@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { apiError } from '@/lib/errorMessages'
 import { plansApi, type PlanCreate, type PlanUpdate } from '@/api/plans.api'
 
 export const planKeys = {
@@ -30,7 +31,7 @@ export function useCreatePlan() {
       qc.invalidateQueries({ queryKey: planKeys.list() })
       toast.success('Plan created')
     },
-    onError: () => toast.error('Failed to create plan'),
+    onError: apiError('Failed to create plan'),
   })
 }
 
@@ -43,7 +44,7 @@ export function useUpdatePlan() {
       qc.invalidateQueries({ queryKey: planKeys.list() })
       toast.success('Plan updated')
     },
-    onError: () => toast.error('Failed to update plan'),
+    onError: apiError('Failed to update plan'),
   })
 }
 
@@ -55,7 +56,7 @@ export function useDeletePlan() {
       qc.invalidateQueries({ queryKey: planKeys.all })
       toast.success('Plan deleted. Vendors on this plan no longer have it assigned.')
     },
-    onError: () => toast.error('Failed to delete plan'),
+    onError: apiError('Failed to delete plan'),
   })
 }
 
@@ -68,7 +69,7 @@ export function useUpdatePlanFeatures() {
       qc.invalidateQueries({ queryKey: planKeys.all })
       toast.success('Plan features updated')
     },
-    onError: () => toast.error('Failed to update features'),
+    onError: apiError('Failed to update features'),
   })
 }
 
@@ -89,6 +90,6 @@ export function useAssignPlan() {
       qc.invalidateQueries({ queryKey: planKeys.all })
       toast.success('Plan assigned to vendor')
     },
-    onError: () => toast.error('Failed to assign plan'),
+    onError: apiError('Failed to assign plan'),
   })
 }

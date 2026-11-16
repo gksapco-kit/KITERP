@@ -15,7 +15,7 @@ import { CrmModal, Field, SearchBar, Pager, LoadingRow, EmptyRow } from './_shar
 import { useAssigneeOptions } from './crmFormShared'
 import { modalWidthMd, modalWidthSm, modalWidthXl } from '@/lib/modalUi'
 import { formatDateTime } from '@/lib/utils'
-import { extractApiError } from '@/lib/errorMessages'
+import { extractApiError, apiError } from '@/lib/errorMessages'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 
@@ -502,7 +502,7 @@ function LeadRoadmapModal({
       { id: lead.id, data: { status: next } },
       {
         onSuccess: () => toast.success(`Status updated to ${roadmapLabel(next)}`),
-        onError: () => toast.error('Failed to update status'),
+        onError: apiError('Failed to update status'),
       },
     )
   }
@@ -646,7 +646,7 @@ function LeadStatusSelect({
             { id: lead.id, data: { status: next } },
             {
               onSuccess: () => toast.success(`Status updated to ${statusLabel(next)}`),
-              onError: () => toast.error('Failed to update status'),
+              onError: apiError('Failed to update status'),
             },
           )
         }}
@@ -689,7 +689,7 @@ function LeadAssigneeSelect({
             { id: lead.id, data: { assigned_to: next || null } },
             {
               onSuccess: () => toast.success(next ? 'Assignee updated' : 'Lead unassigned'),
-              onError: () => toast.error('Failed to update assignee'),
+              onError: apiError('Failed to update assignee'),
             },
           )
         }}
@@ -944,7 +944,7 @@ export default function LeadsPage() {
                             onClick={() => {
                               restoreLead.mutate(l.id, {
                                 onSuccess: () => toast.success('Lead restored'),
-                                onError: () => toast.error('Could not restore lead'),
+                                onError: apiError('Could not restore lead'),
                               })
                             }}
                           >

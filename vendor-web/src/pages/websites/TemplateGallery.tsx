@@ -16,7 +16,7 @@ import { StoreThemeCustomizerDialog } from '@/components/websites/StoreThemeCust
 import { StorefrontTemplateModeToggle } from '@/components/business-units/StorefrontTemplateModeToggle'
 import { openDraftPreviewInBrowser, wrapStorefrontPreviewForVendorBrowser } from '@/lib/storefrontPreviewUrl'
 import { openBuilderSiteDraftPreview } from '@/lib/openBuilderSiteDraftPreview'
-import { extractApiError } from '@/lib/errorMessages'
+import { extractApiError, apiError } from '@/lib/errorMessages'
 import {
   assignBuilderSiteToStores,
   assignCatalogTemplateToStores,
@@ -1496,7 +1496,7 @@ export default function WebsiteTemplateGalleryPage() {
         void queryClient.invalidateQueries({ queryKey: [...vendorKeys.all, 'stores'] })
       }, 2500)
     },
-    onError: () => toast.error('Could not apply template to business units'),
+    onError: apiError('Could not apply template to business units'),
   })
 
   const assignBuilderSiteToStore = useMutation({

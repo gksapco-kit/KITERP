@@ -26,6 +26,7 @@ import {
 import { arrayMove } from '@dnd-kit/sortable'
 import { Loader2, Plus, Pencil, Trash2, X, ChevronRight, ChevronDown, FolderTree, Package, Wrench, Eye, EyeOff, Copy, Folder, FolderOpen, File, GripVertical } from 'lucide-react'
 import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
 import { processRows, type SortDir } from '@/lib/tableList'
 import type { VendorCategory, CustomField } from '@/types'
 import { useNavigate } from 'react-router-dom'
@@ -1286,8 +1287,8 @@ export default function CategoriesPage() {
     try {
       const file = await remoteImageToFile(trimmed)
       await uploadCategoryImageFile(file)
-    } catch {
-      toast.error('Could not upload image — try another file or link')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Could not upload image'))
     } finally {
       setImageUploading(false)
     }

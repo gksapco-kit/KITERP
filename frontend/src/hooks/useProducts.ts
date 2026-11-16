@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { apiError } from '@/lib/errorMessages'
 import { productApi } from '@/api/product.api'
 import type { ProductCreate, ProductUpdate } from '@/types/product'
 
@@ -54,7 +55,7 @@ export function useUpdateProduct() {
       qc.invalidateQueries({ queryKey: productKeys.all })
       toast.success('Product updated')
     },
-    onError: () => toast.error('Failed to update product'),
+    onError: apiError('Failed to update product'),
   })
 }
 
@@ -66,6 +67,6 @@ export function useDeleteProduct() {
       qc.invalidateQueries({ queryKey: productKeys.all })
       toast.success('Product deleted')
     },
-    onError: () => toast.error('Failed to delete product'),
+    onError: apiError('Failed to delete product'),
   })
 }

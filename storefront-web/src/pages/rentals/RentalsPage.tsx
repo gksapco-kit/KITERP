@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
+import { apiError } from '@/lib/errorMessages'
 
 import { applyAdditionalCharges, chargeLineAmounts, chargesForEstimate, formatAdditionalChargeValue, normalizeAdditionalCharges, splitAdditionalCharges } from '@/lib/rentalAdditionalCharges'
 import {
@@ -345,7 +346,7 @@ export default function RentalsPage() {
       setConfirmedBooking(data)
       qc.invalidateQueries({ queryKey: ['my-rentals'] })
     },
-    onError: () => toast.error('Payment failed'),
+    onError: apiError('Payment failed'),
   })
 
   const price = selected ? estimateTotal(selected, startDate, endDate, pricingPlan, selectedExtras) : null

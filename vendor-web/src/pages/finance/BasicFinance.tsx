@@ -8,6 +8,7 @@ import {
   Receipt, DollarSign,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { apiError } from '@/lib/errorMessages'
 import { cn } from '@/lib/utils'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import axios from '@/lib/axios'
@@ -283,7 +284,7 @@ export default function BasicFinancePage() {
       setShowModal(false)
       toast.success('Transaction added')
     },
-    onError: () => toast.error('Could not save transaction'),
+    onError: apiError('Could not save transaction'),
   })
 
   const updateMutation = useMutation({
@@ -294,7 +295,7 @@ export default function BasicFinancePage() {
       setEditing(null)
       toast.success('Transaction updated')
     },
-    onError: () => toast.error('Could not update transaction'),
+    onError: apiError('Could not update transaction'),
   })
 
   const deleteMutation = useMutation({
@@ -303,7 +304,7 @@ export default function BasicFinancePage() {
       qc.invalidateQueries({ queryKey: ['finance', 'basic-transactions'] })
       toast.success('Transaction deleted')
     },
-    onError: () => toast.error('Could not delete transaction'),
+    onError: apiError('Could not delete transaction'),
   })
 
   // Filtered list

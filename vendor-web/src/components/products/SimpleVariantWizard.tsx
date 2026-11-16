@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
+import { apiError } from '@/lib/errorMessages'
 import { cn } from '@/lib/utils'
 import { slugifyAttributeName } from '@/lib/productConfigTree'
 import {
@@ -283,7 +284,7 @@ export function SimpleVariantWizard({
       setStep(0)
       toast.success('Template applied — review your options below')
     },
-    onError: () => toast.error('Could not apply template'),
+    onError: apiError('Could not apply template'),
   })
 
   const handleSelectTemplate = (template: VariantSetupTemplate) => {
@@ -470,7 +471,7 @@ function SimpleOptionsStep({
       qc.invalidateQueries({ queryKey: qKey })
       toast.success('Option added')
     },
-    onError: () => toast.error('Could not add option'),
+    onError: apiError('Could not add option'),
   })
 
   const updateAttribute = useMutation({
@@ -486,7 +487,7 @@ function SimpleOptionsStep({
         version_number: vars.version,
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: qKey }),
-    onError: () => toast.error('Could not update option'),
+    onError: apiError('Could not update option'),
   })
 
   const setColorAppearance = (attr: ConfigAttribute, parts: ColorShowParts) => {
@@ -509,7 +510,7 @@ function SimpleOptionsStep({
       // roots still includes the deleted attr until refetch — length 1 means it was the last.
       if (roots.length <= 1) onAllOptionsRemoved?.()
     },
-    onError: () => toast.error('Could not remove option'),
+    onError: apiError('Could not remove option'),
   })
 
   const createOption = useMutation({
@@ -527,20 +528,20 @@ function SimpleOptionsStep({
       setNewOptionPrice(prev => ({ ...prev, [vars.attributeId]: '' }))
       setNewColorByAttr(prev => ({ ...prev, [vars.attributeId]: '' }))
     },
-    onError: () => toast.error('Could not add value'),
+    onError: apiError('Could not add value'),
   })
 
   const updateOption = useMutation({
     mutationFn: (vars: { id: string; body: Partial<{ display_name: string; price_delta: number; color_code: string }> }) =>
       vendorApi.productUpdateConfigOption(productId, vars.id, vars.body),
     onSuccess: () => qc.invalidateQueries({ queryKey: qKey }),
-    onError: () => toast.error('Could not update value'),
+    onError: apiError('Could not update value'),
   })
 
   const deleteOption = useMutation({
     mutationFn: (optionId: string) => vendorApi.productDeleteConfigOption(productId, optionId),
     onSuccess: () => qc.invalidateQueries({ queryKey: qKey }),
-    onError: () => toast.error('Could not remove value'),
+    onError: apiError('Could not remove value'),
   })
 
   const pickCatalogType = (typeValue: string) => {
@@ -1262,7 +1263,7 @@ function CreateVariantsStep({
       )
       onCreated()
     },
-    onError: () => toast.error('Could not create variants — please try again'),
+    onError: apiError('Could not create variants'),
   })
 
   const items = preview?.items?.filter(i => i.status === 'new') ?? []

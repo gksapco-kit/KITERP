@@ -16,6 +16,7 @@ import { formatCurrency, mediaUrl } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
+import { apiError } from '@/lib/errorMessages'
 import { useDocumentSeo, vendorPageTitle } from '@/lib/documentSeo'
 import { breadcrumbJsonLd, compactJsonLd, rentalJsonLd } from '@/lib/catalogSeo'
 import {
@@ -648,7 +649,7 @@ export default function RentalDetailPage() {
       setConfirmedBooking(res)
       qc.invalidateQueries({ queryKey: ['my-rentals'] })
     },
-    onError: () => toast.error('Payment failed'),
+    onError: apiError('Payment failed'),
   })
 
   if (isLoading) {

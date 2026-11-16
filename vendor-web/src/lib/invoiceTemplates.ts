@@ -281,8 +281,62 @@ export interface InvoiceSettings {
   show_legal_note?: boolean
   /** Show Payment Terms in the GST Info / footer area. Default true. */
   show_payment_terms?: boolean
+
+  // ── Thermal receipt (2"/3"/4" paper) text + sizing overrides ──────────────
+  // Blank / unset = use the built-in default for the paper size.
+  /** Heading printed under the shop details (default "TAX INVOICE"). */
+  receipt_title?: string
+  /** Footer line printed at the bottom (default "Computer generated. Valid tax invoice."). */
+  receipt_footer_text?: string
+  /** Caption under the signature line (default "Authorised Signatory"). */
+  receipt_signature_label?: string
+  /** Body text size in px. */
+  receipt_font_size?: number
+  /** Shop name / TOTAL text size in px. */
+  receipt_header_font_size?: number
+  /** Website URL text size in px. Unset = built-in size for the paper width. */
+  receipt_url_font_size?: number
+  /** Document title size in px (e.g. "Sales Bill"). Unset = same as the heading size. */
+  receipt_title_font_size?: number
+  /** Logo height in px. */
+  receipt_logo_height?: number
+  /** Row line-height multiplier (e.g. 1.6). */
+  receipt_line_spacing?: number
+
   /** Custom multi-page HTML from template editor (inline edits + extra pages). */
   template_pages_html?: string
+}
+
+/** Built-in thermal receipt sizes per paper width (used when no override is set). */
+export function thermalDefaults(paperSize: PaperSize): {
+  fontSize: number
+  headerFontSize: number
+  urlFontSize: number
+  logoHeight: number
+  lineSpacing: number
+} {
+  return {
+    fontSize: paperSize === '2inch' ? 8 : paperSize === '3inch' ? 9 : 10,
+    headerFontSize: paperSize === '2inch' ? 11 : 13,
+    urlFontSize: paperSize === '2inch' ? 7 : 8,
+    logoHeight: paperSize === '2inch' ? 28 : paperSize === '3inch' ? 34 : 36,
+    lineSpacing: 1.6,
+  }
+}
+
+/** Slider limits for the thermal receipt size overrides. */
+export const THERMAL_SIZE_LIMITS = {
+  fontSize: { min: 6, max: 16 },
+  headerFontSize: { min: 8, max: 24 },
+  urlFontSize: { min: 6, max: 22 },
+  titleFontSize: { min: 8, max: 32 },
+  logoHeight: { min: 16, max: 90 },
+  lineSpacing: { min: 1, max: 2.4 },
+} as const
+
+function clampNum(v: unknown, fallback: number, min: number, max: number): number {
+  const n = typeof v === 'string' ? parseFloat(v) : v
+  return typeof n === 'number' && Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback
 }
 
 export const PAPER_SIZES: { id: PaperSize; label: string; sub: string; cssSize: string; maxWidth: string }[] = [
@@ -596,10 +650,10 @@ type ThermalLineDescParts = { variant: string; hsn: string; qty: string; rate: s
 
 /** Escape minimal HTML for monospace thermal output */
 function thermalEsc(s: string): string {
+  // Data reaching the thermal template has already been HTML-escaped once by
+  // generateInvoiceHtml (escapeDocData). Escaping again would turn "&#39;" into "&amp;#39;"
+  // and show literal "&#39;" on the receipt, so this is intentionally a pass-through.
   return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
 }
 
 /**
@@ -1011,12 +1065,12 @@ function injectWebsiteUrl(html: string, settings: InvoiceSettings, inv: InvData)
   return stripUrlSlots(html).replace(/<\/body>/i, `${line}\n</body>`)
 }
 
-function thermalVendorUrlLine(settings: InvoiceSettings, inv: InvData): string {
+function thermalVendorUrlLine(settings: InvoiceSettings, inv: InvData, fontSize: string): string {
   if (!(settings.show_url ?? false)) return ''
   const url = resolveWebsiteUrl(settings, inv)
   if (!url) return ''
   const display = url.replace(/^https?:\/\//i, '')
-  return `<div class="c inv-vendor-url" style="font-size:${settings.paper_size === '2inch' ? '7px' : '8px'};margin-top:2px">${display}</div>`
+  return `<div class="c inv-vendor-url" style="font-size:${fontSize};margin-top:2px;line-height:1.3;word-break:break-word">${display}</div>`
 }
 
 /**
@@ -1975,9 +2029,18 @@ function thermalTemplate(inv: InvData, settings: InvoiceSettings, backendApiBase
       logoUrl = resolveMediaUrl(resolveInfocomxLogoUrl(''))
     }
   }
-  const logoH   = settings.paper_size === '2inch' ? 28 : settings.paper_size === '3inch' ? 34 : 36
-  const fs      = settings.paper_size === '2inch' ? '8px' : settings.paper_size === '3inch' ? '9px' : '10px'
-  const headerFs = settings.paper_size === '2inch' ? '11px' : '13px'
+  const td      = thermalDefaults(settings.paper_size)
+  const lim     = THERMAL_SIZE_LIMITS
+  const logoH    = clampNum(settings.receipt_logo_height, td.logoHeight, lim.logoHeight.min, lim.logoHeight.max)
+  const fs       = `${clampNum(settings.receipt_font_size, td.fontSize, lim.fontSize.min, lim.fontSize.max)}px`
+  const headerPx = clampNum(settings.receipt_header_font_size, td.headerFontSize, lim.headerFontSize.min, lim.headerFontSize.max)
+  const headerFs = `${headerPx}px`
+  const urlFs    = `${clampNum(settings.receipt_url_font_size, td.urlFontSize, lim.urlFontSize.min, lim.urlFontSize.max)}px`
+  const titleFs  = `${clampNum(settings.receipt_title_font_size, headerPx, lim.titleFontSize.min, lim.titleFontSize.max)}px`
+  const lineSp   = clampNum(settings.receipt_line_spacing, td.lineSpacing, lim.lineSpacing.min, lim.lineSpacing.max)
+  const receiptTitle   = String(settings.receipt_title ?? '').trim() || 'TAX INVOICE'
+  const footerText     = String(settings.receipt_footer_text ?? '').trim() || 'Computer generated. Valid tax invoice.'
+  const signatureLabel = String(settings.receipt_signature_label ?? '').trim() || 'Authorised Signatory'
 
   const sub    = Number(inv.subtotal || 0)
   const disc   = Number(inv.discount_amount || 0)
@@ -2003,7 +2066,7 @@ function thermalTemplate(inv: InvData, settings: InvoiceSettings, backendApiBase
   .r{text-align:right}
   .b{font-weight:bold}
   .sep{border-top:1px dashed #000;margin:3px 0}
-  .row{display:flex;justify-content:space-between;line-height:1.6}
+  .row{display:flex;justify-content:space-between;line-height:${lineSp}}
   table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:${fs}}
   th{border-bottom:1px solid #000;padding:1px 1px;font-size:${fs};white-space:nowrap}
   td{padding:1px 1px;vertical-align:top}
@@ -2017,10 +2080,10 @@ function thermalTemplate(inv: InvData, settings: InvoiceSettings, backendApiBase
   <div class="c b" style="font-size:${headerFs}">${inv.vendor_name || ''}</div>
   ${settings.show_vendor_address !== false && addr ? `<div class="c" style="font-size:${fs}">${addr}</div>` : ''}
   ${settings.show_gstin && inv.vendor_gstin ? `<div class="c">GSTIN: ${inv.vendor_gstin}</div>` : ''}
-  ${thermalVendorUrlLine(settings, inv)}
+  ${thermalVendorUrlLine(settings, inv, urlFs)}
 
   <div class="sep"></div>
-  <div class="c b" style="font-size:${headerFs};letter-spacing:.08em">TAX INVOICE</div>
+  <div class="c b" style="font-size:${titleFs};letter-spacing:.08em">${receiptTitle}</div>
   <div class="sep"></div>
 
   <div class="row"><span>Invoice No:</span><span class="b">${inv.invoice_number}</span></div>
@@ -2108,7 +2171,7 @@ function thermalTemplate(inv: InvData, settings: InvoiceSettings, backendApiBase
   ${settings.signature_url
     ? `<div class="c"><img src="${settings.signature_url}" style="height:48px;max-width:80%;object-fit:contain;display:block;margin:4px auto"/></div>`
     : `<div style="height:30px;border-bottom:1px solid #000;margin:0 20px 4px"></div>`}
-  <div class="c" style="margin-top:2px">Authorised Signatory</div>
+  <div class="c" style="margin-top:2px">${signatureLabel}</div>
   <div class="c b">${settings.signatory_name || (inv.vendor_name || '')}</div>
   ` : ''}
 
@@ -2121,7 +2184,7 @@ function thermalTemplate(inv: InvData, settings: InvoiceSettings, backendApiBase
   ` : ''}
 
   <div class="sep"></div>
-  <div class="c" style="font-size:${fs}">${(settings.show_legal_note ?? true) ? 'Computer generated. Valid tax invoice.' : ''}</div>
+  <div class="c" style="font-size:${fs}">${(settings.show_legal_note ?? true) ? footerText : ''}</div>
 </div></body></html>`
 }
 

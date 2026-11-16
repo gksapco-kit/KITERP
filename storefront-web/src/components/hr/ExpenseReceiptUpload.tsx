@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { Upload, X, FileIcon, Loader2, ExternalLink } from 'lucide-react'
 import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
 import {
   ClickableImageButton,
   ImageLightboxSession,
@@ -51,8 +52,8 @@ export function ExpenseReceiptUpload({ receipts, onChange, uploadFile, disabled 
         added.push({ url: result.url, name: result.name ?? file.name })
       }
       onChange([...receipts, ...added])
-    } catch {
-      toast.error('Could not upload file. Please try again.')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Could not upload file'))
     } finally {
       setUploading(false)
       if (inputRef.current) inputRef.current.value = ''

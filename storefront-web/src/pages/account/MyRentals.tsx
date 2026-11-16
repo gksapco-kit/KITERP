@@ -9,6 +9,7 @@ import { useVendor } from '@/contexts/VendorContext'
 import { formatCurrency } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
+import { apiError } from '@/lib/errorMessages'
 
 type Booking = {
   id: string
@@ -91,7 +92,7 @@ export default function MyRentals() {
       setSelected(payload as Booking)
       qc.invalidateQueries({ queryKey: ['my-rentals'] })
     },
-    onError: () => toast.error('Payment failed'),
+    onError: apiError('Payment failed'),
   })
 
   const cancel = useMutation({

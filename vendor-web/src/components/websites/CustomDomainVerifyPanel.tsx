@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { websiteApi } from '@/api/websites'
 import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
 
 interface Props {
   siteId: string
@@ -39,8 +40,8 @@ export function CustomDomainVerifyPanel({ siteId, customDomain, domainVerified, 
       })
       toast.success('DNS record generated — add it at your registrar')
       onUpdated?.()
-    } catch {
-      toast.error('Could not start domain verification')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Could not start domain verification'))
     } finally {
       setIniting(false)
     }
@@ -56,8 +57,8 @@ export function CustomDomainVerifyPanel({ siteId, customDomain, domainVerified, 
       } else {
         toast.message(res.message || 'TXT record not found yet — try again in a few minutes')
       }
-    } catch {
-      toast.error('DNS check failed')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'DNS check failed'))
     } finally {
       setChecking(false)
     }

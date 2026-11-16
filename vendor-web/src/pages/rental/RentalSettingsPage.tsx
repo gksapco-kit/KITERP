@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { useVendorStore } from '@/stores/vendorStore'
 import { useUpdateVendor } from '@/hooks/useVendor'
 import { toast } from 'sonner'
+import { apiError } from '@/lib/errorMessages'
 import { DEFAULT_ASSET_CODE_PREFIX } from './rentalConstants'
 import { cn } from '@/lib/utils'
 
@@ -135,7 +136,7 @@ export default function RentalSettingsPage() {
       },
       {
         onSuccess: () => toast.success('Rental settings saved'),
-        onError: () => toast.error('Failed to save settings'),
+        onError: apiError('Failed to save settings'),
       },
     )
   }

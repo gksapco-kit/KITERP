@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { BuilderStepSlider } from '@/components/websites/BuilderStepSlider'
 import {
@@ -588,8 +589,8 @@ export function MediaStudioPanel({
     try {
       const url = await bakeAdjustmentsToUrl()
       applyUrlToSelection(url)
-    } catch {
-      toast.error('Could not apply image')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Could not apply image'))
     }
   }, [selectedMediaObj, bakeAdjustmentsToUrl, applyUrlToSelection])
 
@@ -597,8 +598,8 @@ export function MediaStudioPanel({
     try {
       await bakeAdjustmentsToUrl()
       toast.success('Adjustments saved to library')
-    } catch {
-      toast.error('Could not save adjustments')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Could not save adjustments'))
     }
   }, [bakeAdjustmentsToUrl])
 
@@ -616,8 +617,8 @@ export function MediaStudioPanel({
         toast.success('Preview is up to date')
       }
       closeBakePreviewModal()
-    } catch {
-      toast.error('Could not save adjustments')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Could not save adjustments'))
     }
   }, [hasPendingEdits, bakeAdjustmentsToUrl, closeBakePreviewModal])
 
@@ -658,8 +659,8 @@ export function MediaStudioPanel({
       setLocalMedia(prev => prev.map(m => (m.id === saved.id ? saved : m)))
       refetch()
       toast.success('Renamed')
-    } catch {
-      toast.error('Could not rename file')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Could not rename file'))
     }
   }, [selectedMediaObj, renameDraft, updateMedia, refetch])
 
@@ -703,8 +704,8 @@ export function MediaStudioPanel({
       advanceAfterDelete(mediaList.filter(m => m.id !== deletedId))
       refetch()
       toast.success('Image deleted')
-    } catch {
-      toast.error('Could not delete image')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Could not delete image'))
     }
   }, [
     selectedMediaObj,

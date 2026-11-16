@@ -32,6 +32,7 @@ import { normalizePhoneE164, isValidPhoneE164 } from '@/lib/phoneE164'
 import { useImageSourcePicker } from '@/components/common/ImageSourcePicker'
 import { CollapsibleSection } from '@/components/common/CollapsibleSection'
 import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
 import {
   IdChip, formatShortId, formatVendorCode, VerifiedBadge,
   vendorVerificationLevel, userVerificationLevel,
@@ -502,8 +503,8 @@ function TwoFactorPanel() {
       setSecret(res.secret)
       setSetupUri(res.provisioning_uri)
       toast.success('Scan the QR code or enter the secret in your authenticator app')
-    } catch {
-      toast.error('Could not start 2FA setup')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Could not start 2FA setup'))
     } finally {
       setBusy(false)
     }

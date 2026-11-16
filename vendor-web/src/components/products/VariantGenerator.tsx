@@ -12,6 +12,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
+import { apiError } from '@/lib/errorMessages'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -93,7 +94,7 @@ export function VariantGeneratorButton({ productId }: Props) {
       )
       setOpen(false)
     },
-    onError: () => toast.error('Could not generate variants — please try again'),
+    onError: apiError('Could not generate variants'),
   })
 
   const deleteInvalidMutation = useMutation({
@@ -104,7 +105,7 @@ export function VariantGeneratorButton({ productId }: Props) {
         ? `Removed ${result.deleted_count} variant(s) that no longer match your configuration`
         : 'No invalid variants found')
     },
-    onError: () => toast.error('Could not check for invalid variants'),
+    onError: apiError('Could not check for invalid variants'),
   })
 
   const generateCount = useMemo(() => {

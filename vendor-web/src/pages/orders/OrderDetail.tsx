@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useParams, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import type { StaffPickerValue } from '@/components/commission/StaffPicker'
@@ -180,8 +181,8 @@ function OrderDetailView() {
       setSelectedDeliveryStaff(null)
       setDeliveryStaffExpanded(false)
       qc.invalidateQueries({ queryKey: ['order', order.id] })
-    } catch {
-      toast.error('Could not assign delivery staff')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Could not assign delivery staff'))
     } finally {
       setAssigningDelivery(false)
     }

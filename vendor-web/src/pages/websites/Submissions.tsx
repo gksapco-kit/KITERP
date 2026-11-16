@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
 import {
   ArrowLeft, Mail, Calendar, Trash2, Loader2, Inbox,
   ChevronDown, ChevronRight, Filter, RefreshCw, ExternalLink, User,
@@ -168,8 +169,8 @@ export default function WebsiteSubmissions() {
     try {
       await deleteSubmission.mutateAsync(id)
       toast.success('Submission deleted')
-    } catch {
-      toast.error('Failed to delete')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Failed to delete'))
     }
     setDeletingId(null)
   }

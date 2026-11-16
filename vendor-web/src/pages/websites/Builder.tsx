@@ -5822,8 +5822,8 @@ function InlineVideoPicker({
       onChange(saved.original_url)
       setShowLibrary(false)
       toast.success('Video uploaded!')
-    } catch {
-      toast.error('Upload failed — use MP4, WebM or MOV up to 50 MB')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Upload failed'))
     }
     e.target.value = ''
   }
@@ -13379,8 +13379,8 @@ export default function WebsiteBuilder() {
           : 'Template loaded (pages only) ? add blocks from the left panel.',
       )
       setTemplatePanelSelectedId(templateId)
-    } catch {
-      toast.error('Failed to load template')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Failed to load template'))
       setTemplatePanelSelectedId(null)
     } finally {
       setApplyingTemplateInline(false)
@@ -13408,8 +13408,8 @@ export default function WebsiteBuilder() {
           styleDirtyRef.current = false
           await queryClient.invalidateQueries({ queryKey: ['websites'], exact: true })
           toast.success('Cleared ? blank site')
-        } catch {
-          toast.error('Could not clear site')
+        } catch (apiErr) {
+          toast.error(extractApiError(apiErr, 'Could not clear site'))
         } finally {
           setClearingTemplateSandbox(false)
         }
@@ -13477,8 +13477,8 @@ export default function WebsiteBuilder() {
           blocksDirtyRef.current = false
           styleDirtyRef.current = false
           toast.success('Canvas reset to last saved version')
-        } catch {
-          toast.error('Could not reload site')
+        } catch (apiErr) {
+          toast.error(extractApiError(apiErr, 'Could not reload site'))
         } finally {
           setResettingCanvasFromServer(false)
         }
@@ -15711,8 +15711,8 @@ export default function WebsiteBuilder() {
         blockId: capturedBlockId,
         overlayTarget: capturedOverlayTarget,
       })
-    } catch {
-      toast.error('Upload failed ? try a smaller file or check your connection')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Upload failed ? try a smaller file or check your connection'))
     } finally {
       clearPendingOverlayUpload()
     }
@@ -17596,8 +17596,8 @@ export default function WebsiteBuilder() {
       setActivePageId(newPage.id)
       setSelectedBlockId(null)
       toast.success(`"${page.title}" duplicated`)
-    } catch {
-      toast.error('Failed to duplicate page')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Failed to duplicate page'))
     }
   }, [siteId, site, commitLocalBlocks, queryClient])
 
@@ -17607,8 +17607,8 @@ export default function WebsiteBuilder() {
       await websiteApi.updatePage(siteId, page.id, { is_homepage: true } as any)
       setLocalPages(prev => prev.map(p => ({ ...p, is_homepage: p.id === page.id })))
       toast.success(`"${page.title}" set as homepage`)
-    } catch {
-      toast.error('Failed to set homepage')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Failed to set homepage'))
     }
   }, [siteId])
 
@@ -17792,8 +17792,8 @@ export default function WebsiteBuilder() {
               : `https://${slug}.kiterp.com`
             await navigator.clipboard.writeText(url).catch(() => {})
             toast.success(`Test link ready — ${url}`)
-          } catch {
-            toast.error('Could not set subdomain — it may already be taken')
+          } catch (apiErr) {
+            toast.error(extractApiError(apiErr, 'Could not set subdomain'))
           }
         },
       })
@@ -20490,8 +20490,8 @@ function SiteSettingsPanel({
         custom_body_code: bodyCode || null,
       } as any)
       toast.success('Saved!')
-    } catch {
-      toast.error('Save failed')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Save failed'))
     } finally {
       setSavingAnalytics(false)
     }
@@ -20866,8 +20866,8 @@ function RobotsTxtEditor({ siteId, site }: { siteId: string; site: WebsiteSite }
         style_config: { ...(site.style_config || {}), robots_txt: value }
       } as any)
       toast.success('robots.txt saved')
-    } catch {
-      toast.error('Failed to save')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Failed to save'))
     } finally {
       setSaving(false)
     }

@@ -1,4 +1,5 @@
 import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
 import type { Product, ProductVariant, Cart } from '@/types'
 import type { GuestCartItem } from '@/stores/guestCartStore'
 import { assertCanAddToCart, getMinAddQuantity } from '@/lib/stockValidation'
@@ -55,8 +56,8 @@ export async function addCatalogProductToCart(input: {
     })
     toast.success('Added to cart')
     return true
-  } catch {
-    toast.error('Could not add to cart')
+  } catch (apiErr) {
+    toast.error(extractApiError(apiErr, 'Could not add to cart'))
     return false
   }
 }

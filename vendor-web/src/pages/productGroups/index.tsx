@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -558,8 +559,8 @@ function ManageItemsSheet({ groupId, onClose }: { groupId: string; onClose: () =
       ])
       toast.success(`Removed ${count} item${count === 1 ? '' : 's'} from group`)
       setSelectedMemberIds(new Set())
-    } catch {
-      toast.error('Could not remove some items')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Could not remove some items'))
     } finally {
       setBulkRemoving(false)
     }

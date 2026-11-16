@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { toast } from 'sonner'
+import { apiError } from '@/lib/errorMessages'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 import { cn } from '@/lib/utils'
 
@@ -60,7 +61,7 @@ export default function RestaurantReservationsPage() {
       qc.invalidateQueries({ queryKey: ['restaurant', 'reservations'] })
       toast.success('Reservation updated')
     },
-    onError: () => toast.error('Could not update reservation'),
+    onError: apiError('Could not update reservation'),
   })
 
   const updateReservationStatus = useMutation({
@@ -70,7 +71,7 @@ export default function RestaurantReservationsPage() {
       qc.invalidateQueries({ queryKey: ['restaurant', 'reservations'] })
       toast.success('Status updated')
     },
-    onError: () => toast.error('Could not update status'),
+    onError: apiError('Could not update status'),
   })
 
   const deleteRes = useMutation({
@@ -79,7 +80,7 @@ export default function RestaurantReservationsPage() {
       qc.invalidateQueries({ queryKey: ['restaurant', 'reservations'] })
       toast.success('Reservation removed')
     },
-    onError: () => toast.error('Could not delete reservation'),
+    onError: apiError('Could not delete reservation'),
   })
 
   const tablesQ = useQuery({
@@ -319,7 +320,7 @@ function NewReservationForm({ onSuccess, onCancel }: { onSuccess: () => void; on
   const create = useMutation({
     mutationFn: () => vendorApi.restaurantCreateReservation({ ...form, source: 'phone' }),
     onSuccess: () => { toast.success('Reservation created'); onSuccess() },
-    onError: () => toast.error('Could not create reservation'),
+    onError: apiError('Could not create reservation'),
   })
 
   const set = (k: string, v: string | number) => setForm(f => ({ ...f, [k]: v }))

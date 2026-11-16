@@ -1,3 +1,4 @@
+import logging
 from decimal import Decimal, ROUND_HALF_UP
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,6 +32,8 @@ from app.services.store_inventory_service import (
 )
 from app.services.store_resolver import get_default_store_id
 from app.utils.procurement_utils import next_doc_number
+
+log = logging.getLogger(__name__)
 
 # Per-movement-type document prefix.  Each prefix maps to its own
 # DocumentSequence row so different movement types don't share a counter.
@@ -155,8 +158,11 @@ class InventoryService:
         )
         prefix = MOVEMENT_DOC_PREFIX.get(movement_type, "MOV")
         try:
-            document_number = await next_doc_number(self.db, vendor_id, prefix, width=8)
+            # Savepoint: a failed allocation must not abort the surrounding transaction.
+            async with self.db.begin_nested():
+                document_number = await next_doc_number(self.db, vendor_id, prefix, width=8)
         except Exception:
+            log.warning("Document number allocation failed for prefix %s", prefix, exc_info=True)
             document_number = None
 
         movement = InventoryMovement(
@@ -276,9 +282,12 @@ class InventoryService:
         if document_number is None:
             prefix = MOVEMENT_DOC_PREFIX.get(movement_type, "MOV")
             try:
-                document_number = await next_doc_number(self.db, vendor_id, prefix, width=8)
+                async with self.db.begin_nested():
+                    document_number = await next_doc_number(self.db, vendor_id, prefix, width=8)
             except Exception:
-                document_number = None  # non-fatal: numbering is best-effort
+                # non-fatal: numbering is best-effort
+                log.warning("Document number allocation failed for prefix %s", prefix, exc_info=True)
+                document_number = None
 
         movement = InventoryMovement(
             id=uuid_mod.uuid4(),
@@ -387,9 +396,12 @@ class InventoryService:
         if document_number is None:
             prefix = MOVEMENT_DOC_PREFIX.get(movement_type, "MOV")
             try:
-                document_number = await next_doc_number(self.db, vendor_id, prefix, width=8)
+                async with self.db.begin_nested():
+                    document_number = await next_doc_number(self.db, vendor_id, prefix, width=8)
             except Exception:
-                document_number = None  # non-fatal
+                # non-fatal
+                log.warning("Document number allocation failed for prefix %s", prefix, exc_info=True)
+                document_number = None
 
         movement = InventoryMovement(
             id=uuid_mod.uuid4(),
@@ -550,21 +562,23 @@ class InventoryService:
         try:
             from app.services.fifo_cost_service import FifoCostService
             fifo = FifoCostService(self.db)
-            cogs_result = await fifo.consume_layers(
-                vendor_id=vendor_id,
-                product_id=product_id,
-                quantity=float(quantity),
-                variant_id=variant_id,
-                auto_commit=False,
-            )
+            # Savepoint: a DB error here must not abort the surrounding transaction.
+            async with self.db.begin_nested():
+                cogs_result = await fifo.consume_layers(
+                    vendor_id=vendor_id,
+                    product_id=product_id,
+                    quantity=float(quantity),
+                    variant_id=variant_id,
+                    auto_commit=False,
+                )
             if cogs_result and cogs_result.get("cogs"):
                 existing_meta = movement.extra_data or {}
                 existing_meta["cogs"] = float(cogs_result["cogs"])
                 existing_meta["cogs_lots"] = cogs_result.get("consumed_lots", [])
                 movement.extra_data = existing_meta
-        except Exception as _exc:  # noqa: BLE001
+        except Exception:  # noqa: BLE001
             # FIFO consume is best-effort — sale must not be blocked if layers are missing
-            pass
+            log.warning("FIFO COGS consume failed for product %s", product_id, exc_info=True)
 
         if auto_commit:
             await self.db.commit()

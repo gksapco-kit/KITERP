@@ -10,6 +10,7 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { apiError } from '@/lib/errorMessages'
 import {
   Tag, Plus, Trash2, Loader2, RefreshCw, X, ChevronDown, ChevronUp,
   TrendingDown, TrendingUp, Truck,
@@ -168,7 +169,7 @@ function ConditionRow({
       toast.success('Condition removed')
       qc.invalidateQueries({ queryKey: ['order', orderId] })
     },
-    onError: () => toast.error('Could not remove condition'),
+    onError: apiError('Could not remove condition'),
   })
 
   return (
@@ -209,7 +210,7 @@ export function OrderPricingPanel({ order, isTerminal }: Props) {
       toast.success('Order repriced')
       qc.invalidateQueries({ queryKey: ['order', order.id] })
     },
-    onError: () => toast.error('Reprice failed'),
+    onError: apiError('Reprice failed'),
   })
 
   // Lines that had a price rule applied

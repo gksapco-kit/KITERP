@@ -11,6 +11,7 @@ import {
   Clock, Info, Hash, Calendar, ShieldCheck, FileText,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
 import { Input } from '@/components/ui/input'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { askConfirm } from '@/components/common/ConfirmProvider'
@@ -204,8 +205,8 @@ export default function CostCenters() {
     try {
       await deleteCC.mutateAsync(cc.id)
       toast.success('Cost center deactivated')
-    } catch {
-      toast.error('Failed to deactivate')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Failed to deactivate'))
     }
     setActionMenu(null)
   }

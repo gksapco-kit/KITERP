@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Calculator, Loader2, Send } from 'lucide-react'
 import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
 import type { LiveItem, PublicSite, StyleConfig } from '@/blocks/registry'
 import { BuilderTextField } from '@/components/builder/BuilderTextField'
 import { useBuilderCanvas } from '@/contexts/BuilderCanvasContext'
@@ -152,8 +153,8 @@ export default function LiveQuoteBlock({ site, style, props, liveItems, blockId 
       setName('')
       setContact('')
       setNotes('')
-    } catch {
-      toast.error('Could not send quote request — please try again.')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Could not send quote request'))
     } finally {
       setSubmitting(false)
     }

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, type ChangeEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { apiError } from '@/lib/errorMessages'
 import { useDeactivateSupplier, useReactivateSupplier } from '@/hooks/useVendor'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -239,18 +240,18 @@ function ContactsTab({ supplier }: { supplier: Supplier }) {
   const createMut = useMutation({
     mutationFn: (d: Record<string, unknown>) => vendorApi.createSupplierContact(supplier.id, d),
     onSuccess: () => { invalidate(); setShowAdd(false); setForm(BLANK_CONTACT); toast.success('Contact added') },
-    onError: () => toast.error('Could not add contact'),
+    onError: apiError('Could not add contact'),
   })
   const updateMut = useMutation({
     mutationFn: ({ id, d }: { id: string; d: Record<string, unknown> }) =>
       vendorApi.updateSupplierContact(supplier.id, id, d),
     onSuccess: () => { invalidate(); setEditContact(null); toast.success('Contact updated') },
-    onError: () => toast.error('Could not update contact'),
+    onError: apiError('Could not update contact'),
   })
   const deleteMut = useMutation({
     mutationFn: (id: string) => vendorApi.deleteSupplierContact(supplier.id, id),
     onSuccess: () => { invalidate(); setDeleteId(null); toast.success('Contact removed') },
-    onError: () => toast.error('Could not remove contact'),
+    onError: apiError('Could not remove contact'),
   })
 
   function openEdit(c: SupplierContact) {
@@ -409,20 +410,20 @@ function DocumentsTab({ supplier }: { supplier: Supplier }) {
       })
     },
     onSuccess: () => { invalidate(); setShowAdd(false); resetForm(); toast.success('Document added') },
-    onError: () => toast.error('Could not save document'),
+    onError: apiError('Could not save document'),
   })
 
   const verifyMut = useMutation({
     mutationFn: ({ docId, status, rejection_reason }: { docId: string; status: string; rejection_reason?: string }) =>
       vendorApi.verifySupplierDocument(supplier.id, docId, { status, rejection_reason }),
     onSuccess: () => { invalidate(); setRejectDocId(null); setRejectReason(''); toast.success('Document status updated') },
-    onError: () => toast.error('Could not update document status'),
+    onError: apiError('Could not update document status'),
   })
 
   const deleteMut = useMutation({
     mutationFn: (docId: string) => vendorApi.deleteSupplierDocument(supplier.id, docId),
     onSuccess: () => { invalidate(); setDeleteDocId(null); toast.success('Document removed') },
-    onError: () => toast.error('Could not remove document'),
+    onError: apiError('Could not remove document'),
   })
 
   function handleFileSelect(e: ChangeEvent<HTMLInputElement>) {
@@ -622,22 +623,22 @@ function OnboardingTab({ supplier }: { supplier: Supplier }) {
   const createMut = useMutation({
     mutationFn: (d: Record<string, unknown>) => vendorApi.createSupplierOnboarding(supplier.id, d),
     onSuccess: () => { invalidate(); setShowCreate(false); toast.success('Onboarding started') },
-    onError: () => toast.error('Could not start onboarding'),
+    onError: apiError('Could not start onboarding'),
   })
   const updateMut = useMutation({
     mutationFn: (d: Record<string, unknown>) => vendorApi.updateSupplierOnboarding(supplier.id, d),
     onSuccess: () => { invalidate(); setShowEdit(false); toast.success('Onboarding updated') },
-    onError: () => toast.error('Could not update onboarding'),
+    onError: apiError('Could not update onboarding'),
   })
   const submitMut = useMutation({
     mutationFn: () => vendorApi.submitSupplierOnboarding(supplier.id),
     onSuccess: () => { invalidate(); toast.success('Submitted for review') },
-    onError: () => toast.error('Could not submit onboarding'),
+    onError: apiError('Could not submit onboarding'),
   })
   const startReviewMut = useMutation({
     mutationFn: () => vendorApi.startReviewSupplierOnboarding(supplier.id),
     onSuccess: () => { invalidate(); toast.success('Moved to under review') },
-    onError: () => toast.error('Could not start review — you may need approval permission'),
+    onError: apiError('Could not start review'),
   })
   const reviewMut = useMutation({
     mutationFn: (d: Record<string, unknown>) => vendorApi.reviewSupplierOnboarding(supplier.id, d),
@@ -650,7 +651,7 @@ function OnboardingTab({ supplier }: { supplier: Supplier }) {
       setReviewScore('')
       toast.success('Decision saved')
     },
-    onError: () => toast.error('Could not save decision — you may need approval permission'),
+    onError: apiError('Could not save decision'),
   })
 
   function openEdit() {
@@ -892,7 +893,7 @@ function PerformanceTab({ supplier }: { supplier: Supplier }) {
   const createMut = useMutation({
     mutationFn: (d: Record<string, unknown>) => vendorApi.createSupplierPerformance(supplier.id, d),
     onSuccess: () => { invalidate(); setShowAdd(false); setForm(BLANK_PERF); toast.success('Performance record added') },
-    onError: () => toast.error('Could not save performance record'),
+    onError: apiError('Could not save performance record'),
   })
 
   const Metric = ({ label, value, unit = '%' }: { label: string; value?: number | null; unit?: string }) => (
@@ -1046,7 +1047,7 @@ function CategoriesTab({ supplier }: { supplier: Supplier }) {
       setShowManage(false)
       toast.success('Categories updated')
     },
-    onError: () => toast.error('Could not update categories'),
+    onError: apiError('Could not update categories'),
   })
 
   function openManage() {
@@ -1146,18 +1147,18 @@ function AddressesTab({ supplier }: { supplier: Supplier }) {
   const createMut = useMutation({
     mutationFn: (d: Record<string, unknown>) => vendorApi.createSupplierAddress(supplier.id, d),
     onSuccess: () => { invalidate(); setShowAdd(false); setForm(BLANK_ADDR); toast.success('Address added') },
-    onError: () => toast.error('Could not add address'),
+    onError: apiError('Could not add address'),
   })
   const updateMut = useMutation({
     mutationFn: ({ id, d }: { id: string; d: Record<string, unknown> }) =>
       vendorApi.updateSupplierAddress(supplier.id, id, d),
     onSuccess: () => { invalidate(); setEditAddr(null); toast.success('Address updated') },
-    onError: () => toast.error('Could not update address'),
+    onError: apiError('Could not update address'),
   })
   const deleteMut = useMutation({
     mutationFn: (id: string) => vendorApi.deleteSupplierAddress(supplier.id, id),
     onSuccess: () => { invalidate(); setDeleteAddrId(null); toast.success('Address removed') },
-    onError: () => toast.error('Could not remove address'),
+    onError: apiError('Could not remove address'),
   })
 
   function openEdit(a: AddressRecord) {

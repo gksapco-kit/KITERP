@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { apiError } from '@/lib/errorMessages'
 
 import {
   adminApi,
@@ -184,7 +185,7 @@ export function useApproveDomainRequest(vendorId: string) {
       queryClient.invalidateQueries({ queryKey: adminKeys.vendor(vendorId) })
       toast.success('Domain request approved — status set to Active.')
     },
-    onError: () => toast.error('Failed to approve domain request.'),
+    onError: apiError('Failed to approve domain request'),
   })
 }
 
@@ -198,7 +199,7 @@ export function useRejectDomainRequest(vendorId: string) {
       queryClient.invalidateQueries({ queryKey: adminKeys.vendor(vendorId) })
       toast.success('Domain request revoked.')
     },
-    onError: () => toast.error('Failed to revoke domain request.'),
+    onError: apiError('Failed to revoke domain request'),
   })
 }
 

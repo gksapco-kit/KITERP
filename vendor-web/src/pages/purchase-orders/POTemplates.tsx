@@ -7,6 +7,7 @@ import { usePOTemplateSettings, useUpdatePOTemplateSettings } from '@/hooks/useV
 import { useQuery } from '@tanstack/react-query'
 import { vendorApi } from '@/api/vendor'
 import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
 import {
   ArrowLeft, Loader2, Upload, X, Check,
   ChevronDown, ChevronUp, Building2, Pen, Eye, Eraser, RotateCcw,
@@ -378,8 +379,8 @@ export default function POTemplatesPage() {
       const result = await vendorApi.uploadDocumentAsset('logo', file)
       set('logo_url', result.url)
       toast.success('PO logo updated (company logo is unchanged)')
-    } catch {
-      toast.error('Could not upload PO logo — use a PNG, JPG or WebP file under 2 MB')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Could not upload PO logo'))
     }
   }
 
@@ -389,8 +390,8 @@ export default function POTemplatesPage() {
       const result = await vendorApi.uploadDocumentAsset('signature', file)
       set('signature_url', result.url)
       toast.success('Signature uploaded!')
-    } catch {
-      toast.error('Could not upload PO signature — use a PNG, JPG or WebP file under 2 MB')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Could not upload PO signature'))
     } finally {
       setUploadingSignature(false)
     }

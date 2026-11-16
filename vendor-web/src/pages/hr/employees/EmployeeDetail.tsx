@@ -22,6 +22,7 @@ import { messageForAuthenticatedHtmlError, openAuthenticatedHtml } from '@/lib/o
 import { useAuthStore } from '@/stores/authStore'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
 import { askConfirm } from '@/components/common/ConfirmProvider'
 import { EmployeeTabBar } from './EmployeeTabBar'
 import { EmployeeTabPanel, resolveEmployeeTab, type EmployeeTabId } from './employeeMasterTabs'
@@ -2280,8 +2281,8 @@ export default function EmployeeDetailPage() {
       toast.success('Changes saved')
       setEditing(false)
       setPendingChanges({})
-    } catch {
-      toast.error('Failed to save changes')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Failed to save changes'))
     }
   }
 

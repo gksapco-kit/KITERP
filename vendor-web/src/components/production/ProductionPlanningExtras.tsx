@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { CalendarClock, ClipboardList, Factory, Printer } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
 import { vendorApi } from '@/api/vendor'
 import type { ProductionJobCard, ProductionSchedulePlan } from '@/api/vendor'
 import { useHasPermission } from '@/hooks/usePermissions'
@@ -212,8 +213,8 @@ export function JobCardButton({ orderId }: { orderId: string }) {
       }
       w.document.write(jobCardHtml(card_))
       w.document.close()
-    } catch {
-      toast.error('Could not load the job card')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Could not load the job card'))
     } finally {
       setBusy(false)
     }

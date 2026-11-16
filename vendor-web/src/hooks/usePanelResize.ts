@@ -37,15 +37,20 @@ function save(key: string, widths: number[]) {
   try { localStorage.setItem(LS_PREFIX + key, JSON.stringify(widths)) } catch {}
 }
 
+type MaxOption = number | number[] | ((idx: number) => number)
+
 interface Options {
   min?: number | number[]  // per-panel minimums, or a single value for all
-  max?: number | number[]  // per-panel maximums, or a single value for all
+  max?: MaxOption          // per-panel maximums, single value, or live getter (e.g. container room)
 }
 
 export function usePanelResize(key: string, defaultWidths: number[], options: Options = {}) {
   const [widths, setWidths] = useState<number[]>(() => load(key, defaultWidths))
   const widthsRef = useRef(widths)
   useEffect(() => { widthsRef.current = widths }, [widths])
+
+  const optionsRef = useRef(options)
+  useEffect(() => { optionsRef.current = options }, [options])
 
   const dragRef = useRef<{ panelIdx: number; startX: number; startWidth: number } | null>(null)
 
@@ -55,15 +60,20 @@ export function usePanelResize(key: string, defaultWidths: number[], options: Op
   }, [defaultWidths.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const getMin = (idx: number) => {
-    const m = options.min
+    const m = optionsRef.current.min
     if (m === undefined) return 120
     return Array.isArray(m) ? (m[idx] ?? 120) : m
   }
   const getMax = (idx: number) => {
-    const m = options.max
+    const m = optionsRef.current.max
     if (m === undefined) return 800
+    if (typeof m === 'function') return m(idx)
     return Array.isArray(m) ? (m[idx] ?? 800) : m
   }
+
+  const clampWidths = useCallback((next: number[]) => {
+    return next.map((w, i) => Math.min(getMax(i), Math.max(getMin(i), w)))
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const startResize = useCallback((panelIdx: number, clientX: number) => {
     dragRef.current = { panelIdx, startX: clientX, startWidth: widthsRef.current[panelIdx] }
@@ -96,5 +106,15 @@ export function usePanelResize(key: string, defaultWidths: number[], options: Op
     save(key, defaultWidths)
   }, [key, defaultWidths])
 
-  return { widths, startResize, resetWidths }
+  /** Re-apply min/max (e.g. after the container shrinks) and persist if changed. */
+  const reclamp = useCallback(() => {
+    setWidths(prev => {
+      const next = clampWidths(prev)
+      if (next.every((w, i) => w === prev[i])) return prev
+      save(key, next)
+      return next
+    })
+  }, [clampWidths, key])
+
+  return { widths, startResize, resetWidths, reclamp }
 }

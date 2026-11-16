@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Check, ExternalLink, Eye, Pencil, Store } from 'lucide-react'
 import { toast } from 'sonner'
+import { apiError } from '@/lib/errorMessages'
 import { cn } from '@/lib/utils'
 import { templateBadgeEmeraldClass, templateCardActionBtnClass, templateCardActionClusterClass, templateCardActionRowClass, templateCardActivePillClass, templateCardAssignPillClass, templateCardBodyClass, templateCardCurrentForStoreRibbonClass, templateCardMediaHeightClass, templateCardPreviewOverlayClass, templateCardPrimaryActionClass, templateCardSelectedClass, templateCardShellClass, perStoreGalleryRibbonLabel, perStoreTemplateActionLabel, singleTemplateActionLabel, systemTemplateGalleryStatusLabel, systemTemplateGalleryStatusTitle } from '@/lib/websiteTemplateBadges'
 import type { AppliedTemplateViewLiveLink } from '@/lib/liveStorefrontUrl'
@@ -73,7 +74,7 @@ export function BusinessFrontDefaultTemplateCard({
       qc.invalidateQueries({ queryKey: ['template-config'] })
       toast.success('Business front theme updated')
     },
-    onError: () => toast.error('Could not apply theme preset'),
+    onError: apiError('Could not apply theme preset'),
   })
 
   const perStoreHighlight = perStoreTemplateMode && contextStoreCode

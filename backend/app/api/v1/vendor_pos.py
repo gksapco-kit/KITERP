@@ -1,3 +1,4 @@
+import logging
 from typing import Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
@@ -14,6 +15,7 @@ from app.api.deps import (
     normalized_vendor_role,
     require_permission,
 )
+from app.config import settings
 from app.models.vendor_user import VendorUser
 from app.services.store_resolver import get_default_store_id
 
@@ -48,7 +50,27 @@ def _friendly_db_error(exc: Exception) -> str:
         return "One or more values are outside the allowed range"
     if "deadlock" in msg:
         return "A database conflict occurred — please try again"
+    if ("does not exist" in msg or "undefinedcolumn" in msg or "undefinedtable" in msg) and (
+        "column" in msg or "relation" in msg or "table" in msg
+    ):
+        return "The system database is out of date — please contact support"
+    if "current transaction is aborted" in msg or "infailedsqltransaction" in msg:
+        return "A step in this sale failed — please try again"
+    if "numeric field overflow" in msg or "out of range" in msg or "numericvalueoutofrange" in msg:
+        return "An amount or quantity is too large"
+    if "greenlet_spawn" in msg or "missinggreenlet" in msg:
+        return "An internal error occurred while saving the sale — please try again"
     return "A database error occurred — please check your input and try again"
+
+
+def _db_error_detail(exc: Exception) -> str:
+    """User-facing message; in DEBUG also append the real exception for fast diagnosis."""
+    detail = _friendly_db_error(exc)
+    if settings.DEBUG:
+        detail = f"{detail} [{type(exc).__name__}: {str(exc).splitlines()[0][:200] if str(exc) else ''}]"
+    return detail
+
+logger = logging.getLogger("uvicorn.error")
 
 router = APIRouter()
 
@@ -313,12 +335,14 @@ async def create_transaction(
         raise HTTPException(400, str(e))
     except (IntegrityError, SQLAlchemyError) as e:
         await db.rollback()
-        raise HTTPException(422, _friendly_db_error(e))
+        logger.exception("POS create_transaction DB error: %s", e)
+        raise HTTPException(422, _db_error_detail(e))
     except Exception as e:
         await db.rollback()
+        logger.exception("POS create_transaction unexpected error: %s", e)
         msg = str(e)
         if "Session's transaction has been rolled back" in msg or "IntegrityError" in msg:
-            raise HTTPException(422, _friendly_db_error(e))
+            raise HTTPException(422, _db_error_detail(e))
         raise HTTPException(500, "An unexpected error occurred — please try again")
 
 

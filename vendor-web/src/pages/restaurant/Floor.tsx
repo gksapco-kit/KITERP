@@ -9,6 +9,7 @@ import { vendorApi } from '@/api/vendor'
 import type { RestaurantOrder } from '@/api/vendor'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
+import { apiError } from '@/lib/errorMessages'
 import { cn } from '@/lib/utils'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 import type { TeamMember } from '@/types'
@@ -563,7 +564,7 @@ export default function RestaurantFloorPage() {
       qc.invalidateQueries({ queryKey: ['restaurant', 'tables'] })
       toast.success('Table cleared')
     },
-    onError: () => toast.error('Could not clear table'),
+    onError: apiError('Could not clear table'),
   })
 
   const mergeOrders = useMutation({

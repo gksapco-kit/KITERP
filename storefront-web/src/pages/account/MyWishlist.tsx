@@ -5,6 +5,7 @@ import { WishlistPage } from '@/kit/account/AccountBlocks'
 import { useAddToCart, useWishlist, useRemoveWishlistItem } from '@/hooks/useStore'
 import { ChevronRight, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
 import { storeApi } from '@/api/store'
 import { useAuthStore } from '@/stores/authStore'
 import { assertCanAddToCart, getMinAddQuantity } from '@/lib/stockValidation'
@@ -73,8 +74,8 @@ export default function MyWishlist() {
       })
       await removeItem.mutateAsync(id)
       toast.success(`${product.name} moved to cart`)
-    } catch {
-      toast.error('Could not add to cart')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Could not add to cart'))
     } finally {
       setMovingId(null)
     }

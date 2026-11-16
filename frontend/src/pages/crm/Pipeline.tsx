@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { Loader2, Plus } from 'lucide-react'
 import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
 import { useAuthStore } from '@/stores/authStore'
 import { isPlatformStaff } from '@/lib/platformAccess'
 import {
@@ -65,8 +66,8 @@ export default function PlatformCrmPipeline() {
       setTitle('')
       setAmount('')
       setShowForm(false)
-    } catch {
-      toast.error('Could not create deal')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Could not create deal'))
     }
   }
 
@@ -136,8 +137,8 @@ export default function PlatformCrmPipeline() {
                         if (stage_id === deal.stage_id) return
                         try {
                           await moveMut.mutateAsync({ id: deal.id, payload: { stage_id } })
-                        } catch {
-                          toast.error('Could not move deal')
+                        } catch (apiErr) {
+                          toast.error(extractApiError(apiErr, 'Could not move deal'))
                         }
                       }}
                       options={board.columns.map((c) => ({

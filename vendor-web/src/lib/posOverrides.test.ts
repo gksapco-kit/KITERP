@@ -80,6 +80,35 @@ describe('buildPosOverrides', () => {
   })
 })
 
+describe('receipt text + sizing overrides', () => {
+  it('saves text and size overrides, ignoring blank ones', () => {
+    const out = buildPosOverrides(base, {}, valuesFrom(base, {
+      receipt_title: 'CASH MEMO',
+      receipt_footer_text: '',
+      receipt_font_size: 11,
+      receipt_logo_height: undefined,
+    }))
+    expect(out).toEqual({ receipt_title: 'CASH MEMO', receipt_font_size: 11 })
+  })
+
+  it('removes an existing override once the control is blank again', () => {
+    const existing = { receipt_title: 'OLD', receipt_font_size: 12 } as any
+    const out = buildPosOverrides(base, existing, valuesFrom(base)) as any
+    expect(out).toEqual({})
+  })
+
+  it('saves the footer toggle only when it differs from the invoice setting', () => {
+    expect(buildPosOverrides(base, {}, valuesFrom(base, { show_legal_note: true }))).toEqual({})
+    expect(buildPosOverrides(base, {}, valuesFrom(base, { show_legal_note: false }))).toEqual({ show_legal_note: false })
+  })
+
+  it('a blank control does not wipe a value from the invoice settings in the preview', () => {
+    const withTitle = { ...base, receipt_title: 'FROM INVOICE' } as any
+    const out = previewPosSettings(withTitle, {}, valuesFrom(withTitle, { receipt_title: '' })) as any
+    expect(out.receipt_title).toBe('FROM INVOICE')
+  })
+})
+
 describe('previewPosSettings', () => {
   it('layers invoice settings, existing overrides, then live control values', () => {
     const existing = { footer_text: 'Hi', color: '#111111' } as any

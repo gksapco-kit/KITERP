@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import { ChefHat, Loader2, UtensilsCrossed, Clock } from 'lucide-react'
 import { vendorApi } from '@/api/vendor'
 import { Button } from '@/components/ui/button'
-import { toast } from 'sonner'
+import { apiError } from '@/lib/errorMessages'
 import { cn } from '@/lib/utils'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 
@@ -46,7 +46,7 @@ export default function RestaurantKitchenPage() {
       qc.invalidateQueries({ queryKey: ['restaurant', 'tables'] })
       qc.invalidateQueries({ queryKey: ['restaurant', 'orders'] })
     },
-    onError: () => toast.error('Could not update ticket'),
+    onError: apiError('Could not update ticket'),
   })
 
   const kots = data?.items ?? []

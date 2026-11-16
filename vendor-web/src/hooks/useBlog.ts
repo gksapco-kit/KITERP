@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { blogApi, type BlogPostCreate, type BlogPostUpdate } from '@/api/blog'
 import { toast } from 'sonner'
-import { extractApiError } from '@/lib/errorMessages'
+import { extractApiError, apiError } from '@/lib/errorMessages'
 import { useVendorStore } from '@/stores/vendorStore'
 import { vendorKeys } from '@/hooks/useVendor'
 
@@ -40,7 +40,7 @@ export function useCreateBlogPost() {
       qc.invalidateQueries({ queryKey: KEYS.all })
       toast.success('Blog post created')
     },
-    onError: () => toast.error('Failed to create post'),
+    onError: apiError('Failed to create post'),
   })
 }
 
@@ -54,7 +54,7 @@ export function useUpdateBlogPost() {
       qc.invalidateQueries({ queryKey: KEYS.detail(id) })
       toast.success('Post saved')
     },
-    onError: () => toast.error('Failed to save post'),
+    onError: apiError('Failed to save post'),
   })
 }
 
@@ -66,7 +66,7 @@ export function useDeleteBlogPost() {
       qc.invalidateQueries({ queryKey: KEYS.all })
       toast.success('Post deleted')
     },
-    onError: () => toast.error('Failed to delete post'),
+    onError: apiError('Failed to delete post'),
   })
 }
 
@@ -108,6 +108,6 @@ export function useUpdateBlogSettings() {
       }
       toast.success(result.blog_enabled ? 'Blog enabled on your website' : 'Blog hidden from your website')
     },
-    onError: () => toast.error('Failed to update blog settings'),
+    onError: apiError('Failed to update blog settings'),
   })
 }

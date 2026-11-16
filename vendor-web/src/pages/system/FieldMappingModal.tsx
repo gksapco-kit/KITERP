@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { applyFieldMappings } from '@/lib/fieldMappingRuntime'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { toast } from 'sonner'
+import { apiError } from '@/lib/errorMessages'
 
 export type FieldMappingFormState = {
   table_name: string
@@ -111,7 +112,7 @@ export default function FieldMappingModal({ open, onClose, initial, mode }: Prop
       toast.success('Mapping removed')
       onClose()
     },
-    onError: () => toast.error('Could not remove mapping'),
+    onError: apiError('Could not remove mapping'),
   })
 
   if (!open) return null

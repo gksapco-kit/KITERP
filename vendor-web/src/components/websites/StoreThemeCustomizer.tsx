@@ -11,6 +11,7 @@ import { vendorKeys } from '@/hooks/useVendor'
 import { resolveBusinessFrontActiveTemplate } from '@/lib/businessFrontActiveTemplate'
 import { getCustomerStorefrontBaseUrl } from '@/lib/storefrontPreviewUrl'
 import { toast } from 'sonner'
+import { apiError } from '@/lib/errorMessages'
 import {
   Loader2, Palette, Type, Eye, Check, Sparkles,
   ShoppingBag, Wrench, Star, Truck, ChevronRight, Monitor,
@@ -96,7 +97,7 @@ export function StoreThemeCustomizer({ embedded = false }: { embedded?: boolean 
       qc.invalidateQueries({ queryKey: vendorKeys.me() })
       toast.success('Template saved!')
     },
-    onError: () => toast.error('Could not save template — check your customization settings'),
+    onError: apiError('Could not save template'),
   })
 
   if (isLoading || !draft) return <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-gray-400" /></div>

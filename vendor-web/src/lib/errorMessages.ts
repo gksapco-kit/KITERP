@@ -17,9 +17,11 @@ function _sanitiseDetail(detail: string): string {
     const field = col ? col[1].replace(/_/g, ' ') : 'a required field'
     return `Missing required value: "${field}" cannot be empty`
   }
-  if (d.includes('unique constraint') || d.includes('uniqueviolation') || d.includes('already exists')) {
+  if (d.includes('unique constraint') || d.includes('uniqueviolation') || d.includes('duplicate key')) {
     return 'A record with this information already exists'
   }
+  // NOTE: plain "X already exists" business messages are intentionally passed through unchanged
+  // so the user can see which value is duplicated.
   if (d.includes('foreign key constraint') || d.includes('foreignkeyviolation')) {
     return 'The referenced record does not exist — please check the linked data'
   }
@@ -39,9 +41,9 @@ function _sanitiseDetail(detail: string): string {
     || d.includes('<class \'')
     || d.includes('programmingerror')
     || d.includes('operationalerror')
-    || d.includes('does not exist')
-    || d.includes('column') && d.includes('does not exist')
-    || d.includes('relation') && d.includes('does not exist')
+    || (d.includes('column') && d.includes('does not exist'))
+    || (d.includes('relation') && d.includes('does not exist'))
+    || (d.includes('table') && d.includes('does not exist'))
   ) {
     return 'This action cannot be completed right now. Please try again, or contact support if it continues.'
   }
@@ -157,6 +159,8 @@ export function extractApiError(error: unknown, context: string): string {
     if (ax?.code === 'ERR_NETWORK' || ax?.message?.includes('Network Error')) {
       return `${context}: Unable to reach the server — check if the backend is running`
     }
+    // Not an HTTP failure at all (a plain JS error) — don't claim the network is down.
+    if (!(ax as { isAxiosError?: boolean })?.isAxiosError) return context
     return `${context}: No response from server — please check your connection`
   }
 
@@ -227,7 +231,7 @@ export function extractApiError(error: unknown, context: string): string {
       if (typeof data?.detail === 'string' && data.detail.trim()) {
         return `${context}: ${_sanitiseDetail(data.detail)}`
       }
-      return `${context}: Internal server error — please try a smaller JPG/PNG or try again`
+      return `${context}: Internal server error — please try again, or contact support if it continues`
     case 502:
     case 503:
       if (typeof ax.response?.data === 'object' && ax.response.data && typeof (ax.response.data as { detail?: unknown }).detail === 'string') {

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { toast } from 'sonner'
+import { apiError } from '@/lib/errorMessages'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/utils'
 
@@ -29,13 +30,13 @@ export function ProductModifiers({ productId }: Props) {
     mutationFn: (name: string) =>
       vendorApi.productCreateModifierGroup(productId, { name, selection_type: 'single', is_required: false }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: qKey }); toast.success('Group added') },
-    onError: () => toast.error('Could not add group'),
+    onError: apiError('Could not add group'),
   })
 
   const deleteGroup = useMutation({
     mutationFn: (groupId: string) => vendorApi.productDeleteModifierGroup(productId, groupId),
     onSuccess: () => { qc.invalidateQueries({ queryKey: qKey }); toast.success('Group removed') },
-    onError: () => toast.error('Could not remove group'),
+    onError: apiError('Could not remove group'),
   })
 
   const [newGroupName, setNewGroupName] = useState('')
@@ -112,13 +113,13 @@ function ModifierGroupRow({ productId, group, onDelete }: { productId: string; g
       setNewOptionPrice('')
       toast.success('Option added')
     },
-    onError: () => toast.error('Could not add option'),
+    onError: apiError('Could not add option'),
   })
 
   const deleteOption = useMutation({
     mutationFn: (optionId: string) => vendorApi.productDeleteModifierOption(productId, group.id, optionId),
     onSuccess: () => { qc.invalidateQueries({ queryKey: qKey }); toast.success('Option removed') },
-    onError: () => toast.error('Could not remove option'),
+    onError: apiError('Could not remove option'),
   })
 
   return (
@@ -214,7 +215,7 @@ function OptionRow({ productId, groupId, option, onDelete }: { productId: string
       price_delta: parseFloat(priceDelta) || 0,
     }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: qKey }); setEditing(false) },
-    onError: () => toast.error('Could not update option'),
+    onError: apiError('Could not update option'),
   })
 
   return (

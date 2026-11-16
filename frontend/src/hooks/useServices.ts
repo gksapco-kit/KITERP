@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { apiError } from '@/lib/errorMessages'
 import { serviceApi } from '@/api/service.api'
 import type { ServiceCreate, ServiceUpdate } from '@/api/service.api'
 
@@ -54,7 +55,7 @@ export function useUpdateService() {
       qc.invalidateQueries({ queryKey: serviceKeys.all })
       toast.success('Service updated')
     },
-    onError: () => toast.error('Failed to update service'),
+    onError: apiError('Failed to update service'),
   })
 }
 
@@ -66,6 +67,6 @@ export function useDeleteService() {
       qc.invalidateQueries({ queryKey: serviceKeys.all })
       toast.success('Service deleted')
     },
-    onError: () => toast.error('Failed to delete service'),
+    onError: apiError('Failed to delete service'),
   })
 }

@@ -17,6 +17,7 @@ import {
 import { itemTypeLabel } from '@/components/procurement/procurementLineItemTypes'
 import { formatDate, formatCurrency } from '@/lib/utils'
 import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
 import type { PurchaseRequisition, PurchaseRequisitionItem } from '@/types'
 import { askConfirm } from '@/components/common/ConfirmProvider'
 import { PO_FROM_PR_KEY, PR_FROM_INVENTORY_KEY, buildPrToPoPrefill, buildPoCreatePayloadFromPr, type InventoryAlertPrefill } from '@/lib/prToPoPrefill'
@@ -82,8 +83,8 @@ async function startCreateEditablePo(
   }
   try {
     sessionStorage.setItem(PO_FROM_PR_KEY, JSON.stringify(prefill))
-  } catch {
-    toast.error('Could not prepare purchase order form')
+  } catch (apiErr) {
+    toast.error(extractApiError(apiErr, 'Could not prepare purchase order form'))
     return
   }
   navigate('/purchase-orders/new')

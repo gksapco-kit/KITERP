@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 
+import { extractApiError } from '@/lib/errorMessages'
 import { vendorApi } from '@/api/vendor.api'
 import { useVendorStore } from '@/stores/vendorStore'
 import type { VendorCreate, VendorUpdate, BankAccountCreate } from '@/types/vendor'
@@ -55,8 +56,7 @@ export function useRegisterVendor() {
       toast.success('Vendor registered successfully!')
     },
     onError: (error: unknown) => {
-      const message = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Registration failed'
-      toast.error(message)
+      toast.error(extractApiError(error, 'Registration failed'))
     },
   })
 }
@@ -71,8 +71,7 @@ export function useUpdateVendor() {
       toast.success('Vendor updated successfully!')
     },
     onError: (error: unknown) => {
-      const message = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Update failed'
-      toast.error(message)
+      toast.error(extractApiError(error, 'Update failed'))
     },
   })
 }
@@ -88,8 +87,7 @@ export function useUploadDocument() {
       toast.success('Document uploaded successfully!')
     },
     onError: (error: unknown) => {
-      const message = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Upload failed'
-      toast.error(message)
+      toast.error(extractApiError(error, 'Upload failed'))
     },
   })
 }
@@ -104,8 +102,7 @@ export function useAddBankAccount() {
       toast.success('Bank account added successfully!')
     },
     onError: (error: unknown) => {
-      const message = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Failed to add bank account'
-      toast.error(message)
+      toast.error(extractApiError(error, 'Failed to add bank account'))
     },
   })
 }
@@ -120,8 +117,7 @@ export function useSubmitForReview() {
       toast.success('Submitted for review!')
     },
     onError: (error: unknown) => {
-      const message = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Submission failed'
-      toast.error(message)
+      toast.error(extractApiError(error, 'Submission failed'))
     },
   })
 }

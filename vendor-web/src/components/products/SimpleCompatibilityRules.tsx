@@ -6,6 +6,7 @@ import type { ConfigAttribute, ConfigRule, RuleAction, RuleCondition, RuleCondit
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
 import { toast } from 'sonner'
+import { apiError } from '@/lib/errorMessages'
 import { flattenAttributes } from '@/lib/productConfigTree'
 import { RuleBuilder } from '@/components/products/RuleBuilder'
 import { BusinessFrontProductMock, ruleHighlightColor, type PreviewCompatRule } from '@/components/products/BusinessFrontProductMock'
@@ -404,7 +405,7 @@ export function SimpleCompatibilityRules({ productId, onBack, onContinue, onSkip
       toast.success('Compatibility rules saved')
       onContinue()
     },
-    onError: () => toast.error('Could not save rules — check your selections'),
+    onError: apiError('Could not save rules'),
   })
 
   const saveOneDraftMutation = useMutation({
@@ -448,7 +449,7 @@ export function SimpleCompatibilityRules({ productId, onBack, onContinue, onSkip
   const deleteMutation = useMutation({
     mutationFn: (ruleId: string) => vendorApi.productDeleteConfigRule(productId, ruleId),
     onSuccess: () => { qc.invalidateQueries({ queryKey: rulesKey }); toast.success('Rule removed') },
-    onError: () => toast.error('Could not remove rule'),
+    onError: apiError('Could not remove rule'),
   })
 
   const startEditSavedRule = (rule: ConfigRule) => {

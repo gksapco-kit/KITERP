@@ -7,6 +7,7 @@ import { useMyVendor } from '@/hooks/useVendor'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
+import { apiError } from '@/lib/errorMessages'
 import { askConfirm } from '@/components/common/ConfirmProvider'
 import { getCustomerStorefrontBaseUrl } from '@/lib/storefrontPreviewUrl'
 import { useRestaurantStore } from '@/stores/restaurantStore'
@@ -36,7 +37,7 @@ function TableQRSection({ table, vendorSlug }: { table: { id: string; label: str
   const genQR = useMutation({
     mutationFn: () => vendorApi.restaurantGenerateQR(table.id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['restaurant', 'tables'] }); toast.success('QR token generated') },
-    onError: () => toast.error('Could not generate QR'),
+    onError: apiError('Could not generate QR'),
   })
 
   const qrUrl = table.qr_token && vendorSlug ? getTableQRUrl(vendorSlug, table.qr_token) : null
@@ -121,7 +122,7 @@ function TableEditRow({ table, zones, vendorSlug, onDelete }: {
       setEditing(false)
       toast.success('Table updated')
     },
-    onError: () => toast.error('Could not update table'),
+    onError: apiError('Could not update table'),
   })
 
   return (
@@ -226,7 +227,7 @@ export default function RestaurantSetupPage() {
       setZoneFloor('')
       toast.success('Zone added')
     },
-    onError: () => toast.error('Could not add zone'),
+    onError: apiError('Could not add zone'),
   })
 
   const delZone = useMutation({
@@ -235,7 +236,7 @@ export default function RestaurantSetupPage() {
       qc.invalidateQueries({ queryKey: ['restaurant'] })
       toast.success('Zone removed')
     },
-    onError: () => toast.error('Could not remove zone'),
+    onError: apiError('Could not remove zone'),
   })
 
   const createTable = useMutation({
@@ -251,7 +252,7 @@ export default function RestaurantSetupPage() {
       setTableLabel('')
       toast.success('Table added')
     },
-    onError: () => toast.error('Could not add table'),
+    onError: apiError('Could not add table'),
   })
 
   const delTable = useMutation({
@@ -260,7 +261,7 @@ export default function RestaurantSetupPage() {
       qc.invalidateQueries({ queryKey: ['restaurant', 'tables'] })
       toast.success('Table removed')
     },
-    onError: () => toast.error('Could not remove table'),
+    onError: apiError('Could not remove table'),
   })
 
   const zones = zonesQ.data?.items ?? []
@@ -341,7 +342,7 @@ export default function RestaurantSetupPage() {
       setTimerEditing(false)
       toast.success('Dining timer settings saved')
     },
-    onError: () => toast.error('Could not save dining timer settings'),
+    onError: apiError('Could not save dining timer settings'),
   })
 
   return (

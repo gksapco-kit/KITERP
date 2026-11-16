@@ -2,6 +2,7 @@ import logging
 from typing import List, Optional, Tuple
 from decimal import Decimal
 
+from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func as sqlfunc, and_, or_
 from uuid import UUID
@@ -20,6 +21,7 @@ from app.services.invoice_service import InvoiceService
 from app.services.coupon_service import CouponService
 from app.services.loyalty_service import LoyaltyService
 from app.services.price_resolver import resolve_items_pricing
+from app.utils.procurement_utils import next_doc_number
 
 log = logging.getLogger(__name__)
 
@@ -29,19 +31,14 @@ class POSService:
         self.db = db
 
     async def _generate_txn_number(self, vendor_id: UUID) -> str:
-        result = await self.db.execute(
-            select(sqlfunc.max(POSTransaction.transaction_number))
-            .where(POSTransaction.vendor_id == vendor_id)
-        )
-        last = result.scalar_one_or_none()
-        if last:
-            try:
-                num = int(last.split("-")[-1]) + 1
-            except (ValueError, IndexError):
-                num = 1
-        else:
-            num = 1
-        return f"POS-{num:06d}"
+        """Next POS-NNNNNN number from a row-locked per-vendor sequence.
+
+        The old MAX(text)+1 approach could hand two concurrent tills the same
+        number (unique-constraint failure) and sorted wrongly past POS-999999.
+        The sequence is seeded from the highest existing POS number, so numbering
+        carries on from current data.
+        """
+        return await next_doc_number(self.db, vendor_id, "POS", width=6)
 
     async def _next_pos_order_number(self, vendor_id: UUID) -> str:
         """POS-PRD-XXXX for product orders created via POS."""
@@ -370,12 +367,21 @@ class POSService:
                 pid = item.get("product_id")
                 if not pid or item.get("item_type") == "service":
                     continue
-                product = None
+                # Capture plain values up-front: if the savepoint rolls back, ORM
+                # attributes on `product` are expired and reading them in the
+                # except block would raise MissingGreenlet (masking the real error).
+                product_name = None
+                is_traceable = False
                 try:
                     async with self.db.begin_nested():
                         product = await self.db.get(Product, UUID(item["product_id"]))
                         if not product:
                             raise ValueError("product not found")
+                        product_name = product.name
+                        is_traceable = bool(
+                            getattr(product, "batch_managed", False)
+                            or getattr(product, "serial_managed", False)
+                        )
                         product.purchase_count = (product.purchase_count or 0) + 1
                         if not product.track_inventory:
                             raise ValueError("no tracking")
@@ -389,14 +395,15 @@ class POSService:
                             reference_type="pos_transaction",
                             customer_id=customer_id,
                         )
+                except HTTPException as e:
+                    # Compliance/validation failures (e.g. missing customer wholesale
+                    # license) must block the sale and show their real message.
+                    raise ValueError(str(e.detail)) from e
                 except Exception as e:
                     # Batch/serial-managed products must not sell without traceable lots.
-                    if product and (
-                        getattr(product, "batch_managed", False)
-                        or getattr(product, "serial_managed", False)
-                    ):
+                    if is_traceable:
                         raise ValueError(
-                            f"Cannot sell {product.name}: {e}"
+                            f"Cannot sell {product_name}: {e}"
                         ) from e
                     log.warning("POS inventory deduction failed for %s: %s", item.get("product_id"), e)
         elif transaction_type in ("return", "credit_memo"):

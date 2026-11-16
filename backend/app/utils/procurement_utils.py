@@ -90,6 +90,8 @@ _PREFIX_DOC_SOURCES: dict[str, tuple[str, str]] = {
     "GRN": ("grn", "grn_number"),
     "GRNR": ("grn_reversal", "reversal_number"),
     "PRET": ("purchase_return", "return_number"),
+    # POS register transactions: seeds the counter from existing POS-NNNNNN rows.
+    "POS": ("pos_transaction", "transaction_number"),
 }
 
 
@@ -131,7 +133,8 @@ async def _max_existing_suffix(
             f"SELECT {column} FROM {table} "
             f"WHERE vendor_id = :vid AND {column} LIKE :pat"
         ),
-        {"vid": str(vendor_id), "pat": f"{prefix}-%"},
+        # SQLite stores UUIDs as 32-char hex (same form as the bootstrap INSERT below).
+        {"vid": UUID(str(vendor_id)).hex, "pat": f"{prefix}-%"},
     )
     best = 0
     rx = re.compile(rf"^{re.escape(prefix)}-(\d+)$")

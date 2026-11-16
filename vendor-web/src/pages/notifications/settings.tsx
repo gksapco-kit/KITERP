@@ -8,6 +8,7 @@ import { apiClient } from '@/api/client'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useVendorStore } from '@/stores/vendorStore'
 import { toast } from 'sonner'
+import { apiError } from '@/lib/errorMessages'
 import {
   playTone, playToneForDuration, loadLocalRingtone, getLocalRingtoneName, clearLocalRingtone,
   TONE_OPTIONS, TONE_CATEGORIES, type ToneName,
@@ -374,7 +375,7 @@ export default function NotificationSettingsPage() {
   const save = useMutation({
     mutationFn: async (p: NotificationPreferences) => { const r = await apiClient.put('/vendors/me/notifications/preferences', p); return r.data },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['notification-preferences'] }); toast.success('Preferences saved.') },
-    onError: () => toast.error('Failed to save preferences.'),
+    onError: apiError('Failed to save preferences'),
   })
 
   const sendTest = useMutation({
@@ -385,7 +386,7 @@ export default function NotificationSettingsPage() {
       toast.success('Test notification sent!')
       setTimeout(() => setTestSent(false), 4000)
     },
-    onError: () => toast.error('Failed to send test notification.'),
+    onError: apiError('Failed to send test notification'),
   })
 
   function set<K extends keyof NotificationPreferences>(key: K, value: NotificationPreferences[K]) {

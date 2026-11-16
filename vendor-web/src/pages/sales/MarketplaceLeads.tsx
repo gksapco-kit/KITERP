@@ -7,6 +7,7 @@ import { formatCurrency } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
+import { apiError } from '@/lib/errorMessages'
 
 export default function MarketplaceLeadsPage() {
   const qc = useQueryClient()
@@ -33,7 +34,7 @@ export default function MarketplaceLeadsPage() {
       qc.invalidateQueries({ queryKey: ['marketplace-leads'] })
       qc.invalidateQueries({ queryKey: ['marketplace-quotes'] })
     },
-    onError: () => toast.error('Could not submit quote'),
+    onError: apiError('Could not submit quote'),
   })
 
   return (

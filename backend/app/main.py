@@ -328,8 +328,13 @@ async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError):
     )
     origin = request.headers.get("origin", "") or "*"
     detail = _public_db_error_detail(exc)
+    raw_db = f"{getattr(exc, 'orig', None) or exc}".lower()
+    is_conflict = any(
+        k in raw_db
+        for k in ("unique", "duplicate", "foreign key", "foreignkeyviolation")
+    ) and not any(k in raw_db for k in ("undefinedcolumn", "undefinedtable"))
     return JSONResponse(
-        status_code=503,
+        status_code=409 if is_conflict else 503,
         content={
             "detail": detail,
             "type": type(exc).__name__,
@@ -347,17 +352,24 @@ async def global_exception_handler(request: Request, exc: Exception):
     logger.error("Unhandled exception on %s %s: %s\n%s", request.method, request.url.path, exc, traceback.format_exc())
     origin = request.headers.get("origin", "") or "*"
     raw = str(exc)
+    low = raw.lower()
     looks_like_dump = (
         "<class '" in raw
         or "Traceback" in raw
-        or "asyncpg" in raw.lower()
-        or "sqlalchemy" in raw.lower()
-        or "does not exist" in raw.lower()
+        or "asyncpg" in low
+        or "sqlalchemy" in low
+        or "psycopg" in low
+        or ("does not exist" in low and any(k in low for k in ("relation", "column", "table")))
+    )
+    # KeyError / bare tokens like "'field_name'" are meaningless to users.
+    too_cryptic = (
+        isinstance(exc, (KeyError, AttributeError, TypeError, IndexError))
+        or len(raw.strip()) < 4
     )
     detail = (
         "Something went wrong. Please try again, or contact support if it continues."
-        if looks_like_dump
-        else (raw.strip()[:240] or "Server error")
+        if looks_like_dump or too_cryptic
+        else raw.strip()[:240]
     )
     return JSONResponse(
         status_code=500,

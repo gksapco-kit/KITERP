@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { vendorApi, type BudgetRule } from '@/api/vendor'
 import { toast } from 'sonner'
+import { apiError } from '@/lib/errorMessages'
 import { Plus, Trash2, ShieldCheck, Loader2, Save, Info } from 'lucide-react'
 
 const APPROVAL_LEVELS = [
@@ -56,7 +57,7 @@ export default function BudgetControlsPage() {
       toast.success('Budget rules saved')
       setDirty(false)
     },
-    onError: () => toast.error('Could not save budget rules'),
+    onError: apiError('Could not save budget rules'),
   })
 
   const addRule = () => {

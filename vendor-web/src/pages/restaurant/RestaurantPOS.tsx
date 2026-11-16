@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { formatCurrency, cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { apiError } from '@/lib/errorMessages'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 
 type PayMethod = 'cash' | 'upi' | 'card' | 'split'
@@ -301,7 +302,7 @@ export default function RestaurantPOSPage() {
   const openSession = useMutation({
     mutationFn: () => vendorApi.posOpenSession({ opening_cash: 0 }),
     onSuccess: (s) => { setSession(s as PosSession); toast.success('POS session opened') },
-    onError: () => toast.error('Could not open POS session — one may already be active for another register'),
+    onError: apiError('Could not open POS session'),
   })
 
   const sendKOT = useMutation({
@@ -313,7 +314,7 @@ export default function RestaurantPOSPage() {
       setPendingItems([])
       toast.success('Sent to kitchen')
     },
-    onError: () => toast.error('Could not send to kitchen'),
+    onError: apiError('Could not send to kitchen'),
   })
 
   // ── Charge handlers ────────────────────────────────────────────────────────

@@ -23,6 +23,7 @@ import { printInvoice, DEFAULT_QUOTATION_SETTINGS } from '@/lib/invoiceTemplates
 import type { InvoiceSettings } from '@/lib/invoiceTemplates'
 import type { Order } from '@/types'
 import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
 import { pickDocNo } from '@/lib/documentToast'
 import {
   Plus, Loader2, MessageSquare, FileText, Eye, Check, Settings2,
@@ -324,8 +325,8 @@ export default function QuotationsPage() {
       await updateStatus.mutateAsync({ id: order.id, data: { status: 'confirmed' } })
       toast.success('Quote accepted — order confirmed')
       qc.invalidateQueries({ queryKey: ['orders'] })
-    } catch {
-      toast.error('Could not accept quote request')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Could not accept quote request'))
     } finally {
       setActingId(null)
     }
@@ -340,8 +341,8 @@ export default function QuotationsPage() {
       })
       toast.success('Quote request declined')
       qc.invalidateQueries({ queryKey: ['orders'] })
-    } catch {
-      toast.error('Could not decline quote request')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Could not decline quote request'))
     } finally {
       setActingId(null)
     }
@@ -354,8 +355,8 @@ export default function QuotationsPage() {
       toast.success('Quotation marked as sent')
       qc.invalidateQueries({ queryKey: ['quotations', 'estimates'] })
       qc.invalidateQueries({ queryKey: ['invoices'] })
-    } catch {
-      toast.error('Could not update quotation status')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Could not update quotation status'))
     } finally {
       setActingId(null)
     }
@@ -370,8 +371,8 @@ export default function QuotationsPage() {
       qc.invalidateQueries({ queryKey: ['quotations', 'estimates'] })
       qc.invalidateQueries({ queryKey: ['invoices'] })
       navigate(`/quotations/${(invoice as { id: string }).id}`)
-    } catch {
-      toast.error('Could not convert quotation to invoice')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Could not convert quotation to invoice'))
     } finally {
       setActingId(null)
     }

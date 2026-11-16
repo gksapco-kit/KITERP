@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dialog'
 import { Select } from '@/components/ui/select'
 import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
 import { cn } from '@/lib/utils'
 import { VariantDetailsDrawer } from '@/components/products/VariantDetailsDrawer'
 import { TablePagination } from '@/components/table/TablePagination'
@@ -693,8 +694,8 @@ export function VariantFastEditGrid({ productId, search: searchProp, onSearchCha
       const res = await vendorApi.productBulkUpdateVariants(productId, { variant_ids: ids, set_fields })
       qc.invalidateQueries({ queryKey })
       toast.success(`Updated ${res.updated_count} variant${res.updated_count === 1 ? '' : 's'}`)
-    } catch {
-      toast.error('Bulk update failed')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Bulk update failed'))
     } finally {
       setBulkPending(false)
     }
@@ -716,8 +717,8 @@ export function VariantFastEditGrid({ productId, search: searchProp, onSearchCha
       qc.invalidateQueries({ queryKey })
       toast.success(`Updated ${res.updated_count} variant${res.updated_count === 1 ? '' : 's'}`)
       setPriceDialogOpen(false)
-    } catch {
-      toast.error('Bulk update failed')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Bulk update failed'))
     } finally {
       setBulkPending(false)
     }
@@ -733,8 +734,8 @@ export function VariantFastEditGrid({ productId, search: searchProp, onSearchCha
       toast.success(`Deleted ${res.deleted_count} variant${res.deleted_count === 1 ? '' : 's'}`)
       setRowSelected(new Set())
       setConfirmDeleteOpen(false)
-    } catch {
-      toast.error('Could not delete selected variants')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Could not delete selected variants'))
     } finally {
       setBulkPending(false)
     }

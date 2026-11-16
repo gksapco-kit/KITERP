@@ -33,6 +33,7 @@ import {
   Loader2, IndianRupee, ShoppingBag, TrendingUp, Copy,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -1671,8 +1672,8 @@ export default function MasterDataReport() {
       }
       toast.success(nextActive ? `${r.name} is now active` : `${r.name} has been deactivated`)
       setStatusToggleTarget(null)
-    } catch {
-      toast.error('Failed to update status')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Failed to update status'))
     } finally {
       setStatusToggleBusy(false)
       setTogglingId(null)

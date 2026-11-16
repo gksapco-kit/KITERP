@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { Loader2, Plus } from 'lucide-react'
 import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
 import { useAuthStore } from '@/stores/authStore'
 import { isPlatformStaff } from '@/lib/platformAccess'
 import { usePlatformContacts, useSavePlatformContact } from '@/hooks/usePlatformCrm'
@@ -59,8 +60,8 @@ export default function PlatformCrmContacts() {
         record_type: 'person',
       })
       setShowForm(false)
-    } catch {
-      toast.error('Could not save contact')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Could not save contact'))
     }
   }
 

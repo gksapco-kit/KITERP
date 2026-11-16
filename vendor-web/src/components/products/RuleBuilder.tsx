@@ -15,6 +15,7 @@ import { Select } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
+import { apiError } from '@/lib/errorMessages'
 import { cn } from '@/lib/utils'
 import { evaluateRules, describeCondition, ACTION_LABELS, OPERATOR_LABELS } from '@/lib/ruleEngine'
 import { flattenAttributes } from '@/lib/productConfigTree'
@@ -488,20 +489,20 @@ export function RuleBuilder({ productId }: Props) {
       toast.success(editingId === 'new' ? 'Rule created' : 'Rule saved')
       cancelEdit()
     },
-    onError: () => toast.error('Could not save rule — please check the conditions and try again'),
+    onError: apiError('Could not save rule'),
   })
 
   const deleteMutation = useMutation({
     mutationFn: (ruleId: string) => vendorApi.productDeleteConfigRule(productId, ruleId),
     onSuccess: () => { qc.invalidateQueries({ queryKey: rulesKey }); toast.success('Rule deleted') },
-    onError: () => toast.error('Could not delete rule'),
+    onError: apiError('Could not delete rule'),
   })
 
   const toggleActiveMutation = useMutation({
     mutationFn: ({ rule, is_active }: { rule: ConfigRule; is_active: boolean }) =>
       vendorApi.productUpdateConfigRule(productId, rule.id, { is_active, version_number: rule.version_number }),
     onSuccess: () => qc.invalidateQueries({ queryKey: rulesKey }),
-    onError: () => toast.error('Could not update rule'),
+    onError: apiError('Could not update rule'),
   })
 
   const validateDraft = (): string[] => {

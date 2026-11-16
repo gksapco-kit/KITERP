@@ -1469,8 +1469,8 @@ function SiteCard({
             : 'Added to templates — assign it in Template Gallery',
         )
       }
-    } catch {
-      toast.error('Failed to update template status')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Failed to update template status'))
     }
   }
 
@@ -1503,8 +1503,8 @@ function SiteCard({
       await updateSite.mutateAsync({ name: trimmed } as any)
       toast.success(`Renamed to "${trimmed}"`)
       setRenameOpen(false)
-    } catch {
-      toast.error('Could not rename website')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Could not rename website'))
     } finally {
       setRenamingSite(false)
     }
@@ -1937,8 +1937,8 @@ export default function WebsitesPage() {
       try {
         const blank = await websiteApi.ensureBlankSite(siteId)
         queryClient.setQueryData(['websites', blank.id], blank)
-      } catch {
-        toast.error('Could not clear the template sandbox. Try again.')
+      } catch (apiErr) {
+        toast.error(extractApiError(apiErr, 'Could not clear the template sandbox'))
         return
       }
       await queryClient.invalidateQueries({ queryKey: ['websites'], exact: true })
@@ -1978,8 +1978,8 @@ export default function WebsitesPage() {
         try {
           const blank = await websiteApi.ensureBlankSite(siteId)
           queryClient.setQueryData(['websites', blank.id], blank)
-        } catch {
-          toast.error('Could not clear the template sandbox. Try opening again.')
+        } catch (apiErr) {
+          toast.error(extractApiError(apiErr, 'Could not clear the template sandbox'))
         }
         await queryClient.invalidateQueries({ queryKey: ['websites'], exact: true })
         navigate(

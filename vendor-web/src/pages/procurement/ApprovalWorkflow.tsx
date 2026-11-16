@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { apiError } from '@/lib/errorMessages'
 import {
   GitBranch, RotateCcw, Save, CheckCircle2, AlertCircle,
   Info, SlidersHorizontal, Plus, Pencil, Trash2, Play,
@@ -437,7 +438,7 @@ function ApproverMatrixPanel() {
       amount: previewForm.amount ? parseFloat(previewForm.amount) : 0,
     }),
     onSuccess: (res) => setPreviewResult(res),
-    onError: () => toast.error('Preview failed'),
+    onError: apiError('Preview failed'),
   })
 
   const rules: ApproverRule[] = data?.rules ?? []

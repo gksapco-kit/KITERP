@@ -22,6 +22,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import { onAuthenticatedAnchorClick } from '@/lib/openAuthenticatedTab'
 import { toast } from 'sonner'
+import { apiError, extractApiError } from '@/lib/errorMessages'
 
 import { askConfirm } from '@/components/common/ConfirmProvider'
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -220,8 +221,8 @@ function FormSubmissionsTab() {
     try {
       await deleteSubmission.mutateAsync(id)
       toast.success('Submission deleted')
-    } catch {
-      toast.error('Failed to delete')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Failed to delete'))
     }
     setDeletingId(null)
   }
@@ -352,7 +353,7 @@ function ChatsTab() {
       qc.invalidateQueries({ queryKey: ['crm', 'leads'] })
       toast.success(`Lead ${data.number ?? 'created'} — view in CRM Leads`)
     },
-    onError: () => toast.error('Failed to create lead'),
+    onError: apiError('Failed to create lead'),
   })
 
   const convertToTicket = useMutation({
@@ -365,7 +366,7 @@ function ChatsTab() {
       qc.invalidateQueries({ queryKey: ['crm', 'tickets'] })
       toast.success(`Ticket ${data.number ?? 'created'} — view in CRM Tickets`)
     },
-    onError: () => toast.error('Failed to create ticket'),
+    onError: apiError('Failed to create ticket'),
   })
 
   return (

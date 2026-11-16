@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { Loader2, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { extractApiError } from '@/lib/errorMessages'
 import { useAuthStore } from '@/stores/authStore'
 import { isPlatformStaff } from '@/lib/platformAccess'
 import {
@@ -115,8 +116,8 @@ export default function PlatformCrmLeads() {
       toast.success('Lead created')
       setForm(EMPTY_FORM)
       setShowForm(false)
-    } catch {
-      toast.error('Could not create lead')
+    } catch (apiErr) {
+      toast.error(extractApiError(apiErr, 'Could not create lead'))
     }
   }
 
@@ -347,8 +348,8 @@ export default function PlatformCrmLeads() {
                             try {
                               await restoreMut.mutateAsync(lead.id)
                               toast.success('Lead restored')
-                            } catch {
-                              toast.error('Could not restore lead')
+                            } catch (apiErr) {
+                              toast.error(extractApiError(apiErr, 'Could not restore lead'))
                             }
                           }}
                         >
@@ -378,8 +379,8 @@ export default function PlatformCrmLeads() {
                               try {
                                 await deleteMut.mutateAsync(lead.id)
                                 toast.success('Lead moved to trash')
-                              } catch {
-                                toast.error('Could not delete lead')
+                              } catch (apiErr) {
+                                toast.error(extractApiError(apiErr, 'Could not delete lead'))
                               }
                             }}
                           >
