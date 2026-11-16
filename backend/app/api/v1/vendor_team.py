@@ -302,10 +302,13 @@ async def get_my_membership(
     payload = _member_to_dict(member)
     # Effective business unit for store-locked surfaces (e.g. POS): explicit
     # assignment, else owners/admins fall back to the vendor's default store.
+    from app.services.store_resolver import get_default_store_id, get_sole_active_store_id
+
     effective_store_id = member.store_id
     if not effective_store_id and normalized_vendor_role(member) in ("owner", "admin"):
-        from app.services.store_resolver import get_default_store_id
         effective_store_id = await get_default_store_id(db, member.vendor_id)
+    if not effective_store_id:
+        effective_store_id = await get_sole_active_store_id(db, member.vendor_id)
     payload["effective_store_id"] = str(effective_store_id) if effective_store_id else None
     return JSONResponse(payload)
 

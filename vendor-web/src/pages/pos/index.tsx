@@ -190,18 +190,34 @@ export default function POS() {
   const tableFromUrl = searchParams.get('table')
   const orderFromUrl = searchParams.get('order')
 
-  const { vendor } = useVendorStore()
+  const { vendor, selectedStore } = useVendorStore()
   const pharmaEnabled = isPharmaNavVisible(vendor?.settings as Record<string, unknown> | undefined, vendor?.offering_type)
 
   // ── Locked business unit (store) — POS operates against the staff member's assigned store ──
   const { data: myMembership, isLoading: membershipLoading } = useMyMembership()
-  const { data: storesData } = useStores()
-  const lockedStoreId = myMembership?.effective_store_id ?? myMembership?.store_id ?? null
+  const { data: storesData, isLoading: storesLoading } = useStores()
+  const stores = storesData?.stores ?? []
+  const lockedStoreId = useMemo(() => {
+    const fromMembership = myMembership?.effective_store_id ?? myMembership?.store_id
+    if (fromMembership) return fromMembership
+    if (selectedStore?.id && stores.some((s) => s.id === selectedStore.id)) {
+      return selectedStore.id
+    }
+    if (stores.length === 1) return stores[0].id
+    const role = myMembership?.role
+    const roleName = myMembership?.role_name?.toLowerCase()
+    const isPrivileged = role === 'owner' || role === 'admin' || roleName === 'owner' || roleName === 'admin'
+    if (isPrivileged) {
+      const defaultStore = stores.find((s) => s.is_default) ?? stores[0]
+      return defaultStore?.id ?? null
+    }
+    return null
+  }, [myMembership?.effective_store_id, myMembership?.store_id, myMembership?.role, myMembership?.role_name, selectedStore?.id, stores])
   const lockedStoreName = useMemo(() => {
     if (!lockedStoreId) return null
-    const match = (storesData?.stores ?? []).find((s) => s.id === lockedStoreId)
-    return match?.name ?? null
-  }, [lockedStoreId, storesData])
+    const match = stores.find((s) => s.id === lockedStoreId)
+    return match?.name ?? selectedStore?.name ?? null
+  }, [lockedStoreId, stores, selectedStore?.name])
 
   // ── Modifier picker ──────────────────────────────────────────────
   const [modifierPendingItem, setModifierPendingItem] = useState<{
@@ -1092,10 +1108,16 @@ export default function POS() {
     [cart, discountType, cartDiscount, couponApplied, loyaltyDiscountValue],
   )
 
-  if (membershipLoading || sessionLoading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-gray-400" /></div>
+  if (membershipLoading || storesLoading || sessionLoading) {
+    return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-gray-400" /></div>
+  }
 
   if (!lockedStoreId) {
-    const isPrivileged = myMembership?.role === 'owner' || myMembership?.role === 'admin'
+    const isPrivileged =
+      myMembership?.role === 'owner'
+      || myMembership?.role === 'admin'
+      || myMembership?.role_name?.toLowerCase() === 'owner'
+      || myMembership?.role_name?.toLowerCase() === 'admin'
     return (
       <div className="flex flex-col items-center justify-center py-20 space-y-4 text-center px-6">
         <UserX className="w-16 h-16 text-gray-300" />

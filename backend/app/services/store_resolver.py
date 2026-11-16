@@ -28,6 +28,17 @@ async def get_default_store_id(db: AsyncSession, vendor_id: UUID) -> Optional[UU
     return row.scalars().first()
 
 
+async def get_sole_active_store_id(db: AsyncSession, vendor_id: UUID) -> Optional[UUID]:
+    """When the vendor has exactly one active business unit, return it (implicit scope)."""
+    row = await db.execute(
+        select(Store.id)
+        .where(Store.vendor_id == vendor_id, Store.is_active == True)  # noqa: E712
+        .limit(2)
+    )
+    ids = list(row.scalars().all())
+    return ids[0] if len(ids) == 1 else None
+
+
 async def _store_for_branch(db: AsyncSession, vendor_id: UUID, branch: str) -> Optional[UUID]:
     """Match a branch code or store UUID string to an active store."""
     from sqlalchemy import or_

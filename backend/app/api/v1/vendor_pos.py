@@ -17,7 +17,7 @@ from app.api.deps import (
 )
 from app.config import settings
 from app.models.vendor_user import VendorUser
-from app.services.store_resolver import get_default_store_id
+from app.services.store_resolver import get_default_store_id, get_sole_active_store_id
 
 # Vendor-wide ("all stores") roles fall back to the default business unit when
 # they have no explicit store assignment, instead of being blocked from the POS.
@@ -101,6 +101,10 @@ async def _compute_locked_store_id(vu: VendorUser, db: AsyncSession) -> UUID:
             404,
             "No business unit found. Create a business unit before using the POS.",
         )
+
+    sole_store = await get_sole_active_store_id(db, vu.vendor_id)
+    if sole_store:
+        return sole_store
 
     raise HTTPException(
         403,
