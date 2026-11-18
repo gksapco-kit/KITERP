@@ -1533,6 +1533,30 @@ async def ensure_pos_transaction_accounting_columns() -> None:
             await conn.execute(text(s))
 
 
+async def ensure_fin_asset_date_columns() -> None:
+    """Capitalization date and depreciation start date on fin_asset.
+
+    Existing rows copy the acquisition date so depreciation keeps its current timing.
+    """
+    if "postgresql" not in settings.DATABASE_URL.lower():
+        return
+    async with engine.begin() as conn:
+        await conn.execute(text(
+            "ALTER TABLE fin_asset ADD COLUMN IF NOT EXISTS capitalization_date DATE"
+        ))
+        await conn.execute(text(
+            "ALTER TABLE fin_asset ADD COLUMN IF NOT EXISTS depreciation_start_date DATE"
+        ))
+        await conn.execute(text(
+            "UPDATE fin_asset SET capitalization_date = acquisition_date "
+            "WHERE capitalization_date IS NULL"
+        ))
+        await conn.execute(text(
+            "UPDATE fin_asset SET depreciation_start_date = COALESCE(capitalization_date, acquisition_date) "
+            "WHERE depreciation_start_date IS NULL"
+        ))
+
+
 async def ensure_journal_entry_attachments_column() -> None:
     """Add supporting-document attachments JSONB on fin_journal_entry."""
     if "postgresql" not in settings.DATABASE_URL.lower():
@@ -3926,6 +3950,28 @@ async def ensure_realestate_schema() -> None:
     async with engine.begin() as conn:
         added = await conn.run_sync(_create)
     logger.info("ensure_realestate_schema: %d real-estate tables ready (%d column(s) added)", len(tables), len(added))
+
+
+async def ensure_asset_mgmt_schema() -> None:
+    """Create the Asset Management tables (``am_*``). Idempotent (checkfirst) and additive only.
+
+    Tables are declared in ``app.models.asset_mgmt``; columns added to a model later are added to the existing
+    tables automatically. Mirrors ``alembic/versions/am001_asset_management.py``.
+    """
+    if "postgresql" not in settings.DATABASE_URL.lower():
+        return
+    import app.models  # noqa: F401  (loads vendor / hr / finance tables referenced by FKs)
+    import app.models.asset_mgmt  # noqa: F401
+
+    tables = [t for t in Base.metadata.sorted_tables if t.name.startswith("am_")]
+
+    def _create(sync_conn):
+        Base.metadata.create_all(sync_conn, tables=tables, checkfirst=True)
+        return realestate_add_missing_columns(sync_conn, tables)
+
+    async with engine.begin() as conn:
+        added = await conn.run_sync(_create)
+    logger.info("ensure_asset_mgmt_schema: %d asset-management tables ready (%d column(s) added)", len(tables), len(added))
 
 
 def realestate_add_missing_columns(sync_conn, tables) -> list[str]:

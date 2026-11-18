@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
@@ -35,6 +36,17 @@ const DISPOSAL_METHOD_OPTIONS = [
 
 function fmt(n: number) {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n)
+}
+
+function fmtInr(n: number) {
+  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(n)
+}
+
+function plusYearsLabel(iso: string, years: number) {
+  const [y, m, d] = iso.split('-').map(Number)
+  if (!y || !m || !d) return '—'
+  const dt = new Date(Date.UTC(y + Math.trunc(years), m - 1, d))
+  return dt.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 }
 
 function shortStoreLabel(full: string) {
@@ -197,17 +209,196 @@ function CategoryFormModal({ category, onClose }: { category?: any; onClose: () 
 }
 
 // ── Register / Edit asset modal ──────────────────────────────────────────────
+type AssetDraft = {
+  asset_code: string
+  name: string
+  category_id: string
+  acquisition_date: string
+  capitalization_date: string
+  depreciation_start_date: string
+  purchase_cost: string
+  salvage_value: string
+  useful_life_years: string
+  depreciation_method: string
+  total_units_capacity: string
+  location: string
+  serial_number: string
+  notes: string
+}
+
+const assetFieldClass = 'h-9 w-full rounded-md border border-input bg-background px-2.5 text-sm placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground'
+const assetNumberClass = `${assetFieldClass} [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`
+
+function salvageFromCategory(categories: any[], categoryId: string, costStr: string): string | null {
+  const cat = categories.find(c => c.id === categoryId)
+  if (!cat || cat.salvage_pct == null) return null
+  const cost = Number(costStr) || 0
+  if (cost <= 0) return null
+  return String(Math.round(cost * Number(cat.salvage_pct)) / 100)
+}
+
+function assetFormErrors(form: AssetDraft): Record<string, string> {
+  const cost = Number(form.purchase_cost)
+  const salvage = form.salvage_value === '' ? 0 : Number(form.salvage_value)
+  const life = Number(form.useful_life_years)
+  const next: Record<string, string> = {}
+  if (!form.asset_code.trim()) next.asset_code = 'Enter an asset code'
+  if (!form.name.trim()) next.name = 'Enter a name'
+  if (!form.purchase_cost || !(cost > 0)) next.purchase_cost = 'Enter a purchase cost greater than zero'
+  if (form.salvage_value !== '' && !Number.isFinite(salvage)) next.salvage_value = 'Enter a valid amount'
+  else if (salvage < 0) next.salvage_value = 'Salvage cannot be negative'
+  else if (cost > 0 && salvage > cost) next.salvage_value = 'Salvage cannot be more than the purchase cost'
+  if (form.depreciation_method === 'units_of_production') {
+    if (!(Number(form.total_units_capacity) > 0)) next.total_units_capacity = 'Enter the total lifetime output'
+  } else if (!(life >= 1)) {
+    next.useful_life_years = 'Enter a useful life of at least 1 year'
+  }
+  if (!form.capitalization_date) next.capitalization_date = 'Enter the capitalization date'
+  else if (form.acquisition_date && form.capitalization_date < form.acquisition_date) {
+    next.capitalization_date = 'Capitalization date cannot be before the acquisition date'
+  }
+  const capitalizedOn = form.capitalization_date || form.acquisition_date
+  if (!form.depreciation_start_date) next.depreciation_start_date = 'Enter the depreciation start date'
+  else if (capitalizedOn && form.depreciation_start_date < capitalizedOn) {
+    next.depreciation_start_date = 'Depreciation cannot start before the capitalization date'
+  }
+  return next
+}
+
+function buildDepPreview(form: AssetDraft): { rows: { label: string; value: string }[]; note: string; warn: boolean } | null {
+  const cost = Number(form.purchase_cost)
+  if (!(cost > 0)) return null
+  const salvage = form.salvage_value === '' ? 0 : Number(form.salvage_value)
+  if (!Number.isFinite(salvage) || salvage < 0 || salvage > cost) return null
+  const depreciable = cost - salvage
+  const life = Math.trunc(Number(form.useful_life_years))
+  const flat = depreciable === 0
+  if (form.depreciation_method === 'units_of_production') {
+    const capacity = Number(form.total_units_capacity)
+    const rows = [{ label: 'Depreciable amount', value: fmtInr(depreciable) }]
+    if (capacity > 0) {
+      rows.push({ label: 'Charge per unit', value: fmtInr(depreciable / capacity) })
+      rows.push({ label: 'Lifetime capacity', value: capacity.toLocaleString('en-IN') })
+    }
+    return {
+      rows,
+      warn: flat,
+      note: flat
+        ? 'Salvage equals the purchase cost, so nothing will be depreciated.'
+        : capacity > 0
+          ? 'Posted when you run depreciation with the units produced that period.'
+          : 'Enter the lifetime capacity to see the charge per unit.',
+    }
+  }
+  if (!(life >= 1)) {
+    return {
+      rows: [{ label: 'Depreciable amount', value: fmtInr(depreciable) }],
+      warn: flat,
+      note: 'Enter a useful life of at least 1 year to see the charge.',
+    }
+  }
+  if (form.depreciation_method === 'wdv') {
+    const rate = 2 / life
+    return {
+      rows: [
+        { label: 'Depreciable amount', value: fmtInr(depreciable) },
+        { label: 'First month', value: fmtInr(cost * rate / 12) },
+        { label: 'Annual rate', value: `${(rate * 100).toLocaleString('en-IN', { maximumFractionDigits: 1 })}%` },
+      ],
+      warn: flat,
+      note: flat
+        ? 'Salvage equals the purchase cost, so nothing will be depreciated.'
+        : 'Each later month uses this rate on the remaining book value.',
+    }
+  }
+  const annual = depreciable / life
+  return {
+    rows: [
+      { label: 'Depreciable amount', value: fmtInr(depreciable) },
+      { label: 'Each month', value: fmtInr(annual / 12) },
+      { label: 'Fully depreciated', value: form.depreciation_start_date ? plusYearsLabel(form.depreciation_start_date, life) : '—' },
+    ],
+    warn: flat,
+    note: flat
+      ? 'Salvage equals the purchase cost, so nothing will be depreciated.'
+      : `${fmtInr(annual)} per year over ${life} ${life === 1 ? 'year' : 'years'}.`,
+  }
+}
+
+function AssetField({
+  label, required, error, hint, className, children,
+}: {
+  label: string
+  required?: boolean
+  error?: string
+  hint?: string
+  className?: string
+  children: ReactNode
+}) {
+  return (
+    <div className={className}>
+      <Label required={required} className="mb-1 block text-xs font-medium text-muted-foreground">
+        {label}
+      </Label>
+      {children}
+      {error ? <p className="mt-0.5 text-xs text-red-600">{error}</p> : hint ? <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p> : null}
+    </div>
+  )
+}
+
+function AssetSection({ title, note, children }: { title: string; note?: string; children: ReactNode }) {
+  return (
+    <section className="space-y-2 border-t border-border pt-3 first:border-0 first:pt-0">
+      <div>
+        <h3 className="text-xs font-semibold text-foreground">{title}</h3>
+        {note ? <p className="mt-0.5 text-xs text-muted-foreground">{note}</p> : null}
+      </div>
+      <div className="grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-2">{children}</div>
+    </section>
+  )
+}
+
+function RupeeInput({
+  value, onChange, disabled, title,
+}: {
+  value: string
+  onChange: (value: string) => void
+  disabled?: boolean
+  title?: string
+}) {
+  return (
+    <div className="relative">
+      <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-xs text-muted-foreground">₹</span>
+      <input
+        type="number"
+        inputMode="decimal"
+        min={0}
+        step="any"
+        value={value}
+        disabled={disabled}
+        title={title}
+        onWheel={e => e.currentTarget.blur()}
+        onChange={e => onChange(e.target.value)}
+        className={`${assetNumberClass} pl-6`}
+      />
+    </div>
+  )
+}
+
 function AssetFormModal({ asset, categories, storeNameById, onClose }: {
   asset?: any; categories: any[]; storeNameById: Map<string, string>; onClose: () => void
 }) {
   const isEdit = !!asset
   const createMut = useCreateAsset()
   const updateMut = useUpdateAsset()
-  const [form, setForm] = useState({
+  const openedOn = asset?.acquisition_date || new Date().toISOString().slice(0, 10)
+  const [form, setForm] = useState<AssetDraft>({
     asset_code: asset?.asset_code || '',
     name: asset?.name || '',
     category_id: asset?.category_id || '',
-    acquisition_date: asset?.acquisition_date || new Date().toISOString().slice(0, 10),
+    acquisition_date: openedOn,
+    capitalization_date: asset?.capitalization_date || openedOn,
+    depreciation_start_date: asset?.depreciation_start_date || asset?.capitalization_date || openedOn,
     purchase_cost: asset?.purchase_cost != null ? String(asset.purchase_cost) : '',
     salvage_value: asset?.salvage_value != null ? String(asset.salvage_value) : '',
     useful_life_years: asset?.useful_life_years != null ? String(asset.useful_life_years) : '5',
@@ -219,35 +410,50 @@ function AssetFormModal({ asset, categories, storeNameById, onClose }: {
   })
   const [buId, setBuId] = useState('')
   const [branchId, setBranchId] = useState('')
+  const [salvageManual, setSalvageManual] = useState(isEdit)
+  const [capManual, setCapManual] = useState(isEdit && !!asset?.capitalization_date && asset.capitalization_date !== asset.acquisition_date)
+  const [depManual, setDepManual] = useState(isEdit && !!asset?.depreciation_start_date && asset.depreciation_start_date !== (asset.capitalization_date || asset.acquisition_date))
+  const [attempted, setAttempted] = useState(false)
 
   const pending = createMut.isPending || updateMut.isPending
+  const errors = useMemo(() => assetFormErrors(form), [form])
+  const preview = useMemo(() => buildDepPreview(form), [form])
+  const selectedCategory = categories.find(c => c.id === form.category_id)
+  const fieldError = (key: string) => (
+    attempted || key === 'salvage_value' || key === 'capitalization_date' || key === 'depreciation_start_date'
+  ) ? errors[key] : ''
 
   const applyCategoryDefaults = (categoryId: string) => {
     const cat = categories.find(c => c.id === categoryId)
+    setSalvageManual(false)
     setForm(f => {
-      const cost = Number(f.purchase_cost) || 0
-      const salvagePct = cat?.salvage_pct != null ? Number(cat.salvage_pct) : 0
+      const suggested = salvageFromCategory(categories, categoryId, f.purchase_cost)
       return {
         ...f,
         category_id: categoryId,
         depreciation_method: cat?.depreciation_method || f.depreciation_method,
         useful_life_years: cat?.useful_life_years != null ? String(cat.useful_life_years) : f.useful_life_years,
-        salvage_value: cat && cost > 0 ? String(Math.round(cost * salvagePct) / 100) : f.salvage_value,
+        salvage_value: suggested != null ? suggested : f.salvage_value,
       }
     })
   }
 
+  const setPurchaseCost = (purchase_cost: string) => {
+    setForm(f => {
+      const next = { ...f, purchase_cost }
+      if (!salvageManual && f.category_id) {
+        const suggested = salvageFromCategory(categories, f.category_id, purchase_cost)
+        if (suggested != null) next.salvage_value = suggested
+      }
+      return next
+    })
+  }
+
   const handleSave = () => {
-    if (!form.asset_code.trim() || !form.name.trim()) {
-      toast.error('Asset code and name are required')
-      return
-    }
-    if (!form.purchase_cost || Number(form.purchase_cost) <= 0) {
-      toast.error('Enter a valid purchase cost')
-      return
-    }
-    if (form.depreciation_method === 'units_of_production' && (!form.total_units_capacity || Number(form.total_units_capacity) <= 0)) {
-      toast.error('Enter the total lifetime production capacity (e.g. total units/hours)')
+    setAttempted(true)
+    const problem = Object.values(assetFormErrors(form))[0]
+    if (problem) {
+      toast.error(problem)
       return
     }
     const payload: Record<string, unknown> = {
@@ -255,6 +461,8 @@ function AssetFormModal({ asset, categories, storeNameById, onClose }: {
       name: form.name.trim(),
       category_id: form.category_id || undefined,
       acquisition_date: form.acquisition_date,
+      capitalization_date: form.capitalization_date,
+      depreciation_start_date: form.depreciation_start_date,
       purchase_cost: Number(form.purchase_cost),
       salvage_value: Number(form.salvage_value) || 0,
       useful_life_years: Number(form.useful_life_years) || 5,
@@ -282,168 +490,257 @@ function AssetFormModal({ asset, categories, storeNameById, onClose }: {
     }
   }
 
-  const fieldClass = 'h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm'
-  const labelClass = 'mb-0.5 block text-[11px] font-medium text-muted-foreground'
+  const assignedTo = asset?.store_id ? (storeNameById.get(asset.store_id) || 'Unknown') : 'Unassigned'
+  const salvageHint = !fieldError('salvage_value') && !salvageManual && selectedCategory?.salvage_pct != null && Number(form.purchase_cost) > 0
+    ? `${selectedCategory.salvage_pct}% of cost, from ${selectedCategory.name}`
+    : undefined
 
   return (
     <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-3">
-      <ModalPanel className="max-w-2xl max-h-[calc(100dvh-1.5rem)] !rounded-lg overflow-hidden">
-        <ModalHeader
-          title={isEdit ? 'Edit Asset' : 'Register New Asset'}
-          onClose={onClose}
-          className="border-0 px-4 py-2.5 [&>div>h2]:text-base [&>div>h2]:leading-none"
-        />
-        <ModalBody className="space-y-2 overflow-y-auto px-4 pb-1 pt-0">
-        {isEdit && (
-          <p className="text-[11px] text-muted-foreground">
-            Currently: {asset.store_id ? (storeNameById.get(asset.store_id) || 'Unknown') : 'Unassigned'} — leave BU/Branch blank to keep unchanged.
-          </p>
-        )}
+      <ModalPanel className="max-w-2xl">
+        <form
+          autoComplete="off"
+          onSubmit={e => { e.preventDefault(); handleSave() }}
+          className="flex max-h-[min(88dvh,calc(100vh-2rem))] min-h-0 flex-col overflow-hidden"
+        >
+          <ModalHeader
+            title={isEdit ? 'Edit Asset' : 'Register New Asset'}
+            subtitle={<p className="mt-0.5 text-xs text-muted-foreground">Required fields are marked. Depreciation updates as you type.</p>}
+            onClose={onClose}
+          />
+          <ModalBody className="space-y-3">
+            <AssetSection title="Asset">
+              <AssetField label="Asset code" required error={fieldError('asset_code')}>
+                <input
+                  value={form.asset_code}
+                  disabled={isEdit}
+                  autoFocus={!isEdit}
+                  onChange={e => setForm(f => ({ ...f, asset_code: e.target.value }))}
+                  className={assetFieldClass}
+                  placeholder="FA-0042"
+                />
+              </AssetField>
+              <AssetField label="Name" required error={fieldError('name')}>
+                <input
+                  value={form.name}
+                  onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                  className={assetFieldClass}
+                  placeholder="Display counter"
+                />
+              </AssetField>
+            </AssetSection>
 
-        <div className="grid grid-cols-2 gap-x-2 gap-y-2">
-          <div>
-            <Label className={labelClass}>Business Unit</Label>
-            <BusinessUnitSelect
-              value={buId}
-              onChange={id => { setBuId(id); setBranchId('') }}
-              allowAll={isEdit}
-              autoSelectDefault={false}
-              className="h-8"
-            />
-          </div>
-          <div>
-            <Label className={labelClass}>Branch</Label>
-            <BranchSelect
-              businessUnitId={buId || null}
-              value={branchId}
-              onChange={setBranchId}
-              allowAll
-              className="h-8"
-            />
-          </div>
-          <div>
-            <Label className={labelClass}>Category</Label>
-            <Select
-              value={form.category_id}
-              onChange={applyCategoryDefaults}
-              className="h-8"
-              options={[{ value: '', label: '— No category —' }, ...categories.map(c => ({ value: c.id, label: c.name }))]}
-            />
-          </div>
-          <div>
-            <Label className={labelClass}>Depreciation Method</Label>
-            <Select value={form.depreciation_method} onChange={v => setForm(f => ({ ...f, depreciation_method: v }))} className="h-8" options={DEP_METHOD_OPTIONS} />
-          </div>
-          {form.depreciation_method === 'units_of_production' && (
-            <div>
-              <Label className={labelClass} title="Total lifetime output (e.g. total units, machine hours, km) this asset is expected to produce.">
-                Total Lifetime Capacity
-              </Label>
-              <input
-                type="number"
-                value={form.total_units_capacity}
-                title="Total lifetime output (e.g. total units, machine hours, km) this asset is expected to produce."
-                onChange={e => setForm(f => ({ ...f, total_units_capacity: e.target.value }))}
-                className={fieldClass}
-              />
-            </div>
-          )}
-          <div>
-            <Label className={labelClass}>Asset Code</Label>
-            <input
-              value={form.asset_code}
-              disabled={isEdit}
-              onChange={e => setForm(f => ({ ...f, asset_code: e.target.value }))}
-              className={`${fieldClass} disabled:bg-gray-100 disabled:text-gray-500`}
-            />
-          </div>
-          <div>
-            <Label className={labelClass}>Name</Label>
-            <input
-              value={form.name}
-              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-              className={fieldClass}
-            />
-          </div>
-          <div>
-            <Label className={labelClass}>Acquisition Date</Label>
-            <input
-              type="date"
-              value={form.acquisition_date}
-              disabled={isEdit}
-              title={isEdit ? 'Cannot be changed after registration' : undefined}
-              onChange={e => setForm(f => ({ ...f, acquisition_date: e.target.value }))}
-              className={`${fieldClass} disabled:bg-gray-100 disabled:text-gray-500`}
-            />
-          </div>
-          <div>
-            <Label className={labelClass}>Purchase Cost</Label>
-            <input
-              type="number"
-              value={form.purchase_cost}
-              disabled={isEdit}
-              title={isEdit ? 'Cannot be changed after registration — use Maintenance (capitalize) to add cost' : undefined}
-              onChange={e => setForm(f => ({ ...f, purchase_cost: e.target.value }))}
-              className={`${fieldClass} disabled:bg-gray-100 disabled:text-gray-500`}
-            />
-          </div>
-          <div>
-            <Label className={labelClass} title="Expected amount recoverable when fully depreciated or disposed.">Salvage / Residual Value</Label>
-            <input
-              type="number"
-              value={form.salvage_value}
-              title="Expected amount recoverable when fully depreciated or disposed."
-              onChange={e => setForm(f => ({ ...f, salvage_value: e.target.value }))}
-              className={fieldClass}
-            />
-          </div>
-          <div>
-            <Label className={labelClass}>Useful Life (years)</Label>
-            <input
-              type="number"
-              value={form.useful_life_years}
-              onChange={e => setForm(f => ({ ...f, useful_life_years: e.target.value }))}
-              className={fieldClass}
-            />
-          </div>
-          <div>
-            <Label className={labelClass}>Location</Label>
-            <input
-              value={form.location}
-              onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
-              className={fieldClass}
-            />
-          </div>
-          <div>
-            <Label className={labelClass}>Serial Number</Label>
-            <input
-              value={form.serial_number}
-              onChange={e => setForm(f => ({ ...f, serial_number: e.target.value }))}
-              className={fieldClass}
-            />
-          </div>
-          <div className="col-span-2">
-            <Label className={labelClass}>Notes</Label>
-            <input
-              value={form.notes}
-              onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-              placeholder="Optional"
-              className={fieldClass}
-            />
-          </div>
-        </div>
-        </ModalBody>
-        <ModalFooter className="border-0 px-4 py-2.5">
-          <button type="button" onClick={onClose} className="btn-cancel h-8 rounded-md border border-border px-3 text-sm">Cancel</button>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={pending}
-            className="h-8 rounded-md bg-primary px-3 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-50"
-          >
-            {pending ? 'Saving…' : isEdit ? 'Save Changes' : 'Register Asset'}
-          </button>
-        </ModalFooter>
+            <AssetSection
+              title="Assignment"
+              note={isEdit ? `Currently ${assignedTo}. Leave business unit and branch blank to keep that assignment.` : undefined}
+            >
+              <AssetField label="Business unit">
+                <BusinessUnitSelect
+                  value={buId}
+                  onChange={id => { setBuId(id); setBranchId('') }}
+                  allowAll={isEdit}
+                  autoSelectDefault={false}
+                  className="h-9"
+                />
+              </AssetField>
+              <AssetField label="Branch">
+                <BranchSelect
+                  businessUnitId={buId || null}
+                  value={branchId}
+                  onChange={setBranchId}
+                  allowAll
+                  className="h-9"
+                />
+              </AssetField>
+              <AssetField label="Location">
+                <input
+                  value={form.location}
+                  onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
+                  className={assetFieldClass}
+                  placeholder="Showroom floor"
+                />
+              </AssetField>
+              <AssetField label="Serial number">
+                <input
+                  value={form.serial_number}
+                  onChange={e => setForm(f => ({ ...f, serial_number: e.target.value }))}
+                  className={assetFieldClass}
+                />
+              </AssetField>
+            </AssetSection>
+
+            <AssetSection
+              title="Cost and depreciation"
+              note={selectedCategory ? `${selectedCategory.name} fills the method, useful life, and salvage. Edit any of them if this asset differs.` : undefined}
+            >
+              <AssetField label="Category">
+                <Select
+                  value={form.category_id}
+                  onChange={applyCategoryDefaults}
+                  className="h-9"
+                  options={[{ value: '', label: '— No category —' }, ...categories.map(c => ({ value: c.id, label: c.name }))]}
+                />
+              </AssetField>
+              <AssetField label="Depreciation method">
+                <Select
+                  value={form.depreciation_method}
+                  onChange={v => setForm(f => ({ ...f, depreciation_method: v }))}
+                  className="h-9"
+                  options={DEP_METHOD_OPTIONS}
+                />
+              </AssetField>
+              {form.depreciation_method === 'units_of_production' && (
+                <AssetField
+                  className="sm:col-span-2"
+                  label="Total lifetime capacity"
+                  required
+                  error={fieldError('total_units_capacity')}
+                  hint={fieldError('total_units_capacity') ? undefined : 'Total units, machine hours, or km this asset is expected to produce.'}
+                >
+                  <input
+                    type="number"
+                    min={0}
+                    step="any"
+                    value={form.total_units_capacity}
+                    onWheel={e => e.currentTarget.blur()}
+                    onChange={e => setForm(f => ({ ...f, total_units_capacity: e.target.value }))}
+                    className={assetNumberClass}
+                  />
+                </AssetField>
+              )}
+              <AssetField label="Acquisition date" hint={isEdit ? 'Locked after registration' : undefined}>
+                <Input
+                  type="date"
+                  value={form.acquisition_date}
+                  disabled={isEdit}
+                  title={isEdit ? 'Cannot be changed after registration' : undefined}
+                  onChange={e => {
+                    const acquisition_date = e.target.value
+                    setForm(f => {
+                      const capitalization_date = capManual ? f.capitalization_date : acquisition_date
+                      const depreciation_start_date = depManual ? f.depreciation_start_date : capitalization_date
+                      return { ...f, acquisition_date, capitalization_date, depreciation_start_date }
+                    })
+                  }}
+                  className="h-9 px-2.5 disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100"
+                />
+              </AssetField>
+              <AssetField
+                label="Capitalization date"
+                required
+                error={fieldError('capitalization_date')}
+                hint={fieldError('capitalization_date') ? undefined : 'When this cost is recorded on the books'}
+              >
+                <Input
+                  type="date"
+                  value={form.capitalization_date}
+                  onChange={e => {
+                    const capitalization_date = e.target.value
+                    setCapManual(true)
+                    setForm(f => ({
+                      ...f,
+                      capitalization_date,
+                      depreciation_start_date: depManual ? f.depreciation_start_date : capitalization_date,
+                    }))
+                  }}
+                  className="h-9 px-2.5"
+                />
+              </AssetField>
+              <AssetField
+                label="Purchase cost"
+                required
+                error={fieldError('purchase_cost')}
+                hint={isEdit && !fieldError('purchase_cost') ? 'Add later cost through maintenance' : undefined}
+              >
+                <RupeeInput
+                  value={form.purchase_cost}
+                  disabled={isEdit}
+                  title={isEdit ? 'Cannot be changed after registration — use Maintenance (capitalize) to add cost' : undefined}
+                  onChange={setPurchaseCost}
+                />
+              </AssetField>
+              <AssetField
+                label="Depreciation start date"
+                required
+                error={fieldError('depreciation_start_date')}
+                hint={fieldError('depreciation_start_date') ? undefined : 'Depreciation cannot be posted before this date'}
+              >
+                <Input
+                  type="date"
+                  value={form.depreciation_start_date}
+                  onChange={e => {
+                    setDepManual(true)
+                    setForm(f => ({ ...f, depreciation_start_date: e.target.value }))
+                  }}
+                  className="h-9 px-2.5"
+                />
+              </AssetField>
+              <AssetField
+                label="Salvage / residual value"
+                error={fieldError('salvage_value')}
+                hint={salvageHint ?? 'Amount you expect to recover at the end of its life'}
+              >
+                <RupeeInput
+                  value={form.salvage_value}
+                  title="Expected amount recoverable when fully depreciated or disposed."
+                  onChange={v => { setSalvageManual(true); setForm(f => ({ ...f, salvage_value: v })) }}
+                />
+              </AssetField>
+              <AssetField label="Useful life (years)" required={form.depreciation_method !== 'units_of_production'} error={fieldError('useful_life_years')}>
+                <input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={form.useful_life_years}
+                  onWheel={e => e.currentTarget.blur()}
+                  onChange={e => setForm(f => ({ ...f, useful_life_years: e.target.value }))}
+                  className={assetNumberClass}
+                />
+              </AssetField>
+              <div className={`sm:col-span-2 rounded-md border px-3 py-2 ${preview?.warn ? 'border-amber-500/40 bg-amber-500/10' : 'border-border bg-muted/40'}`}>
+                {errors.salvage_value && Number(form.purchase_cost) > 0 ? (
+                  <p className="text-xs text-red-600">Depreciation stays hidden until salvage is within the purchase cost.</p>
+                ) : preview ? (
+                  <>
+                    <div className={`grid gap-2 ${preview.rows.length > 1 ? 'grid-cols-3' : 'grid-cols-1'}`}>
+                      {preview.rows.map(row => (
+                        <div key={row.label}>
+                          <p className="text-xs text-muted-foreground">{row.label}</p>
+                          <p className="text-sm font-medium tabular-nums text-foreground">{row.value}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <p className={`mt-1.5 text-xs ${preview.warn ? 'text-amber-800 dark:text-amber-200' : 'text-muted-foreground'}`}>{preview.note}</p>
+                  </>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Enter the purchase cost to preview depreciation.</p>
+                )}
+              </div>
+            </AssetSection>
+
+            <AssetSection title="Notes">
+              <div className="sm:col-span-2">
+                <textarea
+                  rows={2}
+                  value={form.notes}
+                  onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+                  placeholder="Supplier, invoice, or anything else worth keeping with the asset"
+                  className="w-full resize-none rounded-md border border-input bg-background px-2.5 py-1.5 text-sm placeholder:text-muted-foreground"
+                />
+              </div>
+            </AssetSection>
+          </ModalBody>
+          <ModalFooter>
+            <button type="button" onClick={onClose} className="btn-cancel h-9 rounded-md px-3 text-sm">Cancel</button>
+            <button
+              type="submit"
+              disabled={pending || (!!errors.salvage_value && Number(form.purchase_cost) > 0) || !!errors.capitalization_date || !!errors.depreciation_start_date}
+              className="h-9 rounded-md bg-primary px-3 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-50"
+            >
+              {pending ? 'Saving…' : isEdit ? 'Save Changes' : 'Register Asset'}
+            </button>
+          </ModalFooter>
+        </form>
       </ModalPanel>
     </ModalOverlay>
   )
@@ -799,6 +1096,10 @@ function AssetDetailDrawer({ assetId, storeNameById, onClose, onEdit, onDispose 
               <span>{(asset as any).store_id ? (storeNameById.get((asset as any).store_id) || '—') : '—'}</span>
               <span className="text-gray-500">Acquisition Date</span>
               <span>{(asset as any).acquisition_date}</span>
+              <span className="text-gray-500">Capitalization Date</span>
+              <span>{(asset as any).capitalization_date || (asset as any).acquisition_date}</span>
+              <span className="text-gray-500">Depreciation Start</span>
+              <span>{(asset as any).depreciation_start_date || (asset as any).capitalization_date || (asset as any).acquisition_date}</span>
               <span className="text-gray-500">Location</span>
               <span>{(asset as any).location || '—'}</span>
               <span className="text-gray-500">Serial Number</span>

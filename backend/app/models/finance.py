@@ -1365,6 +1365,8 @@ class FinAsset(Base):
     name = Column(String(200), nullable=False)
     description = Column(Text)
     acquisition_date = Column(Date, nullable=False)
+    capitalization_date = Column(Date)          # when the cost is recorded on the books
+    depreciation_start_date = Column(Date)      # first day depreciation may be posted
     purchase_cost = Column(Numeric(18, 4), nullable=False)
     salvage_value = Column(Numeric(18, 4), default=0)
     useful_life_years = Column(Integer)

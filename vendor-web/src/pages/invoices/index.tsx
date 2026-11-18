@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback, type CSSProperties, type ReactNode } from 'react'
 import { usePersistedPageSize } from '@/hooks/usePersistedPageSize'
 import { createPortal } from 'react-dom'
 import { isDefaultManualVariantName } from '@/lib/productVariants'
@@ -20,6 +20,7 @@ import { formatCurrency, formatDate, cn } from '@/lib/utils'
 import { resolveServiceDisplayAmount } from '@/lib/servicePricing'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import { ResizableTable } from '@/components/table/ResizableTable'
+import { useColumnResize } from '@/hooks/useColumnResize'
 import { toast } from 'sonner'
 import { extractApiError, isAxiosNetworkError } from '@/lib/errorMessages'
 import { createdDocMessage, pickDocNo } from '@/lib/documentToast'
@@ -71,6 +72,101 @@ import {
 
 const TABLE_ICON_BTN =
   'inline-flex shrink-0 items-center justify-center rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground dark:hover:bg-muted/70 dark:hover:text-foreground'
+
+/** Pixel defaults for invoice/quote line columns (Item → Amount). Persisted via useColumnResize. */
+const LINE_ITEM_COL_DEFAULTS = [200, 100, 80, 70, 110, 90, 100, 120]
+
+/** `grow` columns take any leftover row width (never narrower than `width`), so the table fills its card. */
+function lineColStyle(width: number, grow = false): CSSProperties {
+  if (grow) return { flex: '1 1 0%', minWidth: width }
+  return { width, minWidth: width, flexShrink: 0 }
+}
+
+function LineColResizeHandle({
+  label,
+  onResizeStart,
+  hideUntilHover = false,
+}: {
+  label: string
+  onResizeStart: (clientX: number) => void
+  /** Body cells: keep the grip invisible so it doesn't double up input borders. */
+  hideUntilHover?: boolean
+}) {
+  return (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={`Resize ${label} column`}
+      title="Drag to resize column"
+      onMouseDown={e => {
+        e.preventDefault()
+        e.stopPropagation()
+        onResizeStart(e.clientX)
+      }}
+      className="group/resize absolute -right-1.5 top-0 z-20 flex h-full w-2 cursor-col-resize items-center justify-center"
+    >
+      <div
+        className={cn(
+          'h-full w-0.5 rounded-full bg-gray-300 transition-opacity group-hover/resize:bg-blue-500 group-hover/resize:opacity-100',
+          hideUntilHover ? 'opacity-0' : 'opacity-40',
+        )}
+      />
+    </div>
+  )
+}
+
+function LineItemsColHeader({
+  label,
+  width,
+  onResizeStart,
+  align = 'left',
+  grow = false,
+}: {
+  label: string
+  width: number
+  onResizeStart: (clientX: number) => void
+  align?: 'left' | 'center' | 'right'
+  grow?: boolean
+}) {
+  return (
+    <div
+      className={cn(
+        'relative select-none whitespace-nowrap text-[9px] font-medium uppercase leading-4 text-gray-400',
+        align === 'left' && 'pl-1.5 text-left',
+        align === 'center' && 'text-center',
+        align === 'right' && 'pr-1 text-right',
+      )}
+      style={lineColStyle(width, grow)}
+    >
+      {label}
+      <LineColResizeHandle label={label} onResizeStart={onResizeStart} />
+    </div>
+  )
+}
+
+/** Drag grip on the right edge of a line-item cell (mirrors header resize). */
+function LineColCell({
+  width,
+  label,
+  onResizeStart,
+  className,
+  children,
+  grow = false,
+}: {
+  width: number
+  label: string
+  onResizeStart?: (clientX: number) => void
+  className?: string
+  children: ReactNode
+  grow?: boolean
+}) {
+  return (
+    <div className={cn('relative', className)} style={lineColStyle(width, grow)}>
+      {children}
+      {onResizeStart ? <LineColResizeHandle label={label} onResizeStart={onResizeStart} hideUntilHover /> : null}
+    </div>
+  )
+}
 
 async function downloadInvoicePdf(id: string, invSettings: Partial<InvoiceSettings>) {
   try {
@@ -448,7 +544,7 @@ export default function InvoicesPage() {
             onSortKeyChange={setSortKey}
             onSortDirChange={setSortDir}
           />
-          <ResizableTable tableId="invoices-v2" defaultWidths={[120, 120, 90, 160, 90, 90, 90, 130, 100]}>
+          <ResizableTable tableId="invoices-v3" defaultWidths={[120, 150, 90, 160, 90, 90, 90, 130, 100]}>
             <thead>
               <tr className="border-b border-border bg-muted/40">
                 <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase"><TableColumnLabel>Invoice #</TableColumnLabel></th>
@@ -512,10 +608,10 @@ export default function InvoicesPage() {
                         <button
                           onClick={() => navigate(`/orders/${inv.order_id}`)}
                           className={invoiceRefLinkClass}
-                          title="Open order"
+                          title={inv.order_number ? 'Open order' : `Open order ${inv.order_id as string}`}
                         >
                           <FileText className="w-3.5 h-3.5" />
-                          {(inv.order_number as string) || (inv.order_id as string)}
+                          <span className="truncate">{(inv.order_number as string) || 'Order'}</span>
                         </button>
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
@@ -844,7 +940,7 @@ function createInvoiceBlockReason(
   if (!items.some(i => Number(i.qty) > 0)) {
     return 'Enter quantity greater than 0.'
   }
-  return 'Enter a unit rate greater than 0 in the top Rate box (not the “Rate note” line below).'
+  return 'Enter a unit rate greater than 0.'
 }
 
 function activeVariantsOf(item: CatalogueItem | undefined): CatalogueVariant[] {
@@ -858,7 +954,7 @@ function isSingleDefaultVariant(item: CatalogueItem) {
 }
 
 function ItemSearchRow({
-  item, index, onUpdate, onPatch, onRemove, catalogue, compact = false, isInterState = false,
+  item, index, onUpdate, onPatch, onRemove, catalogue, compact = false, isInterState = false, colWidths, onColResizeStart,
 }: {
   item: LineItemDraft
   index: number
@@ -868,11 +964,17 @@ function ItemSearchRow({
   catalogue: CatalogueItem[]
   compact?: boolean
   isInterState?: boolean
+  colWidths: number[]
+  onColResizeStart?: (colIndex: number, clientX: number) => void
 }) {
+  const [wItem, wVariant, wHsn, wQty, wPrice, wDiscount, wTax, wAmount] = colWidths
+  const resize = (i: number) => (onColResizeStart ? (x: number) => onColResizeStart(i, x) : undefined)
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState<'all' | 'product' | 'service'>('all')
   const [variantPickFor, setVariantPickFor] = useState<CatalogueItem | null>(null)
   const [menuPos, setMenuPos] = useState<{ top: number; left: number; width: number; maxHeight: number } | null>(null)
+  /** Single discount control: edit as ₹ or %; the other stays synced. */
+  const [discountMode, setDiscountMode] = useState<'amount' | 'pct'>('pct')
   const wrapRef = useRef<HTMLDivElement>(null)
   const inputWrapRef = useRef<HTMLDivElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -1166,220 +1268,229 @@ function ItemSearchRow({
         )
       : null
 
-  const noteFieldClass = compact
-    ? 'h-6 w-full rounded border border-gray-200 px-1.5 text-[10px] leading-tight text-muted-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-400'
-    : 'h-9 w-full rounded-lg border border-gray-200 px-2 text-sm text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-400'
-
   return (
     <div
       className={cn(
-        compact ? 'rounded-md border border-border/60 bg-background px-1 py-1' : 'space-y-1',
+        'space-y-1',
+        compact && 'rounded-md border border-border/60 bg-background px-1 py-1',
       )}
     >
-    <div className={cn('flex items-start', compact ? 'gap-1' : 'gap-2')}>
-      <div className={cn('shrink-0 text-center text-gray-400 font-medium', compact ? 'w-5 pt-1 text-[9px]' : 'w-7 pt-2.5 text-xs')}>
-        {index + 1}
-      </div>
-      {/* Item + line description (stacked) */}
-      <div className={cn('flex min-w-0 flex-col gap-0.5', compact ? 'min-w-[5rem] flex-[1.15]' : 'flex-[1.5]')} ref={wrapRef}>
-        <div className="relative" ref={inputWrapRef}>
-          <Search className={cn('pointer-events-none absolute top-1/2 -translate-y-1/2 text-gray-400', compact ? 'left-1.5 h-3 w-3' : 'left-2.5 h-3.5 w-3.5')} />
-          <input
-            className={cn(fieldClass, 'bg-white', compact ? 'pl-6' : 'pl-8')}
-            placeholder="Search product or service…"
-            value={item.name}
-            onChange={e => {
-              // Only clearing identity when the search text changes — keep per-line description
-              onPatch({
-                name: e.target.value,
-                product_id: undefined,
-                variant_id: undefined,
-                variant_label: '',
-                kind: undefined,
-              })
-              setVariantPickFor(null)
-              setOpen(true)
-            }}
-            onFocus={() => setOpen(true)}
-          />
-        {menu}
+      <div className={cn('flex items-start', compact ? 'gap-1' : 'gap-2')}>
+        <div className={cn('w-5 shrink-0 text-center text-gray-400 font-medium', compact ? 'pt-1 text-[9px]' : 'w-7 pt-2.5 text-xs')}>
+          {index + 1}
         </div>
-        <input
-          className={noteFieldClass}
+        <LineColCell width={wItem} label="Item" onResizeStart={resize(0)} grow>
+          <div ref={wrapRef}>
+            <div className="relative" ref={inputWrapRef}>
+              <Search className={cn('pointer-events-none absolute top-1/2 -translate-y-1/2 text-gray-400', compact ? 'left-1.5 h-3 w-3' : 'left-2.5 h-3.5 w-3.5')} />
+              <input
+                className={cn(fieldClass, 'bg-white', compact ? 'pl-6' : 'pl-8')}
+                placeholder="Search product or service…"
+                value={item.name}
+                onChange={e => {
+                  onPatch({
+                    name: e.target.value,
+                    product_id: undefined,
+                    variant_id: undefined,
+                    variant_label: '',
+                    kind: undefined,
+                  })
+                  setVariantPickFor(null)
+                  setOpen(true)
+                }}
+                onFocus={() => setOpen(true)}
+              />
+              {menu}
+            </div>
+          </div>
+        </LineColCell>
+
+        <LineColCell width={wVariant} label="Variant" onResizeStart={resize(1)}>
+          {rowVariants.length > 1 ? (
+            <Select
+              className={cn(fieldClass, 'bg-white')}
+              triggerClassName={compact ? 'h-7 px-1.5 text-[11px]' : 'h-10 px-3 text-sm'}
+              value={item.variant_id || ''}
+              onChange={applyVariantId}
+              placeholder="Select variant…"
+              options={rowVariants.map(v => ({
+                value: v.id,
+                label: `${v.name}${v.price != null ? ` · ₹${Number(v.price).toFixed(0)}` : ''}`,
+              }))}
+            />
+          ) : (
+            <input
+              className={cn(fieldClass, 'bg-white')}
+              placeholder="Variant"
+              aria-label={`Line ${index + 1} variant`}
+              value={item.variant_label || rowVariants[0]?.name || ''}
+              onChange={e => onUpdate('variant_label', e.target.value)}
+            />
+          )}
+        </LineColCell>
+
+        <LineColCell width={wHsn} label="HSN" onResizeStart={resize(2)}>
+          <input
+            className={fieldClass}
+            placeholder="HSN"
+            value={item.hsn_sac}
+            onChange={e => onUpdate('hsn_sac', e.target.value)}
+          />
+        </LineColCell>
+
+        <LineColCell width={wQty} label="Qty" onResizeStart={resize(3)}>
+          <input
+            type="number"
+            min={1}
+            className={cn(fieldClass, 'text-center')}
+            value={item.qty}
+            onChange={e => onUpdate('qty', Number(e.target.value))}
+          />
+        </LineColCell>
+
+        <LineColCell width={wPrice} label="Price/item" onResizeStart={resize(4)}>
+          <div className="relative">
+            <span className={cn('pointer-events-none absolute top-1/2 -translate-y-1/2 text-gray-400', compact ? 'left-1 text-[10px]' : 'left-2 text-xs')}>₹</span>
+            <input
+              type="number"
+              min={0}
+              step="any"
+              placeholder="0.00"
+              title="Price per item"
+              className={cn(fieldClass, compact ? 'pl-4' : 'pl-6')}
+              value={Number.isFinite(item.rate) ? item.rate : ''}
+              onChange={e => {
+                const n = parseFloat(e.target.value)
+                onUpdate('rate', Number.isFinite(n) ? n : 0)
+              }}
+            />
+          </div>
+        </LineColCell>
+
+        <LineColCell width={wDiscount} label="Discount" onResizeStart={resize(5)} className="flex flex-col gap-0.5">
+          <div className="relative">
+            {discountMode === 'amount' ? (
+              <button
+                type="button"
+                className={cn(
+                  'absolute top-1/2 z-10 -translate-y-1/2 rounded px-0.5 font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-800',
+                  compact ? 'left-0.5 text-[10px]' : 'left-1 text-xs',
+                )}
+                title="Switch to %"
+                aria-label="Discount in rupees; click to switch to percent"
+                onClick={() => setDiscountMode('pct')}
+              >
+                ₹
+              </button>
+            ) : null}
+            <input
+              type="number"
+              min={0}
+              max={discountMode === 'pct' ? 100 : undefined}
+              step="any"
+              title={discountMode === 'pct' ? 'Discount %' : 'Discount amount'}
+              placeholder="0"
+              className={cn(
+                fieldClass,
+                discountMode === 'amount'
+                  ? (compact ? 'pl-4' : 'pl-6')
+                  : (compact ? 'pr-4 text-center' : 'pr-6 text-center'),
+              )}
+              value={
+                discountMode === 'pct'
+                  ? (Number.isFinite(item.discount_pct) ? item.discount_pct : '')
+                  : (Number.isFinite(item.discount) ? item.discount : '')
+              }
+              onChange={e => {
+                const n = parseFloat(e.target.value)
+                const base = item.qty * item.rate
+                if (discountMode === 'pct') {
+                  const pct = Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 0
+                  onPatch({ discount_pct: pct, discount: base > 0 ? Math.round(base * pct) / 100 : 0 })
+                } else {
+                  const disc = Number.isFinite(n) ? Math.max(0, n) : 0
+                  const capped = Math.min(disc, base)
+                  const pct = base > 0 ? Math.round((capped / base) * 10000) / 100 : 0
+                  onPatch({ discount: capped, discount_pct: pct })
+                }
+              }}
+            />
+            {discountMode === 'pct' ? (
+              <button
+                type="button"
+                className={cn(
+                  'absolute top-1/2 z-10 -translate-y-1/2 rounded px-0.5 font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-800',
+                  compact ? 'right-0.5 text-[10px]' : 'right-1 text-xs',
+                )}
+                title="Switch to ₹"
+                aria-label="Discount in percent; click to switch to rupees"
+                onClick={() => setDiscountMode('amount')}
+              >
+                %
+              </button>
+            ) : null}
+          </div>
+          <p
+            className={cn('truncate text-center text-gray-500 leading-tight', compact ? 'text-[9px]' : 'text-[10px]')}
+            title={discountMode === 'pct' ? 'Equivalent amount' : 'Equivalent percent'}
+          >
+            {discountMode === 'pct'
+              ? `(${formatCurrency(item.discount)})`
+              : `(${Number.isFinite(item.discount_pct) ? item.discount_pct : 0}%)`}
+          </p>
+        </LineColCell>
+
+        <LineColCell width={wTax} label="Tax" onResizeStart={resize(6)} className="flex flex-col gap-0.5">
+          <Select
+            className={cn(fieldClass, 'bg-white px-0.5')}
+            triggerClassName={compact ? 'h-7 px-1 text-[11px]' : 'h-10 px-2 text-sm'}
+            value={String(item.tax_rate)}
+            onChange={v => onUpdate('tax_rate', Number(v))}
+            options={taxRateOptions}
+            aria-label={`Line ${index + 1} tax rate`}
+          />
+          <p className={cn('truncate text-center text-gray-500 leading-tight', compact ? 'text-[9px]' : 'text-[10px]')}>
+            ({formatCurrency(lineTaxTotal(item, isInterState))})
+          </p>
+        </LineColCell>
+
+        <LineColCell width={wAmount} label="Amount" onResizeStart={resize(7)}>
+          <div
+            className={cn(
+              'flex w-full items-center justify-end overflow-hidden rounded-md border border-gray-200 bg-gray-50 font-medium text-gray-800',
+              compact ? 'h-7 px-1 text-[11px]' : 'h-10 px-2 text-sm',
+            )}
+            title="Line total (after discount + tax)"
+          >
+            <span className="truncate">{formatCurrency(lineGrossTotal(item, isInterState))}</span>
+          </div>
+        </LineColCell>
+
+        <button
+          type="button"
+          onClick={onRemove}
+          className={cn(
+            'shrink-0 self-start rounded-md transition-colors hover:bg-red-50',
+            compact ? 'p-0.5 pt-1' : 'mt-0.5 p-2',
+          )}
+        >
+          <Trash2 className={cn('text-red-400', compact ? 'h-3.5 w-3.5' : 'h-4 w-4')} />
+        </button>
+      </div>
+
+      <div className={cn('flex', compact ? 'gap-1 pl-5' : 'gap-2 pl-7')}>
+        <textarea
+          rows={1}
+          className={cn(
+            'min-h-[1.5rem] w-full resize-y rounded border border-gray-200 bg-white px-1.5 py-0.5 text-muted-foreground placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-400',
+            compact ? 'text-[10px] leading-tight' : 'min-h-[2.25rem] rounded-lg px-2 py-1 text-sm focus:ring-2',
+          )}
           placeholder={compact ? 'Item description' : 'Description (optional)'}
           aria-label={`Line ${index + 1} item description`}
           value={item.description}
           onChange={e => onUpdate('description', e.target.value)}
         />
       </div>
-
-      {/* Variant + note under it */}
-      <div className={cn('flex min-w-0 shrink-0 flex-col gap-0.5', compact ? 'w-[6.25rem] sm:w-24' : 'w-36')}>
-        {rowVariants.length > 1 ? (
-          <Select
-            className={cn(fieldClass, 'bg-white')}
-            triggerClassName={compact ? 'h-7 px-1.5 text-[11px]' : 'h-10 px-3 text-sm'}
-            value={item.variant_id || ''}
-            onChange={applyVariantId}
-            placeholder="Select variant…"
-            options={rowVariants.map(v => ({
-              value: v.id,
-              label: `${v.name}${v.price != null ? ` · ₹${Number(v.price).toFixed(0)}` : ''}`,
-            }))}
-          />
-        ) : (
-          <input
-            className={cn(fieldClass, 'bg-white')}
-            placeholder="Variant"
-            aria-label={`Line ${index + 1} variant`}
-            value={item.variant_label || rowVariants[0]?.name || ''}
-            onChange={e => onUpdate('variant_label', e.target.value)}
-          />
-        )}
-        <input
-          className={noteFieldClass}
-          placeholder="Variant note"
-          aria-label={`Line ${index + 1} variant note`}
-          value={item.variant_note}
-          onChange={e => onUpdate('variant_note', e.target.value)}
-        />
-      </div>
-
-      {/* HSN + HSN note under it */}
-      <div className={cn('flex min-w-0 shrink-0 flex-col gap-0.5', compact ? 'w-20 sm:w-[5.25rem]' : 'w-28')}>
-        <input
-          className={fieldClass}
-          placeholder="HSN"
-          value={item.hsn_sac}
-          onChange={e => onUpdate('hsn_sac', e.target.value)}
-        />
-        <input
-          className={noteFieldClass}
-          placeholder="HSN note"
-          aria-label={`Line ${index + 1} HSN note`}
-          value={item.hsn_note}
-          onChange={e => onUpdate('hsn_note', e.target.value)}
-        />
-      </div>
-
-      <div className="flex w-[4.25rem] shrink-0 flex-col gap-0.5 sm:w-24">
-        <input type="number" min={1} className={cn(fieldClass, 'text-center')}
-          value={item.qty} onChange={e => onUpdate('qty', Number(e.target.value))} />
-        <input
-          className={noteFieldClass}
-          placeholder="Qty note"
-          aria-label={`Line ${index + 1} quantity note`}
-          value={item.qty_note}
-          onChange={e => onUpdate('qty_note', e.target.value)}
-        />
-      </div>
-      <div className="flex w-[6.5rem] shrink-0 flex-col gap-0.5 sm:w-[7.25rem]">
-        <div className="relative">
-          <span className={cn('pointer-events-none absolute top-1/2 -translate-y-1/2 text-gray-400', compact ? 'left-1 text-[10px]' : 'left-2 text-xs')}>₹</span>
-          <input
-            type="number"
-            min={0}
-            step="any"
-            placeholder="0.00"
-            title="Price per item"
-            className={cn(fieldClass, compact ? 'pl-4' : 'pl-6')}
-            value={Number.isFinite(item.rate) ? item.rate : ''}
-            onChange={e => {
-              const n = parseFloat(e.target.value)
-              onUpdate('rate', Number.isFinite(n) ? n : 0)
-            }}
-          />
-        </div>
-        <input
-          className={noteFieldClass}
-          placeholder="Rate note"
-          aria-label={`Line ${index + 1} rate note`}
-          value={item.rate_note}
-          onChange={e => onUpdate('rate_note', e.target.value)}
-        />
-      </div>
-      <div className="flex w-[5.25rem] shrink-0 flex-col gap-0.5 sm:w-24">
-        <div className="relative">
-          <span className={cn('pointer-events-none absolute top-1/2 -translate-y-1/2 text-gray-400', compact ? 'left-1 text-[10px]' : 'left-2 text-xs')}>₹</span>
-          <input
-            type="number"
-            min={0}
-            step="any"
-            title="Discount amount"
-            className={cn(fieldClass, compact ? 'pl-4' : 'pl-6')}
-            value={Number.isFinite(item.discount) ? item.discount : ''}
-            onChange={e => {
-              const n = parseFloat(e.target.value)
-              const disc = Number.isFinite(n) ? Math.max(0, n) : 0
-              const base = item.qty * item.rate
-              const capped = Math.min(disc, base)
-              const pct = base > 0 ? Math.round((capped / base) * 10000) / 100 : 0
-              onPatch({ discount: capped, discount_pct: pct })
-            }}
-          />
-        </div>
-        <div className="relative">
-          <input
-            type="number"
-            min={0}
-            max={100}
-            step="any"
-            title="Discount %"
-            placeholder="%"
-            className={cn(fieldClass, 'pr-4 text-center')}
-            value={Number.isFinite(item.discount_pct) ? item.discount_pct : ''}
-            onChange={e => {
-              const n = parseFloat(e.target.value)
-              const pct = Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 0
-              const base = item.qty * item.rate
-              onPatch({ discount_pct: pct, discount: base > 0 ? Math.round(base * pct) / 100 : 0 })
-            }}
-          />
-          <span className={cn('pointer-events-none absolute top-1/2 -translate-y-1/2 text-gray-400', compact ? 'right-1 text-[10px]' : 'right-2 text-xs')}>%</span>
-        </div>
-      </div>
-      <div className="flex w-[4.75rem] shrink-0 flex-col gap-0.5 sm:w-[5.25rem]">
-        <Select
-          className={cn(fieldClass, 'bg-white px-0.5')}
-          triggerClassName={compact ? 'h-7 px-1 text-[11px]' : 'h-10 px-2 text-sm'}
-          value={String(item.tax_rate)}
-          onChange={v => onUpdate('tax_rate', Number(v))}
-          options={taxRateOptions}
-          aria-label={`Line ${index + 1} tax rate`}
-        />
-        <p className={cn('text-center text-gray-500 leading-tight', compact ? 'text-[9px]' : 'text-[10px]')}>
-          ({formatCurrency(lineTaxTotal(item, isInterState))})
-        </p>
-      </div>
-      <div className={cn('flex shrink-0 flex-col justify-start', compact ? 'w-[5.5rem] sm:w-24' : 'w-28')}>
-        <div
-          className={cn(
-            'flex w-full items-center justify-end rounded-md border border-gray-200 bg-gray-50 font-medium text-gray-800',
-            compact ? 'h-7 px-1 text-[11px]' : 'h-10 px-2 text-sm',
-          )}
-          title="Line total (after discount + tax)"
-        >
-          {formatCurrency(lineGrossTotal(item, isInterState))}
-        </div>
-        <input
-          className={noteFieldClass}
-          placeholder="Tax note"
-          aria-label={`Line ${index + 1} tax note`}
-          value={item.tax_note}
-          onChange={e => onUpdate('tax_note', e.target.value)}
-        />
-      </div>
-      <button
-        type="button"
-        onClick={onRemove}
-        className={cn(
-          'shrink-0 self-start rounded-md transition-colors hover:bg-red-50',
-          compact ? 'p-0.5 pt-1' : 'mt-0.5 p-2',
-        )}
-      >
-        <Trash2 className={cn('text-red-400', compact ? 'h-3.5 w-3.5' : 'h-4 w-4')} />
-      </button>
-    </div>
     </div>
   )
 }
@@ -1624,6 +1735,10 @@ export function CreateInvoiceModal({
   const [branchId, setBranchId] = useState('')
   const effectiveStoreId = branchId || storeId
   const isQuotation = defaultType === 'estimate'
+  const { widths: lineColWidths, startResize: startLineColResize } = useColumnResize(
+    isQuotation ? 'quotation-line-items-v3' : 'invoice-line-items-v3',
+    LINE_ITEM_COL_DEFAULTS,
+  )
   const { data: invSettings } = useInvoiceSettings()
   const { data: quoteSettings } = useQuotationSettings()
   const savedNumbering = isQuotation ? quoteSettings : invSettings
@@ -1727,7 +1842,7 @@ export function CreateInvoiceModal({
   const { data: linkableOrdersData } = useQuery({
     queryKey: ['invoice-create-orders', effectiveStoreId, form.customer_id],
     queryFn: () => vendorApi.listOrders({
-      size: 50,
+      size: 100,
       store_id: effectiveStoreId || undefined,
       customer_id: form.customer_id || undefined,
     }),
@@ -1967,7 +2082,7 @@ export function CreateInvoiceModal({
         role="dialog"
         aria-modal="true"
         aria-label={defaultType === 'estimate' ? 'Create Quotation' : 'Create Invoice'}
-        className="flex max-h-[min(92dvh,calc(100dvh-0.5rem))] w-[min(96vw,56rem)] flex-col overflow-hidden rounded-xl border border-border bg-card text-foreground shadow-2xl"
+        className="flex max-h-[min(92dvh,calc(100dvh-0.5rem))] w-[min(96vw,72rem)] flex-col overflow-hidden rounded-xl border border-border bg-card text-foreground shadow-2xl"
         onClick={e => e.stopPropagation()}
         onPointerDown={e => e.stopPropagation()}
       >
@@ -2017,7 +2132,7 @@ export function CreateInvoiceModal({
                 />
               </div>
 
-              <div className="min-w-0 sm:col-span-6 rounded-md border border-border bg-muted/40 px-3 py-2.5">
+              <div className="min-w-0 sm:col-span-6 rounded-md border border-border bg-muted/40 px-3 py-1.5">
                 <div className="grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-12">
                   <div className="flex min-w-0 flex-col sm:col-span-3">
                     <Label className="h-4 text-xs leading-4">
@@ -2249,10 +2364,17 @@ export function CreateInvoiceModal({
                     }}
                     options={[
                       { value: '', label: '— None —' },
-                      ...linkableOrders.map(o => ({
-                        value: o.id,
-                        label: `${o.order_number || o.id}${o.customer_name ? ` · ${o.customer_name}` : ''}`,
-                      })),
+                      ...linkableOrders.map(o => {
+                        const status = (o.status || '')
+                          .replace(/_/g, ' ')
+                          .replace(/\b\w/g, (c) => c.toUpperCase())
+                        return {
+                          value: o.id,
+                          label: [o.order_number || 'Order', o.customer_name, status]
+                            .filter(Boolean)
+                            .join(' · '),
+                        }
+                      }),
                     ]}
                   />
                 </div>
@@ -2349,19 +2471,21 @@ export function CreateInvoiceModal({
                 </div>
               )}
 
-              <div className="min-w-0 sm:col-span-2">
-                <Label className="text-xs">GST</Label>
-                <div className="mt-0.5 flex h-8 items-center">
-                  <CheckboxFieldLabel
-                    label="Inter-state (IGST)"
-                    checked={form.is_inter_state}
-                    onChange={(is_inter_state) => setForm({ ...form, is_inter_state })}
-                    helpKey="inter-state supply (igst)"
-                    className="whitespace-nowrap"
-                    labelClassName="text-xs"
-                  />
+              {!isQuotation && (
+                <div className="min-w-0 sm:col-span-2">
+                  <Label className="text-xs">GST</Label>
+                  <div className="mt-0.5 flex h-8 items-center">
+                    <CheckboxFieldLabel
+                      label="Inter-state (IGST)"
+                      checked={form.is_inter_state}
+                      onChange={(is_inter_state) => setForm({ ...form, is_inter_state })}
+                      helpKey="inter-state supply (igst)"
+                      className="whitespace-nowrap"
+                      labelClassName="text-xs"
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
             {isQuotation && form.customer_name && (
               <p className="mt-1 text-[11px] text-muted-foreground">
@@ -2397,24 +2521,41 @@ export function CreateInvoiceModal({
                   </a>
                 </span>
               </div>
-              <Button variant="outline" size="sm" className="h-7 shrink-0 gap-1 px-2.5 text-[11px]" onClick={addLine} type="button">
-                <Plus className="h-3 w-3" />
-                Add line
-              </Button>
+              <div className="flex shrink-0 items-center gap-3">
+                {isQuotation && (
+                  <CheckboxFieldLabel
+                    label="Inter-state (IGST)"
+                    checked={form.is_inter_state}
+                    onChange={(is_inter_state) => setForm({ ...form, is_inter_state })}
+                    helpKey="inter-state supply (igst)"
+                    className="whitespace-nowrap"
+                    labelClassName="text-xs"
+                  />
+                )}
+                <Button variant="outline" size="sm" className="h-7 shrink-0 gap-1 px-2.5 text-[11px]" onClick={addLine} type="button">
+                  <Plus className="h-3 w-3" />
+                  Add line
+                </Button>
+              </div>
             </div>
-            <div className="mb-0 flex gap-1 px-0.5 pb-0.5">
+            <div className="max-h-[min(40vh,22rem)] overflow-auto [scrollbar-gutter:stable]">
+            {/* #(20) + columns + gaps(9×4) + delete spacer(18) + row border/padding(10) */}
+            <div style={{ minWidth: lineColWidths.reduce((a, b) => a + b, 0) + 84 }}>
+            {/* border + px-1 mirror the compact row wrapper so columns line up with the inputs */}
+            <div className="sticky top-0 z-30 flex gap-1 border border-transparent bg-background px-1 pb-0.5 pt-0.5">
               <FormColumnLabel className="w-5 shrink-0 text-center text-[9px]">#</FormColumnLabel>
-              <FormColumnLabel className="min-w-0 flex-[1.15] text-[9px]">Item</FormColumnLabel>
-              <FormColumnLabel className="w-[6.25rem] shrink-0 text-[9px] sm:w-24">Variant</FormColumnLabel>
-              <FormColumnLabel className="w-20 shrink-0 text-[9px] sm:w-[5.25rem]">HSN</FormColumnLabel>
-              <FormColumnLabel className="w-[4.25rem] shrink-0 text-center text-[9px] sm:w-24">Qty</FormColumnLabel>
-              <FormColumnLabel className="w-[6.5rem] shrink-0 text-[9px] sm:w-[7.25rem]">Price/item</FormColumnLabel>
-              <FormColumnLabel className="w-[5.25rem] shrink-0 text-center text-[9px] sm:w-24">Discount</FormColumnLabel>
-              <FormColumnLabel className="w-[4.75rem] shrink-0 text-center text-[9px] sm:w-[5.25rem]">Tax</FormColumnLabel>
-              <FormColumnLabel className="w-[5.5rem] shrink-0 text-right text-[9px] sm:w-24">Amount</FormColumnLabel>
-              <div className="w-6 shrink-0" />
+              <LineItemsColHeader label="Item" width={lineColWidths[0]} grow onResizeStart={x => startLineColResize(0, x)} />
+              <LineItemsColHeader label="Variant" width={lineColWidths[1]} onResizeStart={x => startLineColResize(1, x)} />
+              <LineItemsColHeader label="HSN" width={lineColWidths[2]} onResizeStart={x => startLineColResize(2, x)} />
+              <LineItemsColHeader label="Qty" width={lineColWidths[3]} align="center" onResizeStart={x => startLineColResize(3, x)} />
+              <LineItemsColHeader label="Price/item" width={lineColWidths[4]} onResizeStart={x => startLineColResize(4, x)} />
+              <LineItemsColHeader label="Discount" width={lineColWidths[5]} align="center" onResizeStart={x => startLineColResize(5, x)} />
+              <LineItemsColHeader label="Tax" width={lineColWidths[6]} align="center" onResizeStart={x => startLineColResize(6, x)} />
+              <LineItemsColHeader label="Amount" width={lineColWidths[7]} align="right" onResizeStart={x => startLineColResize(7, x)} />
+              {/* matches the compact delete button: 14px icon + p-0.5 (2px each side) */}
+              <div className="w-[18px] shrink-0" />
             </div>
-            <div className="max-h-[min(40vh,22rem)] space-y-1 overflow-y-auto overflow-x-auto pr-0.5 [scrollbar-gutter:stable]">
+            <div className="space-y-1">
               {items.map((item, i) => (
                 <ItemSearchRow
                   key={item.lineKey}
@@ -2426,8 +2567,12 @@ export function CreateInvoiceModal({
                   catalogue={catalogue}
                   compact
                   isInterState={form.is_inter_state}
+                  colWidths={lineColWidths}
+                  onColResizeStart={startLineColResize}
                 />
               ))}
+            </div>
+            </div>
             </div>
           </div>
 

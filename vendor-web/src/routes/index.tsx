@@ -234,6 +234,21 @@ const FinancePostingHealth = lazy(() => import('@/pages/finance/PostingHealth'))
 const FinanceFieldRuleConfig = lazy(() => import('@/pages/finance/FieldRuleConfig'))
 const FinancePaymentTerms = lazy(() => import('@/pages/finance/PaymentTerms'))
 const COLayout = lazy(() => import('@/layouts/COLayout'))
+const AssetsDashboardPage = lazy(() => import('@/pages/assets/AssetsDashboard'))
+const AssetListPage = lazy(() => import('@/pages/assets/AssetList'))
+const AssetFormPage = lazy(() => import('@/pages/assets/AssetForm'))
+const AssetDetailPage = lazy(() => import('@/pages/assets/AssetDetail'))
+const AssetImportPage = lazy(() => import('@/pages/assets/AssetImport'))
+const AssetScanPage = lazy(() => import('@/pages/assets/ScanPage'))
+const AssetCustodyPage = lazy(() => import('@/pages/assets/Custody'))
+const AssetTransfersPage = lazy(() => import('@/pages/assets/Transfers'))
+const AssetAuditsPage = lazy(() => import('@/pages/assets/Audits'))
+const AssetAuditDetailPage = lazy(() => import('@/pages/assets/AuditDetail'))
+const AssetMaintenancePage = lazy(() => import('@/pages/assets/Maintenance'))
+const AssetCoveragePage = lazy(() => import('@/pages/assets/Coverage'))
+const AssetLicensesPage = lazy(() => import('@/pages/assets/Licenses'))
+const AssetReportsPage = lazy(() => import('@/pages/assets/AssetReports'))
+const AssetSettingsPage = lazy(() => import('@/pages/assets/AssetSettings'))
 const ControllingDashboardPage = lazy(() => import('@/pages/controlling/index'))
 const ControllingProductCostsPage = lazy(() => import('@/pages/controlling/ProductCosts'))
 const ControllingManufacturingOrdersPage = lazy(() => import('@/pages/controlling/ManufacturingOrders'))
@@ -430,6 +445,22 @@ const appRoutes: RouteObject[] = [
       { path: 'production/work-centers', element: <ProductionWorkCentersPage /> },
       { path: 'production/mrp', element: <ProductionMRPPage /> },
       { path: 'production/analytics', element: <ProductionAnalyticsPage /> },
+      { path: 'assets', element: <AssetsDashboardPage /> },
+      { path: 'assets/register', element: <AssetListPage /> },
+      { path: 'assets/register/new', element: <AssetFormPage /> },
+      { path: 'assets/register/:assetId', element: <AssetDetailPage /> },
+      { path: 'assets/register/:assetId/edit', element: <AssetFormPage /> },
+      { path: 'assets/import', element: <AssetImportPage /> },
+      { path: 'assets/scan', element: <AssetScanPage /> },
+      { path: 'assets/custody', element: <AssetCustodyPage /> },
+      { path: 'assets/transfers', element: <AssetTransfersPage /> },
+      { path: 'assets/audits', element: <AssetAuditsPage /> },
+      { path: 'assets/audits/:auditId', element: <AssetAuditDetailPage /> },
+      { path: 'assets/maintenance', element: <AssetMaintenancePage /> },
+      { path: 'assets/coverage', element: <AssetCoveragePage /> },
+      { path: 'assets/licenses', element: <AssetLicensesPage /> },
+      { path: 'assets/reports', element: <AssetReportsPage /> },
+      { path: 'assets/settings', element: <AssetSettingsPage /> },
       { path: 'realestate', element: <RealEstateDashboardPage /> },
       { path: 'realestate/:moduleId', element: <RealEstateModulePage /> },
       { path: 'pharma', element: <PharmaOverviewPage /> },

@@ -1,10 +1,13 @@
-import { onModalBackdropClick, cn } from '@/lib/utils'
+import { onModalBackdropClick, cn, formatDate } from '@/lib/utils'
 import { dialogOverlayClass, dialogPanelClass } from '@/lib/modalUi'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
-import { Plus, Trash2, X, Layers, ListChecks, Pencil, CheckCircle2, Circle, Clock as ClockIcon } from 'lucide-react'
+import {
+  Plus, Trash2, X, Layers, ListChecks, Pencil, CheckCircle2, Circle,
+  Clock as ClockIcon, Calendar, ChevronDown, UserRound,
+} from 'lucide-react'
 import { hrSelectClass } from '../hrFormUi'
 import {
   useHROnbTemplates, useCreateHROnbTemplate, useUpdateHROnbTemplate, useDeleteHROnbTemplate,
@@ -55,11 +58,38 @@ const TASK_STATUS = {
   skipped: { color: 'text-gray-400', icon: Circle, label: 'Skipped' },
 } as const
 
+function employeeDisplayName(emp?: EmployeeProfile | null, fallbackId?: string) {
+  const name = emp?.vendor_user?.user?.full_name
+    || emp?.full_name
+    || emp?.employee_code_custom
+    || emp?.employee_code
+  if (name) return name
+  return fallbackId ? `Employee #${fallbackId.slice(0, 8)}` : 'Employee'
+}
+
+function employeeInitials(name: string) {
+  return name
+    .replace(/^Employee\s+#?/i, '')
+    .split(/[\s#]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(p => p[0]?.toUpperCase() ?? '')
+    .join('') || '?'
+}
+
 function ActiveTab() {
   const [statusFilter, setStatusFilter] = useState('')
   const { data: lists = [], isLoading } = useHRChecklists(statusFilter || undefined)
+  const { data: employeesData } = useHREmployees({ size: 200 })
   const [showNew, setShowNew] = useState(false)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+
+  const employeesById = useMemo(() => {
+    const employees: EmployeeProfile[] = Array.isArray(employeesData)
+      ? employeesData
+      : (employeesData as { items?: EmployeeProfile[] })?.items ?? []
+    return Object.fromEntries(employees.map(e => [e.id, e])) as Record<string, EmployeeProfile>
+  }, [employeesData])
 
   return (
     <div>
@@ -95,8 +125,13 @@ function ActiveTab() {
           </div>
         ) : (
           (lists as OnboardingChecklist[]).map(cl => (
-            <ChecklistCard key={cl.id} checklist={cl}
-              expanded={expandedId === cl.id} onToggle={() => setExpandedId(expandedId === cl.id ? null : cl.id)} />
+            <ChecklistCard
+              key={cl.id}
+              checklist={cl}
+              employee={employeesById[cl.employee_id]}
+              expanded={expandedId === cl.id}
+              onToggle={() => setExpandedId(expandedId === cl.id ? null : cl.id)}
+            />
           ))
         )}
       </div>
@@ -106,57 +141,118 @@ function ActiveTab() {
   )
 }
 
-function ChecklistCard({ checklist, expanded, onToggle }: { checklist: OnboardingChecklist; expanded: boolean; onToggle: () => void }) {
+function ChecklistCard({
+  checklist, employee, expanded, onToggle,
+}: {
+  checklist: OnboardingChecklist
+  employee?: EmployeeProfile
+  expanded: boolean
+  onToggle: () => void
+}) {
   const update = useUpdateOnbTask()
   const tasks = (checklist.tasks ?? []) as OnboardingTask[]
   const done = tasks.filter(t => t.status === 'done').length
   const total = tasks.length
   const pct = total ? Math.round((done / total) * 100) : 0
-  const statusColor = checklist.status === 'completed' ? 'bg-green-100 text-green-700'
-    : checklist.status === 'overdue' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
+  const name = employeeDisplayName(employee, checklist.employee_id)
+  const code = employee?.employee_code_custom || employee?.employee_code
+  const isCompleted = checklist.status === 'completed'
+  const isOverdue = checklist.status === 'overdue'
+  const accent = isCompleted ? 'bg-emerald-500' : isOverdue ? 'bg-rose-500' : 'bg-blue-500'
+  const statusColor = isCompleted
+    ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
+    : isOverdue
+      ? 'bg-rose-50 text-rose-700 ring-rose-200'
+      : 'bg-blue-50 text-blue-700 ring-blue-200'
+  const barColor = isCompleted
+    ? 'bg-emerald-500'
+    : isOverdue
+      ? 'bg-rose-500'
+      : 'bg-gradient-to-r from-primary to-info'
 
   return (
-    <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl max-h-[90vh] overflow-y-auto">
-      <div onClick={onToggle} className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50">
-        <div>
-          <p className="text-sm font-semibold text-gray-900">Employee #{checklist.employee_id.slice(0, 8)}</p>
-          <p className="text-xs text-gray-500">Started {new Date(checklist.started_at).toLocaleDateString()}
-            {checklist.target_completion_date && ` · Target ${checklist.target_completion_date}`}</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="w-32">
-            <div className="flex items-center justify-between text-xs mb-0.5">
-              <span className="text-gray-500">{done}/{total} tasks</span>
-              <span className="font-semibold text-gray-700">{pct}%</span>
+    <div className="bg-card border border-border text-foreground rounded-xl shadow-sm overflow-hidden transition-shadow hover:shadow-md">
+      <div
+        onClick={onToggle}
+        className="relative flex flex-wrap items-center justify-between gap-4 p-4 pl-5 cursor-pointer hover:bg-muted/40"
+        role="button"
+        tabIndex={0}
+        aria-expanded={expanded}
+        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle() } }}
+      >
+        <span className={cn('absolute inset-y-0 left-0 w-1', accent)} aria-hidden />
+        <div className="flex min-w-0 items-center gap-3">
+          <span className={cn(
+            'flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold',
+            isCompleted ? 'bg-emerald-50 text-emerald-700' : isOverdue ? 'bg-rose-50 text-rose-700' : 'bg-primary/10 text-primary',
+          )}>
+            {name.startsWith('Employee #') ? <UserRound className="h-4 w-4" /> : employeeInitials(name)}
+          </span>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm font-semibold text-gray-900 truncate">{name}</p>
+              {code && (
+                <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                  {code}
+                </span>
+              )}
             </div>
-            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-              <div className="h-full bg-blue-500" style={{ width: `${pct}%` }} />
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+              <span className="inline-flex items-center gap-1">
+                <Calendar className="h-3 w-3 text-gray-400" />
+                Started {formatDate(checklist.started_at)}
+              </span>
+              {checklist.target_completion_date && (
+                <span className="inline-flex items-center gap-1">
+                  <ClockIcon className="h-3 w-3 text-gray-400" />
+                  Target {formatDate(checklist.target_completion_date)}
+                </span>
+              )}
             </div>
           </div>
-          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColor}`}>{checklist.status.replace('_', ' ')}</span>
+        </div>
+        <div className="flex shrink-0 items-center gap-3">
+          <div className="w-40">
+            <div className="mb-1 flex items-center justify-between text-xs">
+              <span className="text-gray-500">{done}/{total} tasks</span>
+              <span className="font-semibold tabular-nums text-gray-700">{pct}%</span>
+            </div>
+            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div className={cn('h-full transition-all duration-300', barColor)} style={{ width: `${pct}%` }} />
+            </div>
+          </div>
+          <span className={cn('text-xs px-2.5 py-1 rounded-full font-medium capitalize ring-1 ring-inset', statusColor)}>
+            {checklist.status.replace('_', ' ')}
+          </span>
+          <ChevronDown className={cn('h-4 w-4 text-gray-400 transition-transform duration-200', expanded && 'rotate-180')} />
         </div>
       </div>
       {expanded && (
-        <div className="border-t px-4 py-3 space-y-1.5">
+        <div className="border-t border-border bg-muted/20 px-4 py-2">
           {tasks.length === 0 ? (
             <p className="text-sm text-gray-400 py-3 text-center">No tasks in this checklist.</p>
           ) : tasks.map(t => {
             const cfg = TASK_STATUS[t.status] ?? TASK_STATUS.pending
             const Icon = cfg.icon
             return (
-              <div key={t.id} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded">
-                <Icon className={`w-4 h-4 ${cfg.color}`} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-800">{t.title}</p>
-                  {t.description && <p className="text-xs text-gray-500">{t.description}</p>}
-                  <p className="text-xs text-gray-400">
-                    {t.category && `${t.category} · `}{t.due_date && `Due ${t.due_date}`}
-                  </p>
+              <div key={t.id} className="flex items-start gap-3 py-2.5 px-1 hover:bg-muted/40 rounded-lg">
+                <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${cfg.color}`} />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-gray-900 leading-snug">{t.title}</p>
+                  {t.description && <p className="text-xs text-gray-500 mt-0.5">{t.description}</p>}
+                  {(t.category || t.due_date) && (
+                    <p className="text-xs text-gray-400 mt-1 whitespace-nowrap">
+                      {t.category && `${t.category}`}
+                      {t.category && t.due_date && ' · '}
+                      {t.due_date && `Due ${formatDate(t.due_date)}`}
+                    </p>
+                  )}
                 </div>
                 <Select
                   value={t.status}
                   onChange={v => update.mutate({ id: t.id, data: { status: v } })}
-                  className="text-xs border rounded px-2 py-1"
+                  className="w-36 shrink-0"
+                  aria-label={`Status for ${t.title}`}
                   options={Object.entries(TASK_STATUS).map(([k, v]) => ({ value: k, label: v.label }))}
                 />
               </div>

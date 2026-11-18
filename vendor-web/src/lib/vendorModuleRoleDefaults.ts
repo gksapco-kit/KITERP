@@ -20,6 +20,7 @@ export type ModuleFormState = {
   projectsEnabled: boolean
   rentalsEnabled: boolean
   realestateEnabled: boolean
+  assetsEnabled: boolean
 }
 
 function normalizeRoleKey(role: string | undefined | null): string {
@@ -49,6 +50,7 @@ export function getAllModulesEnabledState(
     projectsEnabled: true,
     rentalsEnabled: true,
     realestateEnabled: true,
+    assetsEnabled: true,
   }
 }
 
@@ -76,6 +78,7 @@ export function getRoleModuleSettingsDefaults(role: string | undefined | null): 
       projectsEnabled: true,
       rentalsEnabled: true,
       realestateEnabled: false,
+      assetsEnabled: false,
     }
   }
 
@@ -99,6 +102,7 @@ export function getRoleModuleSettingsDefaults(role: string | undefined | null): 
       projectsEnabled: true,
       rentalsEnabled: true,
       realestateEnabled: false,
+      assetsEnabled: false,
     }
   }
 
@@ -122,6 +126,7 @@ export function getRoleModuleSettingsDefaults(role: string | undefined | null): 
       projectsEnabled: false,
       rentalsEnabled: false,
       realestateEnabled: false,
+      assetsEnabled: false,
     }
   }
 
@@ -144,6 +149,7 @@ export function getRoleModuleSettingsDefaults(role: string | undefined | null): 
     projectsEnabled: true,
     rentalsEnabled: true,
     realestateEnabled: false,
+    assetsEnabled: false,
   }
 }
 
@@ -171,6 +177,7 @@ export function moduleFormStateFromVendor(
     projectsEnabled: s?.projects_enabled !== false,
     rentalsEnabled: s?.rentals_enabled !== false,
     realestateEnabled: s?.realestate_enabled === true,
+    assetsEnabled: s?.assets_enabled === true,
   }
 }
 
@@ -193,6 +200,7 @@ export function moduleFormStatesEqual(a: ModuleFormState, b: ModuleFormState): b
     a.projectsEnabled === b.projectsEnabled &&
     a.rentalsEnabled === b.rentalsEnabled &&
     a.realestateEnabled === b.realestateEnabled &&
+    a.assetsEnabled === b.assetsEnabled &&
     a.hrBusinessUnitIds.length === b.hrBusinessUnitIds.length &&
     a.hrBusinessUnitIds.every((id, i) => id === b.hrBusinessUnitIds[i])
   )
@@ -223,6 +231,7 @@ export function buildModuleSettingsPayload(
       projects_enabled: state.projectsEnabled,
       rentals_enabled: state.rentalsEnabled,
       realestate_enabled: state.realestateEnabled,
+      assets_enabled: state.assetsEnabled,
     },
   }
   if (includeOfferingType) {

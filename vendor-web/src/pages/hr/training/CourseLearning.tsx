@@ -4,6 +4,7 @@ import { ArrowLeft, CheckCircle2, Award } from 'lucide-react'
 import { useHREnrollment, useHRProgram, useCompleteCourse } from '@/hooks/useVendor'
 import { vendorApi } from '@/api/vendor'
 import type { TrainingEnrollment, TrainingProgram, TrainingCourse, QuizQuestion } from '@/types'
+import { trainingVideoEmbed } from '@/lib/trainingVideo'
 
 export default function CourseLearningPage() {
   const { id = '' } = useParams<{ id: string }>()
@@ -37,6 +38,16 @@ export default function CourseLearningPage() {
           </a>
         )}
       </div>
+      {prog.video_url && (
+        <div className="mb-5 aspect-video max-w-3xl overflow-hidden rounded-xl border bg-black">
+          <iframe
+            src={trainingVideoEmbed(prog.video_url)}
+            title={`${prog.name} overview`}
+            className="h-full w-full"
+            allowFullScreen
+          />
+        </div>
+      )}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
         <aside className="lg:col-span-1 bg-white border rounded-xl p-3 h-fit">
           <h3 className="text-sm font-semibold text-gray-700 mb-2 px-2">Lessons</h3>
@@ -115,7 +126,7 @@ function CourseRunner({
       )}
       {course.content_type === 'video' && course.content_url && (
         <div className="aspect-video mb-5">
-          <iframe src={toEmbed(course.content_url)} className="w-full h-full rounded-lg border" allowFullScreen />
+          <iframe src={trainingVideoEmbed(course.content_url)} className="w-full h-full rounded-lg border" allowFullScreen />
         </div>
       )}
       {course.content_type === 'pdf' && course.content_url && (
@@ -190,10 +201,3 @@ function QuestionInput({
   )
 }
 
-function toEmbed(url: string): string {
-  const yt = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([\w-]{6,})/)
-  if (yt) return `https://www.youtube.com/embed/${yt[1]}`
-  const vm = url.match(/vimeo\.com\/(\d+)/)
-  if (vm) return `https://player.vimeo.com/video/${vm[1]}`
-  return url
-}

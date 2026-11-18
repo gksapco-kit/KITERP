@@ -367,6 +367,31 @@ async def save_journal_document(file: UploadFile, vendor_id: UUID) -> dict:
     }
 
 
+ALLOWED_DOC_TYPES_ASSET = ALLOWED_DOC_TYPES_CRM
+MAX_DOC_SIZE_ASSET = MAX_DOC_SIZE_CRM
+
+
+async def save_asset_document(file: UploadFile, vendor_id: UUID, asset_id: UUID) -> dict:
+    """Persist an asset attachment (photo / invoice / manual / certificate)."""
+    ct = file.content_type or ""
+    if ct not in ALLOWED_DOC_TYPES_ASSET:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Allowed: images, PDF, Word, Excel, CSV or text files.",
+        )
+    contents = await file.read()
+    if len(contents) > MAX_DOC_SIZE_ASSET:
+        raise HTTPException(status_code=413, detail="File too large (max 15 MB).")
+    url = await get_file_service().upload_file(file, f"assets/{vendor_id}/{asset_id}", content=contents)
+    return {
+        "url": url,
+        "filename": file.filename or "document",
+        "content_type": ct,
+        "size": len(contents),
+        "is_image": ct in ALLOWED_IMAGE_TYPES,
+    }
+
+
 async def save_expense_receipt(file: UploadFile, vendor_id: UUID) -> dict:
     """Persist HR expense receipt — images/PDF, no hard size cap beyond reasonable limit."""
     allowed = ALLOWED_IMAGE_TYPES | {"application/pdf"}

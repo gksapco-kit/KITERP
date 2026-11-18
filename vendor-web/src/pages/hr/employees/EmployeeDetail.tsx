@@ -40,6 +40,9 @@ import {
 import { employeeDisplayName, sanitizeEmployeeUpdatePayload } from '@/lib/hrEmployeeDisplay'
 import { getStorefrontAppOrigin } from '@/lib/storefrontPreviewUrl'
 import { useVendorStore } from '@/stores/vendorStore'
+import { isAssetsNavVisible } from '@/lib/vendorModuleSettings'
+import { useAssetPerms } from '@/pages/assets/api'
+import EmployeeAssetsPanel from '@/pages/assets/EmployeeAssetsPanel'
 import {
   ClickableImageButton,
   ImageLightboxSession,
@@ -2209,6 +2212,11 @@ export default function EmployeeDetailPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { data: emp, isLoading } = useHREmployee(id ?? null)
   const vendorSlug = useVendorStore(s => s.vendor?.slug ?? '')
+  // Assets tab: only when the Asset Management module is on and the user may view assets.
+  const vendorSettings = useVendorStore(s => s.vendor?.settings) as Record<string, unknown> | undefined
+  const assetPerms = useAssetPerms()
+  const assetsTabVisible = isAssetsNavVisible(vendorSettings) && assetPerms.can('assets.view')
+  const hiddenTabs: EmployeeTabId[] = assetsTabVisible ? [] : ['assets']
   const { data: departments = [] } = useHRDepartments()
   const { data: designations = [] } = useHRDesignations()
   const updateEmployee = useUpdateHREmployee()
@@ -2417,7 +2425,7 @@ export default function EmployeeDetailPage() {
       )}
 
       <div className="bg-card border border-border text-foreground rounded-xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
-        <EmployeeTabBar activeTab={activeTab} onTabChange={setTab} />
+        <EmployeeTabBar activeTab={activeTab} onTabChange={setTab} hiddenTabs={hiddenTabs} />
         <div key={`${emp.id}:${formEpoch}`} className="p-6">
           {showPanel('identity') && (
             <EmployeeTabPanel active={activeTab === 'identity'}>
@@ -2488,6 +2496,11 @@ export default function EmployeeDetailPage() {
           {showPanel('payslips') && (
             <EmployeeTabPanel active={activeTab === 'payslips'}>
               <PayslipsTab empId={emp.id} />
+            </EmployeeTabPanel>
+          )}
+          {assetsTabVisible && showPanel('assets') && (
+            <EmployeeTabPanel active={activeTab === 'assets'}>
+              <EmployeeAssetsPanel employeeId={emp.id} />
             </EmployeeTabPanel>
           )}
           {showPanel('exit') && (

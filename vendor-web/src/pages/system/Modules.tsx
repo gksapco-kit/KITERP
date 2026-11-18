@@ -169,6 +169,7 @@ function applyFormState(
     setProjectsEnabled: (v: boolean) => void
     setRentalsEnabled: (v: boolean) => void
     setRealestateEnabled: (v: boolean) => void
+    setAssetsEnabled: (v: boolean) => void
   },
 ) {
   setters.setOfferingType(state.offeringType)
@@ -189,6 +190,7 @@ function applyFormState(
   setters.setProjectsEnabled(state.projectsEnabled)
   setters.setRentalsEnabled(state.rentalsEnabled)
   setters.setRealestateEnabled(state.realestateEnabled)
+  setters.setAssetsEnabled(state.assetsEnabled)
 }
 
 export default function ModulesPage() {
@@ -230,6 +232,7 @@ export default function ModulesPage() {
   const [projectsEnabled, setProjectsEnabled] = useState(true)
   const [rentalsEnabled, setRentalsEnabled] = useState(true)
   const [realestateEnabled, setRealestateEnabled] = useState(false)
+  const [assetsEnabled, setAssetsEnabled] = useState(false)
 
 
   const formSetters = useMemo(
@@ -252,6 +255,7 @@ export default function ModulesPage() {
       setProjectsEnabled,
       setRentalsEnabled,
       setRealestateEnabled,
+      setAssetsEnabled,
     }),
     [],
   )
@@ -276,6 +280,7 @@ export default function ModulesPage() {
       projectsEnabled,
       rentalsEnabled,
       realestateEnabled,
+      assetsEnabled,
     }),
     [
       offeringType,
@@ -296,6 +301,7 @@ export default function ModulesPage() {
       projectsEnabled,
       rentalsEnabled,
       realestateEnabled,
+      assetsEnabled,
     ],
   )
 
@@ -732,6 +738,19 @@ export default function ModulesPage() {
             onToggle={() => {
               markModulesDirty()
               setRealestateEnabled(v => !v)
+            }}
+          />
+        )
+        break
+      case 'assets':
+        panelBody = (
+          <EnableRow
+            label="Enable Asset Management"
+            hint="Asset register, custody, QR labels, transfers, audits, maintenance and warranty in the Assets sidebar section. Links to Finance fixed assets and HR employees when those modules are on. Off by default."
+            enabled={assetsEnabled}
+            onToggle={() => {
+              markModulesDirty()
+              setAssetsEnabled(v => !v)
             }}
           />
         )

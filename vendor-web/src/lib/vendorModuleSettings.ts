@@ -7,6 +7,7 @@ import {
   FolderKanban,
   Gauge,
   Landmark,
+  Package,
   Percent,
   Receipt,
   RefreshCw,
@@ -33,6 +34,7 @@ export type VendorModuleId =
   | 'projects'
   | 'rentals'
   | 'realestate'
+  | 'assets'
 
 export type VendorModuleTile = {
   id: VendorModuleId
@@ -149,6 +151,13 @@ export const VENDOR_MODULE_TILES: VendorModuleTile[] = [
     icon: Building2,
     configurable: true,
   },
+  {
+    id: 'assets',
+    label: 'Asset Management',
+    description: 'Asset register, custody, QR labels, transfers, audits, maintenance, warranty, with optional Finance link.',
+    icon: Package,
+    configurable: true,
+  },
 ]
 
 export function offeringIncludes(
@@ -237,6 +246,11 @@ export function isRealEstateNavVisible(settings: Record<string, unknown> | undef
   return (settings as Record<string, unknown> | undefined)?.realestate_enabled === true
 }
 
+/** Asset Management is opt-in: hidden until the vendor explicitly enables it. */
+export function isAssetsNavVisible(settings: Record<string, unknown> | undefined | null): boolean {
+  return (settings as Record<string, unknown> | undefined)?.assets_enabled === true
+}
+
 /** Short status line for module tiles */
 export function moduleEnabledStatus(
   moduleId: VendorModuleId,
@@ -310,6 +324,10 @@ export function moduleEnabledStatus(
     case 'realestate': {
       if (!isRealEstateNavVisible(settings)) return { enabled: false }
       return { enabled: true, detail: 'Property & projects' }
+    }
+    case 'assets': {
+      if (!isAssetsNavVisible(settings)) return { enabled: false }
+      return { enabled: true, detail: 'Register, custody & audits' }
     }
     default:
       return { enabled: false }

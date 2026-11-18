@@ -3,6 +3,7 @@ import { dialogOverlayClass, dialogPanelClass } from '@/lib/modalUi'
 import { Button } from '@/components/ui/button'
 import { hrInputClass, hrTabActiveClass, hrTabInactiveClass, hrTableHeadClass, hrStatusBadge, hrEmptyStateClass, hrCardClass } from '../hrFormUi'
 import { InlineFieldLabel } from '@/components/common/InlineFieldLabel'
+import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { useState } from 'react'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
@@ -15,7 +16,10 @@ import {
   useHRPrograms, useCreateHRProgram, useUpdateHRProgram, useDeleteHRProgram,
   useHREnrollments, useEnrollEmployees, useHREmployees,
 } from '@/hooks/useVendor'
+import { vendorApi } from '@/api/vendor'
 import type { TrainingProgram, TrainingEnrollment, EmployeeProfile } from '@/types'
+import { programCardImage } from '@/lib/trainingVideo'
+import { toast } from 'sonner'
 
 import { askConfirm } from '@/components/common/ConfirmProvider'
 type Tab = 'programs' | 'enrollments'
@@ -37,7 +41,7 @@ const ENR_STATUS: Record<string, { label: string; color: string }> = {
 export default function TrainingPage() {
   const [tab, setTab] = useState<Tab>('programs')
   return (
-    <div className="p-6">
+    <div className="w-full min-w-0 p-4 sm:p-6">
       <div className="mb-5">
         <h1 className="text-2xl font-bold text-foreground">Training Management</h1>
         <p className="mt-1 text-sm text-muted-foreground">Build Programs, Courses, Quizzes And Track Enrollments</p>
@@ -88,14 +92,17 @@ function ProgramsTab() {
           {(programs as TrainingProgram[]).map(p => {
             const stat = PROG_STATUS[p.status] ?? PROG_STATUS.draft
             return (
-              <div key={p.id} className={cn(hrCardClass, 'max-h-[90vh] overflow-hidden overflow-y-auto transition hover:shadow-md')}>
-                {p.cover_image_url ? (
-                  <img src={p.cover_image_url} alt={p.name} className="w-full h-32 object-cover" />
-                ) : (
+              <div key={p.id} className={cn(hrCardClass, 'transition hover:shadow-md')}>
+                {(() => {
+                  const thumb = programCardImage(p)
+                  return thumb ? (
+                  <img src={thumb} alt={p.name} className="w-full h-32 object-cover" />
+                  ) : (
                   <div className="w-full h-32 bg-gradient-to-br from-primary to-emerald-600 flex items-center justify-center">
                     <BookOpen className="w-10 h-10 text-white opacity-80" />
                   </div>
-                )}
+                  )
+                })()}
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <h3 className="line-clamp-1 font-semibold text-foreground">{p.name}</h3>
@@ -135,19 +142,42 @@ function ProgramsTab() {
   )
 }
 
+const MEDIA_URL_MAX = 500
+
+function sanitizeStoredMediaUrl(value?: string | null): string {
+  const s = (value ?? '').trim()
+  if (!s || /^data:/i.test(s) || s.length > MEDIA_URL_MAX) return ''
+  return s
+}
+
+function normalizeProgramMediaUrl(value: string, label: string): string | null {
+  const s = value.trim()
+  if (!s) return null
+  if (/^data:/i.test(s)) {
+    throw new Error(`${label}: inline/base64 images are not supported. Upload a file instead.`)
+  }
+  if (s.length > MEDIA_URL_MAX) {
+    throw new Error(`${label}: URL is too long (max ${MEDIA_URL_MAX} characters).`)
+  }
+  return s
+}
+
 function ProgramModal({
  program, onClose }: { program: TrainingProgram | null; onClose: () => void }) {
   const create = useCreateHRProgram()
   const update = useUpdateHRProgram()
+  const [coverUploading, setCoverUploading] = useState(false)
   const [form, setForm] = useState<{
     name: string; description: string; category: string; cover_image_url: string;
+    video_url: string;
     is_mandatory: boolean; target_audience: string; estimated_hours: string;
     issues_certificate: boolean; status: TrainingProgram['status'];
   }>({
     name:             program?.name ?? '',
     description:      program?.description ?? '',
     category:         program?.category ?? '',
-    cover_image_url:  program?.cover_image_url ?? '',
+    cover_image_url:  sanitizeStoredMediaUrl(program?.cover_image_url),
+    video_url:        sanitizeStoredMediaUrl(program?.video_url),
     is_mandatory:     program?.is_mandatory ?? false,
     target_audience:  program?.target_audience ?? 'all',
     estimated_hours:  program?.estimated_hours != null ? String(program.estimated_hours) : '',
@@ -155,13 +185,35 @@ function ProgramModal({
     status:           program?.status ?? 'draft',
   })
 
-  const submit = () => {
-    const payload: Record<string, unknown> = {
-      ...form,
-      estimated_hours: form.estimated_hours === '' ? null : Number(form.estimated_hours),
+  const uploadCoverFile = async (file: File) => {
+    setCoverUploading(true)
+    try {
+      const { url } = await vendorApi.uploadGalleryImage(file)
+      if (!url) throw new Error('Upload returned no URL')
+      setForm(f => ({ ...f, cover_image_url: url }))
+      toast.success('Cover image uploaded')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not upload cover image')
+    } finally {
+      setCoverUploading(false)
     }
-    if (program) update.mutate({ id: program.id, data: payload }, { onSuccess: onClose })
-    else         create.mutate(payload, { onSuccess: onClose })
+  }
+
+  const submit = () => {
+    try {
+      const cover_image_url = normalizeProgramMediaUrl(form.cover_image_url, 'Cover image')
+      const video_url = normalizeProgramMediaUrl(form.video_url, 'Video link')
+      const payload: Record<string, unknown> = {
+        ...form,
+        cover_image_url,
+        video_url,
+        estimated_hours: form.estimated_hours === '' ? null : Number(form.estimated_hours),
+      }
+      if (program) update.mutate({ id: program.id, data: payload }, { onSuccess: onClose })
+      else         create.mutate(payload, { onSuccess: onClose })
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Invalid media URL')
+    }
   }
 
   return (
@@ -190,9 +242,49 @@ function ProgramModal({
                 value={form.estimated_hours} onChange={e => setForm({ ...form, estimated_hours: e.target.value })} />
             </Field>
           </div>
-          <Field label="Cover image URL">
-            <input className={hrInputClass} value={form.cover_image_url}
-              onChange={e => setForm({ ...form, cover_image_url: e.target.value })} />
+          <Field label="Cover image">
+            <div className="space-y-2">
+              <ImageSourcePicker
+                title="Cover image"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                uploading={coverUploading}
+                onFile={uploadCoverFile}
+                onUrl={async (url) => {
+                  // Fallback when a gallery/remote URL can't be fetched as a File:
+                  // only accept short http(s) links; never store base64.
+                  const next = sanitizeStoredMediaUrl(url)
+                  if (next && /^https?:\/\//i.test(next)) {
+                    setForm(f => ({ ...f, cover_image_url: next }))
+                    return
+                  }
+                  throw new Error('Could not use that image. Pick a device or gallery file to upload.')
+                }}
+                buttonLabel="Upload / choose image"
+                buttonClassName="w-full"
+              />
+              {form.cover_image_url ? (
+                <div className="relative">
+                  <img
+                    src={form.cover_image_url}
+                    alt="Cover preview"
+                    className="h-24 w-full rounded-md border border-border object-cover"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-2 top-2 rounded bg-background/90 px-2 py-0.5 text-xs text-muted-foreground hover:text-destructive"
+                    onClick={() => setForm(f => ({ ...f, cover_image_url: '' }))}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          </Field>
+          <Field label="Video link">
+            <input className={hrInputClass} value={form.video_url}
+              onChange={e => setForm({ ...form, video_url: e.target.value })}
+              placeholder="https://… or YouTube / Vimeo URL" />
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Audience">
@@ -247,58 +339,155 @@ function ProgramModal({
   )
 }
 
+function employeeDisplayName(emp?: EmployeeProfile | null) {
+  if (!emp) return null
+  return emp.vendor_user?.user?.full_name ?? emp.full_name ?? emp.employee_code ?? null
+}
+
+function formatDueDate(value?: string | null) {
+  if (!value) return '—'
+  const d = new Date(value.includes('T') ? value : `${value}T00:00:00`)
+  if (Number.isNaN(d.getTime())) return value
+  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
 // ─── Enrollments Tab ──────────────────────────────────────────────
 function EnrollmentsTab() {
   const { data: enrollments = [], isLoading } = useHREnrollments()
+  const { data: programs = [] } = useHRPrograms()
+  // API caps limit at 200 — higher values 422 and leave the map empty (falls back to UUID stubs).
+  const { data: empData } = useHREmployees({ limit: 200 })
   const [showEnroll, setShowEnroll] = useState(false)
+  const [search, setSearch] = useState('')
+
+  const employees = Array.isArray(empData)
+    ? (empData as EmployeeProfile[])
+    : ((empData as { items?: EmployeeProfile[] } | undefined)?.items ?? [])
+  const employeeById = new Map(employees.map(emp => [emp.id, emp]))
+  const programById = new Map((programs as TrainingProgram[]).map(p => [p.id, p]))
+
+  const rows = (enrollments as TrainingEnrollment[]).map(e => {
+    const emp = employeeById.get(e.employee_id)
+    const program = programById.get(e.program_id)
+    const employeeName = employeeDisplayName(emp) ?? `Employee ${e.employee_id.slice(0, 8)}`
+    const programName = program?.name ?? `Program ${e.program_id.slice(0, 8)}`
+    return { enrollment: e, emp, program, employeeName, programName }
+  })
+
+  const normalizedSearch = search.trim().toLowerCase()
+  const filtered = normalizedSearch
+    ? rows.filter(r =>
+      [r.employeeName, r.emp?.employee_code, r.programName, r.enrollment.status]
+        .filter(Boolean)
+        .some(v => String(v).toLowerCase().includes(normalizedSearch)))
+    : rows
 
   return (
-    <div>
-      <div className="flex justify-end mb-3">
-        <Button type="button" onClick={() => setShowEnroll(true)}>
-          <Send className="h-4 w-4" /> Enroll Employees
-        </Button>
+    <div className="w-full min-w-0 space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="relative min-w-[14rem] flex-1 max-w-sm">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="search"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search employee or program…"
+            className={cn(hrInputClass, 'h-9 pl-8')}
+            aria-label="Search enrollments"
+          />
+        </div>
+        <div className="flex items-center gap-3">
+          <p className="text-sm text-muted-foreground">
+            {filtered.length} {filtered.length === 1 ? 'enrollment' : 'enrollments'}
+          </p>
+          <Button type="button" onClick={() => setShowEnroll(true)}>
+            <Send className="h-4 w-4" /> Enroll Employees
+          </Button>
+        </div>
       </div>
-      <div className="max-h-[90vh] overflow-hidden overflow-y-auto rounded-xl border border-border bg-card text-foreground shadow-sm">
+
+      <div className="w-full overflow-x-auto rounded-xl border border-border bg-card text-foreground shadow-sm">
         {isLoading ? (
           <div className="p-8 text-center text-muted-foreground">Loading…</div>
-        ) : (enrollments as TrainingEnrollment[]).length === 0 ? (
+        ) : rows.length === 0 ? (
           <div className={hrEmptyStateClass}>
             <UsersIcon className="mx-auto mb-3 h-10 w-10 text-muted-foreground/50" />
             <p className="text-muted-foreground">No enrollments yet.</p>
+            <Button type="button" className="mt-4" onClick={() => setShowEnroll(true)}>
+              <Send className="h-4 w-4" /> Enroll Employees
+            </Button>
           </div>
+        ) : filtered.length === 0 ? (
+          <div className="p-10 text-center text-sm text-muted-foreground">No enrollments match your search.</div>
         ) : (
-          <table className="w-full">
+          <table className="w-full min-w-[60rem] table-fixed">
             <thead className={hrTableHeadClass}>
-              <tr>{['Employee', 'Program', 'Progress', 'Status', 'Due', 'Certificate'].map(h =>
-                <th key={h} className="px-4 py-2 text-left font-medium">{h}</th>)}</tr>
+              <tr>
+                <th className="w-[22%] px-4 py-3 text-left font-medium">Employee</th>
+                <th className="w-[24%] px-4 py-3 text-left font-medium">Program</th>
+                <th className="w-[16%] px-4 py-3 text-left font-medium">Progress</th>
+                <th className="w-[12%] px-4 py-3 text-left font-medium">Status</th>
+                <th className="w-[13%] px-4 py-3 text-left font-medium whitespace-nowrap">Due</th>
+                <th className="w-[13%] px-4 py-3 text-left font-medium whitespace-nowrap">Certificate</th>
+              </tr>
             </thead>
             <tbody>
-              {(enrollments as TrainingEnrollment[]).map(e => {
+              {filtered.map(({ enrollment: e, emp, program, employeeName, programName }) => {
                 const stat = ENR_STATUS[e.status] ?? ENR_STATUS.enrolled
                 return (
-                  <tr key={e.id} className="border-b border-border hover:bg-muted/30">
-                    <td className="px-4 py-2 font-mono text-sm text-muted-foreground">{e.employee_id.slice(0, 8)}</td>
-                    <td className="px-4 py-2 font-mono text-xs text-muted-foreground">{e.program_id.slice(0, 8)}</td>
-                    <td className="w-40 px-4 py-2">
+                  <tr key={e.id} className="border-b border-border last:border-b-0 hover:bg-muted/30">
+                    <td className="px-4 py-3 align-middle">
+                      <p className="truncate text-sm font-medium text-foreground">{employeeName}</p>
+                      {emp?.employee_code && (
+                        <p className="truncate text-xs text-muted-foreground">{emp.employee_code}</p>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 align-middle">
+                      <Link
+                        to={`/hr/training/${e.program_id}`}
+                        className="block truncate text-sm font-medium text-foreground hover:text-primary hover:underline"
+                        title={programName}
+                      >
+                        {programName}
+                      </Link>
+                      {program?.category && (
+                        <p className="truncate text-xs text-muted-foreground">{program.category}</p>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 align-middle">
                       <div className="flex items-center gap-2">
-                        <div className="h-2 flex-1 rounded bg-muted">
-                          <div className="h-2 rounded bg-primary" style={{ width: `${e.progress_pct}%` }} />
+                        <div className="h-2 min-w-0 flex-1 rounded-full bg-muted">
+                          <div
+                            className="h-2 rounded-full bg-primary transition-all"
+                            style={{ width: `${Math.min(100, Math.max(0, e.progress_pct ?? 0))}%` }}
+                          />
                         </div>
-                        <span className="text-xs text-muted-foreground">{e.progress_pct}%</span>
+                        <span className="w-9 shrink-0 text-right text-xs font-medium tabular-nums text-foreground">
+                          {e.progress_pct ?? 0}%
+                        </span>
                       </div>
                     </td>
-                    <td className="px-4 py-2">
-                      <span className={`rounded px-1.5 py-0.5 text-xs ${stat.color}`}>{stat.label}</span>
+                    <td className="px-4 py-3 align-middle">
+                      <span className={`inline-flex rounded-md px-2 py-0.5 text-xs font-medium ${stat.color}`}>
+                        {stat.label}
+                      </span>
                     </td>
-                    <td className="px-4 py-2 text-xs text-muted-foreground">{e.due_date ?? '—'}</td>
-                    <td className="px-4 py-2">
+                    <td className="overflow-hidden px-4 py-3 align-middle text-left text-sm text-muted-foreground whitespace-nowrap">
+                      <span className="block truncate">{formatDueDate(e.due_date)}</span>
+                    </td>
+                    <td className="overflow-hidden px-4 py-3 align-middle text-left">
                       {e.certificate_url ? (
-                        <a href={e.certificate_url} target="_blank" rel="noopener noreferrer"
-                          className="flex items-center gap-1 text-xs text-primary hover:underline">
-                          <Award className="h-3 w-3" /> View
+                        <a
+                          href={e.certificate_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                        >
+                          <Award className="h-3.5 w-3.5" /> View
                         </a>
-                      ) : <span className="text-xs text-muted-foreground">—</span>}
+                      ) : (
+                        <span className="block text-left text-xs text-muted-foreground">—</span>
+                      )}
                     </td>
                   </tr>
                 )

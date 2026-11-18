@@ -118,6 +118,7 @@ export const SIDEBAR_APP_DESCRIPTIONS: Record<string, string> = {
   'production': 'Manufacturing orders, schedule, work centers, and MRP.',
   'pharma': 'Pharmaceutical manufacturing — batches, QC, eBMR, QMS, genealogy, and serialization.',
   'realestate': 'Property inventory, sales & CRM, bookings, collections, construction, leasing, and facility management.',
+  'assets': 'Asset register, custody, QR labels, transfers, audits, maintenance, warranty, and Finance link.',
   'master-data': 'Customers, suppliers, and review management.',
   'crm': 'Contacts, pipeline, tickets, campaigns, workflows, and CRM reports.',
   'hr': 'Employees, attendance, payroll, recruitment, training, and compliance.',
@@ -132,7 +133,7 @@ export const SIDEBAR_APP_GROUPS: { id: string; title: string; sectionIds: string
   {
     id: 'operations',
     title: 'Inventory & Manufacturing',
-    sectionIds: ['inventory', 'production', 'pharma', 'procurement', 'controlling'],
+    sectionIds: ['inventory', 'production', 'pharma', 'procurement', 'controlling', 'assets'],
   },
   { id: 'realestate', title: 'Real Estate', sectionIds: ['realestate'] },
   { id: 'finance', title: 'Finance', sectionIds: ['finance'] },

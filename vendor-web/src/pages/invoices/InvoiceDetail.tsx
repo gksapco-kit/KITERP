@@ -1190,7 +1190,7 @@ export default function InvoiceDetail() {
                   className={invoiceRefLinkClass}
                 >
                   <ShoppingBag className="w-3.5 h-3.5" />
-                  {String((inv as Record<string, unknown>).order_number || (inv as Record<string, unknown>).order_id)}
+                  {String((inv as Record<string, unknown>).order_number || 'Order')}
                 </button>
                 <p className="mt-1.5 text-[11px] text-muted-foreground">
                   Created from an order — edit the order instead of this invoice.

@@ -2654,6 +2654,7 @@ export interface TrainingProgram {
   description?: string
   category?: string
   cover_image_url?: string
+  video_url?: string
   is_mandatory?: boolean
   target_audience?: string
   audience_filter?: Record<string, unknown>

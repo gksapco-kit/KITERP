@@ -33,6 +33,7 @@ from app.database import (
     ensure_crm_tables,
     ensure_pos_transaction_accounting_columns,
     ensure_journal_entry_attachments_column,
+    ensure_fin_asset_date_columns,
     ensure_website_tables,
     ensure_pm_tables,
     ensure_restaurant_schema,
@@ -64,6 +65,7 @@ from app.database import (
     ensure_invoice_additional_charges,
     ensure_pharma_schema,
     ensure_realestate_schema,
+    ensure_asset_mgmt_schema,
 )
 from app.middleware.tenant import TenantMiddleware
 from app.middleware.audit import CrmAuditMiddleware
@@ -109,6 +111,7 @@ async def lifespan(app: FastAPI):
         await ensure_crm_tables()
         await ensure_pos_transaction_accounting_columns()
         await ensure_journal_entry_attachments_column()
+        await ensure_fin_asset_date_columns()
         await ensure_website_tables()
         await ensure_pm_tables()
         await ensure_restaurant_schema()
@@ -140,6 +143,7 @@ async def lifespan(app: FastAPI):
         await ensure_invoice_additional_charges()
         await ensure_pharma_schema()
         await ensure_realestate_schema()
+        await ensure_asset_mgmt_schema()
     await connect_redis()
     from app.services.email_service import email_is_configured, resolve_from_email, sendgrid_api_key, sendgrid_api_keys
 

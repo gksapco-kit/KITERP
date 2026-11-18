@@ -12,6 +12,7 @@ import {
 import type { TrainingProgram, TrainingCourse, QuizQuestion, QuizOption } from '@/types'
 
 import { askConfirm } from '@/components/common/ConfirmProvider'
+import { trainingVideoEmbed } from '@/lib/trainingVideo'
 const CONTENT_ICONS: Record<string, React.ElementType> = {
   text: FileText, video: Video, pdf: FileText, quiz: HelpCircle, scorm: BookOpen,
 }
@@ -50,13 +51,24 @@ export default function ProgramDetailPage() {
         </button>
       </div>
 
+      {p.video_url && (
+        <div className="mb-5 aspect-video max-w-3xl overflow-hidden rounded-xl border bg-black">
+          <iframe
+            src={trainingVideoEmbed(p.video_url)}
+            title={`${p.name} overview`}
+            className="h-full w-full"
+            allowFullScreen
+          />
+        </div>
+      )}
+
       <div className="space-y-3">
         {courses.length === 0 ? (
           <div className="bg-white border rounded-xl p-12 text-center" onClick={e => e.stopPropagation()}>
             <BookOpen className="w-10 h-10 text-gray-300 mx-auto mb-3" />
             <p className="text-gray-500">No courses yet. Add the first lesson or quiz.</p>
           </div>
-        ) : async (
+        ) : (
           courses.map((c, idx) => {
             const Icon = CONTENT_ICONS[c.content_type] ?? FileText
             return (
@@ -300,3 +312,4 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     </div>
   )
 }
+

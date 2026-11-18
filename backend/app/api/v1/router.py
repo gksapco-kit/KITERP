@@ -18,6 +18,7 @@ from app.api.v1 import (
     vendor_crm_collections,
     vendor_finance,
     vendor_controlling,
+    vendor_assets,
     vendor_controlling_area,
     vendor_commission,
     vendor_schema_catalog,
@@ -153,6 +154,7 @@ api_router.include_router(vendor_loyalty.router, prefix="/vendors/me/loyalty", t
 api_router.include_router(vendor_mrp.router, prefix="/vendors/me", tags=["Vendor MRP"])
 api_router.include_router(vendor_hr.router, prefix="/vendors/me/hr", tags=["Vendor HR"])
 api_router.include_router(vendor_hr_extra.router, prefix="/vendors/me/hr", tags=["Vendor HR Extra"])
+api_router.include_router(vendor_assets.router, prefix="/vendors/me/assets", tags=["Asset Management"])
 api_router.include_router(vendor_stores.router, prefix="/vendors/me", tags=["Vendor Stores"])
 api_router.include_router(vendor_sales_area.router, prefix="/vendors/me/sales-config", tags=["Sales & Distribution"])
 api_router.include_router(vendor_message_config.router, prefix="/vendors/me", tags=["Vendor Message Config"])

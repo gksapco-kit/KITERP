@@ -34,14 +34,14 @@ export default function MyOnboardingPage() {
   const pct = tasks.length ? Math.round((done / tasks.length) * 100) : 0
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
+    <div className="p-6 max-w-5xl mx-auto">
       <h1 className="text-2xl font-bold text-gray-900">My Onboarding</h1>
       <p className="text-sm text-gray-500 mt-1 mb-5">
         Started {new Date(checklist.started_at).toLocaleDateString()}
         {checklist.target_completion_date && ` · Target ${checklist.target_completion_date}`}
       </p>
 
-      <div className="bg-white border rounded-xl shadow-sm p-5 mb-5 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white border rounded-xl shadow-sm p-5 mb-5">
         <div className="flex items-center justify-between mb-2">
           <p className="text-sm font-semibold text-gray-700">{done}/{tasks.length} tasks complete</p>
           <p className="text-2xl font-bold text-blue-600">{pct}%</p>
@@ -51,7 +51,7 @@ export default function MyOnboardingPage() {
         </div>
       </div>
 
-      <div className="bg-white border rounded-xl shadow-sm divide-y max-h-[90vh] overflow-y-auto">
+      <div className="bg-white border rounded-xl shadow-sm divide-y overflow-hidden">
         {tasks.length === 0 ? (
           <div className="p-8 text-center text-gray-400 text-sm">No tasks assigned yet.</div>
         ) : tasks.map(t => {
@@ -60,17 +60,22 @@ export default function MyOnboardingPage() {
           return (
             <div key={t.id} className="flex items-start gap-3 p-4">
               <Icon className={`w-5 h-5 ${cfg.color} mt-0.5 shrink-0`} />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900">{t.title}</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-gray-900 leading-snug">{t.title}</p>
                 {t.description && <p className="text-xs text-gray-600 mt-0.5">{t.description}</p>}
-                <p className="text-xs text-gray-400 mt-1">
-                  {t.category && `${t.category} · `}{t.due_date && `Due ${t.due_date}`}
-                </p>
+                {(t.category || t.due_date) && (
+                  <p className="text-xs text-gray-400 mt-1 whitespace-nowrap">
+                    {t.category && `${t.category}`}
+                    {t.category && t.due_date && ' · '}
+                    {t.due_date && `Due ${t.due_date}`}
+                  </p>
+                )}
               </div>
               <Select
                 value={t.status}
                 onChange={v => update.mutate({ id: t.id, data: { status: v } })}
-                className="w-28"
+                className="w-36 shrink-0"
+                aria-label={`Status for ${t.title}`}
                 options={Object.entries(TASK_STATUS).map(([k, v]) => ({ value: k, label: v.label }))}
               />
             </div>

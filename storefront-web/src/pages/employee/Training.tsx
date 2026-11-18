@@ -3,6 +3,7 @@ import { GraduationCap, Award, Clock, ExternalLink } from 'lucide-react'
 import { useVendor } from '@/contexts/VendorContext'
 import { useESSTraining } from '@/hooks/useESS'
 import { essApi } from '@/api/ess'
+import { getVideoThumbnailUrl } from '@/lib/videoEmbed'
 
 const STATUS: Record<string, { label: string; color: string }> = {
   enrolled:    { label: 'Enrolled',    color: 'bg-blue-100 text-blue-700' },
@@ -36,17 +37,24 @@ export default function ESSTrainingPage() {
             const stat = STATUS[e.status] ?? STATUS.enrolled
             return (
               <div key={e.id} className="bg-white border rounded-xl shadow-sm overflow-hidden max-h-[90vh] overflow-y-auto">
-                {e.program?.cover_image_url ? (
+                {(() => {
+                  const cover = String(e.program?.cover_image_url ?? '').trim()
+                  const video = String(e.program?.video_url ?? '').trim()
+                  const thumb = (cover && !/youtu\.be\/|youtube\.com\/|vimeo\.com\//i.test(cover) ? cover : null)
+                    ?? getVideoThumbnailUrl(video)
+                    ?? getVideoThumbnailUrl(cover)
+                  return thumb ? (
                   <img
-                    src={e.program.cover_image_url}
+                    src={thumb}
                     alt={e.program?.name}
                     className="w-full h-32 object-cover"
                   />
-                ) : (
+                  ) : (
                   <div className="w-full h-32 bg-gradient-to-br from-primary to-emerald-600 flex items-center justify-center">
                     <GraduationCap className="w-10 h-10 text-white opacity-80" />
                   </div>
-                )}
+                  )
+                })()}
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <h3 className="font-semibold text-gray-900">

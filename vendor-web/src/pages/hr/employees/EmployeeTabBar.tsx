@@ -5,9 +5,12 @@ import { hrTabActiveClass, hrTabInactiveClass } from '../hrFormUi'
 export function EmployeeTabBar({
   activeTab,
   onTabChange,
+  hiddenTabs,
 }: {
   activeTab: EmployeeTabId
   onTabChange: (id: EmployeeTabId) => void
+  /** Tabs to hide (e.g. Assets when the module is off or the user lacks permission). */
+  hiddenTabs?: EmployeeTabId[]
 }) {
   const tabBtn = (isActive: boolean) =>
     cn(
@@ -32,7 +35,7 @@ export function EmployeeTabBar({
         )
       })}
       <div className="my-1 w-px shrink-0 self-stretch bg-border" aria-hidden />
-      {EMPLOYEE_OPS_TABS.map(tab => {
+      {EMPLOYEE_OPS_TABS.filter(tab => !hiddenTabs?.includes(tab.id)).map(tab => {
         const isActive = activeTab === tab.id
         return (
           <button

@@ -23,6 +23,8 @@ ALL_PERMISSIONS = [
     "coupons.view", "coupons.manage",
     "subscriptions.view", "subscriptions.manage",
     "rentals.view", "rentals.manage",
+    # Asset management (physical assets; the GL side stays under finance.assets.manage)
+    "assets.view", "assets.manage", "assets.approve", "assets.audit", "assets.finance",
     "production.view", "production.manage",
     "pharma.view", "pharma.manage", "pharma.release", "pharma.audit",
     "pharma.quality.manage", "pharma.deviation.manage",
@@ -138,6 +140,8 @@ DEFAULT_ROLE_PERMISSIONS = {
         "coupons.view", "coupons.manage",
         "subscriptions.view", "subscriptions.manage",
         "rentals.view", "rentals.manage",
+        # Assets: managers run custody / transfers / audits; capitalisation (assets.finance) stays with finance
+        "assets.view", "assets.manage", "assets.approve", "assets.audit",
         "production.view", "production.manage",
         # pharma.release and pharma.audit require qa_officer — managers get view+manage only
         "pharma.view", "pharma.manage",
@@ -285,6 +289,7 @@ DEFAULT_ROLE_PERMISSIONS = {
         "finance.bank.manage", "finance.bank.reconcile",
         "finance.budget.manage",
         "finance.assets.manage",
+        "assets.view", "assets.finance",
         "finance.tax.view", "finance.tax.manage",
         "finance.controls.manage", "finance.controls.approve",
         "finance.capital.manage",
@@ -295,6 +300,7 @@ DEFAULT_ROLE_PERMISSIONS = {
     # ── New specialist roles ─────────────────────────────────────────────────
     "warehouse": [
         "dashboard.view",
+        "assets.view", "assets.manage", "assets.audit",
         "inventory.view", "inventory.manage",
         "procurement.view", "procurement.gr.post",
         "masterdata.view",
@@ -341,6 +347,7 @@ DEFAULT_ROLE_PERMISSIONS = {
     ],
     "hr_manager": [
         "dashboard.view",
+        "assets.view", "assets.manage",
         "hr.view", "hr.manage",
         "hr.attendance", "hr.leave_approve",
         "hr.salary_view", "hr.salary_manage",
@@ -392,6 +399,7 @@ DEFAULT_ROLE_PERMISSIONS = {
     ],
     "finance_controller": [
         "dashboard.view",
+        "assets.view", "assets.finance",
         "finance.view", "finance.edit",
         "finance.coa.manage",
         "finance.journal.create", "finance.journal.post",

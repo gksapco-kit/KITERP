@@ -10,6 +10,7 @@ from sqlalchemy.orm import selectinload, aliased
 from app.repositories.base import BaseRepository
 from app.models.order import Order
 from app.models.customer import Customer
+from app.models.store import Store
 
 
 class OrderRepository(BaseRepository[Order]):
@@ -88,6 +89,7 @@ class OrderRepository(BaseRepository[Order]):
         source: Optional[str] = None,
         store_id: Optional[UUID] = None,
         sales_area_id: Optional[UUID] = None,
+        customer_id: Optional[UUID] = None,
     ) -> Tuple[List[Order], int]:
         cust = aliased(Customer)
         query = (
@@ -112,8 +114,19 @@ class OrderRepository(BaseRepository[Order]):
             count_query = count_query.where(Order.source == source)
 
         if store_id:
-            query = query.where(Order.store_id == store_id)
-            count_query = count_query.where(Order.store_id == store_id)
+            # A business unit should include orders stored on its branches.
+            # A branch id matches only itself (no children).
+            branch_ids = select(Store.id).where(
+                Store.vendor_id == vendor_id,
+                Store.parent_id == store_id,
+            )
+            store_match = or_(Order.store_id == store_id, Order.store_id.in_(branch_ids))
+            query = query.where(store_match)
+            count_query = count_query.where(store_match)
+
+        if customer_id:
+            query = query.where(Order.customer_id == customer_id)
+            count_query = count_query.where(Order.customer_id == customer_id)
 
         if sales_area_id:
             query = query.where(Order.sales_area_id == sales_area_id)

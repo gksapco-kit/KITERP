@@ -615,6 +615,19 @@ async def update_employee(
         data["pos_pin_hash"] = ctx.hash(data.pop("pos_pin"))
     prev_emp = await svc.get_employee(emp_id, vu.vendor_id)
     previous_lwd = prev_emp.lwd if prev_emp else None
+    # Asset Management link: the "assets" exit-clearance item cannot be ticked while company assets are still held.
+    clearance = data.get("exit_clearance")
+    if isinstance(clearance, dict) and clearance.get("assets") is True and not (
+        isinstance(prev_emp.exit_clearance if prev_emp else None, dict) and prev_emp.exit_clearance.get("assets") is True
+    ):
+        from app.services.asset_mgmt.custody import outstanding_for_employee
+        held = await outstanding_for_employee(db, vu.vendor_id, emp_id)
+        if held > 0:
+            raise HTTPException(
+                409,
+                f"This employee still holds {held} company asset(s) or licence seat(s). "
+                "Recover them in Asset Management (Offboard) before marking asset clearance as done.",
+            )
     emp = await svc.update_employee(emp_id, vu.vendor_id, data)
     if "lwd" in data:
         from app.services.hr_access_sync import sync_lwd_to_vendor_user_access

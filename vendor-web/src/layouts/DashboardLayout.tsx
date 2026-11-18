@@ -177,6 +177,7 @@ import {
   isProjectsNavVisible,
   isRentalsNavVisible,
   isRealEstateNavVisible,
+  isAssetsNavVisible,
 } from '@/lib/vendorModuleSettings'
 import {
   DndContext,
@@ -596,6 +597,7 @@ const SECTION_PERMISSION_NAMESPACES: Record<string, string[]> = {
   crm: ['crm'],
   rental: ['rentals'],
   realestate: ['realestate'],
+  assets: ['assets'],
   production: ['production'],
   pharma: ['pharma'],
   restaurant: ['restaurant'],
@@ -752,6 +754,24 @@ const allSections: NavSection[] = [
       { to: '/rental/reports', icon: BarChart3, label: 'Rental Report Analytics', requiresPermission: 'reports.view', groupLabel: 'Insights', groupColor: 'violet' },
       { to: '/rental/registration-forms', icon: FileSignature, label: 'Registration Forms', requiresPermission: 'rentals.manage', groupLabel: 'Configuration', groupColor: 'slate' },
       { to: '/rental/settings', icon: Settings2, label: 'Settings', requiresPermission: 'rentals.manage' },
+    ],
+  },
+  {
+    id: 'assets',
+    title: 'Asset Management',
+    icon: HardDrive,
+    items: [
+      { to: '/assets', icon: LayoutDashboard, label: 'Overview', requiresPermission: 'assets.view', groupLabel: 'Register', groupColor: 'blue' },
+      { to: '/assets/register', icon: Package, label: 'Asset Register', requiresPermission: 'assets.view' },
+      { to: '/assets/scan', icon: QrCode, label: 'Scan & Look up', requiresPermission: 'assets.view' },
+      { to: '/assets/custody', icon: Users, label: 'Custody & Bookings', requiresPermission: 'assets.view', groupLabel: 'Movement', groupColor: 'emerald' },
+      { to: '/assets/transfers', icon: ArrowLeftRight, label: 'Transfers & Requests', requiresPermission: 'assets.view' },
+      { to: '/assets/audits', icon: ClipboardCheck, label: 'Physical Audits', requiresPermission: 'assets.view' },
+      { to: '/assets/maintenance', icon: Wrench, label: 'Maintenance', requiresPermission: 'assets.view', groupLabel: 'Care & cover', groupColor: 'amber' },
+      { to: '/assets/coverage', icon: ShieldCheck, label: 'Warranty & Insurance', requiresPermission: 'assets.view' },
+      { to: '/assets/licenses', icon: ClipboardList, label: 'Software Licences', requiresPermission: 'assets.view' },
+      { to: '/assets/reports', icon: BarChart3, label: 'Reports', requiresPermission: 'assets.view', groupLabel: 'Insights', groupColor: 'indigo' },
+      { to: '/assets/settings', icon: Settings2, label: 'Categories & Locations', requiresPermission: 'assets.manage' },
     ],
   },
   {
@@ -1453,6 +1473,20 @@ const pageTitles: Record<string, string> = {
   '/crm/integrations': 'Integrations',
   '/crm/reports': 'CRM Reports',
   '/crm/audit': 'Audit Log',
+
+  '/assets': 'Asset Management',
+  '/assets/register': 'Asset Register',
+  '/assets/register/new': 'Register Asset',
+  '/assets/import': 'Import Assets',
+  '/assets/scan': 'Scan & Look up',
+  '/assets/custody': 'Custody & Bookings',
+  '/assets/transfers': 'Transfers & Requests',
+  '/assets/audits': 'Physical Audits',
+  '/assets/maintenance': 'Maintenance',
+  '/assets/coverage': 'Warranty & Insurance',
+  '/assets/licenses': 'Software Licences',
+  '/assets/reports': 'Asset Reports',
+  '/assets/settings': 'Categories & Locations',
 
   '/controlling': 'Controlling (CO) Dashboard',
   '/controlling/controlling-areas': 'Controlling Areas',
@@ -2204,6 +2238,7 @@ export default function DashboardLayout() {
     [vendorSettings],
   )
   const realestateNavVisible = useMemo(() => isRealEstateNavVisible(vendorSettings), [vendorSettings])
+  const assetsNavVisible = useMemo(() => isAssetsNavVisible(vendorSettings), [vendorSettings])
 
   const canViewOrders = isOwnerOrAdmin || permissions.includes('orders.view')
   const { data: orderStats } = useOrderStats(sessionReady && canViewOrders)
@@ -2263,6 +2298,7 @@ export default function DashboardLayout() {
           if (section.id === 'pharma' && !pharmaNavVisible) return false
           if (section.id === 'rental' && !rentalNavVisible) return false
           if (section.id === 'realestate' && !realestateNavVisible) return false
+          if (section.id === 'assets' && !assetsNavVisible) return false
           if (
             section.id === 'restaurant' &&
             !isRestaurantNavVisible(vendorSettings, vendor?.offering_type, planFeatures)
@@ -2279,7 +2315,7 @@ export default function DashboardLayout() {
     [
       filterItem,
       hrNavVisible, financeNavVisible, crmNavVisible, commissionNavVisible,
-      controllingNavVisible, productionNavVisible, pharmaNavVisible, rentalNavVisible, realestateNavVisible,
+      controllingNavVisible, productionNavVisible, pharmaNavVisible, rentalNavVisible, realestateNavVisible, assetsNavVisible,
       vendorSettings, vendor?.offering_type, planFeatures,
     ],
   )

@@ -57,6 +57,7 @@ import { useBarcodeScanner } from '@/hooks/useBarcodeScanner'
 import { showBarcodeNotFound } from '@/components/scanner/BarcodeNotFoundToast'
 
 const resolveUrl = mediaUrl
+const PRODUCTS_SEARCH_KEY = 'kiterp:products:search'
 
 type CatalogThumbMedia = { url?: string; media_type?: string; is_primary?: boolean } | null | undefined
 
@@ -276,8 +277,10 @@ export default function Products() {
   const selectedStore = useVendorStore(s => s.selectedStore)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = usePersistedPageSize('products')
-  const [search, setSearch] = useState('')
-  const [searchInput, setSearchInput] = useState('')
+  const [searchInput, setSearchInput] = useState(() => {
+    try { return sessionStorage.getItem(PRODUCTS_SEARCH_KEY) || '' } catch { return '' }
+  })
+  const [search, setSearch] = useState(() => searchInput.trim())
   const [status, setStatus] = useState('')
   const [visibility, setVisibility] = useState('')
   const [category, setCategory] = useState('')
@@ -310,6 +313,10 @@ export default function Products() {
   const categorySub = category.includes('::') ? category.split('::').slice(1).join('::') : ''
 
   useEffect(() => {
+    try {
+      if (searchInput) sessionStorage.setItem(PRODUCTS_SEARCH_KEY, searchInput)
+      else sessionStorage.removeItem(PRODUCTS_SEARCH_KEY)
+    } catch { /* storage unavailable */ }
     const t = setTimeout(() => {
       setSearch(searchInput.trim())
       setPage(1)

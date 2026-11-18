@@ -43,6 +43,8 @@ try:
             "app.tasks.realestate.jobs",
             # Production tasks
             "app.tasks.production_jobs",
+            # Asset management tasks
+            "app.tasks.asset_mgmt_jobs",
         ],
     )
     celery_app.conf.update(
@@ -110,6 +112,11 @@ try:
         # Production: daily digest of overdue / due-soon orders and ledger mismatches (report only).
         "production-daily": {
             "task": "production.daily",
+            "schedule": 86400,
+        },
+        # Asset management: due maintenance -> work orders, warranty / insurance / licence expiry, overdue returns.
+        "assets-daily": {
+            "task": "assets.daily",
             "schedule": 86400,
         },
     }

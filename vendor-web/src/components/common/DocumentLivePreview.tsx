@@ -12,6 +12,8 @@ import {
 
 const DEFAULT_SCALE = 1
 const DEFAULT_WIDTH = A4_SHEET_WIDTH_PX
+/** Horizontal padding on the A4 sheet scroll pane (`px-2` × 2). */
+const SHEET_PAD_X = 16
 
 export const DocumentLivePreview = memo(function DocumentLivePreview({
   html,
@@ -51,12 +53,12 @@ export const DocumentLivePreview = memo(function DocumentLivePreview({
   /** Factory for a new A4 page HTML fragment (full .page div). */
   createBlankPage?: (nextPageNumber: number) => string
 }) {
-  const scale = previewScale ?? (documentWidth < 400 ? 1 : DEFAULT_SCALE)
   const thermal = paperSize === '2inch' || paperSize === '3inch' || paperSize === '4inch'
   const sheetContainerWidth = containerWidth ?? (thermal ? undefined : `${documentWidth}px`)
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const [frameHeight, setFrameHeight] = useState(480)
+  const [fitScale, setFitScale] = useState(1)
   const lastHtmlRef = useRef('')
   const skipReloadRef = useRef(false)
   const syncTimerRef = useRef<number | null>(null)
@@ -64,6 +66,28 @@ export const DocumentLivePreview = memo(function DocumentLivePreview({
   const [isEditing, setIsEditing] = useState(false)
   const isEditingRef = useRef(false)
   const [selectedPage, setSelectedPage] = useState(1)
+
+  // Fit the fixed A4 sheet into the preview pane so we don't nest horizontal scrollbars
+  // (and avoid flex+overflow clipping the left edge of the letter).
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el || thermal) {
+      setFitScale(1)
+      return
+    }
+    const recalc = () => {
+      const available = el.clientWidth - (sheetContainerWidth ? SHEET_PAD_X : 0)
+      if (available <= 0) return
+      setFitScale(Math.min(1, available / documentWidth))
+    }
+    recalc()
+    const ro = new ResizeObserver(recalc)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [documentWidth, thermal, sheetContainerWidth, html])
+
+  const requestedScale = previewScale ?? (documentWidth < 400 ? 1 : DEFAULT_SCALE)
+  const scale = thermal ? requestedScale : Math.min(requestedScale, fitScale)
 
   useEffect(() => {
     if (selectedPage > pageCount) {
@@ -266,8 +290,12 @@ export const DocumentLivePreview = memo(function DocumentLivePreview({
     setSelectedPage(prev => Math.min(prev, Math.max(1, pageCount - 1)))
   }
 
-  const scaledWidth = sheetContainerWidth ?? '100%'
-  const scaledHeight = scale < 1 && sheetContainerWidth ? Math.ceil(frameHeight * scale) : frameHeight
+  // Outer box must match the *visual* size after transform:scale, otherwise a
+  // fixed 794px sheet forces horizontal scroll inside a narrower column.
+  const scaledWidth = thermal
+    ? (sheetContainerWidth ?? '100%')
+    : Math.ceil(documentWidth * scale)
+  const scaledHeight = Math.ceil(frameHeight * scale)
   const multiPage = pageCount > 1
 
   return (
@@ -379,8 +407,8 @@ export const DocumentLivePreview = memo(function DocumentLivePreview({
       <div
         ref={scrollRef}
         className={sheetContainerWidth
-          ? 'border rounded-xl overflow-auto bg-gray-100 min-h-[560px] max-h-[85vh] flex items-start justify-center py-3 px-2 relative'
-          : 'border rounded-xl overflow-auto bg-white min-h-[560px] max-h-[85vh] w-full relative'}
+          ? 'border rounded-xl overflow-y-auto overflow-x-hidden bg-gray-100 min-h-[560px] max-h-[85vh] relative py-3 px-2'
+          : 'border rounded-xl overflow-y-auto overflow-x-hidden bg-white min-h-[560px] max-h-[85vh] w-full relative'}
       >
         {!html ? (
           <div className="flex flex-col items-center justify-center gap-2 w-full min-h-[480px] text-gray-400">

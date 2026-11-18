@@ -503,6 +503,7 @@ async def list_orders(
     search: Optional[str] = None,
     store_id: Optional[str] = Query(None),
     sales_area_id: Optional[str] = Query(None),
+    customer_id: Optional[str] = Query(None),
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -525,6 +526,13 @@ async def list_orders(
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid sales_area_id")
 
+    customer_uuid = None
+    if customer_id:
+        try:
+            customer_uuid = UUID(customer_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid customer_id")
+
     items, total = await repo.list_by_vendor(
         vendor_id=vendor_id,
         skip=skip,
@@ -534,6 +542,7 @@ async def list_orders(
         source=source,
         store_id=store_uuid,
         sales_area_id=sales_area_uuid,
+        customer_id=customer_uuid,
     )
 
     return JSONResponse(content={

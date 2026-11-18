@@ -198,6 +198,9 @@ from app.models.finance import (
 # Real Estate vertical (re_* tables)
 import app.models.realestate  # noqa: E402,F401
 
+# Asset Management module (am_* tables) — links optionally to finance (fin_asset) and HR
+import app.models.asset_mgmt  # noqa: E402,F401
+
 __all__ = [
     "User",
     "Vendor",

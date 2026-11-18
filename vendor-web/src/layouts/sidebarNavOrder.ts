@@ -8,10 +8,10 @@ const LS_SECTION_VERSION = 'kiterp.vendor.sidebar.section-order-version'
  * Bump when the built-in top-level module order changes.
  * Users below this version get the canonical order on next load (fixes stale prod localStorage).
  */
-export const SIDEBAR_SECTION_ORDER_VERSION = 5
+export const SIDEBAR_SECTION_ORDER_VERSION = 6
 
 /** Bump when a pinned item must move inside a module (saved placements otherwise keep the old slot). */
-export const SIDEBAR_NAV_PLACEMENTS_VERSION = 6
+export const SIDEBAR_NAV_PLACEMENTS_VERSION = 9
 
 /** Canonical module order — must match `allSections` in DashboardLayout.tsx. */
 export const CANONICAL_SIDEBAR_SECTION_IDS = [
@@ -23,6 +23,7 @@ export const CANONICAL_SIDEBAR_SECTION_IDS = [
   'crm',
   'rental',
   'realestate',
+  'assets',
   'production',
   'pharma',
   'restaurant',
@@ -44,6 +45,10 @@ const REALESTATE_MODULE_SLUGS = [
   'society', 'assets', 'workforce', 'reports', 'admin',
 ]
 
+const ASSET_MODULE_SLUGS = [
+  'register', 'scan', 'custody', 'transfers', 'audits', 'maintenance', 'coverage', 'licenses', 'reports', 'settings',
+]
+
 export const NAV_PINNED_SECTION_HOME: Record<string, string> = {
   '/websites': 'website-management',
   '/websites/seo': 'website-management',
@@ -57,6 +62,8 @@ export const NAV_PINNED_SECTION_HOME: Record<string, string> = {
   '/procurement/reports': 'procurement',
   '/inventory/analytics': 'inventory',
   '/procurement/goods': 'inventory',
+  '/assets': 'assets',
+  ...Object.fromEntries(ASSET_MODULE_SLUGS.map((s) => [`/assets/${s}`, 'assets'])),
   '/realestate': 'realestate',
   ...Object.fromEntries(REALESTATE_MODULE_SLUGS.map((s) => [`/realestate/${s}`, 'realestate'])),
   '/rental/dashboard': 'rental',

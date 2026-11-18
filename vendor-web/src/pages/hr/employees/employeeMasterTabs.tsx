@@ -1,7 +1,7 @@
 import type { ElementType, ReactNode } from 'react'
 import {
   Briefcase, Lock, MapPin, Landmark, ShieldCheck, Users, Heart, Paperclip, FileText,
-  Plane, DollarSign, Receipt, LogOut,
+  Plane, DollarSign, Receipt, LogOut, Package,
 } from 'lucide-react'
 
 export type EmployeeMasterTabId =
@@ -15,7 +15,7 @@ export type EmployeeMasterTabId =
   | 'documents'
   | 'notes'
 
-export type EmployeeOpsTabId = 'leaves' | 'salary' | 'payslips' | 'exit'
+export type EmployeeOpsTabId = 'leaves' | 'salary' | 'payslips' | 'assets' | 'exit'
 
 export type EmployeeTabId = EmployeeMasterTabId | EmployeeOpsTabId
 
@@ -35,6 +35,7 @@ export const EMPLOYEE_OPS_TABS: { id: EmployeeOpsTabId; label: string; icon: Ele
   { id: 'leaves', label: 'Leaves', icon: Plane },
   { id: 'salary', label: 'Salary', icon: DollarSign },
   { id: 'payslips', label: 'Payslips', icon: Receipt },
+  { id: 'assets', label: 'Assets', icon: Package },
   { id: 'exit', label: 'Exit', icon: LogOut },
 ]
 

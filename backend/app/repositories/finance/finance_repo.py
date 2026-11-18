@@ -1076,8 +1076,13 @@ class FinBudgetRepo:
 
 _ASSET_WRITABLE_FIELDS = frozenset({
     "category_id", "asset_code", "name", "description", "acquisition_date",
+    "capitalization_date", "depreciation_start_date",
     "purchase_cost", "salvage_value", "useful_life_years", "depreciation_method",
     "total_units_capacity", "location", "store_id", "serial_number", "notes", "status",
+})
+
+_ASSET_DATE_FIELDS = frozenset({
+    "acquisition_date", "capitalization_date", "depreciation_start_date",
 })
 
 
@@ -1089,10 +1094,10 @@ def _parse_asset_payload(data: dict) -> dict:
             continue
         if raw is None or raw == "":
             if key in {"category_id", "store_id", "description", "location", "serial_number",
-                       "notes", "total_units_capacity"}:
+                       "notes", "total_units_capacity", "capitalization_date", "depreciation_start_date"}:
                 clean[key] = None
             continue
-        if key == "acquisition_date":
+        if key in _ASSET_DATE_FIELDS:
             if isinstance(raw, date):
                 clean[key] = raw
             else:
@@ -1106,6 +1111,23 @@ def _parse_asset_payload(data: dict) -> dict:
         else:
             clean[key] = raw
     return clean
+
+
+def _validate_asset_dates(payload: dict, asset: FinAsset | None = None) -> None:
+    """Capitalization cannot precede purchase, and depreciation cannot precede capitalization."""
+    def pick(key: str):
+        if key in payload:
+            return payload[key]
+        return getattr(asset, key, None) if asset is not None else None
+
+    acquired = pick("acquisition_date")
+    capitalized = pick("capitalization_date")
+    starts = pick("depreciation_start_date")
+    if capitalized and acquired and capitalized < acquired:
+        raise ValueError("Capitalization date cannot be before the acquisition date")
+    floor = capitalized or acquired
+    if starts and floor and starts < floor:
+        raise ValueError("Depreciation cannot start before the capitalization date")
 
 
 _ASSET_CATEGORY_WRITABLE_FIELDS = frozenset({
@@ -1317,6 +1339,7 @@ class FinAssetRepo:
             raise ValueError("acquisition_date is required")
         if payload.get("purchase_cost") is None:
             raise ValueError("purchase_cost is required")
+        _validate_asset_dates(payload)
         asset = FinAsset(id=uuid.uuid4(), vendor_id=vendor_id, **payload)
         asset.current_value = asset.purchase_cost
         self.db.add(asset)
@@ -1325,6 +1348,7 @@ class FinAssetRepo:
 
     async def update_asset(self, asset: FinAsset, data: dict) -> FinAsset:
         payload = _parse_asset_payload(data)
+        _validate_asset_dates(payload, asset)
         for k, v in payload.items():
             setattr(asset, k, v)
         await self.db.flush()

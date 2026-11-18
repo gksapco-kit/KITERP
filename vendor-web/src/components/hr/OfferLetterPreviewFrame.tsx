@@ -39,15 +39,15 @@ export function OfferLetterPreviewFrame({
   }
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-[#525659] p-4 shadow-inner">
-      <div className="mx-auto max-w-full bg-white shadow-lg overflow-hidden">
+    <div className="max-w-full overflow-x-hidden rounded-xl border border-gray-200 bg-[#525659] p-4 shadow-inner">
+      <div className="mx-auto max-w-full overflow-hidden bg-white shadow-lg">
         <iframe
           ref={iframeRef}
           srcDoc={withNoScriptCsp(html)}
           title={title}
           onLoad={resizeFrame}
           scrolling="no"
-          className="w-full border-0 block bg-white"
+          className="block w-full max-w-full border-0 bg-white"
           style={{ height: `${frameHeight}px`, display: 'block' }}
         />
       </div>

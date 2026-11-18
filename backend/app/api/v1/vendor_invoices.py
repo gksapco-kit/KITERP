@@ -158,8 +158,23 @@ async def list_invoices(
         customer_id=customer_id, open_only=open_only, deleted=deleted,
     )
     vendor = await db.get(Vendor, vid)
+    rows = [_inv_dict(i, vendor=vendor) for i in items]
+    # Older invoices linked to an order may have no copied order_number; resolve it
+    # from the order so the list shows "ORD-00004" instead of a raw UUID.
+    missing = {r["order_id"] for r in rows if r.get("order_id") and not r.get("order_number")}
+    if missing:
+        from app.models.order import Order
+        res = await db.execute(
+            select(Order.id, Order.order_number).where(
+                Order.vendor_id == vid, Order.id.in_([UUID(x) for x in missing]),
+            )
+        )
+        numbers = {str(oid): num for oid, num in res.all() if num}
+        for r in rows:
+            if r.get("order_id") and not r.get("order_number"):
+                r["order_number"] = numbers.get(r["order_id"])
     return JSONResponse(content={
-        "items": [_inv_dict(i, vendor=vendor) for i in items], "total": total,
+        "items": rows, "total": total,
         "page": page, "size": size, "pages": math.ceil(total / size) if total else 0,
     })
 

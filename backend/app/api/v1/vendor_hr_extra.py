@@ -7,7 +7,7 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse, StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
@@ -1396,13 +1396,30 @@ class ProgramIn(BaseModel):
     name: str
     description: Optional[str] = None
     category: Optional[str] = None
-    cover_image_url: Optional[str] = None
+    cover_image_url: Optional[str] = Field(None, max_length=500)
+    video_url: Optional[str] = Field(None, max_length=500)
     is_mandatory: Optional[bool] = False
     target_audience: Optional[str] = "all"
     audience_filter: Optional[Dict[str, Any]] = None
     estimated_hours: Optional[float] = None
     issues_certificate: Optional[bool] = True
     status: Optional[str] = "draft"
+
+    @field_validator("cover_image_url", "video_url")
+    @classmethod
+    def _normalize_media_url(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        s = v.strip()
+        if not s:
+            return None
+        if s.lower().startswith("data:"):
+            raise ValueError(
+                "Inline/base64 images are not supported. Upload an image or paste a normal https:// URL."
+            )
+        if len(s) > 500:
+            raise ValueError("URL is too long (max 500 characters). Use a shorter https:// link or upload a file.")
+        return s
 
 
 @router.get("/training/programs")

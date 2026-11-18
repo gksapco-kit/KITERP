@@ -2802,7 +2802,10 @@ async def update_asset(
     asset = await repo.get_asset(asset_id, vu.vendor_id)
     if not asset:
         raise HTTPException(404, "Asset not found")
-    asset = await repo.update_asset(asset, body)
+    try:
+        asset = await repo.update_asset(asset, body)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
     await db.commit()
     return _d(asset)
 
@@ -2820,6 +2823,9 @@ async def run_depreciation(
         raise HTTPException(404, "Asset not found")
     if asset.status != "active":
         raise HTTPException(400, "Asset is not active")
+    dep_start = asset.depreciation_start_date or asset.capitalization_date or asset.acquisition_date
+    if dep_start and date.today() < dep_start:
+        raise HTTPException(400, f"Depreciation starts on {dep_start.isoformat()}")
     units = body.get("units")
     if asset.depreciation_method == "units_of_production":
         if units is None or float(units) <= 0:

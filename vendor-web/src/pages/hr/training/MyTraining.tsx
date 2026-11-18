@@ -3,6 +3,7 @@ import { GraduationCap, Award, ExternalLink, Clock } from 'lucide-react'
 import { useMyTraining } from '@/hooks/useVendor'
 import { vendorApi } from '@/api/vendor'
 import type { TrainingEnrollment } from '@/types'
+import { programCardImage } from '@/lib/trainingVideo'
 
 const STATUS: Record<string, { label: string; color: string }> = {
   enrolled:    { label: 'Enrolled',    color: 'bg-blue-100 text-blue-700' },
@@ -13,7 +14,7 @@ const STATUS: Record<string, { label: string; color: string }> = {
 }
 
 interface MyTrainingItem extends TrainingEnrollment {
-  program?: { name: string; description?: string; cover_image_url?: string; estimated_hours?: number }
+  program?: { name: string; description?: string; cover_image_url?: string; video_url?: string; estimated_hours?: number }
   certificate_id?: string
 }
 
@@ -39,13 +40,16 @@ export default function MyTrainingPage() {
             const stat = STATUS[e.status] ?? STATUS.enrolled
             return (
               <div key={e.id} className="bg-card border border-border text-foreground rounded-xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
-                {e.program?.cover_image_url ? (
-                  <img src={e.program.cover_image_url} alt={e.program.name} className="w-full h-32 object-cover" />
-                ) : (
+                {(() => {
+                  const thumb = e.program ? programCardImage(e.program) : null
+                  return thumb ? (
+                  <img src={thumb} alt={e.program?.name} className="w-full h-32 object-cover" />
+                  ) : (
                   <div className="w-full h-32 bg-gradient-to-br from-primary to-emerald-600 flex items-center justify-center">
                     <GraduationCap className="w-10 h-10 text-white opacity-80" />
                   </div>
-                )}
+                  )
+                })()}
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <h3 className="font-semibold text-gray-900">{e.program?.name ?? `Program ${e.program_id.slice(0, 6)}`}</h3>

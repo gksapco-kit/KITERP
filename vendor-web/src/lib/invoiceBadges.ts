@@ -62,4 +62,4 @@ export const invoiceNumberLinkClass =
 
 /** Secondary cross-reference — linked order or booking */
 export const invoiceRefLinkClass =
-  'inline-flex items-center gap-1 rounded-md border border-border/70 bg-muted/35 px-2 py-0.5 text-xs font-mono text-muted-foreground transition-colors hover:border-primary/35 hover:bg-primary/5 hover:text-primary [&_svg]:shrink-0 [&_svg]:text-muted-foreground/75 hover:[&_svg]:text-primary'
+  'inline-flex max-w-full items-center gap-1 whitespace-nowrap rounded-md border border-border/70 bg-muted/35 px-2 py-0.5 text-xs font-mono text-muted-foreground transition-colors hover:border-primary/35 hover:bg-primary/5 hover:text-primary [&_svg]:shrink-0 [&_svg]:text-muted-foreground/75 hover:[&_svg]:text-primary'

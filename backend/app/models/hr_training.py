@@ -20,6 +20,7 @@ class TrainingProgram(Base):
     description = Column(Text)
     category = Column(String(60))    # onboarding / compliance / leadership / technical / soft_skills
     cover_image_url = Column(String(500))
+    video_url = Column(String(500))  # optional intro / overview video for the program
     is_mandatory = Column(Boolean, default=False)
     target_audience = Column(String(40), default="all")
     audience_filter = Column(JSONB, default=dict)
