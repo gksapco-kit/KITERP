@@ -6,7 +6,6 @@ import { apiClient } from '@/api/client'
 import { attachAutoRefreshInterceptor, createAppQueryClient } from '@/lib/queryClient'
 import { RouterProvider } from 'react-router-dom'
 import { Toaster, toast as sonnerToast } from 'sonner'
-
 import { router } from './routes'
 import { ThemeSync } from './components/ThemeSync'
 import { RootErrorBoundary } from './components/RootErrorBoundary'
