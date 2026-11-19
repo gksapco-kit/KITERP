@@ -13,7 +13,7 @@ import {
 import { Select as TaxSelect } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { vendorApi } from '@/api/vendor'
-import { formatDate } from '@/lib/utils'
+import { cn, formatDate } from '@/lib/utils'
 import type { PurchaseOrder, PurchaseOrderItem, PurchaseReturn } from '@/types'
 import { useTaxCodes } from '@/hooks/useFinance'
 import { useUpdatePurchaseReturn } from '@/hooks/useVendor'
@@ -307,7 +307,12 @@ function CreateReturnDialog({ open, onClose, editingReturn }: { open: boolean; o
 
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) handleClose() }}>
-      <DialogContent className="flex max-h-[92vh] w-[min(96vw,100rem)] flex-col gap-0 p-0">
+      <DialogContent
+        className={cn(
+          'flex max-h-[92vh] flex-col gap-0 p-0',
+          selectedPO || isEditMode ? 'w-[min(96vw,56rem)]' : 'w-[min(92vw,28rem)]',
+        )}
+      >
         <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
           <DialogTitle>{isEditMode ? `Edit Return — ${editingReturn!.return_number}` : 'Create Purchase Return'}</DialogTitle>
         </DialogHeader>

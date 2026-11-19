@@ -393,36 +393,38 @@ function CreateRFQDialog({ open, onClose, editingRFQ }: { open: boolean; onClose
   const validItems = items.filter(isRFQItemValid)
 
   const canSubmit = !!form.title && validItems.length > 0
+  const fieldInput = 'h-8 text-sm'
+  const fieldLabel = 'text-[11px] text-muted-foreground'
+  const selectSm = 'h-8 text-sm'
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="flex max-h-[95vh] w-[min(96vw,100rem)] flex-col gap-0 p-0">
-        <DialogHeader className="px-6 pt-4 pb-3 border-b shrink-0">
-          <DialogTitle>{isEditMode ? `Edit RFQ — ${editingRFQ!.rfq_number}` : 'Create Request for Quotation'}</DialogTitle>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) handleClose() }}>
+      <DialogContent className="flex max-h-[92vh] w-[min(96vw,52rem)] flex-col gap-0 overflow-hidden p-0">
+        <DialogHeader className="shrink-0 border-b px-4 pb-2.5 pt-3">
+          <DialogTitle className="text-base">
+            {isEditMode ? `Edit RFQ — ${editingRFQ!.rfq_number}` : 'Create Request for Quotation'}
+          </DialogTitle>
         </DialogHeader>
 
-        {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-          {/* Header */}
-          <div className="space-y-2.5">
-            <h3 className="text-sm font-semibold text-gray-700 border-b pb-1">Header</h3>
-            <div>
-              <Label>Title *</Label>
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3 space-y-3">
+          <div className="space-y-2">
+            <div className="space-y-0.5">
+              <Label className={fieldLabel}>Title *</Label>
               <Input
                 value={form.title}
                 onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
                 placeholder="e.g. Q3 Raw Material Sourcing"
-                className={submitAttempted && !form.title ? 'border-red-400 focus-visible:ring-red-300' : ''}
+                className={`${fieldInput} ${submitAttempted && !form.title ? 'border-red-400 focus-visible:ring-red-300' : ''}`}
               />
               {submitAttempted && !form.title && (
                 <p className="text-xs text-red-500 mt-0.5">Title is required.</p>
               )}
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              <div>
-                <Label>Sourcing Type</Label>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="space-y-0.5">
+                <Label className={fieldLabel}>Sourcing Type</Label>
                 <Select value={form.sourcing_type} onValueChange={v => setForm(f => ({ ...f, sourcing_type: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className={selectSm}><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="rfq">Open RFQ</SelectItem>
                     <SelectItem value="rfi">Request for Info</SelectItem>
@@ -430,10 +432,10 @@ function CreateRFQDialog({ open, onClose, editingRFQ }: { open: boolean; onClose
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label>Currency</Label>
+              <div className="space-y-0.5">
+                <Label className={fieldLabel}>Currency</Label>
                 <Select value={form.currency} onValueChange={v => setForm(f => ({ ...f, currency: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className={selectSm}><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="INR">INR — Indian Rupee</SelectItem>
                     <SelectItem value="USD">USD — US Dollar</SelectItem>
@@ -444,18 +446,18 @@ function CreateRFQDialog({ open, onClose, editingRFQ }: { open: boolean; onClose
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label>Bid Deadline</Label>
-                <Input type="date" value={form.bid_submission_deadline} onChange={e => setForm(f => ({ ...f, bid_submission_deadline: e.target.value }))} />
+              <div className="space-y-0.5">
+                <Label className={fieldLabel}>Bid Deadline</Label>
+                <Input type="date" value={form.bid_submission_deadline} onChange={e => setForm(f => ({ ...f, bid_submission_deadline: e.target.value }))} className={fieldInput} />
               </div>
-              <div>
-                <Label>Delivery Required By</Label>
-                <Input type="date" value={form.delivery_required_by} onChange={e => setForm(f => ({ ...f, delivery_required_by: e.target.value }))} />
+              <div className="space-y-0.5">
+                <Label className={fieldLabel}>Delivery Required By</Label>
+                <Input type="date" value={form.delivery_required_by} onChange={e => setForm(f => ({ ...f, delivery_required_by: e.target.value }))} className={fieldInput} />
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              <div>
-                <Label>Company Code (Co-code)</Label>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="space-y-0.5">
+                <Label className={fieldLabel}>Company Code (Co-code)</Label>
                 <Select
                   value={companyId || 'none'}
                   onValueChange={id => {
@@ -469,7 +471,7 @@ function CreateRFQDialog({ open, onClose, editingRFQ }: { open: boolean; onClose
                   }}
                   disabled={companiesLoading}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className={selectSm}>
                     <SelectValue placeholder={companiesLoading ? 'Loading…' : 'Select company code…'} />
                   </SelectTrigger>
                   <SelectContent>
@@ -490,8 +492,8 @@ function CreateRFQDialog({ open, onClose, editingRFQ }: { open: boolean; onClose
                   </p>
                 )}
               </div>
-              <div>
-                <Label>Department (Cost Center)</Label>
+              <div className="space-y-0.5">
+                <Label className={fieldLabel}>Department (Cost Center)</Label>
                 <Select
                   value={departmentCostCenterId || 'none'}
                   onValueChange={id => {
@@ -507,7 +509,7 @@ function CreateRFQDialog({ open, onClose, editingRFQ }: { open: boolean; onClose
                   }}
                   disabled={!companyId || costCentersLoading}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className={selectSm}>
                     <SelectValue
                       placeholder={
                         !companyId
@@ -543,13 +545,13 @@ function CreateRFQDialog({ open, onClose, editingRFQ }: { open: boolean; onClose
                   </p>
                 )}
               </div>
-              <div>
-                <Label>Source Requisition (optional)</Label>
+              <div className="space-y-0.5">
+                <Label className={fieldLabel}>Source Requisition (optional)</Label>
                 <Select
                   value={form.requisition_id || 'none'}
                   onValueChange={(v) => handlePRChange(v === 'none' ? '' : v)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className={selectSm}>
                     <SelectValue placeholder="Select approved PR…" />
                   </SelectTrigger>
                   <SelectContent>
@@ -565,34 +567,34 @@ function CreateRFQDialog({ open, onClose, editingRFQ }: { open: boolean; onClose
                   <p className="text-xs text-blue-600 mt-0.5">Line items prefilled from PR</p>
                 )}
               </div>
-              <div>
-                <Label>Payment Terms</Label>
-                <Input value={form.payment_terms} onChange={e => setForm(f => ({ ...f, payment_terms: e.target.value }))} placeholder="Net 30, Advance…" />
+              <div className="space-y-0.5">
+                <Label className={fieldLabel}>Payment Terms</Label>
+                <Input value={form.payment_terms} onChange={e => setForm(f => ({ ...f, payment_terms: e.target.value }))} placeholder="Net 30, Advance…" className={fieldInput} />
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <Label>Delivery Terms</Label>
-                <Input value={form.delivery_terms} onChange={e => setForm(f => ({ ...f, delivery_terms: e.target.value }))} placeholder="FOB, CIF, Ex-Works…" />
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <div className="space-y-0.5">
+                <Label className={fieldLabel}>Delivery Terms</Label>
+                <Input value={form.delivery_terms} onChange={e => setForm(f => ({ ...f, delivery_terms: e.target.value }))} placeholder="FOB, CIF, Ex-Works…" className={fieldInput} />
               </div>
-              <div>
-                <Label>Internal Notes</Label>
-                <Input value={form.internal_notes} onChange={e => setForm(f => ({ ...f, internal_notes: e.target.value }))} placeholder="Optional…" />
+              <div className="space-y-0.5">
+                <Label className={fieldLabel}>Internal Notes</Label>
+                <Input value={form.internal_notes} onChange={e => setForm(f => ({ ...f, internal_notes: e.target.value }))} placeholder="Optional…" className={fieldInput} />
               </div>
             </div>
           </div>
 
           {/* Line Items */}
           <div>
-            <div className="flex items-center justify-between mb-2 border-b pb-1">
-              <h3 className="text-sm font-semibold text-gray-700">Line Items</h3>
-              <Button type="button" size="sm" variant="outline" onClick={addItem} className="h-7 text-xs">
-                <Plus className="w-3 h-3 mr-1" />Add Line
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className="text-sm font-medium">Line Items</span>
+              <Button type="button" size="sm" variant="outline" onClick={addItem} className="h-7 gap-1 text-xs">
+                <Plus className="h-3 w-3" />Add Line
               </Button>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {items.map((item, i) => (
-                <div key={i} className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                <div key={i} className="rounded-lg border border-gray-100 bg-gray-50 p-2">
                   <div className="flex items-end gap-2 flex-wrap">
                     {/* Type */}
                     <div className="w-28 shrink-0">
@@ -676,11 +678,10 @@ function CreateRFQDialog({ open, onClose, editingRFQ }: { open: boolean; onClose
             )}
           </div>
 
-          {/* Invite Suppliers */}
-          <div>
-            <h3 className="text-sm font-semibold text-gray-700 border-b pb-1 mb-2">
-              Invite Suppliers <span className="font-normal text-gray-400">(optional)</span>
-            </h3>
+          <div className="space-y-0.5">
+            <Label className={fieldLabel}>
+              Invite Suppliers <span className="font-normal text-muted-foreground">(optional)</span>
+            </Label>
             <SupplierTypeahead
               mode="multi"
               selectedSuppliers={selectedSuppliers}
@@ -690,14 +691,18 @@ function CreateRFQDialog({ open, onClose, editingRFQ }: { open: boolean; onClose
             />
           </div>
 
-          <div>
-            <Label>Instructions to Suppliers</Label>
-            <Textarea value={form.instructions_to_suppliers} onChange={e => setForm(f => ({ ...f, instructions_to_suppliers: e.target.value }))} rows={2} />
+          <div className="space-y-0.5">
+            <Label className={fieldLabel}>Instructions to Suppliers</Label>
+            <Textarea
+              value={form.instructions_to_suppliers}
+              onChange={e => setForm(f => ({ ...f, instructions_to_suppliers: e.target.value }))}
+              rows={2}
+              className="min-h-0 resize-none py-1.5 text-sm"
+            />
           </div>
         </div>
 
-        {/* Sticky footer */}
-        <div className="px-6 py-3 border-t bg-white shrink-0 flex justify-between items-center gap-3">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-t bg-card px-4 py-2.5">
           {submitAttempted && !canSubmit && (
             <p className="text-xs text-red-500 flex items-center gap-1">
               <AlertCircle className="w-3.5 h-3.5" />
@@ -709,9 +714,10 @@ function CreateRFQDialog({ open, onClose, editingRFQ }: { open: boolean; onClose
             </p>
           )}
           {(!submitAttempted || canSubmit) && <span />}
-          <div className="flex gap-2 shrink-0">
-            <Button variant="outline" onClick={handleClose}>Cancel</Button>
+          <div className="flex shrink-0 gap-2">
+            <Button variant="outline" size="sm" onClick={handleClose}>Cancel</Button>
             <Button
+              size="sm"
               onClick={() => {
                 setSubmitAttempted(true)
                 if (!canSubmit) return

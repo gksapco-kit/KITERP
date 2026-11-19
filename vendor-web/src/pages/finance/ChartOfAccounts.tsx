@@ -17,13 +17,10 @@ import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import {
   dialogOverlayClass,
   dialogPanelClass,
-  dialogHeaderClass,
-  dialogBodyClass,
   dialogFooterClass,
-  modalTitleClass,
   modalCloseBtnClass,
-  modalWidthSm,
 } from '@/lib/modalUi'
+import { cn } from '@/lib/utils'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Account = {
@@ -1261,15 +1258,14 @@ export default function ChartOfAccounts() {
           onClick={() => setShowModal(false)}
         >
           <div
-            className={`${dialogPanelClass} ${modalWidthSm}`}
+            className={cn(dialogPanelClass, 'max-w-md max-h-none')}
             onClick={e => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
             aria-label={editing ? 'Edit Account' : 'New Account'}
           >
-            {/* Header — pinned */}
-            <div className={`${dialogHeaderClass} flex items-center justify-between gap-3`}>
-              <h2 className={modalTitleClass}>{editing ? 'Edit Account' : 'New Account'}</h2>
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-2.5">
+              <h2 className="text-base font-semibold text-foreground">{editing ? 'Edit Account' : 'New Account'}</h2>
               <button
                 type="button"
                 aria-label="Close"
@@ -1280,17 +1276,16 @@ export default function ChartOfAccounts() {
               </button>
             </div>
 
-            {/* Body — single scroll region (avoids per-field scrollbars on large screens) */}
-            <div className={`${dialogBodyClass} space-y-4`}>
-              <div>
-                <Label className="block text-xs font-medium text-muted-foreground mb-1.5">Type</Label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+            <div className="space-y-2.5 px-4 py-3">
+              <div className="space-y-0.5">
+                <Label className="text-[11px] text-muted-foreground">Type</Label>
+                <div className="grid grid-cols-3 gap-1 sm:grid-cols-5">
                   {config.map(c => (
                     <button
                       key={c.type}
                       type="button"
                       onClick={() => setForm(f => ({ ...f, account_type: c.type, account_subtype: '' }))}
-                      className={`py-2 px-2 rounded-lg text-xs font-medium border-2 transition-all truncate ${c.color} ${
+                      className={`truncate rounded-md border-2 px-1 py-1.5 text-[11px] font-medium transition-all ${c.color} ${
                         form.account_type === c.type ? 'border-foreground' : 'border-transparent'
                       }`}
                     >
@@ -1300,48 +1295,62 @@ export default function ChartOfAccounts() {
                 </div>
               </div>
 
-              <div className="min-w-0">
-                <Label className="block text-xs font-medium text-muted-foreground mb-1.5">Subtype</Label>
+              <div className="min-w-0 space-y-0.5">
+                <Label className="text-[11px] text-muted-foreground">Subtype</Label>
                 <Select
                   value={form.account_subtype}
                   onChange={v => setForm(f => ({ ...f, account_subtype: v }))}
                   placeholder="— None —"
-                  className="w-full h-10"
+                  className="h-8 w-full text-sm"
                   options={selectOptionsWithBlank('— None —', activeSubtypes.map(st => ({ value: st, label: st })))}
+                />
+                {(() => {
+                  const c = config.find(cc => cc.type === form.account_type)
+                  return c ? (
+                    <p className="text-[10px] leading-tight text-muted-foreground">
+                      Range {c.codeRangeStart}–{c.codeRangeEnd} · Normal balance: {c.normalBalance}
+                    </p>
+                  ) : null
+                })()}
+              </div>
+
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <div className="min-w-0 space-y-0.5">
+                  <Label className="text-[11px] text-muted-foreground">Code</Label>
+                  <Input
+                    value={form.code}
+                    onChange={e => setForm(f => ({ ...f, code: e.target.value }))}
+                    placeholder={`e.g. ${config.find(c => c.type === form.account_type)?.codeRangeStart ?? 1000}`}
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div className="min-w-0 space-y-0.5">
+                  <Label className="text-[11px] text-muted-foreground">Name</Label>
+                  <Input
+                    value={form.name}
+                    onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                    placeholder="Account name"
+                    className="h-8 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="min-w-0 space-y-0.5">
+                <Label className="text-[11px] text-muted-foreground">Description</Label>
+                <Input
+                  value={form.description}
+                  onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                  placeholder="Optional description"
+                  className="h-8 text-sm"
                 />
               </div>
 
-              {[
-                { label: 'Code', key: 'code', placeholder: `e.g. ${config.find(c => c.type === form.account_type)?.codeRangeStart ?? 1000}` },
-                { label: 'Name', key: 'name', placeholder: 'Account name' },
-                { label: 'Description', key: 'description', placeholder: 'Optional description' },
-              ].map(({ label, key, placeholder }) => (
-                <div key={key} className="min-w-0">
-                  <Label className="block text-xs font-medium text-muted-foreground mb-1.5">{label}</Label>
-                  <Input
-                    value={(form as Record<string, string>)[key]}
-                    onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                    placeholder={placeholder}
-                  />
-                </div>
-              ))}
-
-              {(() => {
-                const c = config.find(cc => cc.type === form.account_type)
-                return c ? (
-                  <p className="text-xs text-muted-foreground">
-                    Suggested range for <strong>{c.type}</strong>: {c.codeRangeStart}–{c.codeRangeEnd} · Normal balance: {c.normalBalance}
-                  </p>
-                ) : null
-              })()}
-
-              <div className="rounded-xl border border-border p-3 space-y-2">
-                <div className="flex items-start justify-between gap-3">
+              <div className="space-y-2 rounded-lg border border-border p-2">
+                <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="text-xs font-medium text-foreground">Reconciliation (Control) Account</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      When enabled, manual journal entries cannot post to this account.
-                      Only subledger auto-posting (AR, AP, Assets) may write to it.
+                    <p className="text-[11px] font-medium text-foreground">Reconciliation (Control) Account</p>
+                    <p className="text-[10px] leading-tight text-muted-foreground">
+                      Blocks manual journals; subledger auto-posting only.
                     </p>
                   </div>
                   <button
@@ -1365,13 +1374,13 @@ export default function ChartOfAccounts() {
                   </button>
                 </div>
                 {(form as any).is_reconciliation_account && (
-                  <div className="min-w-0">
-                    <Label className="block text-xs font-medium text-muted-foreground mb-1.5">Subledger</Label>
+                  <div className="min-w-0 space-y-0.5">
+                    <Label className="text-[11px] text-muted-foreground">Subledger</Label>
                     <Select
                       value={(form as any).reconciliation_subledger || ''}
                       onChange={v => setForm(f => ({ ...f, reconciliation_subledger: v }))}
                       placeholder="— Select subledger —"
-                      className="w-full h-10"
+                      className="h-8 w-full text-sm"
                       options={[
                         { value: '', label: '— Select subledger —' },
                         { value: 'customer', label: 'Customer (AR)' },
@@ -1385,12 +1394,11 @@ export default function ChartOfAccounts() {
               </div>
             </div>
 
-            {/* Footer — pinned */}
-            <div className={dialogFooterClass}>
+            <div className={cn(dialogFooterClass, 'px-4 py-2.5')}>
               <button
                 type="button"
                 onClick={() => setShowModal(false)}
-                className="btn-cancel px-4 py-2 text-sm text-muted-foreground border border-border rounded-lg"
+                className="btn-cancel rounded-lg border border-border px-3 py-1.5 text-sm text-muted-foreground"
               >
                 Cancel
               </button>
@@ -1398,7 +1406,7 @@ export default function ChartOfAccounts() {
                 type="button"
                 onClick={save}
                 disabled={createMut.isPending || updateMut.isPending}
-                className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 font-medium"
+                className="rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
               >
                 {createMut.isPending || updateMut.isPending ? 'Saving…' : 'Save'}
               </button>

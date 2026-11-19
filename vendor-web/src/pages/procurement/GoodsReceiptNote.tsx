@@ -15,7 +15,7 @@ import { vendorApi } from '@/api/vendor'
 import { apiError } from '@/lib/errorMessages'
 import { actionDocMessage, createdDocMessage, pickDocNo } from '@/lib/documentToast'
 import { toast } from 'sonner'
-import { formatDate } from '@/lib/utils'
+import { cn, formatDate } from '@/lib/utils'
 import type { PurchaseOrder, PurchaseOrderItem, GoodsReceiptNote, GRNLine } from '@/types'
 import {
   PackageCheck, Plus, ChevronRight, ClipboardCheck, CheckCircle2,
@@ -168,38 +168,47 @@ function CreateGRNDialog({ open, onClose }: { open: boolean; onClose: () => void
   const activeLinesCount = lineEntries.filter(e => e.include && parseFloat(e.received_qty || '0') > 0).length
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-h-[90vh] w-[min(96vw,80rem)] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Create Goods Receipt Note</DialogTitle>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) handleClose() }}>
+      <DialogContent
+        className={cn(
+          'flex flex-col gap-0 p-0',
+          selectedPO ? 'max-h-[92vh] w-[min(96vw,56rem)]' : 'w-[min(92vw,28rem)]',
+        )}
+      >
+        <DialogHeader className="shrink-0 border-b px-4 pb-3 pt-4">
+          <DialogTitle className="text-base">Create Goods Receipt Note</DialogTitle>
         </DialogHeader>
+
+        <div className={cn('px-4 py-3', selectedPO && 'min-h-0 flex-1 overflow-y-auto')}>
 
         {!selectedPO ? (
           // Step 1: PO selection
-          <div className="space-y-3 py-2">
-            <p className="text-sm text-gray-500">Select a Purchase Order to receive against.</p>
+          <div className="space-y-2.5">
+            <p className="text-xs text-muted-foreground">Select a Purchase Order to receive against.</p>
             <Input
               placeholder="Search by PO number…"
               value={poSearch}
               onChange={e => setPoSearch(e.target.value)}
               className="h-8 text-sm"
             />
-            <div className="space-y-1.5 max-h-80 overflow-y-auto">
+            <div className={eligiblePOs.length > 0 ? 'max-h-64 space-y-1.5 overflow-y-auto pr-0.5' : ''}>
               {eligiblePOs.map(po => (
                 <button
                   key={po.id}
                   onClick={() => selectPO(po)}
-                  className="w-full text-left p-3 border rounded-lg hover:bg-blue-50 hover:border-blue-200 transition-colors text-sm"
+                  className="w-full rounded-lg border p-2.5 text-left text-sm transition-colors hover:border-blue-200 hover:bg-blue-50"
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <span className="font-medium text-gray-800">{po.po_number}</span>
-                    <span className="text-xs text-gray-400 capitalize">{po.status}</span>
+                    <span className="shrink-0 text-xs capitalize text-gray-400">{po.status}</span>
                   </div>
-                  <p className="text-xs text-gray-500 mt-0.5">{po.supplier_name} · {po.items?.length ?? 0} lines</p>
+                  <p className="mt-0.5 text-xs text-gray-500">{po.supplier_name} · {po.items?.length ?? 0} lines</p>
                 </button>
               ))}
               {eligiblePOs.length === 0 && (
-                <p className="text-center py-6 text-sm text-gray-400">No eligible POs found (must be in draft, sent, or partial received status)</p>
+                <p className="py-3 text-center text-xs leading-relaxed text-gray-400">
+                  No eligible POs found (draft, sent, or partially received).
+                </p>
               )}
             </div>
           </div>
@@ -325,17 +334,19 @@ function CreateGRNDialog({ open, onClose }: { open: boolean; onClose: () => void
           </div>
         )}
 
-        <DialogFooter>
-          <Button variant="outline" onClick={handleClose}>Cancel</Button>
+        </div>
+        <div className="flex shrink-0 justify-end gap-2 border-t px-4 py-3">
+          <Button variant="outline" size="sm" onClick={handleClose}>Cancel</Button>
           {selectedPO && (
             <Button
+              size="sm"
               onClick={() => create.mutate()}
               disabled={activeLinesCount === 0 || create.isPending}
             >
               {create.isPending ? 'Creating…' : `Create GRN (${activeLinesCount} line${activeLinesCount !== 1 ? 's' : ''})`}
             </Button>
           )}
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   )

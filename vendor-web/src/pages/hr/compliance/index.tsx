@@ -237,14 +237,14 @@ function PolicyModal({
 
   return (
     <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-3">
-      <ModalPanel className="max-h-[calc(100dvh-1.5rem)] max-w-2xl !rounded-lg overflow-hidden">
+      <ModalPanel className="max-w-md max-h-none !rounded-lg overflow-hidden">
         <ModalHeader
           title={existing ? `Edit Policy (v${existing.version})` : 'New Policy'}
           onClose={onClose}
           className="border-0 px-4 py-2.5 [&>div>h2]:text-base [&>div>h2]:leading-none"
         />
-        <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
-          <ModalBody className="space-y-2 overflow-y-auto px-4 pb-1 pt-0">
+        <form onSubmit={submit}>
+          <ModalBody className="flex-none space-y-2 overflow-visible px-4 py-3">
             <div>
               <Label className={denseLabelClass} required>Title</Label>
               <input required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })}
@@ -261,7 +261,8 @@ function PolicyModal({
                 <Select
                   value={form.audience}
                   onChange={v => setForm({ ...form, audience: v })}
-                  className={denseFieldClass}
+                  className="h-8 w-full text-sm"
+                  triggerClassName="h-8"
                   options={[
                     { value: 'all', label: 'All employees' },
                     { value: 'department', label: 'Specific department' },
@@ -287,21 +288,19 @@ function PolicyModal({
             </div>
             <div>
               <Label className={denseLabelClass}>Body (HTML/Markdown)</Label>
-              <textarea rows={4} value={form.body} onChange={e => setForm({ ...form, body: e.target.value })}
+              <textarea rows={3} value={form.body} onChange={e => setForm({ ...form, body: e.target.value })}
                 className={cn(denseTextareaClass, 'font-mono text-xs')} />
             </div>
-            <div className="grid grid-cols-[1fr_auto] items-end gap-2">
-              <div>
-                <Label className={denseLabelClass}>Attachment URL</Label>
-                <input value={form.attachment_url} onChange={e => setForm({ ...form, attachment_url: e.target.value })}
-                  className={denseFieldClass} placeholder="https://…" />
-              </div>
-              <label className="mb-1 flex h-8 items-center gap-1.5 whitespace-nowrap text-xs text-foreground">
-                <input type="checkbox" checked={form.requires_acknowledgement}
-                  onChange={e => setForm({ ...form, requires_acknowledgement: e.target.checked })} />
-                Requires acknowledgement
-              </label>
+            <div>
+              <Label className={denseLabelClass}>Attachment URL</Label>
+              <input value={form.attachment_url} onChange={e => setForm({ ...form, attachment_url: e.target.value })}
+                className={denseFieldClass} placeholder="https://…" />
             </div>
+            <label className="flex cursor-pointer items-center gap-1.5 text-xs text-foreground">
+              <input type="checkbox" className="h-3.5 w-3.5 rounded" checked={form.requires_acknowledgement}
+                onChange={e => setForm({ ...form, requires_acknowledgement: e.target.checked })} />
+              Requires acknowledgement
+            </label>
             {existing && existing.status === 'published' && (
               <label className="flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs text-amber-900">
                 <input type="checkbox" checked={bumpVersion} onChange={e => setBumpVersion(e.target.checked)} />
@@ -309,7 +308,7 @@ function PolicyModal({
               </label>
             )}
           </ModalBody>
-          <ModalFooter className="border-0 px-4 py-2.5">
+          <ModalFooter className="border-t border-border px-4 py-2.5">
             <button type="button" onClick={onClose} className="btn-cancel h-8 rounded-md border border-border px-3 text-sm">Cancel</button>
             <button type="submit" disabled={create.isPending || update.isPending}
               className="h-8 rounded-md bg-primary px-3 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-50">

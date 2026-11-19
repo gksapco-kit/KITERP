@@ -114,23 +114,36 @@ function AttendanceModal({
   }
 
   const isPending = mark.isPending || update.isPending
+  const fieldInput =
+    'h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring'
+  const fieldLabel = 'mb-0.5 block text-[11px] font-medium text-muted-foreground'
 
   return (
     <div data-kiterp-modal className={dialogOverlayClass} onClick={onModalBackdropClick(onClose)}>
-      <div className={cn(dialogPanelClass, 'max-w-lg')} onClick={e => e.stopPropagation()}>
-        <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b">
-          <h2 className="text-base font-semibold text-gray-900">{isEdit ? 'Edit Attendance Record' : 'Mark Attendance'}</h2>
-          <button type="button" aria-label="Close" onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+      <div
+        className={cn(dialogPanelClass, isEdit ? 'max-w-lg' : 'max-w-md max-h-none')}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex shrink-0 items-center justify-between border-b px-4 py-2.5">
+          <h2 className="text-base font-semibold text-foreground">{isEdit ? 'Edit Attendance Record' : 'Mark Attendance'}</h2>
+          <button type="button" aria-label="Close" onClick={onClose} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground">
+            <X className="h-4 w-4" />
+          </button>
         </div>
-        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain space-y-4 p-6">
+        <form onSubmit={handleSubmit} className="flex flex-col">
+          <div
+            className={cn(
+              'space-y-2.5 px-4 py-3',
+              isEdit && 'min-h-0 max-h-[min(70dvh,28rem)] overflow-y-auto overscroll-contain',
+            )}
+          >
           {!isEdit && (
             <div>
-              <Label className="block text-xs font-medium text-gray-600 mb-1" required>Employee</Label>
+              <Label className={fieldLabel} required>Employee</Label>
               <Select
                 value={form.employee_id}
                 onChange={v => set('employee_id', v)}
-                className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary outline-none"
+                className={fieldInput}
                 options={[
                   { value: '', label: '— Select Employee —' },
                   ...employees.map(e => ({
@@ -142,58 +155,58 @@ function AttendanceModal({
             </div>
           )}
           {isEdit && (
-            <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-700">
+            <div className="rounded-md border border-border bg-muted/40 px-2.5 py-1.5 text-sm text-foreground">
               <span className="font-medium">{(record?.employee as any)?.vendor_user?.user?.full_name ?? (record?.employee as any)?.employee_code ?? '—'}</span>
-              <span className="text-gray-400 ml-2">· {record?.date}</span>
+              <span className="ml-2 text-muted-foreground">· {record?.date}</span>
             </div>
           )}
-          <div className="grid grid-cols-2 gap-3">
+          <div className={cn('grid gap-2', !isEdit ? 'grid-cols-2' : 'grid-cols-1')}>
             {!isEdit && (
               <div>
-                <Label className="block text-xs font-medium text-gray-600 mb-1">Date</Label>
-                <input type="date" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.date} onChange={e => set('date', e.target.value)} />
+                <Label className={fieldLabel}>Date</Label>
+                <input type="date" className={fieldInput} value={form.date} onChange={e => set('date', e.target.value)} />
               </div>
             )}
-            <div className={isEdit ? 'col-span-2' : ''}>
-              <Label className="block text-xs font-medium text-gray-600 mb-1">Status</Label>
+            <div>
+              <Label className={fieldLabel}>Status</Label>
               <Select
                 value={form.status}
                 onChange={v => set('status', v)}
-                className="w-full border rounded-lg px-3 py-2 text-sm"
+                className={fieldInput}
                 options={STATUS_OPTS.map(s => ({ value: s, label: STATUS_CONFIG[s]?.label ?? s }))}
               />
             </div>
           </div>
           {isEdit && (
             <>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <Label className="block text-xs font-medium text-gray-600 mb-1">Clock In</Label>
-                  <input type="time" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.clock_in} onChange={e => set('clock_in', e.target.value)} />
+                  <Label className={fieldLabel}>Clock In</Label>
+                  <input type="time" className={fieldInput} value={form.clock_in} onChange={e => set('clock_in', e.target.value)} />
                 </div>
                 <div>
-                  <Label className="block text-xs font-medium text-gray-600 mb-1">Clock Out</Label>
-                  <input type="time" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.clock_out} onChange={e => set('clock_out', e.target.value)} />
+                  <Label className={fieldLabel}>Clock Out</Label>
+                  <input type="time" className={fieldInput} value={form.clock_out} onChange={e => set('clock_out', e.target.value)} />
                 </div>
                 <div>
-                  <Label className="block text-xs font-medium text-gray-600 mb-1">Work Hours</Label>
-                  <input type="number" step="0.5" min="0" max="24" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.work_hours} onChange={e => set('work_hours', e.target.value)} placeholder="e.g. 8.5" />
+                  <Label className={fieldLabel}>Work Hours</Label>
+                  <input type="number" step="0.5" min="0" max="24" className={fieldInput} value={form.work_hours} onChange={e => set('work_hours', e.target.value)} placeholder="e.g. 8.5" />
                 </div>
                 <div>
-                  <Label className="block text-xs font-medium text-gray-600 mb-1">OT Hours</Label>
-                  <input type="number" step="0.5" min="0" className="w-full border rounded-lg px-3 py-2 text-sm" value={form.overtime_hours} onChange={e => set('overtime_hours', e.target.value)} placeholder="e.g. 1.5" />
+                  <Label className={fieldLabel}>OT Hours</Label>
+                  <input type="number" step="0.5" min="0" className={fieldInput} value={form.overtime_hours} onChange={e => set('overtime_hours', e.target.value)} placeholder="e.g. 1.5" />
                 </div>
               </div>
               <div>
-                <Label className="block text-xs font-medium text-gray-600 mb-1">Approval</Label>
-                <div className="flex gap-2">
+                <Label className={fieldLabel}>Approval</Label>
+                <div className="flex gap-1.5">
                   {(['pending', 'approved', 'rejected'] as const).map(s => (
                     <button key={s} type="button" onClick={() => set('approval_status', s)}
-                      className={`flex-1 py-2 rounded-lg border text-xs font-medium transition-all ${form.approval_status === s
-                        ? s === 'approved' ? 'bg-green-600 text-white border-green-600'
-                          : s === 'rejected' ? 'bg-red-600 text-white border-red-600'
-                          : 'bg-amber-500 text-white border-amber-500'
-                        : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                      className={`flex-1 rounded-md border py-1.5 text-[11px] font-medium transition-all ${form.approval_status === s
+                        ? s === 'approved' ? 'border-green-600 bg-green-600 text-white'
+                          : s === 'rejected' ? 'border-red-600 bg-red-600 text-white'
+                          : 'border-amber-500 bg-amber-500 text-white'
+                        : 'border-border text-muted-foreground hover:border-muted-foreground/40'}`}>
                       {s === 'approved' ? '✓ Approve' : s === 'rejected' ? '✕ Reject' : '⏳ Pending'}
                     </button>
                   ))}
@@ -201,21 +214,21 @@ function AttendanceModal({
               </div>
               {form.approval_status === 'rejected' && (
                 <div>
-                  <Label className="block text-xs font-medium text-gray-600 mb-1">Rejection Reason</Label>
-                  <input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.rejection_reason} onChange={e => set('rejection_reason', e.target.value)} placeholder="Reason…" />
+                  <Label className={fieldLabel}>Rejection Reason</Label>
+                  <input className={fieldInput} value={form.rejection_reason} onChange={e => set('rejection_reason', e.target.value)} placeholder="Reason…" />
                 </div>
               )}
             </>
           )}
           <div>
-            <Label className="block text-xs font-medium text-gray-600 mb-1">Notes</Label>
-            <input className="w-full border rounded-lg px-3 py-2 text-sm" value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Optional notes…" />
+            <Label className={fieldLabel}>Notes</Label>
+            <input className={fieldInput} value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Optional notes…" />
           </div>
           </div>
-          <div className="shrink-0 flex justify-end gap-2 px-6 py-4 border-t">
-            <button type="button" onClick={onClose} className="btn-cancel px-4 py-2 text-sm border rounded-lg">Cancel</button>
-            <button type="submit" disabled={isPending} className="flex items-center gap-2 px-4 py-2 text-sm bg-primary text-white rounded-lg disabled:opacity-50 hover:bg-primary/90">
-              <Save className="w-4 h-4" />
+          <div className="flex shrink-0 justify-end gap-2 border-t px-4 py-2.5">
+            <button type="button" onClick={onClose} className="btn-cancel h-8 rounded-md border border-border px-3 text-sm text-muted-foreground">Cancel</button>
+            <button type="submit" disabled={isPending} className="flex h-8 items-center gap-1.5 rounded-md bg-primary px-3 text-sm text-white hover:bg-primary/90 disabled:opacity-50">
+              <Save className="h-3.5 w-3.5" />
               {isPending ? 'Saving…' : isEdit ? 'Save Changes' : 'Mark'}
             </button>
           </div>

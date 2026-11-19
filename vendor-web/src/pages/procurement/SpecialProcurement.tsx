@@ -405,82 +405,112 @@ function CreateSESModal({ onClose, editingSES }: { onClose: () => void; editingS
     }
   }
 
+  const fieldInput = 'h-8 text-sm'
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
-      <Card className="w-full max-w-xl shadow-2xl">
-        <div className="flex items-center justify-between px-6 py-4 border-b">
-          <h2 className="font-semibold flex items-center gap-2">
-            <FileCheck className="w-4 h-4 text-green-600" /> {isEditMode ? `Edit SES — ${editingSES!.ses_number}` : 'New Service Entry Sheet'}
+      <Card className="flex w-full max-w-lg max-h-[min(90dvh,36rem)] flex-col shadow-2xl">
+        <div className="flex shrink-0 items-center justify-between border-b px-4 py-3">
+          <h2 className="flex items-center gap-2 text-base font-semibold">
+            <FileCheck className="h-4 w-4 shrink-0 text-green-600" />
+            {isEditMode ? `Edit SES — ${editingSES!.ses_number}` : 'New Service Entry Sheet'}
           </h2>
-          <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
+            <X className="h-4 w-4" />
+          </Button>
         </div>
-        <CardContent className="p-6 space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <ProcurementSupplierField
-              value={supplierId}
+        <CardContent className="flex-1 space-y-3 overflow-y-auto p-4">
+          <ProcurementSupplierField
+            value={supplierId}
+            onChange={id => {
+              setSupplierId(id)
+              setPoId(prev => {
+                if (!prev) return prev
+                const po = all.find(p => p.id === prev)
+                return po && po.supplier_id === id ? prev : ''
+              })
+            }}
+            label="Supplier"
+            required
+            inline
+            returnTo="procurement/special"
+          />
+          <div className="space-y-0.5">
+            <Label className="text-[11px] text-muted-foreground">Link to PO (optional)</Label>
+            <Select
+              value={poId}
               onChange={id => {
-                setSupplierId(id)
-                setPoId(prev => {
-                  if (!prev) return prev
-                  const po = all.find(p => p.id === prev)
-                  return po && po.supplier_id === id ? prev : ''
-                })
+                setPoId(id)
+                if (id) {
+                  const po = all.find(p => p.id === id)
+                  if (po) setSupplierId(po.supplier_id)
+                }
               }}
-              label="Supplier"
-              required
-              returnTo="procurement/special"
-              className="col-span-2"
+              options={selectOptionsWithBlank('— No PO —', poSelectOptions(pos))}
+              className="h-8 text-sm"
+              searchable
             />
-            <div className="col-span-2">
-              <Label className="text-xs">Link to PO (optional)</Label>
-              <Select
-                value={poId}
-                onChange={id => {
-                  setPoId(id)
-                  if (id) {
-                    const po = all.find(p => p.id === id)
-                    if (po) setSupplierId(po.supplier_id)
-                  }
-                }}
-                options={selectOptionsWithBlank('— No PO —', poSelectOptions(pos))}
-                className="mt-1 text-sm"
-                searchable
+            <PoEmptyHint isLoading={posLoading} isError={posError} hasSupplier={!!supplierId} count={pos.length} />
+          </div>
+          <div className="space-y-0.5">
+            <Label className="text-[11px] text-muted-foreground">Service Description</Label>
+            <Input
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              placeholder="e.g. AMC for HVAC Q1 2026"
+              className={fieldInput}
+            />
+          </div>
+          <div className="grid grid-cols-[1fr_5.5rem] gap-2">
+            <div className="space-y-0.5">
+              <Label className="text-[11px] text-muted-foreground">Total Amount *</Label>
+              <Input
+                type="number"
+                min={0}
+                step={0.01}
+                value={totalAmount}
+                onChange={e => setTotalAmount(e.target.value)}
+                className={fieldInput}
               />
-              <PoEmptyHint isLoading={posLoading} isError={posError} hasSupplier={!!supplierId} count={pos.length} />
             </div>
-            <div className="col-span-2">
-              <Label className="text-xs">Service Description</Label>
-              <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="e.g. AMC for HVAC Q1 2026" className="mt-1" />
-            </div>
-            <div>
-              <Label className="text-xs">Total Amount *</Label>
-              <Input type="number" min={0} step={0.01} value={totalAmount} onChange={e => setTotalAmount(e.target.value)} className="mt-1" />
-            </div>
-            <div>
-              <Label className="text-xs">Currency</Label>
-              <Input value={currency} onChange={e => setCurrency(e.target.value.toUpperCase())} maxLength={3} className="mt-1" />
-            </div>
-            <div>
-              <Label className="text-xs">Service Period From</Label>
-              <Input type="date" value={periodFrom} onChange={e => setPeriodFrom(e.target.value)} className="mt-1" />
-            </div>
-            <div>
-              <Label className="text-xs">Service Period To</Label>
-              <Input type="date" value={periodTo} onChange={e => setPeriodTo(e.target.value)} className="mt-1" />
-            </div>
-            <div className="col-span-2">
-              <Label className="text-xs">Notes</Label>
-              <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Additional notes" className="mt-1" />
+            <div className="space-y-0.5">
+              <Label className="text-[11px] text-muted-foreground">Currency</Label>
+              <Input
+                value={currency}
+                onChange={e => setCurrency(e.target.value.toUpperCase())}
+                maxLength={3}
+                className={`${fieldInput} text-center uppercase tracking-wide`}
+              />
             </div>
           </div>
-          <div className="flex justify-end gap-2 pt-2 border-t">
-            <Button variant="outline" onClick={onClose}>Cancel</Button>
-            <Button onClick={handleSave} disabled={isEditMode ? update.isPending : create.isPending} className="gap-2">
-              {(isEditMode ? update.isPending : create.isPending) && <Loader2 className="w-4 h-4 animate-spin" />}
-              {isEditMode ? 'Save Changes' : 'Create SES'}
-            </Button>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-0.5">
+              <Label className="text-[11px] text-muted-foreground">Service Period From</Label>
+              <Input type="date" value={periodFrom} onChange={e => setPeriodFrom(e.target.value)} className={fieldInput} />
+            </div>
+            <div className="space-y-0.5">
+              <Label className="text-[11px] text-muted-foreground">Service Period To</Label>
+              <Input type="date" value={periodTo} onChange={e => setPeriodTo(e.target.value)} className={fieldInput} />
+            </div>
+          </div>
+          <div className="space-y-0.5">
+            <Label className="text-[11px] text-muted-foreground">Notes</Label>
+            <Textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder="Additional notes"
+              rows={2}
+              className="min-h-0 resize-none py-1.5 text-sm"
+            />
           </div>
         </CardContent>
+        <div className="flex shrink-0 justify-end gap-2 border-t px-4 py-3">
+          <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
+          <Button size="sm" onClick={handleSave} disabled={isEditMode ? update.isPending : create.isPending} className="gap-1.5">
+            {(isEditMode ? update.isPending : create.isPending) && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            {isEditMode ? 'Save Changes' : 'Create SES'}
+          </Button>
+        </div>
       </Card>
     </div>
   )

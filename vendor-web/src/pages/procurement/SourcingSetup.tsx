@@ -101,71 +101,85 @@ function InfoRecordForm({
 
   const busy = create.isPending || update.isPending
 
+  const fieldInput = 'h-8 text-sm'
+  const fieldLabel = 'text-[11px] text-muted-foreground'
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
-      <Card className="w-full max-w-lg shadow-2xl">
-        <div className="flex items-center justify-between px-6 py-4 border-b">
-          <h2 className="font-semibold">{initial ? 'Edit Info Record' : 'New Purchasing Info Record'}</h2>
-          <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
+      <Card className="flex w-full max-w-md shrink-0 flex-col shadow-2xl">
+        <div className="flex shrink-0 items-center justify-between border-b px-4 py-2.5">
+          <h2 className="text-base font-semibold">{initial ? 'Edit Info Record' : 'New Purchasing Info Record'}</h2>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
+            <X className="h-4 w-4" />
+          </Button>
         </div>
-        <CardContent className="p-6 space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <ProcurementSupplierField
-              value={supplierId}
-              onChange={setSupplierId}
-              label="Supplier"
-              required
-              returnTo="procurement/sourcing"
-              className="col-span-2"
-            />
-            <ProcurementProductField
-              value={productId}
-              onChange={setProductId}
-              label="Product"
-              required
-              className="col-span-2"
-            />
-            <div>
-              <Label className="text-xs">Price *</Label>
-              <Input type="number" min={0} step={0.01} value={price} onChange={e => setPrice(e.target.value)} className="mt-1" />
+        <CardContent className="space-y-2 p-4 pt-3">
+          <ProcurementSupplierField
+            value={supplierId}
+            onChange={setSupplierId}
+            label="Supplier"
+            required
+            inline
+            returnTo="procurement/sourcing"
+          />
+          <ProcurementProductField
+            value={productId}
+            onChange={setProductId}
+            label="Product"
+            required
+            inline
+          />
+          <div className="grid grid-cols-[minmax(0,1fr)_5.5rem] gap-2">
+            <div className="space-y-0.5">
+              <Label className={fieldLabel}>Price *</Label>
+              <Input type="number" min={0} step={0.01} value={price} onChange={e => setPrice(e.target.value)} className={fieldInput} />
             </div>
-            <div>
-              <Label className="text-xs">Currency</Label>
-              <Input value={currency} onChange={e => setCurrency(e.target.value.toUpperCase())} maxLength={3} className="mt-1" />
-            </div>
-            <div>
-              <Label className="text-xs">Min Order Qty</Label>
-              <Input type="number" min={0} step={0.001} value={minQty} onChange={e => setMinQty(e.target.value)} className="mt-1" />
-            </div>
-            <div>
-              <Label className="text-xs">Lead Time (days)</Label>
-              <Input type="number" min={0} value={leadTime} onChange={e => setLeadTime(e.target.value)} className="mt-1" />
-            </div>
-            <div>
-              <Label className="text-xs">Valid From</Label>
-              <Input type="date" value={validFrom} onChange={e => setValidFrom(e.target.value)} className="mt-1" />
-            </div>
-            <div>
-              <Label className="text-xs">Valid To</Label>
-              <Input type="date" value={validTo} onChange={e => setValidTo(e.target.value)} className="mt-1" />
-            </div>
-            <div className="col-span-2">
-              <Label className="text-xs">Notes</Label>
-              <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional notes" className="mt-1" />
-            </div>
-            <div className="col-span-2 flex items-center gap-2">
-              <input type="checkbox" id="pir-active" checked={isActive} onChange={e => setIsActive(e.target.checked)} />
-              <label htmlFor="pir-active" className="text-sm">Active</label>
+            <div className="space-y-0.5">
+              <Label className={fieldLabel}>Currency</Label>
+              <Input
+                value={currency}
+                onChange={e => setCurrency(e.target.value.toUpperCase())}
+                maxLength={3}
+                className={`${fieldInput} text-center uppercase tracking-wide`}
+              />
             </div>
           </div>
-          <div className="flex justify-end gap-2 pt-2 border-t">
-            <Button variant="outline" onClick={onClose}>Cancel</Button>
-            <Button onClick={handleSave} disabled={busy} className="gap-2">
-              {busy && <Loader2 className="w-4 h-4 animate-spin" />}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-0.5">
+              <Label className={fieldLabel}>Min Order Qty</Label>
+              <Input type="number" min={0} step={0.001} value={minQty} onChange={e => setMinQty(e.target.value)} className={fieldInput} />
+            </div>
+            <div className="space-y-0.5">
+              <Label className={fieldLabel}>Lead Time (days)</Label>
+              <Input type="number" min={0} value={leadTime} onChange={e => setLeadTime(e.target.value)} className={fieldInput} />
+            </div>
+            <div className="space-y-0.5">
+              <Label className={fieldLabel}>Valid From</Label>
+              <Input type="date" value={validFrom} onChange={e => setValidFrom(e.target.value)} className={fieldInput} />
+            </div>
+            <div className="space-y-0.5">
+              <Label className={fieldLabel}>Valid To</Label>
+              <Input type="date" value={validTo} onChange={e => setValidTo(e.target.value)} className={fieldInput} />
+            </div>
+          </div>
+          <div className="space-y-0.5">
+            <Label className={fieldLabel}>Notes</Label>
+            <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional notes" className={fieldInput} />
+          </div>
+        </CardContent>
+        <div className="flex shrink-0 items-center justify-between gap-3 border-t px-4 py-2">
+          <label htmlFor="pir-active" className="flex cursor-pointer items-center gap-1.5 text-sm text-muted-foreground">
+            <input type="checkbox" id="pir-active" checked={isActive} onChange={e => setIsActive(e.target.checked)} className="h-3.5 w-3.5" />
+            Active
+          </label>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
+            <Button size="sm" onClick={handleSave} disabled={busy} className="gap-1.5">
+              {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               {initial ? 'Save Changes' : 'Create Record'}
             </Button>
           </div>
-        </CardContent>
+        </div>
       </Card>
     </div>
   )

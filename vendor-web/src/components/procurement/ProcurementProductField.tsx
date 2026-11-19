@@ -8,6 +8,8 @@ interface Props {
   label?: string
   required?: boolean
   className?: string
+  /** Compact label + control spacing for dense modals */
+  inline?: boolean
 }
 
 export function ProcurementProductField({
@@ -16,27 +18,31 @@ export function ProcurementProductField({
   label = 'Product',
   required = false,
   className,
+  inline = false,
 }: Props) {
   const { data: productsData, isLoading } = useProducts({ size: 500, status: 'active' })
   const products = productsData?.items ?? []
+  const labelClass = inline ? 'text-[11px] text-muted-foreground' : 'text-xs'
 
   return (
     <div className={className}>
-      <Label className="text-xs">{label}{required ? ' *' : ''}</Label>
-      <Select
-        value={value}
-        onChange={onChange}
-        options={selectOptionsWithBlank(
-          'Select product…',
-          products.map(p => ({ value: p.id, label: p.name })),
-        )}
-        placeholder={isLoading ? 'Loading products…' : 'Select product…'}
-        disabled={isLoading}
-        className="mt-1"
-        aria-label={label}
-      />
+      <div className={inline ? 'space-y-0.5' : undefined}>
+        <Label className={labelClass}>{label}{required ? ' *' : ''}</Label>
+        <Select
+          value={value}
+          onChange={onChange}
+          options={selectOptionsWithBlank(
+            'Select product…',
+            products.map(p => ({ value: p.id, label: p.name })),
+          )}
+          placeholder={isLoading ? 'Loading products…' : 'Select product…'}
+          disabled={isLoading}
+          className={inline ? 'h-8 text-sm' : 'mt-1'}
+          aria-label={label}
+        />
+      </div>
       {!isLoading && products.length === 0 && (
-        <p className="text-xs text-amber-600 mt-1">No active products — add products under Inventory first.</p>
+        <p className={`text-xs text-amber-600 ${inline ? 'mt-0.5' : 'mt-1'}`}>No active products — add products under Inventory first.</p>
       )}
     </div>
   )

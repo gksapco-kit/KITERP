@@ -1,7 +1,7 @@
 import { onModalBackdropClick, cn } from '@/lib/utils'
 import { dialogOverlayClass, dialogPanelClass } from '@/lib/modalUi'
 import { Button } from '@/components/ui/button'
-import { hrInputClass, hrTabActiveClass, hrTabInactiveClass, hrTableHeadClass, hrStatusBadge, hrEmptyStateClass, hrCardClass } from '../hrFormUi'
+import { hrInputClass, hrSelectClass, hrTabActiveClass, hrTabInactiveClass, hrTableHeadClass, hrStatusBadge, hrEmptyStateClass, hrCardClass } from '../hrFormUi'
 import { InlineFieldLabel } from '@/components/common/InlineFieldLabel'
 import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
@@ -216,42 +216,49 @@ function ProgramModal({
     }
   }
 
+  const denseInput = cn(hrInputClass, 'h-8 px-2.5 py-1.5')
+  const denseSelect = cn(hrSelectClass, 'h-8 py-1 text-sm')
+
   return (
     <div data-kiterp-modal className={dialogOverlayClass} onClick={onModalBackdropClick(onClose)}>
-      <div className={cn(dialogPanelClass, 'max-w-lg')}>
-        <div className="shrink-0 flex items-center justify-between border-b border-border p-4">
-          <h2 className="text-lg font-bold text-foreground">{program ? 'Edit Program' : 'New Program'}</h2>
-          <button type="button" aria-label="Close" onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="h-5 w-5" /></button>
+      <div className={cn(dialogPanelClass, 'max-w-md max-h-none')}>
+        <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-2.5">
+          <h2 className="text-base font-semibold text-foreground">{program ? 'Edit Program' : 'New Program'}</h2>
+          <button type="button" aria-label="Close" onClick={onClose} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground">
+            <X className="h-4 w-4" />
+          </button>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain space-y-3 p-4">
-          <Field label="Name *">
-            <input className={hrInputClass} value={form.name}
+        <div className="space-y-2 px-4 py-3">
+          <Field label="Name *" compact>
+            <input className={denseInput} value={form.name}
               onChange={e => setForm({ ...form, name: e.target.value })} />
           </Field>
-          <Field label="Description">
-            <textarea className={cn(hrInputClass, 'min-h-[5rem] resize-y')} rows={3} value={form.description}
-              onChange={e => setForm({ ...form, description: e.target.value })} />
+          <Field label="Description" compact>
+            <textarea
+              className={cn(denseInput, 'min-h-0 resize-none')}
+              rows={2}
+              value={form.description}
+              onChange={e => setForm({ ...form, description: e.target.value })}
+            />
           </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Category">
-              <input className={hrInputClass} value={form.category}
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="Category" compact>
+              <input className={denseInput} value={form.category}
                 onChange={e => setForm({ ...form, category: e.target.value })} placeholder="e.g. Compliance" />
             </Field>
-            <Field label="Estimated hours">
-              <input type="number" step="0.5" className={hrInputClass}
+            <Field label="Estimated hours" compact>
+              <input type="number" step="0.5" className={denseInput}
                 value={form.estimated_hours} onChange={e => setForm({ ...form, estimated_hours: e.target.value })} />
             </Field>
           </div>
-          <Field label="Cover image">
-            <div className="space-y-2">
+          <Field label="Cover image" compact>
+            <div className="space-y-1.5">
               <ImageSourcePicker
                 title="Cover image"
                 accept="image/jpeg,image/png,image/webp,image/gif"
                 uploading={coverUploading}
                 onFile={uploadCoverFile}
                 onUrl={async (url) => {
-                  // Fallback when a gallery/remote URL can't be fetched as a File:
-                  // only accept short http(s) links; never store base64.
                   const next = sanitizeStoredMediaUrl(url)
                   if (next && /^https?:\/\//i.test(next)) {
                     setForm(f => ({ ...f, cover_image_url: next }))
@@ -260,19 +267,19 @@ function ProgramModal({
                   throw new Error('Could not use that image. Pick a device or gallery file to upload.')
                 }}
                 buttonLabel="Upload / choose image"
-                buttonClassName="w-full"
+                buttonClassName="h-8 w-full text-sm"
               />
               {form.cover_image_url ? (
                 <div className="relative">
                   <img
                     src={form.cover_image_url}
                     alt="Cover preview"
-                    className="h-24 w-full rounded-md border border-border object-cover"
+                    className="h-16 w-full rounded-md border border-border object-cover"
                     onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
                   />
                   <button
                     type="button"
-                    className="absolute right-2 top-2 rounded bg-background/90 px-2 py-0.5 text-xs text-muted-foreground hover:text-destructive"
+                    className="absolute right-1.5 top-1.5 rounded bg-background/90 px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-destructive"
                     onClick={() => setForm(f => ({ ...f, cover_image_url: '' }))}
                   >
                     Remove
@@ -281,13 +288,13 @@ function ProgramModal({
               ) : null}
             </div>
           </Field>
-          <Field label="Video link">
-            <input className={hrInputClass} value={form.video_url}
+          <Field label="Video link" compact>
+            <input className={denseInput} value={form.video_url}
               onChange={e => setForm({ ...form, video_url: e.target.value })}
               placeholder="https://… or YouTube / Vimeo URL" />
           </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Audience">
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="Audience" compact>
               <Select
                 value={form.target_audience}
                 onChange={(v) => setForm({ ...form, target_audience: v })}
@@ -298,10 +305,10 @@ function ProgramModal({
                   { value: 'store', label: 'By store' },
                 ]}
                 aria-label="Audience"
-                className="w-full"
+                className={denseSelect}
               />
             </Field>
-            <Field label="Status">
+            <Field label="Status" compact>
               <Select
                 value={form.status}
                 onChange={(v) => setForm({ ...form, status: v as TrainingProgram['status'] })}
@@ -311,26 +318,26 @@ function ProgramModal({
                   { value: 'archived', label: 'Archived' },
                 ]}
                 aria-label="Status"
-                className="w-full"
+                className={denseSelect}
               />
             </Field>
           </div>
-          <div className="flex flex-col gap-2">
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={form.is_mandatory}
+          <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-foreground">
+            <label className="flex cursor-pointer items-center gap-1.5">
+              <input type="checkbox" className="h-3.5 w-3.5 rounded" checked={form.is_mandatory}
                 onChange={e => setForm({ ...form, is_mandatory: e.target.checked })} />
               Mandatory training
             </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={form.issues_certificate}
+            <label className="flex cursor-pointer items-center gap-1.5">
+              <input type="checkbox" className="h-3.5 w-3.5 rounded" checked={form.issues_certificate}
                 onChange={e => setForm({ ...form, issues_certificate: e.target.checked })} />
               Issue certificate on completion
             </label>
           </div>
         </div>
-        <div className="shrink-0 flex justify-end gap-2 border-t border-border p-4">
-          <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-          <Button type="button" onClick={submit} disabled={!form.name.trim() || create.isPending || update.isPending}>
+        <div className="flex shrink-0 justify-end gap-2 border-t border-border px-4 py-2.5">
+          <Button type="button" variant="outline" size="sm" className="h-8" onClick={onClose}>Cancel</Button>
+          <Button type="button" size="sm" className="h-8" onClick={submit} disabled={!form.name.trim() || create.isPending || update.isPending}>
             {program ? 'Save' : 'Create'}
           </Button>
         </div>
@@ -639,10 +646,13 @@ function EnrollModal({
   )
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children, compact }: { label: string; children: React.ReactNode; compact?: boolean }) {
   return (
-    <div>
-      <InlineFieldLabel label={label} className="mb-1 block text-xs font-medium text-muted-foreground" />
+    <div className={compact ? 'space-y-0.5' : undefined}>
+      <InlineFieldLabel
+        label={label}
+        className={compact ? 'mb-0.5 block text-[11px] font-medium text-muted-foreground' : 'mb-1 block text-xs font-medium text-muted-foreground'}
+      />
       {children}
     </div>
   )

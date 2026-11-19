@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input'
 import { Select, selectOptionsWithBlank } from '@/components/ui/select'
 import { askConfirm } from '@/components/common/ConfirmProvider'
 import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
+import { cn } from '@/lib/utils'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -405,7 +406,7 @@ export default function CostCenters() {
       {/* ── Cost Center dialog ── */}
       {ccDialog.open && (
         <ModalOverlay onClose={() => setCcDialog({ open: false })} className="z-[100] bg-black/60 p-3">
-          <ModalPanel className="max-w-lg max-h-[calc(100dvh-1.5rem)] !rounded-lg overflow-hidden">
+          <ModalPanel className="max-w-md max-h-none !rounded-lg overflow-hidden">
             <ModalHeader
               title={
                 <div className="min-w-0">
@@ -443,38 +444,42 @@ export default function CostCenters() {
               ))}
             </div>
 
-            <ModalBody className="overflow-y-auto px-0 pt-1">
+            <ModalBody
+              className={cn(
+                'px-0 pt-0.5',
+                dialogTab === 'details' && !ccDialog.editing
+                  ? 'flex-none overflow-visible'
+                  : 'overflow-y-auto',
+              )}
+            >
 
               {/* ── Details tab ── */}
               {dialogTab === 'details' && (
-                <div className="px-6 py-5 space-y-5">
+                <div className="space-y-2.5 px-4 py-3">
 
-                  {/* Cost Center Code + Group — side by side */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-medium text-foreground mb-1.5 uppercase tracking-wide">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-0.5">
+                      <label className="text-[11px] text-muted-foreground">
                         Cost Center Code <span className="text-red-400">*</span>
                       </label>
                       <div className="relative">
-                        <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                        <Hash className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                         <input
                           value={ccForm.code}
                           onChange={e => setCcForm(f => ({ ...f, code: e.target.value.toUpperCase() }))}
                           maxLength={20}
                           placeholder="e.g. OPS-01"
-                          className={`w-full h-10 pl-8 pr-3 text-sm rounded-lg font-mono ${fieldInput}`}
+                          className={`h-8 w-full rounded-lg pl-7 pr-2.5 font-mono text-sm ${fieldInput}`}
                         />
                       </div>
                     </div>
-                    <div>
-                      <label className="block text-xs font-medium text-foreground mb-1.5 uppercase tracking-wide">
-                        Department Group
-                      </label>
+                    <div className="space-y-0.5">
+                      <label className="text-[11px] text-muted-foreground">Department Group</label>
                       <Select
                         value={ccForm.cc_group}
                         onChange={v => setCcForm(f => ({ ...f, cc_group: v }))}
                         placeholder="— No group —"
-                        className={`w-full h-10 text-sm rounded-lg ${fieldSelect}`}
+                        className={`h-8 w-full rounded-lg text-sm ${fieldSelect}`}
                         options={selectOptionsWithBlank(
                           '— No group —',
                           CC_GROUPS.map(g => ({ value: g, label: g })),
@@ -483,51 +488,44 @@ export default function CostCenters() {
                     </div>
                   </div>
 
-                  {/* Name */}
-                  <div>
-                    <label className="block text-xs font-medium text-foreground mb-1.5 uppercase tracking-wide">
+                  <div className="space-y-0.5">
+                    <label className="text-[11px] text-muted-foreground">
                       Name <span className="text-red-400">*</span>
                     </label>
                     <input
                       value={ccForm.name}
                       onChange={e => setCcForm(f => ({ ...f, name: e.target.value }))}
                       placeholder="e.g. Operations — North Region"
-                      className={`w-full h-10 px-3 text-sm rounded-lg ${fieldInput}`}
+                      className={`h-8 w-full rounded-lg px-2.5 text-sm ${fieldInput}`}
                     />
                   </div>
 
-                  {/* Description */}
-                  <div>
-                    <label className="block text-xs font-medium text-foreground mb-1.5 uppercase tracking-wide">
-                      Description
-                    </label>
-                    <textarea
+                  <div className="space-y-0.5">
+                    <label className="text-[11px] text-muted-foreground">Description</label>
+                    <input
                       value={ccForm.description}
                       onChange={e => setCcForm(f => ({ ...f, description: e.target.value }))}
-                      rows={3}
-                      placeholder="Optional — purpose, scope, or responsible team…"
-                      className={`w-full px-3 py-2.5 text-sm rounded-lg resize-none ${fieldInput}`}
+                      placeholder="Optional — purpose, scope, or team…"
+                      className={`h-8 w-full rounded-lg px-2.5 text-sm ${fieldInput}`}
                     />
                   </div>
 
-                  {/* Business unit — optional */}
-                  <div>
-                    <label className="block text-xs font-medium text-foreground mb-1.5 uppercase tracking-wide flex items-center gap-1.5">
-                      Business Unit
-                      <span className="text-xs font-normal text-muted-foreground normal-case tracking-normal">(optional)</span>
+                  <div className="space-y-0.5">
+                    <label className="text-[11px] text-muted-foreground">
+                      Business Unit <span className="font-normal">(optional)</span>
                     </label>
                     <Select
                       value={ccForm.company_id}
                       onChange={v => setCcForm(f => ({ ...f, company_id: v }))}
                       placeholder="— Auto (uses default company) —"
-                      className={`w-full h-10 text-sm rounded-lg ${fieldSelect}`}
+                      className={`h-8 w-full rounded-lg text-sm ${fieldSelect}`}
                       options={selectOptionsWithBlank(
                         '— Auto (uses default company) —',
                         companies.map(co => ({ value: co.id, label: `${co.code} — ${co.name}` })),
                       )}
                     />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Leave blank to automatically use the default business unit.
+                    <p className="text-[10px] leading-tight text-muted-foreground">
+                      Leave blank to use the default business unit.
                     </p>
                   </div>
                 </div>

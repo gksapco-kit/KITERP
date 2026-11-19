@@ -524,61 +524,80 @@ function CreateInvoiceModal({ onClose, copyFrom, editingInvoice }: { onClose: ()
     }
   }
 
+  const fieldInput = 'h-8 text-sm'
+  const fieldLabel = 'text-[11px] text-muted-foreground'
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
-      <Card className="flex max-h-[90vh] w-[min(96vw,90rem)] flex-col overflow-y-auto shadow-2xl">
-        <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white dark:bg-gray-900 z-10">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Banknote className="w-5 h-5 text-amber-600" /> {isEditMode ? `Edit Invoice — ${editingInvoice!.invoice_number}` : copiedFromNumber ? `Copy of ${copiedFromNumber}` : 'New Vendor Invoice (AP)'}
+    <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/40 p-4">
+      <Card className="flex w-[min(96vw,52rem)] shrink-0 flex-col shadow-2xl">
+        <div className="flex shrink-0 items-center justify-between border-b bg-card px-4 py-2.5">
+          <h2 className="flex items-center gap-2 text-base font-semibold">
+            <Banknote className="h-4 w-4 shrink-0 text-amber-600" />
+            {isEditMode ? `Edit Invoice — ${editingInvoice!.invoice_number}` : copiedFromNumber ? `Copy of ${copiedFromNumber}` : 'New Vendor Invoice (AP)'}
           </h2>
-          <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
+            <X className="h-4 w-4" />
+          </Button>
         </div>
-        <CardContent className="p-6 space-y-5">
-          <div className="grid grid-cols-3 gap-4">
+        <CardContent className="space-y-2.5 p-4 pt-4">
+          <div className="grid grid-cols-[minmax(0,1fr)_5.5rem] gap-2">
             <ProcurementSupplierField
               value={supplierId}
               onChange={setSupplierId}
               label="Supplier"
               required
+              inline
               returnTo="procurement/vendor-invoices"
-              className="col-span-2"
             />
-            <div>
-              <Label className="text-xs">Currency</Label>
-              <Input value={currency} onChange={e => setCurrency(e.target.value.toUpperCase())} maxLength={3} className="mt-1" />
-            </div>
-            <div>
-              <Label className="text-xs">Invoice Number *</Label>
-              <Input value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} placeholder="e.g. INV-2026-001" className="mt-1" />
-            </div>
-            <div>
-              <Label className="text-xs">Invoice Date *</Label>
-              <Input type="date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} className="mt-1" />
-            </div>
-            <div>
-              <Label className="text-xs">Due Date</Label>
-              <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="mt-1" />
-            </div>
-            <div className="col-span-3">
-              <Label className="text-xs">Link to Purchase Order (optional)</Label>
-              <Select
-                value={poId}
-                onChange={setPoId}
-                options={selectOptionsWithBlank(
-                  '— No PO link —',
-                  pos.map((p: { id: string; po_number: string; supplier_name?: string }) => ({
-                    value: p.id,
-                    label: `${p.po_number} — ${p.supplier_name ?? ''}`,
-                  })),
-                )}
-                className="mt-1 text-sm"
+            <div className="space-y-0.5">
+              <Label className={fieldLabel}>Currency</Label>
+              <Input
+                value={currency}
+                onChange={e => setCurrency(e.target.value.toUpperCase())}
+                maxLength={3}
+                className={`${fieldInput} text-center uppercase tracking-wide`}
               />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <div className="space-y-0.5">
+              <Label className={fieldLabel}>Invoice Number *</Label>
+              <Input
+                value={invoiceNumber}
+                onChange={e => setInvoiceNumber(e.target.value)}
+                placeholder="e.g. INV-2026-001"
+                className={fieldInput}
+              />
+            </div>
+            <div className="space-y-0.5">
+              <Label className={fieldLabel}>Invoice Date *</Label>
+              <Input type="date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} className={fieldInput} />
+            </div>
+            <div className="space-y-0.5">
+              <Label className={fieldLabel}>Due Date</Label>
+              <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className={fieldInput} />
+            </div>
+          </div>
+          <div className="space-y-0.5">
+            <Label className={fieldLabel}>Link to Purchase Order (optional)</Label>
+            <Select
+              value={poId}
+              onChange={setPoId}
+              options={selectOptionsWithBlank(
+                '— No PO link —',
+                pos.map((p: { id: string; po_number: string; supplier_name?: string }) => ({
+                  value: p.id,
+                  label: `${p.po_number} — ${p.supplier_name ?? ''}`,
+                })),
+              )}
+              className="h-8 text-sm"
+            />
               {/* PO / PR reference strip — shown once a PO is selected */}
               {poId && (() => {
                 const selectedPo = pos.find((p: { id: string; po_number: string; supplier_name?: string; pr_number?: string | null; requisition_id?: string | null }) => p.id === poId)
                 if (!selectedPo) return null
                 return (
-                  <div className="mt-2 flex flex-wrap items-center gap-3 text-xs px-3 py-2 bg-blue-50 dark:bg-blue-950/30 rounded-md border border-blue-200 dark:border-blue-800">
+                  <div className="mt-1.5 flex flex-wrap items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs dark:border-blue-800 dark:bg-blue-950/30">
                     <span className="text-gray-500">Links:</span>
                     <button
                       type="button"
@@ -602,34 +621,41 @@ function CreateInvoiceModal({ onClose, copyFrom, editingInvoice }: { onClose: ()
                   </div>
                 )
               })()}
-            </div>
           </div>
 
           {/* Line items */}
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="font-medium text-sm">Invoice Lines</h3>
-              <Button variant="outline" size="sm" onClick={() => setLines(prev => [...prev, emptyLine()])} className="gap-1.5 h-7 text-xs">
-                <Plus className="w-3 h-3" /> Add Line
+            <div className="mb-1.5 flex items-center justify-between">
+              <h3 className="text-sm font-medium">Invoice Lines</h3>
+              <Button variant="outline" size="sm" onClick={() => setLines(prev => [...prev, emptyLine()])} className="h-7 gap-1 text-xs">
+                <Plus className="h-3 w-3" /> Add Line
               </Button>
             </div>
-            <div className="overflow-x-auto border rounded-lg">
-              <table className="w-full text-sm">
+            <div
+              className={`overflow-x-auto rounded-lg border ${lines.length > 5 ? 'max-h-52 overflow-y-auto' : ''}`}
+            >
+              <table className="w-full table-fixed text-sm">
                 <thead className="bg-gray-50 dark:bg-gray-800">
                   <tr>
-                    {['Description *', 'Qty', 'UoM', 'Unit Price', 'Tax Code', 'Line Total', ''].map(h => (
-                      <th key={h} className="px-2 py-2 text-left text-xs font-medium text-gray-500 whitespace-nowrap">{h}</th>
+                    {['Description *', 'Qty', 'UoM', 'Unit Price', 'Tax Code', 'Line Total', ''].map((h, col) => (
+                      <th
+                        key={h}
+                        className="whitespace-nowrap px-1.5 py-1.5 text-left text-[11px] font-medium text-gray-500"
+                        style={{ width: col === 0 ? '28%' : col === 6 ? '2rem' : undefined }}
+                      >
+                        {h}
+                      </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {lines.map((l, i) => (
                     <tr key={i} className="border-t">
-                      <td className="px-2 py-1.5"><Input value={l.description} onChange={e => updateLine(i, 'description', e.target.value)} className="h-7 text-xs w-40" /></td>
-                      <td className="px-2 py-1.5"><Input type="number" min={0} value={l.qty} onChange={e => updateLine(i, 'qty', Number(e.target.value))} className="h-7 text-xs w-16" /></td>
-                      <td className="px-2 py-1.5"><Input value={l.uom} onChange={e => updateLine(i, 'uom', e.target.value)} className="h-7 text-xs w-14" /></td>
-                      <td className="px-2 py-1.5"><Input type="number" min={0} value={l.unit_price} onChange={e => updateLine(i, 'unit_price', Number(e.target.value))} className="h-7 text-xs w-24" /></td>
-                      <td className="px-2 py-1.5 min-w-[160px]">
+                      <td className="px-1.5 py-1"><Input value={l.description} onChange={e => updateLine(i, 'description', e.target.value)} className="h-7 w-full min-w-0 text-xs" /></td>
+                      <td className="px-1.5 py-1"><Input type="number" min={0} value={l.qty} onChange={e => updateLine(i, 'qty', Number(e.target.value))} className="h-7 w-full min-w-0 text-xs" /></td>
+                      <td className="px-1.5 py-1"><Input value={l.uom} onChange={e => updateLine(i, 'uom', e.target.value)} className="h-7 w-full min-w-0 text-xs" /></td>
+                      <td className="px-1.5 py-1"><Input type="number" min={0} value={l.unit_price} onChange={e => updateLine(i, 'unit_price', Number(e.target.value))} className="h-7 w-full min-w-0 text-xs" /></td>
+                      <td className="px-1.5 py-1">
                         <Select
                           value={l.tax_code}
                           onChange={v => updateLine(i, 'tax_code', v)}
@@ -652,8 +678,8 @@ function CreateInvoiceModal({ onClose, copyFrom, editingInvoice }: { onClose: ()
                           triggerClassName={`h-7 text-xs ${taxCodesUnavailable ? 'border-red-300 bg-red-50' : l.tax_code && !taxCodeMap.has(l.tax_code.trim().toUpperCase()) ? 'border-amber-300 bg-amber-50' : ''}`}
                         />
                       </td>
-                      <td className="px-2 py-1.5 font-medium text-xs">{formatCurrency(calcLineTotal(l, taxCodeMap.get((l.tax_code || '').trim().toUpperCase()) ? Number(taxCodeMap.get((l.tax_code || '').trim().toUpperCase())!.rate) || 0 : 0))}</td>
-                      <td className="px-2 py-1.5">
+                      <td className="whitespace-nowrap px-1.5 py-1 text-xs font-medium tabular-nums">{formatCurrency(calcLineTotal(l, taxCodeMap.get((l.tax_code || '').trim().toUpperCase()) ? Number(taxCodeMap.get((l.tax_code || '').trim().toUpperCase())!.rate) || 0 : 0))}</td>
+                      <td className="px-1 py-1">
                         {lines.length > 1 && (
                           <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500" onClick={() => setLines(prev => prev.filter((_, idx) => idx !== i))}>
                             <X className="w-3 h-3" />
@@ -665,20 +691,26 @@ function CreateInvoiceModal({ onClose, copyFrom, editingInvoice }: { onClose: ()
                 </tbody>
               </table>
             </div>
-            <div className="flex justify-end gap-6 text-sm mt-3 pr-2">
-              <span className="text-gray-500">Subtotal: <strong>{formatCurrency(totals.subtotal)}</strong></span>
-              <span className="text-gray-500">Tax: <strong>{formatCurrency(totals.tax)}</strong></span>
-              <span className="font-semibold">Total: {formatCurrency(totals.subtotal + totals.tax)}</span>
+            <div className="mt-2 flex justify-end gap-4 pr-1 text-xs">
+              <span className="text-gray-500">Subtotal: <strong className="tabular-nums">{formatCurrency(totals.subtotal)}</strong></span>
+              <span className="text-gray-500">Tax: <strong className="tabular-nums">{formatCurrency(totals.tax)}</strong></span>
+              <span className="font-semibold tabular-nums">Total: {formatCurrency(totals.subtotal + totals.tax)}</span>
             </div>
           </div>
 
-          <div>
-            <Label className="text-xs">Notes</Label>
-            <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Internal notes" className="mt-1" />
+          <div className="space-y-0.5">
+            <Label className={fieldLabel}>Notes</Label>
+            <Input
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder="Internal notes"
+              className={fieldInput}
+            />
           </div>
-
-          <div className="flex justify-end gap-2 pt-2 border-t">
-            {!isEditMode && (
+        </CardContent>
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t px-4 py-2.5">
+          {!isEditMode && (
+            <div className="mr-auto w-full min-w-0 sm:max-w-xs">
               <CopyFromDocumentField
                 placeholder="Search invoice number or supplier…"
                 onCopy={handleCopyFromNumber}
@@ -687,14 +719,14 @@ function CreateInvoiceModal({ onClose, copyFrom, editingInvoice }: { onClose: ()
                 suggestions={copySuggestions}
                 suggestionsLoading={copyDocsLoading}
               />
-            )}
-            <Button variant="outline" onClick={onClose}>Cancel</Button>
-            <Button onClick={handleSave} disabled={isEditMode ? update.isPending : create.isPending} className="gap-2">
-              {(isEditMode ? update.isPending : create.isPending) && <Loader2 className="w-4 h-4 animate-spin" />}
-              {isEditMode ? 'Save Changes' : 'Create Invoice'}
-            </Button>
-          </div>
-        </CardContent>
+            </div>
+          )}
+          <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
+          <Button size="sm" onClick={handleSave} disabled={isEditMode ? update.isPending : create.isPending} className="gap-1.5">
+            {(isEditMode ? update.isPending : create.isPending) && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            {isEditMode ? 'Save Changes' : 'Create Invoice'}
+          </Button>
+        </div>
       </Card>
     </div>
   )

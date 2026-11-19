@@ -1,10 +1,12 @@
 import { useState, useMemo } from 'react'
 import { TableColumnLabel } from '@/components/common/FieldLabel'
 import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Plus, ExternalLink, FolderOpen, Target, X } from 'lucide-react'
+import { ArrowLeft, Plus, ExternalLink, FolderOpen, Target } from 'lucide-react'
 import { useCompanies } from '@/hooks/useFinance'
 import {
   useInternalOrdersReport,
@@ -242,22 +244,32 @@ export default function InternalOrdersPage() {
   const totalBudgeted = rows.reduce((s, r) => s + parseFloat(r.budgeted), 0)
   const totalActual = rows.reduce((s, r) => s + parseFloat(r.actual), 0)
 
+  const fieldInput = 'h-8 text-sm'
+  const fieldLabel = 'text-[11px] text-muted-foreground'
+
   return (
     <div className="p-6 max-w-7xl space-y-6">
-      <div className="flex items-center gap-3">
-        <Link to="/controlling" className="text-gray-400 hover:text-gray-600">
-          <ArrowLeft className="w-5 h-5" />
+      <div className="flex items-center gap-4">
+        <Link to="/controlling" className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
+          <ArrowLeft className="h-4 w-4" /> CO Dashboard
         </Link>
+      </div>
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Internal &amp; Project Orders</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Budget planning, actual cost tracking, and variance for internal orders</p>
+          <h1 className="flex items-center gap-2 text-2xl font-bold text-gray-900">
+            <FolderOpen className="h-7 w-7 text-primary" /> Internal &amp; Project Orders
+          </h1>
+          <p className="mt-1 text-sm text-gray-500">
+            Budget planning, actual cost tracking, and variance for internal orders
+          </p>
         </div>
         {canEdit && (
           <button
+            type="button"
             onClick={() => setShowCreate(true)}
-            className="ml-auto flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 text-sm font-medium"
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90"
           >
-            <Plus className="w-4 h-4" /> New Order
+            <Plus className="h-4 w-4" /> New Order
           </button>
         )}
       </div>
@@ -370,98 +382,121 @@ export default function InternalOrdersPage() {
         })}
       </div>
 
-      {/* Create modal */}
       {showCreate && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={() => setShowCreate(false)}>
-          <div className="bg-card border border-border text-foreground rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="p-6 border-b border-border flex items-start justify-between gap-3">
-              <h2 className="text-lg font-semibold flex items-center gap-2">
-                <Target className="w-5 h-5 text-primary" /> New Internal / Project Order
-              </h2>
+        <ModalOverlay onClose={() => setShowCreate(false)}>
+          <ModalPanel className="max-w-md max-h-none">
+            <ModalHeader
+              title={(
+                <span className="flex items-center gap-2 text-base font-semibold">
+                  <Target className="h-4 w-4 text-primary" />
+                  New Internal / Project Order
+                </span>
+              )}
+              onClose={() => setShowCreate(false)}
+              className="border-0 px-4 py-2.5"
+            />
+            <ModalBody className="flex-none overflow-visible px-0 py-0">
+              <form id="create-internal-order-form" onSubmit={handleCreate} className="space-y-2.5 px-4 py-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-0.5">
+                    <Label className={fieldLabel} required>Order Kind</Label>
+                    <Select
+                      value={form.order_kind}
+                      onChange={v => setForm(f => ({ ...f, order_kind: v }))}
+                      className={`w-full ${fieldInput}`}
+                      options={[
+                        { value: 'project', label: 'Project' },
+                        { value: 'internal', label: 'Internal' },
+                        { value: 'assembly', label: 'Assembly' },
+                        { value: 'process', label: 'Process' },
+                      ]}
+                    />
+                  </div>
+                  <div className="space-y-0.5">
+                    <Label className={fieldLabel}>Priority</Label>
+                    <Select
+                      value={form.priority}
+                      onChange={v => setForm(f => ({ ...f, priority: v }))}
+                      className={`w-full ${fieldInput}`}
+                      options={[
+                        { value: 'low', label: 'Low' },
+                        { value: 'medium', label: 'Medium' },
+                        { value: 'high', label: 'High' },
+                        { value: 'urgent', label: 'Urgent' },
+                      ]}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-0.5">
+                  <Label className={fieldLabel}>Order No (auto if blank)</Label>
+                  <Input
+                    value={form.order_no}
+                    onChange={e => setForm(f => ({ ...f, order_no: e.target.value }))}
+                    placeholder="e.g. INT-2026-001"
+                    className={fieldInput}
+                  />
+                </div>
+                <div className="space-y-0.5">
+                  <Label className={fieldLabel} required>Title</Label>
+                  <Input
+                    value={form.title}
+                    onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                    placeholder="Order description"
+                    required
+                    className={fieldInput}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-0.5">
+                    <Label className={fieldLabel}>Start Date</Label>
+                    <Input
+                      type="date"
+                      value={form.scheduled_start}
+                      onChange={e => setForm(f => ({ ...f, scheduled_start: e.target.value }))}
+                      className={fieldInput}
+                    />
+                  </div>
+                  <div className="space-y-0.5">
+                    <Label className={fieldLabel}>End Date</Label>
+                    <Input
+                      type="date"
+                      value={form.scheduled_end}
+                      onChange={e => setForm(f => ({ ...f, scheduled_end: e.target.value }))}
+                      className={fieldInput}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-0.5">
+                  <Label className={fieldLabel}>Notes</Label>
+                  <Input
+                    value={form.notes}
+                    onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+                    placeholder="Scope, objectives…"
+                    className={fieldInput}
+                  />
+                </div>
+                {error && <p className="text-xs text-red-600">{error}</p>}
+              </form>
+            </ModalBody>
+            <ModalFooter className="border-0 px-4 py-2.5">
               <button
                 type="button"
                 onClick={() => setShowCreate(false)}
-                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
-                aria-label="Close"
+                className="btn-cancel h-8 rounded-md border border-border px-3 text-sm text-muted-foreground hover:bg-muted/50"
               >
-                <X className="w-5 h-5" />
+                Cancel
               </button>
-            </div>
-            <form onSubmit={handleCreate} className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="block text-xs font-medium text-gray-600 mb-1" required>Order Kind</Label>
-                  <Select
-                    value={form.order_kind}
-                    onChange={v => setForm(f => ({ ...f, order_kind: v }))}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                    options={[
-                      { value: 'project', label: 'Project' },
-                      { value: 'internal', label: 'Internal' },
-                      { value: 'assembly', label: 'Assembly' },
-                      { value: 'process', label: 'Process' },
-                    ]}
-                  />
-                </div>
-                <div>
-                  <Label className="block text-xs font-medium text-gray-600 mb-1">Priority</Label>
-                  <Select
-                    value={form.priority}
-                    onChange={v => setForm(f => ({ ...f, priority: v }))}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                    options={[
-                      { value: 'low', label: 'Low' },
-                      { value: 'medium', label: 'Medium' },
-                      { value: 'high', label: 'High' },
-                      { value: 'urgent', label: 'Urgent' },
-                    ]}
-                  />
-                </div>
-              </div>
-              <div>
-                <Label className="block text-xs font-medium text-gray-600 mb-1">Order No (auto if blank)</Label>
-                <input value={form.order_no} onChange={e => setForm(f => ({ ...f, order_no: e.target.value }))}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                  placeholder="e.g. INT-2026-001" />
-              </div>
-              <div>
-                <Label className="block text-xs font-medium text-gray-600 mb-1" required>Title</Label>
-                <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                  placeholder="Order description" required />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="block text-xs font-medium text-gray-600 mb-1">Start Date</Label>
-                  <input type="date" value={form.scheduled_start}
-                    onChange={e => setForm(f => ({ ...f, scheduled_start: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
-                </div>
-                <div>
-                  <Label className="block text-xs font-medium text-gray-600 mb-1">End Date</Label>
-                  <input type="date" value={form.scheduled_end}
-                    onChange={e => setForm(f => ({ ...f, scheduled_end: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
-                </div>
-              </div>
-              <div>
-                <Label className="block text-xs font-medium text-gray-600 mb-1">Notes</Label>
-                <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-                  rows={2} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                  placeholder="Project description, scope, objectives…" />
-              </div>
-              {error && <p className="text-sm text-red-600">{error}</p>}
-              <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setShowCreate(false)}
-                  className="btn-cancel flex-1 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium">Cancel</button>
-                <button type="submit" disabled={createMut.isPending}
-                  className="flex-1 bg-primary text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-primary/90 disabled:opacity-60">
-                  {createMut.isPending ? 'Creating…' : 'Create Order'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+              <button
+                type="submit"
+                form="create-internal-order-form"
+                disabled={createMut.isPending}
+                className="h-8 rounded-md bg-primary px-3 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-60"
+              >
+                {createMut.isPending ? 'Creating…' : 'Create Order'}
+              </button>
+            </ModalFooter>
+          </ModalPanel>
+        </ModalOverlay>
       )}
     </div>
   )

@@ -108,14 +108,14 @@ export function AddressesTab({
   }
 
   return (
-    <div className="space-y-6">
-      <AddressFields label="Current address" addr={current} onChange={emitCurrent} editing={editing} />
+    <div className="space-y-3">
       {editing && (
-        <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
-          <input type="checkbox" checked={sameAsCurrent} onChange={e => toggleSame(e.target.checked)} className="rounded" />
+        <label className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground">
+          <input type="checkbox" checked={sameAsCurrent} onChange={e => toggleSame(e.target.checked)} className="h-3.5 w-3.5 rounded" />
           Permanent address same as current
         </label>
       )}
+      <AddressFields label="Current address" addr={current} onChange={emitCurrent} editing={editing} />
       {!sameAsCurrent && (
         <AddressFields label="Permanent address" addr={permanent} onChange={emitPermanent} editing={editing} />
       )}

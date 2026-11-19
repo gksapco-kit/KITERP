@@ -58,6 +58,10 @@ const denseFieldClass =
   'h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring [color-scheme:dark]'
 const denseLabelClass = 'mb-0.5 block text-[11px] font-medium text-muted-foreground'
 
+const ADD_EMPLOYEE_COMPACT_TABS: EmployeeMasterTabId[] = [
+  'addresses', 'credentials', 'notes', 'bank', 'kyc', 'personal', 'family',
+]
+
 function getCustomEmpTypes(): { value: string; label: string }[] {
   try {
     return JSON.parse(localStorage.getItem('hr_custom_emp_types') ?? '[]')
@@ -87,10 +91,10 @@ function AddressFields({
   onChange: (a: HRAddr) => void
 }) {
   return (
-    <div className="space-y-2">
-      <SectionLabel>{label}</SectionLabel>
+    <div className="space-y-1.5">
+      <p className="text-[11px] font-medium text-muted-foreground">{label}</p>
       <input
-        className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+        className={denseFieldClass}
         placeholder="Street / House No. / Area"
         autoComplete="off"
         name="hr-line1"
@@ -98,10 +102,10 @@ function AddressFields({
         onChange={e => onChange({ ...addr, street: e.target.value })}
       />
       <div className="grid grid-cols-2 gap-2">
-        <input className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="City" autoComplete="off" name="hr-locality" value={addr.city} onChange={e => onChange({ ...addr, city: e.target.value })} />
-        <input className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="State" autoComplete="off" name="hr-region" value={addr.state} onChange={e => onChange({ ...addr, state: e.target.value })} />
-        <input className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="PIN Code" autoComplete="off" name="hr-code" maxLength={10} value={addr.pincode} onChange={e => onChange({ ...addr, pincode: e.target.value })} />
-        <input className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Country" autoComplete="off" name="hr-nation" value={addr.country} onChange={e => onChange({ ...addr, country: e.target.value })} />
+        <input className={denseFieldClass} placeholder="City" autoComplete="off" name="hr-locality" value={addr.city} onChange={e => onChange({ ...addr, city: e.target.value })} />
+        <input className={denseFieldClass} placeholder="State" autoComplete="off" name="hr-region" value={addr.state} onChange={e => onChange({ ...addr, state: e.target.value })} />
+        <input className={denseFieldClass} placeholder="PIN Code" autoComplete="off" name="hr-code" maxLength={10} value={addr.pincode} onChange={e => onChange({ ...addr, pincode: e.target.value })} />
+        <input className={denseFieldClass} placeholder="Country" autoComplete="off" name="hr-nation" value={addr.country} onChange={e => onChange({ ...addr, country: e.target.value })} />
       </div>
     </div>
   )
@@ -455,7 +459,14 @@ function AddEmployeeModal({
   return (
     <>
       <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-3">
-        <ModalPanel className="max-h-[calc(100dvh-1.5rem)] w-full max-w-[960px] !rounded-lg overflow-hidden">
+        <ModalPanel
+          className={cn(
+            'max-h-[calc(100dvh-1.5rem)] w-full min-h-0 !rounded-lg overflow-hidden',
+            ADD_EMPLOYEE_COMPACT_TABS.includes(activeTab)
+              ? 'max-w-md min-h-[min(22rem,calc(100dvh-6rem))]'
+              : 'max-w-3xl',
+          )}
+        >
           <ModalHeader
             title="Add Employee"
             onClose={onClose}
@@ -463,7 +474,14 @@ function AddEmployeeModal({
           />
 
           {/* Compact tab bar */}
-          <div className="flex shrink-0 gap-0.5 overflow-x-auto px-3">
+          <div
+            className={cn(
+              'flex shrink-0 gap-0.5 px-3 pb-0.5',
+              ADD_EMPLOYEE_COMPACT_TABS.includes(activeTab)
+                ? 'flex-wrap'
+                : 'overflow-x-auto',
+            )}
+          >
             {EMPLOYEE_MASTER_TABS.map(tab => {
               const isActive = activeTab === tab.id
               return (
@@ -707,13 +725,23 @@ function AddEmployeeModal({
 
             {/* Tab: Addresses */}
             <EmployeeTabPanel active={activeTab === 'addresses'}>
-              <div className="space-y-4">
+              <div className="space-y-3">
+                <label htmlFor="same-addr" className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    id="same-addr"
+                    checked={sameAsCurrent}
+                    onChange={e => setSameAsCurrent(e.target.checked)}
+                    className="h-3.5 w-3.5 rounded"
+                  />
+                  Permanent address same as current
+                </label>
                 <AddressFields label="Current Address" addr={currentAddr} onChange={setCurrentAddr} />
-                <div className="flex items-center gap-2">
-                  <input type="checkbox" id="same-addr" checked={sameAsCurrent} onChange={e => setSameAsCurrent(e.target.checked)} className="rounded" />
-                  <label htmlFor="same-addr" className="cursor-pointer text-xs text-muted-foreground">Permanent address same as current</label>
-                </div>
-                {!sameAsCurrent && <AddressFields label="Permanent Address" addr={permanentAddr} onChange={setPermanentAddr} />}
+                {!sameAsCurrent && (
+                  <div className="border-t border-border pt-3">
+                    <AddressFields label="Permanent Address" addr={permanentAddr} onChange={setPermanentAddr} />
+                  </div>
+                )}
               </div>
             </EmployeeTabPanel>
 
@@ -775,16 +803,16 @@ function AddEmployeeModal({
 
             {/* Tab: Personal Information */}
             <EmployeeTabPanel active={activeTab === 'personal'}>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <Label className="mb-1 block text-xs font-medium text-muted-foreground">Date of Birth</Label>
-                    <input type="date" className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={dateOfBirth} onChange={e => setDateOfBirth(e.target.value)} />
+                    <Label className={denseLabelClass}>Date of Birth</Label>
+                    <input type="date" className={denseFieldClass} value={dateOfBirth} onChange={e => setDateOfBirth(e.target.value)} />
                   </div>
                   <div>
-                    <Label className="mb-1 block text-xs font-medium text-muted-foreground">Gender</Label>
+                    <Label className={denseLabelClass}>Gender</Label>
                     <Select
-                      className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                      className={denseFieldClass}
                       value={gender}
                       onChange={setGender}
                       options={[
@@ -797,9 +825,9 @@ function AddEmployeeModal({
                     />
                   </div>
                   <div>
-                    <Label className="mb-1 block text-xs font-medium text-muted-foreground">Blood Group</Label>
+                    <Label className={denseLabelClass}>Blood Group</Label>
                     <Select
-                      className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                      className={denseFieldClass}
                       value={bloodGroup}
                       onChange={setBloodGroup}
                       options={[
@@ -809,9 +837,9 @@ function AddEmployeeModal({
                     />
                   </div>
                   <div>
-                    <Label className="mb-1 block text-xs font-medium text-muted-foreground">Marital Status</Label>
+                    <Label className={denseLabelClass}>Marital Status</Label>
                     <Select
-                      className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                      className={denseFieldClass}
                       value={maritalStatus}
                       onChange={setMaritalStatus}
                       options={[
@@ -823,26 +851,31 @@ function AddEmployeeModal({
                       ]}
                     />
                   </div>
-                  <div>
-                    <Label className="mb-1 block text-xs font-medium text-muted-foreground">Nationality</Label>
-                    <input className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={nationality} onChange={e => setNationality(e.target.value)} />
-                  </div>
                 </div>
-                <div className="border-t pt-4">
-                  <SectionLabel className="mb-3">Emergency Contact</SectionLabel>
-                  <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className={denseLabelClass}>Nationality</Label>
+                  <input className={denseFieldClass} value={nationality} onChange={e => setNationality(e.target.value)} />
+                </div>
+                <div className="space-y-2 border-t border-border pt-3">
+                  <p className="text-[11px] font-medium text-muted-foreground">Emergency Contact</p>
+                  <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <Label className="mb-1 block text-xs font-medium text-muted-foreground">Name</Label>
-                      <input className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={emergencyName} onChange={e => setEmergencyName(e.target.value)} />
+                      <Label className={denseLabelClass}>Name</Label>
+                      <input className={denseFieldClass} value={emergencyName} onChange={e => setEmergencyName(e.target.value)} />
                     </div>
                     <div>
-                      <Label className="mb-1 block text-xs font-medium text-muted-foreground">Phone</Label>
-                      <PhoneInput value={emergencyPhone} onChange={setEmergencyPhone} placeholder="Emergency contact" />
+                      <Label className={denseLabelClass}>Phone</Label>
+                      <PhoneInput compact compactCountry value={emergencyPhone} onChange={setEmergencyPhone} placeholder="Emergency contact" />
                     </div>
-                    <div className="col-span-2">
-                      <Label className="mb-1 block text-xs font-medium text-muted-foreground">Relation</Label>
-                      <input className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="e.g. Spouse, Parent, Sibling" value={emergencyRelation} onChange={e => setEmergencyRelation(e.target.value)} />
-                    </div>
+                  </div>
+                  <div>
+                    <Label className={denseLabelClass}>Relation</Label>
+                    <input
+                      className={denseFieldClass}
+                      placeholder="e.g. Spouse, Parent, Sibling"
+                      value={emergencyRelation}
+                      onChange={e => setEmergencyRelation(e.target.value)}
+                    />
                   </div>
                 </div>
               </div>

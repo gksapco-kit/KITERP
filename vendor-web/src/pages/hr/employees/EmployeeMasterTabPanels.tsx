@@ -11,6 +11,9 @@ import { employeeRecordRevision } from './employeeMasterTabs'
 
 export const EMPTY_ADDR: HRAddress = { street: '', city: '', state: '', pincode: '', country: 'India' }
 
+const denseFieldClass =
+  'h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring'
+
 function FieldRow({
   label,
   editing,
@@ -51,10 +54,10 @@ export function AddressFields({
     )
   }
   return (
-    <div className="space-y-2">
-      <SectionLabel>{label}</SectionLabel>
+    <div className="space-y-1.5">
+      <p className="text-[11px] font-medium text-muted-foreground">{label}</p>
       <input
-        className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+        className={denseFieldClass}
         placeholder="Street / House No. / Area"
         autoComplete="off"
         name="employee-line1"
@@ -62,10 +65,10 @@ export function AddressFields({
         onChange={e => onChange({ ...addr, street: e.target.value })}
       />
       <div className="grid grid-cols-2 gap-2">
-        <input className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="City" autoComplete="off" name="employee-locality" value={addr.city ?? ''} onChange={e => onChange({ ...addr, city: e.target.value })} />
-        <input className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="State" autoComplete="off" name="employee-region" value={addr.state ?? ''} onChange={e => onChange({ ...addr, state: e.target.value })} />
-        <input className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="PIN Code" autoComplete="off" name="employee-code" maxLength={10} value={addr.pincode ?? ''} onChange={e => onChange({ ...addr, pincode: e.target.value })} />
-        <input className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Country" autoComplete="off" name="employee-nation" value={addr.country ?? ''} onChange={e => onChange({ ...addr, country: e.target.value })} />
+        <input className={denseFieldClass} placeholder="City" autoComplete="off" name="employee-locality" value={addr.city ?? ''} onChange={e => onChange({ ...addr, city: e.target.value })} />
+        <input className={denseFieldClass} placeholder="State" autoComplete="off" name="employee-region" value={addr.state ?? ''} onChange={e => onChange({ ...addr, state: e.target.value })} />
+        <input className={denseFieldClass} placeholder="PIN Code" autoComplete="off" name="employee-code" maxLength={10} value={addr.pincode ?? ''} onChange={e => onChange({ ...addr, pincode: e.target.value })} />
+        <input className={denseFieldClass} placeholder="Country" autoComplete="off" name="employee-nation" value={addr.country ?? ''} onChange={e => onChange({ ...addr, country: e.target.value })} />
       </div>
     </div>
   )
