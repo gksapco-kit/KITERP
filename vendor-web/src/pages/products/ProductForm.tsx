@@ -163,7 +163,7 @@ const variantRowSchema = z.object({
   // stock_sale_qty is form-only (defaults to 1); the saved value is stock_per_sale / stock_sale_qty.
   stock_per_sale: optNum,
   stock_sale_qty: optNum,
-  // Cutting yield: raw input per 1 unit of output (used when the product is sold after cutting).
+  // Yield: raw input per 1 unit of output (used when the product is sold after processing).
   yield_factor: optNum,
   yield_cut: optStr,
   // Lifecycle
@@ -2950,7 +2950,7 @@ export default function ProductForm() {
       uom: wv?.uom || 'piece',
     }
   }
-  // Cutting yield: a cut's factor sets its stock rule (1 sale = output × factor raw stock).
+  // Yield: an output's factor sets its stock rule (1 sale = output × factor raw stock).
   const yieldEnabled = !!watch('yield_enabled')
   const setVariantYield = useCallback((index: number, factor: number | undefined, cut: string | undefined) => {
     setValue(`variants.${index}.yield_factor`, factor, { shouldDirty: true })
@@ -4141,7 +4141,7 @@ export default function ProductForm() {
     { key: 'basic',            label: 'Basic',             icon: Package, hint: 'Name, type, category, descriptions, and media.' },
     { key: 'variants',         label: isBundleType ? 'Bundle' : isSubscriptionType ? 'Price & Plans' : 'Price & Variants', icon: Layers, visible: !isBundleType },
     { key: 'tax',              label: 'Tax',               icon: Receipt, hint: 'GST, tax rates, and HSN/SAC codes per product or variant.' },
-    { key: 'yield',            label: 'Yield',   icon: Scissors, visible: !isBundleType && !isDigitalType && !isSubscriptionType, hint: 'Raw stock each cut needs (meat, poultry, seafood …).' },
+    { key: 'yield',            label: 'Yield',   icon: Scissors, visible: !isBundleType && !isDigitalType && !isSubscriptionType, hint: 'Raw stock each output needs (produce, dry goods, proteins …).' },
     { key: 'bundle',           label: 'Bundle Items',      icon: Layers, visible: isBundleType, hint: 'Products included in this bundle.' },
     { key: 'visibility',       label: 'Visibility',        icon: Eye, hint: 'Status, visibility toggle, and marketing flags.' },
     { key: 'returns',          label: 'Returns',           icon: RotateCcw, visible: !isDigitalType && !isBundleType, hint: 'Return window, warranty, and refund policy.' },

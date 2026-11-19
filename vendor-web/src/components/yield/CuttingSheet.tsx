@@ -10,8 +10,8 @@ import type { YieldProduct } from '@/api/yield'
 type Mode = 'order' | 'stock'
 
 /**
- * Customer asks for finished cuts (1 kg leg, 2 kg boneless …); the sheet shows how much
- * raw stock to cut for each and in total. "From stock" turns raw on hand into output per cut.
+ * Customer asks for finished outputs (1 kg peeled, 2 kg diced …); the sheet shows how much
+ * raw stock to use for each and in total. "From stock" turns raw on hand into output per line.
  */
 export function CuttingSheet({ compact = false }: { compact?: boolean }) {
   const { data: products = [], isLoading } = useYieldProducts()
@@ -41,7 +41,7 @@ export function CuttingSheet({ compact = false }: { compact?: boolean }) {
   if (products.length === 0) {
     return (
       <p className="text-sm text-muted-foreground py-6 text-center">
-        No products use cutting yield yet. Open a product, go to the Yield &amp; Cutting tab and turn on "Sold after cutting".
+        No products use yield yet. Open a product, go to the Yield tab and turn on "Sold after cutting / processing".
       </p>
     )
   }
@@ -61,7 +61,7 @@ export function CuttingSheet({ compact = false }: { compact?: boolean }) {
               key={m} type="button" onClick={() => setMode(m)}
               className={`px-2.5 py-1 rounded ${mode === m ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
             >
-              {m === 'order' ? 'Customer order → raw to cut' : 'Raw stock → output'}
+              {m === 'order' ? 'Customer order → raw needed' : 'Raw stock → output'}
             </button>
           ))}
         </div>
@@ -71,16 +71,16 @@ export function CuttingSheet({ compact = false }: { compact?: boolean }) {
       </div>
 
       {cuts.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Set a yield factor on this product's cuts first.</p>
+        <p className="text-sm text-muted-foreground">Set a yield factor on this product's outputs first.</p>
       ) : mode === 'order' ? (
         <>
           <table className="w-full text-sm">
             <thead className="text-xs text-muted-foreground">
               <tr className="border-b border-border">
-                <th className="text-left font-medium py-1.5">Cut</th>
+                <th className="text-left font-medium py-1.5">Output</th>
                 <th className="text-left font-medium py-1.5 w-32">Customer wants ({uom})</th>
                 <th className="text-right font-medium py-1.5">Factor</th>
-                <th className="text-right font-medium py-1.5">Raw to cut</th>
+                <th className="text-right font-medium py-1.5">Raw needed</th>
               </tr>
             </thead>
             <tbody>
@@ -117,7 +117,7 @@ export function CuttingSheet({ compact = false }: { compact?: boolean }) {
           )}
           <div className="flex gap-2 print:hidden">
             <Button variant="outline" size="sm" onClick={() => setWanted({})}><RotateCcw className="h-4 w-4 mr-1" /> Clear</Button>
-            <Button variant="outline" size="sm" onClick={() => window.print()} disabled={totalRaw <= 0}><Printer className="h-4 w-4 mr-1" /> Print for cutter</Button>
+            <Button variant="outline" size="sm" onClick={() => window.print()} disabled={totalRaw <= 0}><Printer className="h-4 w-4 mr-1" /> Print for prep</Button>
           </div>
         </>
       ) : (
@@ -135,7 +135,7 @@ export function CuttingSheet({ compact = false }: { compact?: boolean }) {
           <table className="w-full text-sm">
             <thead className="text-xs text-muted-foreground">
               <tr className="border-b border-border">
-                <th className="text-left font-medium py-1.5">If all of it is cut as</th>
+                <th className="text-left font-medium py-1.5">If all of it is processed as</th>
                 <th className="text-right font-medium py-1.5">Factor</th>
                 <th className="text-right font-medium py-1.5">Output</th>
               </tr>

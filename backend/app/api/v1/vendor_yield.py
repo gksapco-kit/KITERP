@@ -1,5 +1,5 @@
 # app/api/v1/vendor_yield.py
-"""Cutting yield profiles, yield products for the cutting sheet, and the daily yield close."""
+"""Yield profiles, yield products for the raw-stock sheet, and the daily yield close."""
 from datetime import date as date_type, datetime, timezone
 from decimal import Decimal
 from typing import List, Optional
@@ -35,45 +35,8 @@ _edit_products = [Depends(require_permission("products.edit"))]
 _view_inventory = [Depends(require_permission("inventory.view"))]
 _manage_inventory = [Depends(require_permission("inventory.manage"))]
 
-# Typical raw input per 1 kg of finished cut. Starting points only — every shop tunes them.
-PROFILE_TEMPLATES = [
-    {
-        "name": "Chicken", "category": "Chicken", "input_uom": "kg",
-        "lines": [
-            {"cut_name": "Whole with skin", "input_per_output": 1.0},
-            {"cut_name": "Skinless curry cut", "input_per_output": 1.5, "byproduct": "Skin"},
-            {"cut_name": "Boneless", "input_per_output": 1.3, "byproduct": "Bones", "part_per_raw": 0.25, "part_uom": "kg"},
-            {"cut_name": "Bone", "input_per_output": 2, "part_per_raw": 0.5, "part_uom": "kg"},
-            {"cut_name": "Leg pieces", "input_per_output": 1.25, "part_per_raw": 1, "part_uom": "piece"},
-            {"cut_name": "Breast", "input_per_output": 1.35},
-            {"cut_name": "Wings", "input_per_output": 1.15},
-        ],
-    },
-    {
-        "name": "Mutton", "category": "Mutton", "input_uom": "kg",
-        "lines": [
-            {"cut_name": "Curry cut", "input_per_output": 1.1},
-            {"cut_name": "Boneless", "input_per_output": 1.45, "byproduct": "Bones"},
-            {"cut_name": "Keema (mince)", "input_per_output": 1.5},
-            {"cut_name": "Chops", "input_per_output": 1.15},
-        ],
-    },
-    {
-        "name": "Fish", "category": "Fish", "input_uom": "kg",
-        "lines": [
-            {"cut_name": "Cleaned, curry cut", "input_per_output": 1.3, "byproduct": "Head & scales"},
-            {"cut_name": "Steaks", "input_per_output": 1.4},
-            {"cut_name": "Fillet", "input_per_output": 2.0, "byproduct": "Head & bones"},
-        ],
-    },
-    {
-        "name": "Prawns", "category": "Seafood", "input_uom": "kg",
-        "lines": [
-            {"cut_name": "Peeled", "input_per_output": 1.6, "byproduct": "Shells"},
-            {"cut_name": "Peeled & deveined", "input_per_output": 1.8, "byproduct": "Shells"},
-        ],
-    },
-]
+# Kept for API compatibility. Profiles are created from the vendor's own products.
+PROFILE_TEMPLATES: list[dict] = []
 
 
 # ── Schemas ──────────────────────────────────────────────────────

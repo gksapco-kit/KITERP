@@ -259,7 +259,7 @@ class ProductVariant(Base):
     # Manual stock rule for product-level (shared) stock: how many units of the product's
     # stock UOM one sale of this variant uses. NULL = work it out from UOM / Qty / Weight.
     stock_per_sale = Column(Numeric(12, 4), nullable=True)
-    # Cutting yield: raw input per 1 unit of output (1.30 = 1.30 kg raw for 1 kg boneless).
+    # Yield: raw input per 1 unit of output (1.15 = 1.15 kg raw for 1 kg peeled).
     # When the product has yield_enabled this drives stock_per_sale.
     yield_factor = Column(Numeric(8, 4), nullable=True)
     yield_cut = Column(String(100), nullable=True)

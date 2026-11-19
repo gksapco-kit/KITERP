@@ -3,13 +3,11 @@
 export function exportCSV(
   filename: string,
   headers: string[],
-  rows: (string | number | null | undefined)[],
+  rows: (string | number | null | undefined)[][],
 ): void {
   const escape = (v: string | number | null | undefined) =>
     `"${String(v ?? '').replace(/"/g, '""')}"`
-  const csv = [headers, ...rows as unknown as (string | number)[][]].map((r) =>
-    (r as (string | number | null | undefined)[]).map(escape).join(','),
-  ).join('\n')
+  const csv = [headers, ...rows].map((r) => r.map(escape).join(',')).join('\n')
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')

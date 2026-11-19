@@ -7,6 +7,7 @@ import { Loader2, RefreshCw, Download } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { filtersToParams, type AnalyticsFilters } from '../useAnalyticsFilters'
 import { exportCSV } from '../exportUtils'
+import { TabError } from '../TabError'
 
 const INR = '₹'
 function fmt(n: number) {
@@ -41,10 +42,12 @@ export function ShrinkageTab({
   setFilters: (patch: Partial<AnalyticsFilters>) => void
   refreshKey?: number
 }) {
-  const groupBy = filters.group_by || 'store'
+  // The shared filter state defaults group_by to 'category' (used by other tabs), which the
+  // shrinkage endpoint rejects with a 422. Only accept the values this report supports.
+  const groupBy: 'store' | 'movement_type' = filters.group_by === 'movement_type' ? 'movement_type' : 'store'
   const params = filtersToParams(filters, { group_by: groupBy })
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ['vendor', 'inv-analytics-shrinkage', params, refreshKey],
     queryFn: () => vendorApi.inventoryAnalyticsShrinkage(params),
   })
@@ -102,7 +105,9 @@ export function ShrinkageTab({
         </div>
       </div>
 
-      {isLoading ? (
+      {isError ? (
+        <TabError title="Shrinkage report could not be loaded" onRetry={() => refetch()} isFetching={isFetching} />
+      ) : isLoading ? (
         <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
       ) : (
         <div className="grid lg:grid-cols-5 gap-4 items-start">
@@ -131,7 +136,7 @@ export function ShrinkageTab({
                       <tr key={idx} className="border-b last:border-0 hover:bg-muted/30">
                         <td className="py-2 px-3">
                           <span className={cn('text-xs px-1.5 py-0.5 rounded font-medium', TYPE_CFG[item.movement_type] ?? 'bg-gray-100 text-gray-600')}>
-                            {item.movement_type.replace('_', ' ')}
+                            {item.movement_type.replace(/_/g, ' ')}
                           </span>
                         </td>
                         <td className="py-2 px-3 text-xs text-muted-foreground">{item.store_name}</td>

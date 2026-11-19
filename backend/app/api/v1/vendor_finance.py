@@ -208,6 +208,22 @@ async def list_accounts(
     return [_d(a) for a in accounts]
 
 
+_VALID_ACCOUNT_TYPES = {"asset": "Asset", "liability": "Liability", "equity": "Equity",
+                        "income": "Income", "expense": "Expense"}
+
+
+def _normalize_account_type(data: dict) -> None:
+    """Financial statements match account_type exactly, so store the canonical Title Case value
+    and reject unknown types instead of letting an account silently vanish from reports."""
+    if data.get("account_type") is None:
+        return
+    canon = _VALID_ACCOUNT_TYPES.get(str(data["account_type"]).strip().lower())
+    if canon is None:
+        raise HTTPException(
+            422, "account_type must be one of: Asset, Liability, Equity, Income, Expense")
+    data["account_type"] = canon
+
+
 @router.post("/coa", status_code=201)
 async def create_account(
     body: dict,
@@ -215,6 +231,7 @@ async def create_account(
     db: AsyncSession = Depends(get_db),
 ):
     data = coerce_body(FinAccount, body, "create")
+    _normalize_account_type(data)
     acc = await FinCOARepo(db).create_account(vu.vendor_id, data)
     await db.commit()
     return _d(acc)
@@ -230,7 +247,9 @@ async def update_account(
     acc = await repo.get_account(account_id, vu.vendor_id)
     if not acc:
         raise HTTPException(404, "Account not found")
-    acc = await repo.update_account(acc, coerce_body(FinAccount, body, "update"))
+    update_data = coerce_body(FinAccount, body, "update")
+    _normalize_account_type(update_data)
+    acc = await repo.update_account(acc, update_data)
     await db.commit()
     return _d(acc)
 

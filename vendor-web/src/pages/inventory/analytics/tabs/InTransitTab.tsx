@@ -5,6 +5,7 @@ import { Loader2, RefreshCw, Download, Truck, Clock, CheckCircle2 } from 'lucide
 import { DonutChart, BarsChart, type CatDatum } from '@/components/charts/reportCharts'
 import { filtersToParams, type AnalyticsFilters } from '../useAnalyticsFilters'
 import { exportCSV } from '../exportUtils'
+import { TabError } from '../TabError'
 
 const INR = '₹'
 function fmt(n: number) {
@@ -60,7 +61,7 @@ const LEAD_LABELS = ['1 day', '2–3 days', '4–7 days', '8+ days']
 
 export function InTransitTab({ filters, refreshKey = 0 }: { filters: AnalyticsFilters; refreshKey?: number }) {
   const params = filtersToParams(filters)
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ['vendor', 'inv-analytics-in-transit', params, refreshKey],
     queryFn: () => vendorApi.inventoryAnalyticsInTransit(params),
   })
@@ -188,7 +189,9 @@ export function InTransitTab({ filters, refreshKey = 0 }: { filters: AnalyticsFi
         </div>
       )}
 
-      {isLoading ? (
+      {isError ? (
+        <TabError title="In-transit report could not be loaded" onRetry={() => refetch()} isFetching={isFetching} />
+      ) : isLoading ? (
         <div className="flex justify-center py-12">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>

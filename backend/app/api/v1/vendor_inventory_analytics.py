@@ -227,6 +227,7 @@ async def analytics_in_transit(
         vendor_id=vendor_id,
         date_from=f.date_from,
         date_to=f.date_to,
+        store_id=f.store_id,
     )
     return JSONResponse(content=result)
 

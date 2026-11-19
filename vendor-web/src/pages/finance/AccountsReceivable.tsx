@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Label } from '@/components/ui/label'
 import { useArAging, useApplyPayment } from '@/hooks/useFinance'
+import { useCustomers } from '@/hooks/useVendor'
 import { AlertCircle } from 'lucide-react'
 
 function fmt(n: number) {
@@ -20,11 +21,36 @@ function AgingBar({ current, d30, d60, d90, d90p }: Record<string, number>) {
   )
 }
 
+function resolveCustomerLabel(r: any, byId: Map<string, any>) {
+  const cust = r.customer_id ? byId.get(String(r.customer_id)) : null
+  const apiName = typeof r.customer_name === 'string' ? r.customer_name.trim() : ''
+  const knownApiName = apiName && apiName !== 'Unknown customer' ? apiName : ''
+  const name =
+    knownApiName
+    || cust?.full_name
+    || cust?.company_name
+    || (r.customer_id ? 'Customer' : 'Walk-in')
+  const code =
+    r.customer_code
+    || cust?.master_code
+    || (r.customer_id ? String(r.customer_id).slice(0, 8) + '…' : null)
+  return { name, code, customerId: r.customer_id ? String(r.customer_id) : null }
+}
+
 export default function AccountsReceivable() {
   const { data: aging = [], isLoading } = useArAging()
+  const { data: customersPage } = useCustomers({ size: 500 })
   const applyMut = useApplyPayment()
   const [tab, setTab] = useState<'aging' | 'apply'>('aging')
   const [payForm, setPayForm] = useState({ payment_id: '', invoice_id: '', amount_applied: '' })
+
+  const customersById = useMemo(() => {
+    const map = new Map<string, any>()
+    for (const c of customersPage?.items || []) {
+      if (c?.id) map.set(String(c.id), c)
+    }
+    return map
+  }, [customersPage])
 
   const totals = aging.reduce((acc: Record<string, number>, r: any) => {
     acc.current = (acc.current || 0) + (r.current || 0)
@@ -80,9 +106,18 @@ export default function AccountsReceivable() {
                   <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-500">Loading…</td></tr>
                 ) : aging.length === 0 ? (
                   <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-500">No outstanding receivables.</td></tr>
-                ) : (aging as any[]).map((r: any) => (
-                  <tr key={r.customer_id} className="hover:bg-gray-50">
-                    <td className="px-4 py-2 font-mono text-xs text-gray-500">{r.customer_id?.slice(0, 8)}…</td>
+                ) : (aging as any[]).map((r: any) => {
+                  const { name, code, customerId } = resolveCustomerLabel(r, customersById)
+                  return (
+                  <tr key={r.customer_id || 'walk-in'} className="hover:bg-gray-50">
+                    <td className="px-4 py-2">
+                      <p className="font-medium text-gray-900">{name}</p>
+                      {code ? (
+                        <p className="mt-0.5 font-mono text-xs text-gray-500" title={customerId || code}>
+                          {code}
+                        </p>
+                      ) : null}
+                    </td>
                     <td className="px-4 py-2 text-right text-green-700">{fmt(r.current || 0)}</td>
                     <td className="px-4 py-2 text-right text-yellow-700">{fmt(r['1_30'] || 0)}</td>
                     <td className="px-4 py-2 text-right text-orange-700">{fmt(r['31_60'] || 0)}</td>
@@ -92,7 +127,8 @@ export default function AccountsReceivable() {
                       <AgingBar current={r.current||0} d30={r['1_30']||0} d60={r['31_60']||0} d90={r['61_90']||0} d90p={r['90_plus']||0} />
                     </td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           </div>

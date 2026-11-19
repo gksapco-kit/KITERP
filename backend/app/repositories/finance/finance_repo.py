@@ -502,24 +502,46 @@ class FinARRepo:
 
     async def ar_aging(self, vendor_id: UUID, as_of: date = None) -> list[dict]:
         as_of = as_of or date.today()
+        # Join customer master so we always have code + name even when the
+        # invoice snapshot fields were left blank.
         r = await self.db.execute(
-            select(Invoice).where(
+            select(
+                Invoice,
+                Customer.full_name,
+                Customer.company_name,
+                Customer.master_code,
+            )
+            .outerjoin(Customer, Customer.id == Invoice.customer_id)
+            .where(
                 Invoice.vendor_id == vendor_id,
                 Invoice.invoice_type == "invoice",
                 Invoice.status.notin_(["draft", "void", "cancelled"]),
             )
         )
-        invoices = r.scalars().all()
-        buckets: dict[UUID, dict] = {}
-        for inv in invoices:
+        buckets: dict[UUID | None, dict] = {}
+        for inv, full_name, company_name, master_code in r.all():
             bal = float(inv.balance_due or 0)
             if bal <= 0:
                 continue
             cid = inv.customer_id
+            snapshot = (inv.customer_name or "").strip()
+            master_name = (full_name or company_name or "").strip()
+            name = master_name or snapshot or None
+            code = (master_code or "").strip() or None
             if cid not in buckets:
-                buckets[cid] = {"customer_id": str(cid), "current": 0,
-                                "1_30": 0, "31_60": 0, "61_90": 0, "90_plus": 0}
-            due = inv.invoice_date or inv.created_at.date() if inv.created_at else as_of
+                buckets[cid] = {
+                    "customer_id": str(cid) if cid else None,
+                    "customer_code": code,
+                    "customer_name": name,
+                    "current": 0,
+                    "1_30": 0, "31_60": 0, "61_90": 0, "90_plus": 0,
+                }
+            else:
+                if not buckets[cid].get("customer_name") and name:
+                    buckets[cid]["customer_name"] = name
+                if not buckets[cid].get("customer_code") and code:
+                    buckets[cid]["customer_code"] = code
+            due = inv.invoice_date or (inv.created_at.date() if inv.created_at else as_of)
             age = (as_of - due).days if isinstance(due, date) else 0
             if age <= 0:
                 buckets[cid]["current"] += bal
@@ -531,6 +553,11 @@ class FinARRepo:
                 buckets[cid]["61_90"] += bal
             else:
                 buckets[cid]["90_plus"] += bal
+
+        for cid, bucket in buckets.items():
+            if bucket.get("customer_name"):
+                continue
+            bucket["customer_name"] = "Walk-in" if cid is None else "Unknown customer"
         return list(buckets.values())
 
     async def list_payment_applications(self, vendor_id: UUID,
@@ -1957,6 +1984,7 @@ class FinReportRepo:
         q = (
             select(
                 FinAccount.id,
+                FinAccount.code,
                 FinAccount.name,
                 FinAccount.account_subtype,
                 func.coalesce(func.sum(FinJournalLine.debit), 0).label("dr"),
@@ -1966,12 +1994,14 @@ class FinReportRepo:
             .join(FinJournalEntry, FinJournalLine.journal_entry_id == FinJournalEntry.id)
             .where(
                 FinAccount.vendor_id == vendor_id,
-                FinAccount.account_type == account_type,
+                FinJournalEntry.vendor_id == vendor_id,   # belt-and-suspenders tenant guard
+                # case-insensitive so "income" / "Income" accounts are never silently dropped
+                func.lower(FinAccount.account_type) == account_type.lower(),
                 FinJournalEntry.status == "posted",
                 FinJournalEntry.entry_date >= from_date,
                 FinJournalEntry.entry_date <= to_date,
             )
-            .group_by(FinAccount.id, FinAccount.name, FinAccount.account_subtype)
+            .group_by(FinAccount.id, FinAccount.code, FinAccount.name, FinAccount.account_subtype)
         )
         if company_id:
             q = q.where(FinJournalEntry.company_id == company_id)
@@ -1979,6 +2009,7 @@ class FinReportRepo:
         return {
             row["id"]: {
                 "id": str(row["id"]),
+                "code": row["code"],
                 "name": row["name"],
                 "subtype": row["account_subtype"],
                 # raw balance: positive = more debits, negative = more credits
@@ -2015,21 +2046,76 @@ class FinReportRepo:
         income_lines = [_signed_income(v) for v in income_raw.values()]
         expense_lines = [_signed_expense(v) for v in expense_raw.values()]
 
-        total_income = sum(v["amount"] for v in income_lines)
-        total_expense = sum(v["amount"] for v in expense_lines)
-        gross_profit = total_income - sum(
-            v["amount"] for v in expense_lines
-            if (v.get("subtype") or "").upper() in ("COGS", "COST OF GOODS SOLD")
-        )
+        def _sub(v: dict) -> str:
+            return (v.get("subtype") or "").strip().lower()
+
+        def _is_other_income(v: dict) -> bool:
+            return "other" in _sub(v)
+
+        def _is_cogs(v: dict) -> bool:
+            return _sub(v) in ("cogs", "cost of goods sold")
+
+        def _is_tax(v: dict) -> bool:
+            return "tax" in _sub(v)
+
+        def _is_other_expense(v: dict) -> bool:
+            return _sub(v) in ("other expense", "other expenses")
+
+        revenue_lines = [v for v in income_lines if not _is_other_income(v)]
+        other_income_lines = [v for v in income_lines if _is_other_income(v)]
+        cogs_lines = [v for v in expense_lines if _is_cogs(v)]
+        tax_lines = [v for v in expense_lines if not _is_cogs(v) and _is_tax(v)]
+        other_expense_lines = [
+            v for v in expense_lines
+            if not _is_cogs(v) and not _is_tax(v) and _is_other_expense(v)
+        ]
+        opex_lines = [
+            v for v in expense_lines
+            if not _is_cogs(v) and not _is_tax(v) and not _is_other_expense(v)
+        ]
+
+        def _tot(lines: list[dict]) -> float:
+            return sum(v["amount"] for v in lines)
+
+        total_income = _tot(income_lines)
+        total_expense = _tot(expense_lines)
+        total_revenue = _tot(revenue_lines)
+        total_other_income = _tot(other_income_lines)
+        total_cogs = _tot(cogs_lines)
+        total_opex = _tot(opex_lines)
+        total_other_expense = _tot(other_expense_lines)
+        total_tax = _tot(tax_lines)
+
+        # Gross profit = operating revenue less COGS (other income is not part of gross margin).
+        gross_profit = total_revenue - total_cogs
+        operating_profit = gross_profit - total_opex
+        profit_before_tax = operating_profit + total_other_income - total_other_expense
+        net_profit = total_income - total_expense  # == profit_before_tax - total_tax
 
         return {
             "period": f"{from_date} to {to_date}",
             "income": income_lines,
             "expenses": expense_lines,
+            # Statement layout (what the P&L page renders)
+            "revenue_lines": revenue_lines,
+            "cogs_lines": cogs_lines,
+            "opex_lines": opex_lines,
+            "other_income_lines": other_income_lines,
+            "other_expense_lines": other_expense_lines,
+            "tax_lines": tax_lines,
+            "total_revenue": round(total_revenue, 2),
+            "total_cogs": round(total_cogs, 2),
+            "total_opex": round(total_opex, 2),
+            "total_other_income": round(total_other_income, 2),
+            "total_other_expense": round(total_other_expense, 2),
+            "total_tax": round(total_tax, 2),
+            "operating_profit": round(operating_profit, 2),
+            "profit_before_tax": round(profit_before_tax, 2),
+            # Totals
             "total_income": round(total_income, 2),
             "total_expenses": round(total_expense, 2),
             "gross_profit": round(gross_profit, 2),
-            "net_profit": round(total_income - total_expense, 2),
+            "net_profit": round(net_profit, 2),
         }
 
     async def balance_sheet(self, vendor_id: UUID, as_of: date,
@@ -2042,9 +2128,10 @@ class FinReportRepo:
           - Liability/Equity accounts: natural CREDIT balance → (dr - cr) is negative → report as positive
           - Contra accounts (accumulated depreciation, contra-equity) have opposite signs
 
-        Retained earnings = cumulative net income up to as_of minus dividends.
-        Opening retained earnings are read from the Equity "Retained Earnings" account;
-        if not found, P&L net income from inception is folded in.
+        "retained_earnings" in the result is the cumulative net income (all Income less all
+        Expense postings) from inception to as_of. It is added on top of the explicit Equity
+        accounts (capital, any manually-posted Retained Earnings account, ...), so the
+        accounting equation holds without needing a year-end closing entry.
         """
         # All history up to as_of (inception date chosen conservatively)
         _INCEPTION = date(1970, 1, 1)
@@ -2073,10 +2160,18 @@ class FinReportRepo:
             """Liabilities/Equity: normal credit balance → negate (dr-cr) to get positive."""
             return {"id": v["id"], "name": v["name"], "subtype": v.get("subtype", ""), "amount": round(-v["balance"], 2)}
 
-        current_assets = [_asset_line(v) for v in assets_raw.values() if v.get("subtype") == "Current Asset"]
-        non_current_assets = [_asset_line(v) for v in assets_raw.values() if v.get("subtype") != "Current Asset"]
-        current_liabilities = [_liab_equity_line(v) for v in liab_raw.values() if v.get("subtype") == "Current Liability"]
-        non_current_liabilities = [_liab_equity_line(v) for v in liab_raw.values() if v.get("subtype") != "Current Liability"]
+        # Subtype matching tolerates singular/plural and case, because the COA seeder uses
+        # "Current Asset" while the account form offers "Current Assets".
+        def _is_current_asset(v: dict) -> bool:
+            return (v.get("subtype") or "").strip().lower() in ("current asset", "current assets")
+
+        def _is_current_liab(v: dict) -> bool:
+            return (v.get("subtype") or "").strip().lower() in ("current liability", "current liabilities")
+
+        current_assets = [_asset_line(v) for v in assets_raw.values() if _is_current_asset(v)]
+        non_current_assets = [_asset_line(v) for v in assets_raw.values() if not _is_current_asset(v)]
+        current_liabilities = [_liab_equity_line(v) for v in liab_raw.values() if _is_current_liab(v)]
+        non_current_liabilities = [_liab_equity_line(v) for v in liab_raw.values() if not _is_current_liab(v)]
         equity_lines = [_liab_equity_line(v) for v in equity_raw.values()]
 
         total_current_assets = round(sum(l["amount"] for l in current_assets), 2)

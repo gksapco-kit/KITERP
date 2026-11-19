@@ -143,7 +143,7 @@ const SNAP_REPORTS: SnapReport[] = [
     tab: 'shrinkage',
     series: (s: unknown) => {
       const snap = s as { grouped?: { label: string; total_value: number }[] }
-      return (snap?.grouped ?? []).slice(0, 8).map(g => ({ label: g.label, value: g.total_value }))
+      return (snap?.grouped ?? []).slice(0, 8).map(g => ({ label: g.label.replace(/_/g, ' '), value: g.total_value }))
     },
     stat: (s: unknown) => {
       const snap = s as { total_value?: number }
@@ -162,7 +162,10 @@ const SNAP_REPORTS: SnapReport[] = [
     series: (s: unknown) => {
       const snap = s as { summary?: Record<string, { count: number }> }
       const sm = snap?.summary ?? {}
-      const LABELS: Record<string, string> = { available: 'Available', fully_reserved: 'Fully Reserved', overcommitted: 'Overcommitted' }
+      const LABELS: Record<string, string> = {
+        available: 'Available', fully_reserved: 'Fully Reserved',
+        overcommitted: 'Overcommitted', out_of_stock: 'Out of Stock',
+      }
       return Object.entries(LABELS)
         .map(([k, l]) => ({ label: l, value: sm[k]?.count ?? 0 }))
         .filter(d => d.value > 0)
@@ -444,8 +447,8 @@ export function OverviewTab({
     queryFn: () => vendorApi.inventoryAnalyticsExpiryRisk(snapParams),
   })
   const { data: shrinkageSnap } = useQuery({
-    queryKey: ['vendor', 'inv-analytics-shrinkage', snapParams],
-    queryFn: () => vendorApi.inventoryAnalyticsShrinkage(snapParams),
+    queryKey: ['vendor', 'inv-analytics-shrinkage-by-type', snapParams],
+    queryFn: () => vendorApi.inventoryAnalyticsShrinkage({ ...snapParams, group_by: 'movement_type' }),
   })
   const { data: atpSnap } = useQuery({
     queryKey: ['vendor', 'inv-analytics-atp', snapParams],

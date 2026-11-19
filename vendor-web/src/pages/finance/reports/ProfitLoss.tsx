@@ -6,6 +6,11 @@ function fmt(n: number) {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Math.abs(n))
 }
 
+/** Signed amount: negatives are shown in parentheses so a loss never looks like a profit. */
+function fmtSigned(n: number) {
+  return n < 0 ? `(${fmt(n)})` : fmt(n)
+}
+
 function Row({ label, value, indent = 0, bold = false }: { label: string; value: number; indent?: number; bold?: boolean }) {
   const negative = value < 0
   return (
@@ -66,14 +71,20 @@ export default function ProfitLoss() {
               <tr className="bg-red-50 dark:bg-red-500/10"><td colSpan={2} className="px-4 py-2 text-xs font-medium text-red-700 dark:text-red-300 uppercase">Cost of Goods Sold</td></tr>
               {(data.cogs_lines || []).map((l: any, i: number) => <Row key={i} label={l.name} value={l.amount} indent={1} />)}
               <Row label="Total COGS" value={data.total_cogs || 0} bold />
-              <tr className="bg-blue-50 dark:bg-blue-500/10 border-t-2 border-blue-300 dark:border-blue-500/30"><td className="px-4 py-2 font-bold text-blue-700 dark:text-blue-300">Gross Profit</td><td className={`px-4 py-2 text-right font-bold font-mono ${(data.gross_profit || 0) < 0 ? 'text-red-600 dark:text-red-400' : 'text-blue-700 dark:text-blue-300'}`}>{fmt(data.gross_profit || 0)}</td></tr>
+              <tr className="bg-blue-50 dark:bg-blue-500/10 border-t-2 border-blue-300 dark:border-blue-500/30"><td className="px-4 py-2 font-bold text-blue-700 dark:text-blue-300">Gross Profit</td><td className={`px-4 py-2 text-right font-bold font-mono ${(data.gross_profit || 0) < 0 ? 'text-red-600 dark:text-red-400' : 'text-blue-700 dark:text-blue-300'}`}>{fmtSigned(data.gross_profit || 0)}</td></tr>
               <tr className="bg-orange-50 dark:bg-orange-500/10"><td colSpan={2} className="px-4 py-2 text-xs font-medium text-orange-700 dark:text-orange-300 uppercase">Operating Expenses</td></tr>
               {(data.opex_lines || []).map((l: any, i: number) => <Row key={i} label={l.name} value={l.amount} indent={1} />)}
               <Row label="Total Operating Expenses" value={data.total_opex || 0} bold />
-              <tr className="bg-primary/10 border-t-2 border-primary/40"><td className="px-4 py-2 font-bold text-primary">Operating Profit (EBIT)</td><td className={`px-4 py-2 text-right font-bold font-mono ${(data.operating_profit || 0) < 0 ? 'text-red-600 dark:text-red-400' : 'text-primary'}`}>{fmt(data.operating_profit || 0)}</td></tr>
-              {(data.other_income_lines || []).length > 0 && <>
+              <tr className="bg-primary/10 border-t-2 border-primary/40"><td className="px-4 py-2 font-bold text-primary">Operating Profit (EBIT)</td><td className={`px-4 py-2 text-right font-bold font-mono ${(data.operating_profit || 0) < 0 ? 'text-red-600 dark:text-red-400' : 'text-primary'}`}>{fmtSigned(data.operating_profit || 0)}</td></tr>
+              {((data.other_income_lines || []).length > 0 || (data.other_expense_lines || []).length > 0) && <>
                 <tr className="bg-teal-50 dark:bg-teal-500/10"><td colSpan={2} className="px-4 py-2 text-xs font-medium text-teal-700 dark:text-teal-300 uppercase">Other Income / Expenses</td></tr>
-                {data.other_income_lines.map((l: any, i: number) => <Row key={i} label={l.name} value={l.amount} indent={1} />)}
+                {(data.other_income_lines || []).map((l: any, i: number) => <Row key={`oi-${i}`} label={l.name} value={l.amount} indent={1} />)}
+                {(data.other_expense_lines || []).map((l: any, i: number) => <Row key={`oe-${i}`} label={l.name} value={-l.amount} indent={1} />)}
+              </>}
+              {((data.tax_lines || []).length > 0) && <>
+                <tr className="bg-muted/60 border-t border-border"><td className="px-4 py-2 font-semibold text-foreground">Profit Before Tax</td><td className={`px-4 py-2 text-right font-semibold font-mono ${(data.profit_before_tax || 0) < 0 ? 'text-red-600 dark:text-red-400' : 'text-foreground'}`}>{fmtSigned(data.profit_before_tax || 0)}</td></tr>
+                <tr className="bg-muted/30"><td colSpan={2} className="px-4 py-2 text-xs font-medium text-muted-foreground uppercase">Tax</td></tr>
+                {data.tax_lines.map((l: any, i: number) => <Row key={`tx-${i}`} label={l.name} value={-l.amount} indent={1} />)}
               </>}
               <tr className="bg-muted border-t-2 border-border">
                 <td className="px-4 py-3 font-bold text-foreground text-base">Net Profit / (Loss)</td>

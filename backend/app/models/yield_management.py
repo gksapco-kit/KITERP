@@ -1,9 +1,9 @@
 # app/models/yield_management.py
-"""Cutting yield for products sold after processing (meat, poultry, seafood …).
+"""Yield for products sold after processing (produce, dry goods, proteins, …).
 
-A yield profile lists the cuts of one category and how much raw stock each cut needs
-to give 1 unit of finished output (boneless chicken: 1.30 kg raw → 1 kg). A product
-links to a profile and each cut variant carries its factor, so one sale removes
+A yield profile lists the outputs of one category and how much raw stock each needs
+to give 1 unit of finished output (peeled onion: 1.15 kg raw → 1 kg). A product
+links to a profile and each output variant carries its factor, so one sale removes
 output × factor from the raw stock balance.
 
 YieldDayClose freezes one product's end-of-day figures once the physical count is in.
@@ -55,10 +55,10 @@ class YieldProfileLine(Base):
     input_uom = Column(String(30), nullable=False, default="kg")
     # Raw input needed for 1 unit of output, in input_uom (1.30 kg, or 500 g, gives 1 kg).
     input_per_output = Column(Numeric(14, 4), nullable=False)
-    # How much of this cut one kg of raw chicken yields (0.25 kg boneless, 1 leg piece).
+    # How much of this output one kg of raw stock yields (0.25 kg peeled, 1 piece).
     part_per_raw = Column(Numeric(14, 4), nullable=True)
     part_uom = Column(String(30), nullable=True)
-    # Weigh-out step for the cutter, in input_uom (0.05 = round to 50 g).
+    # Weigh-out step for prep, in input_uom (0.05 = round to 50 g).
     rounding_step = Column(Numeric(8, 3), nullable=True)
     byproduct = Column(String(150), nullable=True)
     sort_order = Column(Integer, nullable=False, default=0)

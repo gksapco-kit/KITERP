@@ -94,7 +94,7 @@ function ProductDay({ row, date }: { row: YieldDayRow; date: string }) {
             <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Raw stock ({uom})</h4>
             <Line label="Opening" value={formatQty(row.opening_qty, uom)} />
             <Line label="+ Purchased / received" value={formatQty(row.purchased_qty, uom)} />
-            <Line label="− Raw cut for sales" value={formatQty(row.raw_cut_qty, uom)} />
+            <Line label="− Raw used for sales" value={formatQty(row.raw_cut_qty, uom)} />
             {row.returned_qty !== 0 && <Line label="+ Customer returns" value={formatQty(row.returned_qty, uom)} />}
             {row.wastage_qty !== 0 && <Line label="− Wastage / write-off" value={formatQty(row.wastage_qty, uom)} />}
             {Math.abs(row.other_qty) > 0.0005 && <Line label="± Other adjustments" value={formatQty(row.other_qty, uom)} />}
@@ -114,7 +114,7 @@ function ProductDay({ row, date }: { row: YieldDayRow; date: string }) {
             {variance != null && (
               <Line
                 label="Variance (missing)"
-                hint="System − physical. Positive = more meat left the shop than was sold."
+                hint="System − physical. Positive = more stock left the shop than was sold."
                 value={formatQty(variance, uom)}
                 tone={varianceTone}
                 strong
@@ -125,7 +125,7 @@ function ProductDay({ row, date }: { row: YieldDayRow; date: string }) {
           <div>
             <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Sales &amp; yield</h4>
             <Line label="Output sold" value={formatQty(row.output_sold_qty, uom)} />
-            <Line label="Cutting loss (bones, skin…)" hint="Raw cut − output sold" value={formatQty(row.cutting_loss_qty, uom)} />
+            <Line label="Processing loss (trim, wastage…)" hint="Raw used − output sold" value={formatQty(row.cutting_loss_qty, uom)} />
             <Line label="Sales (before tax)" value={formatMoney(row.sales_amount)} strong />
             {row.closed ? (
               <Line label="Raw cost / unit" value={row.raw_cost_per_unit != null ? formatMoney(row.raw_cost_per_unit) : '—'} />
@@ -154,10 +154,10 @@ function ProductDay({ row, date }: { row: YieldDayRow; date: string }) {
             <table className="w-full text-sm">
               <thead className="bg-muted/50 text-xs text-muted-foreground">
                 <tr>
-                  <th className="text-left px-3 py-2 font-medium">Cut</th>
+                  <th className="text-left px-3 py-2 font-medium">Output</th>
                   <th className="text-right px-3 py-2 font-medium">Sold</th>
-                  <th className="text-right px-3 py-2 font-medium">Output</th>
-                  <th className="text-right px-3 py-2 font-medium">Raw cut</th>
+                  <th className="text-right px-3 py-2 font-medium">Qty out</th>
+                  <th className="text-right px-3 py-2 font-medium">Raw used</th>
                   <th className="text-right px-3 py-2 font-medium">Factor set / actual</th>
                   <th className="text-right px-3 py-2 font-medium">Amount</th>
                 </tr>
@@ -223,16 +223,16 @@ export default function YieldDayClosePage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <CalendarCheck className="h-6 w-6" /> Day Close — Cutting Yield
+            <CalendarCheck className="h-6 w-6" /> Day Close — Yield
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Raw stock cut, output sold, cutting loss and the physical-count variance for every product sold after cutting.
+            Raw stock used, output sold, processing loss and the physical-count variance for every product sold after processing.
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Input type="date" value={date} max={todayIso()} onChange={(e) => setDate(e.target.value)} className="h-9 w-40" />
           <Button variant="outline" size="sm" onClick={() => setShowSheet((s) => !s)}>
-            <Scissors className="h-4 w-4 mr-1" /> Cutting sheet
+            <Scissors className="h-4 w-4 mr-1" /> Yield sheet
           </Button>
           <Button variant="ghost" size="icon" onClick={() => refetch()} aria-label="Refresh">
             <RefreshCw className={cn('h-4 w-4', isFetching && 'animate-spin')} />
@@ -242,7 +242,7 @@ export default function YieldDayClosePage() {
 
       {showSheet && (
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Cutting sheet</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Yield sheet</CardTitle></CardHeader>
           <CardContent><CuttingSheet /></CardContent>
         </Card>
       )}
@@ -253,7 +253,7 @@ export default function YieldDayClosePage() {
             ['Sales (before tax)', formatMoney(totals.sales)],
             ['Cost of raw used', formatMoney(totals.cogs)],
             ['Gross margin', formatMoney(totals.sales - totals.cogs)],
-            ['Raw cut → output', `${totals.raw.toFixed(2)} → ${totals.output.toFixed(2)}`],
+            ['Raw used → output', `${totals.raw.toFixed(2)} → ${totals.output.toFixed(2)}`],
           ].map(([label, value]) => (
             <Card key={label}>
               <CardContent className="pt-4 pb-3">
@@ -270,7 +270,7 @@ export default function YieldDayClosePage() {
       ) : rows.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-sm text-muted-foreground">
-            No products use cutting yield yet. Open a product's Yield &amp; Cutting tab and turn on "Sold after cutting".
+            No products use yield yet. Open a product's Yield tab and turn on "Sold after cutting / processing".
           </CardContent>
         </Card>
       ) : (

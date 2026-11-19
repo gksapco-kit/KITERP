@@ -5,6 +5,8 @@ import { Loader2, RefreshCw, Download, Scale } from 'lucide-react'
 import { HBarsChart, type CatDatum } from '@/components/charts/reportCharts'
 import { filtersToParams, type AnalyticsFilters } from '../useAnalyticsFilters'
 import { exportCSV } from '../exportUtils'
+import { TabError } from '../TabError'
+import { Pager, usePaged } from '../Pager'
 
 const INR = '₹'
 function fmt(n: number | null | undefined) {
@@ -32,7 +34,7 @@ const METHOD_TILES = [
 
 export function ValuationComparisonTab({ filters, refreshKey = 0 }: { filters: AnalyticsFilters; refreshKey?: number }) {
   const params = filtersToParams(filters, { limit: 500 })
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ['vendor', 'inv-analytics-valuation-comparison', params, refreshKey],
     queryFn: () => vendorApi.inventoryAnalyticsValuationComparison(params),
   })
@@ -40,6 +42,8 @@ export function ValuationComparisonTab({ filters, refreshKey = 0 }: { filters: A
   const d = data ?? {}
   const items: ValuationItem[] = d.items ?? []
   const totals: Totals = d.totals ?? { cost_price_value: 0, map_value: 0, standard_value: 0, fifo_value: 0 }
+
+  const paged = usePaged(items, items.length)
 
   const chartData: CatDatum[] = METHOD_TILES
     .map(t => ({ label: t.label, value: (totals[t.key] as number) ?? 0 }))
@@ -89,7 +93,9 @@ export function ValuationComparisonTab({ filters, refreshKey = 0 }: { filters: A
         </div>
       </div>
 
-      {isLoading ? (
+      {isError ? (
+        <TabError title="Valuation comparison could not be loaded" onRetry={() => refetch()} isFetching={isFetching} />
+      ) : isLoading ? (
         <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
       ) : (
         <div className="rounded-xl border border-border overflow-hidden">
@@ -107,7 +113,7 @@ export function ValuationComparisonTab({ filters, refreshKey = 0 }: { filters: A
                 </tr>
               </thead>
               <tbody>
-                {items.slice(0, 200).map((item) => (
+                {paged.rows.map((item) => (
                   <tr key={item.product_id} className="border-b last:border-0 hover:bg-muted/30">
                     <td className="py-2 px-3">
                       <div className="font-medium max-w-[200px] truncate">{item.product_name}</div>
@@ -127,6 +133,8 @@ export function ValuationComparisonTab({ filters, refreshKey = 0 }: { filters: A
               </tbody>
             </table>
           </div>
+          <Pager page={paged.page} pageCount={paged.pageCount} total={paged.total} onChange={paged.setPage}
+            serverTotal={d.total} />
         </div>
       )}
     </div>

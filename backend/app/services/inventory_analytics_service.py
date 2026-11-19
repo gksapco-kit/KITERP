@@ -9,7 +9,7 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import and_, case, cast, func, literal_column, select, text
+from sqlalchemy import and_, case, cast, func, literal_column, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.types import Date as DateType
 
@@ -18,6 +18,8 @@ from app.models.inventory_count import StockCount, StockCountLine
 from app.models.mrp import StockReservation
 from app.models.procurement_goods import GoodsBatch
 from app.models.procurement_special import MaterialValuation
+from app.models.plant import Plant
+from app.models.storage_location import StorageLocation
 from app.models.stock_cost_layer import StockCostLayer
 from app.models.stock_transfer_order import StockTransferOrder, StockTransferOrderLine
 from app.models.store import Store, StoreInventory
@@ -26,14 +28,148 @@ from app.models.vendor_product import Product
 
 # ── Classification helpers ──────────────────────────────────────────────────
 
-INBOUND_TYPES = ("purchase", "stock_in", "sale_return", "initial", "purchase_return")
-OUTBOUND_TYPES = ("sale", "stock_out", "write_off")
+# Movement types that move stock in or out of the business. The *direction* of
+# every flow is taken from the sign of ``InventoryMovement.quantity`` (so a
+# purchase_return, which is negative, counts as outbound), the type list only
+# decides which rows are "real" flows rather than adjustments or internal moves.
+INBOUND_TYPES = (
+    "purchase", "stock_in", "sale_return", "initial",
+    "production_receipt", "production_consumption_reversal",
+)
+OUTBOUND_TYPES = (
+    "sale", "stock_out", "write_off", "purchase_return",
+    "production_consumption", "production_receipt_reversal",
+)
+FLOW_TYPES = INBOUND_TYPES + OUTBOUND_TYPES
 ADJUSTMENT_TYPES = ("adjustment", "stock_count")
 SHRINKAGE_TYPES = ("write_off", "adjustment", "stock_count")
+# Consumption that counts as cost-of-goods for turnover / DSI.
+COGS_TYPES = ("sale", "stock_out", "write_off", "production_consumption")
+
+# Business timezone: report day boundaries follow IST, not UTC.
+_REPORT_TZ_NAME = "Asia/Kolkata"
+_REPORT_TZ = timezone(timedelta(hours=5, minutes=30))
+
+# Stock edited on the product form (opening stock, "Product stock updated") is
+# recorded as a manual adjustment with no business unit. It is a genuine
+# stock-in / stock-out, not shrinkage, so it is treated as a flow.
+_PRODUCT_EDIT = and_(
+    InventoryMovement.movement_type == "adjustment",
+    InventoryMovement.reference_type == "manual",
+    InventoryMovement.store_id.is_(None),
+)
+
+
+def _flow_filter(store_id: Optional[UUID] = None):
+    """SQL condition: movement is a stock flow (in or out of the business).
+
+    Store-to-store transfers net to zero company-wide, so they are only treated
+    as flows when a single business unit is selected.
+    """
+    types = list(FLOW_TYPES)
+    if store_id:
+        types.append("transfer")
+    return or_(InventoryMovement.movement_type.in_(types), _PRODUCT_EDIT)
+
+
+def _adjustment_filter():
+    """SQL condition: a true stock adjustment / count correction."""
+    return and_(
+        InventoryMovement.movement_type.in_(list(ADJUSTMENT_TYPES)),
+        ~_PRODUCT_EDIT,
+    )
+
+
+def _scope_batches_to_store(q, store_id: UUID):
+    """Restrict a GoodsBatch query to one business unit.
+
+    Batches have no store_id of their own; the unit comes from the batch's storage
+    location, or from its plant when no location is set. Batches with neither are
+    excluded when a unit is selected (their unit is unknown).
+    """
+    return (
+        q.outerjoin(StorageLocation, StorageLocation.id == GoodsBatch.storage_location_id)
+        .outerjoin(Plant, Plant.id == GoodsBatch.plant_id)
+        .where(
+            or_(
+                StorageLocation.store_id == store_id,
+                and_(StorageLocation.id.is_(None), Plant.store_id == store_id),
+            )
+        )
+    )
+
+
+async def _value_change_since(
+    db: AsyncSession,
+    vendor_id: UUID,
+    store_id: Optional[UUID],
+    since: datetime,
+    by_category: bool = False,
+):
+    """Net stock value (qty x cost) moved by every movement at or after ``since``.
+
+    Subtracting this from today's stock value gives the stock value at ``since``.
+    Returns a float, or a {category: float} dict when ``by_category`` is set.
+    """
+    cols = [func.sum(InventoryMovement.quantity * Product.cost_price).label("chg")]
+    if by_category:
+        cols.insert(0, Product.category.label("grp"))
+    q = (
+        select(*cols)
+        .select_from(InventoryMovement)
+        .join(Product, Product.id == InventoryMovement.product_id)
+        .where(
+            InventoryMovement.vendor_id == vendor_id,
+            InventoryMovement.created_at >= since,
+            Product.track_inventory.is_(True),
+            Product.cost_price.isnot(None),
+        )
+    )
+    if store_id:
+        q = q.where(InventoryMovement.store_id == store_id)
+    if by_category:
+        q = q.group_by(Product.category)
+        return {r.grp: float(r.chg or 0) for r in (await db.execute(q)).all()}
+    return float((await db.execute(q)).scalar() or 0)
+
+
+async def _cogs_value(
+    db: AsyncSession, vendor_id: UUID, store_id: Optional[UUID], df: date, dt: date,
+    types: tuple = COGS_TYPES,
+) -> float:
+    """Cost of goods consumed (sales, stock-outs, write-offs, production use) in the period."""
+    q = (
+        select(func.sum(func.abs(InventoryMovement.quantity) * Product.cost_price))
+        .select_from(InventoryMovement)
+        .join(Product, Product.id == InventoryMovement.product_id)
+        .where(
+            InventoryMovement.vendor_id == vendor_id,
+            InventoryMovement.movement_type.in_(types),
+            InventoryMovement.created_at >= _to_dt(df),
+            InventoryMovement.created_at < _to_dt(dt + timedelta(days=1)),
+            Product.cost_price.isnot(None),
+        )
+    )
+    if store_id:
+        q = q.where(InventoryMovement.store_id == store_id)
+    return float((await db.execute(q)).scalar() or 0)
+
+
+def _average_stock(current: float, change_since_start: float, change_since_end: float) -> float:
+    """Average of opening and closing stock value for the period.
+
+    Falls back to the current value when the movement history can't reconstruct a
+    sensible opening/closing figure (e.g. stock that predates movement tracking).
+    """
+    opening = current - change_since_start
+    closing = current - change_since_end
+    if opening > 0 and closing > 0:
+        return (opening + closing) / 2
+    return current
 
 
 def _default_range(date_from: Optional[date], date_to: Optional[date]) -> tuple[date, date]:
-    today = date.today()
+    today = datetime.now(_REPORT_TZ).date()
     return (
         date_from or (today - timedelta(days=29)),
         date_to or today,
@@ -41,7 +177,7 @@ def _default_range(date_from: Optional[date], date_to: Optional[date]) -> tuple[
 
 
 def _to_dt(d: date) -> datetime:
-    return datetime(d.year, d.month, d.day, tzinfo=timezone.utc)
+    return datetime(d.year, d.month, d.day, tzinfo=_REPORT_TZ)
 
 
 # ── 1. Overview KPIs ────────────────────────────────────────────────────────
@@ -105,7 +241,7 @@ async def get_overview(
             .join(Product, Product.id == InventoryMovement.product_id)
             .where(
                 InventoryMovement.vendor_id == vendor_id,
-                InventoryMovement.movement_type.in_(OUTBOUND_TYPES + INBOUND_TYPES),
+                _flow_filter(store_id),
                 InventoryMovement.created_at >= _to_dt(df2),
                 InventoryMovement.created_at < _to_dt(dt2 + timedelta(days=1)),
                 Product.cost_price.isnot(None),
@@ -163,7 +299,8 @@ async def get_overview(
             GoodsBatch.quantity_available > 0,
             Product.cost_price.isnot(None),
         )
-        # GoodsBatch has no store_id; store scoping not supported for batch expiry overview
+        if store_id:
+            q = _scope_batches_to_store(q, store_id)
         return float((await db.execute(q)).scalar() or 0)
 
     async def _count_accuracy():
@@ -174,6 +311,11 @@ async def get_overview(
             StockCountLine.vendor_id == vendor_id,
             StockCount.status == "completed",
             StockCountLine.counted_qty.isnot(None),
+        )
+        # Same window as the Count Accuracy tab so the KPI and the tab agree.
+        q = q.where(
+            StockCount.posted_at >= _to_dt(df),
+            StockCount.posted_at < _to_dt(dt + timedelta(days=1)),
         )
         if store_id:
             q = q.where(StockCount.store_id == store_id)
@@ -196,8 +338,14 @@ async def get_overview(
         return round((curr - prev) / prev * 100, 1)
 
     days_in_period = max((dt - df).days + 1, 1)
-    avg_val = total_val  # simplified — could average opening/closing when snapshot available
-    turnover = round(outbound / avg_val, 2) if avg_val else None
+    avg_val = _average_stock(
+        total_val,
+        await _value_change_since(db, vendor_id, store_id, _to_dt(df)),
+        await _value_change_since(db, vendor_id, store_id, _to_dt(dt + timedelta(days=1))),
+    )
+    cogs = await _cogs_value(db, vendor_id, store_id, df, dt)
+    # No consumption in the period -> turnover is "not meaningful" (None), not 0x.
+    turnover = round(cogs / avg_val, 2) if avg_val and cogs else None
     dsi = round(days_in_period / turnover, 1) if turnover else None
 
     return {
@@ -228,7 +376,7 @@ async def get_turnover(
     df, dt = _default_range(date_from, date_to)
     days = max((dt - df).days + 1, 1)
 
-    out_types = ("sale",) if basis == "sales" else OUTBOUND_TYPES
+    out_types = ("sale",) if basis == "sales" else COGS_TYPES
 
     q = (
         select(
@@ -273,17 +421,23 @@ async def get_turnover(
 
     val_rows = {r.grp: float(r.val or 0) for r in (await db.execute(val_q)).all()}
 
+    # Average of opening and closing stock per category (falls back to current stock).
+    chg_start = await _value_change_since(db, vendor_id, store_id, _to_dt(df), by_category=True)
+    chg_end = await _value_change_since(db, vendor_id, store_id, _to_dt(dt + timedelta(days=1)), by_category=True)
+
     items = []
     total_cogs = 0.0
     for r in rows:
         cogs = float(r.cogs or 0)
         on_hand = val_rows.get(r.grp, 0)
-        turnover = round(cogs / on_hand, 2) if on_hand else None
+        avg_stock = _average_stock(on_hand, chg_start.get(r.grp, 0.0), chg_end.get(r.grp, 0.0))
+        turnover = round(cogs / avg_stock, 2) if avg_stock and cogs else None
         dsi = round(days / turnover, 1) if turnover else None
         items.append({
             "group": r.grp or "Uncategorised",
             "cogs": round(cogs, 2),
             "inventory_value": round(on_hand, 2),
+            "average_inventory_value": round(avg_stock, 2),
             "turnover_ratio": turnover,
             "days_sales_of_inventory": dsi,
         })
@@ -316,61 +470,111 @@ async def get_movement_trend(
 ) -> dict:
     df, dt = _default_range(date_from, date_to)
 
-    trunc = func.date_trunc(bucket, InventoryMovement.created_at).label("period")
+    # Always aggregate per IST calendar day in SQL (not UTC, so late-night movements land on
+    # the right day); week / month buckets are rolled up from the daily rows in Python.
+    if db.bind is not None and db.bind.dialect.name == "sqlite":
+        day_expr = func.date(InventoryMovement.created_at, "+330 minutes")
+    else:
+        day_expr = cast(func.timezone(_REPORT_TZ_NAME, InventoryMovement.created_at), DateType)
+    trunc = day_expr.label("period")
+
+    flow = _flow_filter(store_id)
+    adj = _adjustment_filter()
+    qty = InventoryMovement.quantity
+    # Products without a cost price still moved stock: they count as movements and
+    # quantities, but contribute zero value (reported separately as "uncosted").
+    cost = func.coalesce(Product.cost_price, 0)
 
     q = (
         select(
             trunc,
-            func.sum(
-                case(
-                    (InventoryMovement.movement_type.in_(list(INBOUND_TYPES)),
-                     InventoryMovement.quantity * Product.cost_price),
-                    else_=0,
-                )
-            ).label("inbound_value"),
-            func.sum(
-                case(
-                    (InventoryMovement.movement_type.in_(list(OUTBOUND_TYPES)),
-                     func.abs(InventoryMovement.quantity) * Product.cost_price),
-                    else_=0,
-                )
-            ).label("outbound_value"),
-            func.sum(
-                case(
-                    (InventoryMovement.movement_type.in_(list(ADJUSTMENT_TYPES)),
-                     func.abs(InventoryMovement.quantity) * Product.cost_price),
-                    else_=0,
-                )
-            ).label("adjustment_value"),
+            func.sum(case((and_(flow, qty > 0), qty * cost), else_=0)).label("inbound_value"),
+            func.sum(case((and_(flow, qty < 0), func.abs(qty) * cost), else_=0)).label("outbound_value"),
+            func.sum(case((adj, func.abs(qty) * cost), else_=0)).label("adjustment_value"),
+            func.sum(case((and_(flow, qty > 0), qty), else_=0)).label("inbound_qty"),
+            func.sum(case((and_(flow, qty < 0), func.abs(qty)), else_=0)).label("outbound_qty"),
+            func.sum(case((adj, func.abs(qty)), else_=0)).label("adjustment_qty"),
+            func.sum(case((Product.cost_price.is_(None), 1), else_=0)).label("uncosted"),
             func.count(InventoryMovement.id).label("movements"),
         )
         .join(Product, Product.id == InventoryMovement.product_id)
         .where(
             InventoryMovement.vendor_id == vendor_id,
+            or_(flow, adj),
             InventoryMovement.created_at >= _to_dt(df),
             InventoryMovement.created_at < _to_dt(dt + timedelta(days=1)),
-            Product.cost_price.isnot(None),
         )
-        .group_by(text("period"))
-        .order_by(text("period"))
+        .group_by(day_expr)
+        .order_by(day_expr)
     )
     if store_id:
         q = q.where(InventoryMovement.store_id == store_id)
 
     rows = (await db.execute(q)).all()
+
+    def _bucket_start(d: date) -> date:
+        if bucket == "week":
+            return d - timedelta(days=d.weekday())  # Monday, same as date_trunc('week')
+        if bucket == "month":
+            return d.replace(day=1)
+        return d
+
+    def _blank() -> dict:
+        return {
+            "inbound_value": 0.0, "outbound_value": 0.0, "adjustment_value": 0.0,
+            "inbound_qty": 0.0, "outbound_qty": 0.0, "adjustment_qty": 0.0,
+            "movements": 0,
+        }
+
+    def _next_bucket(d: date) -> date:
+        if bucket == "week":
+            return d + timedelta(days=7)
+        if bucket == "month":
+            return date(d.year + 1, 1, 1) if d.month == 12 else date(d.year, d.month + 1, 1)
+        return d + timedelta(days=1)
+
+    # Pre-fill every bucket in the range so quiet periods show as zero, not as gaps.
+    rolled: dict[date, dict] = {}
+    cursor, last = _bucket_start(df), _bucket_start(dt)
+    while cursor <= last:
+        rolled[cursor] = _blank()
+        cursor = _next_bucket(cursor)
+
+    uncosted = 0
+    for r in rows:
+        day = r.period if isinstance(r.period, date) else date.fromisoformat(str(r.period)[:10])
+        agg = rolled.setdefault(_bucket_start(day), _blank())
+        for field in ("inbound_value", "outbound_value", "adjustment_value",
+                      "inbound_qty", "outbound_qty", "adjustment_qty"):
+            agg[field] += float(getattr(r, field) or 0)
+        agg["movements"] += int(r.movements)
+        uncosted += int(r.uncosted or 0)
+
     series = [
         {
-            "date": r.period.date().isoformat(),
-            "inbound_value": round(float(r.inbound_value or 0), 2),
-            "outbound_value": round(float(r.outbound_value or 0), 2),
-            "adjustment_value": round(float(r.adjustment_value or 0), 2),
-            "movements": int(r.movements),
+            "date": k.isoformat(),
+            "inbound_value": round(v["inbound_value"], 2),
+            "outbound_value": round(v["outbound_value"], 2),
+            "adjustment_value": round(v["adjustment_value"], 2),
+            "inbound_qty": round(v["inbound_qty"], 3),
+            "outbound_qty": round(v["outbound_qty"], 3),
+            "adjustment_qty": round(v["adjustment_qty"], 3),
+            "movements": v["movements"],
         }
-        for r in rows
+        for k, v in sorted(rolled.items())
     ]
+
+    totals = {
+        "movements": sum(p["movements"] for p in series),
+        "uncosted_movements": uncosted,
+    }
+    for field in ("inbound_value", "outbound_value", "adjustment_value",
+                  "inbound_qty", "outbound_qty", "adjustment_qty"):
+        totals[field] = round(sum(p[field] for p in series), 3 if field.endswith("qty") else 2)
 
     return {
         "series": series,
+        "totals": totals,
         "bucket": bucket,
         "date_from": df.isoformat(),
         "date_to": dt.isoformat(),
@@ -418,7 +622,9 @@ async def get_stock_health(
     for r in rows:
         rp = r.reorder_point or 0
         rq = r.reorder_quantity or 0
-        threshold = r.low_stock_threshold or rp  # prefer bin threshold, fall back to product reorder_point
+        # The product's reorder policy wins; the bin-level threshold (which defaults to 5
+        # in the DB) is only a fallback for products with no reorder point.
+        threshold = rp if rp > 0 else (r.low_stock_threshold or 0)
         on_hand = r.on_hand or 0
         cost = float(r.cost_price or 0)
 
@@ -433,6 +639,7 @@ async def get_stock_health(
 
         items.append({
             "product_id": str(r.product_id),
+            "store_id": str(r.store_id) if r.store_id else None,
             "product_name": r.name,
             "sku": r.sku,
             "category": r.category or "Uncategorised",
@@ -502,8 +709,8 @@ async def get_expiry_risk(
         )
         .order_by(GoodsBatch.expiry_date.asc())
     )
-    # GoodsBatch has no store_id column; store-level scope not available here.
-    # Callers can pass plant_id or storage_location_id for location scoping when needed.
+    if store_id:
+        q = _scope_batches_to_store(q, store_id)
     if category:
         q = q.where(Product.category == category)
 
@@ -589,6 +796,10 @@ async def get_shrinkage(
         .where(
             InventoryMovement.vendor_id == vendor_id,
             InventoryMovement.movement_type.in_(list(SHRINKAGE_TYPES)),
+            # Only stock *lost*: gains (count surpluses, positive adjustments) are not shrinkage,
+            # and product-form stock edits are plain stock changes, not write-offs.
+            InventoryMovement.quantity < 0,
+            ~_PRODUCT_EDIT,
             InventoryMovement.created_at >= _to_dt(df),
             InventoryMovement.created_at < _to_dt(dt + timedelta(days=1)),
             Product.cost_price.isnot(None),
@@ -832,8 +1043,18 @@ async def get_in_transit(
     vendor_id: UUID,
     date_from: Optional[date],
     date_to: Optional[date],
+    store_id: Optional[UUID] = None,
 ) -> dict:
     df, dt = _default_range(date_from, date_to)
+
+    # A transfer belongs to a business unit if it is the source or the destination.
+    store_scope = (
+        or_(
+            StockTransferOrder.from_store_id == store_id,
+            StockTransferOrder.to_store_id == store_id,
+        )
+        if store_id else None
+    )
 
     # Currently dispatched (in-transit) orders
     in_transit_q = (
@@ -855,6 +1076,8 @@ async def get_in_transit(
         )
         .group_by(StockTransferOrder.id)
     )
+    if store_scope is not None:
+        in_transit_q = in_transit_q.where(store_scope)
     in_transit_rows = (await db.execute(in_transit_q)).all()
 
     # Completed transfers in period — lead time
@@ -881,6 +1104,8 @@ async def get_in_transit(
         )
         .group_by(StockTransferOrder.id)
     )
+    if store_scope is not None:
+        completed_q = completed_q.where(store_scope)
     completed_rows = (await db.execute(completed_q)).all()
 
     in_transit = [
@@ -935,6 +1160,17 @@ async def get_in_transit(
 
 
 # ── 10. Available-to-Promise (ATP) ──────────────────────────────────────────
+
+def _atp_status(on_hand: float, reserved: float, atp: float) -> str:
+    """Nothing on hand and nothing reserved is 'out_of_stock', not 'fully_reserved'."""
+    if on_hand <= 0 and reserved <= 0:
+        return "out_of_stock"
+    if atp > 0:
+        return "available"
+    if atp == 0:
+        return "fully_reserved"
+    return "overcommitted"
+
 
 async def get_atp(
     db: AsyncSession,
@@ -1002,13 +1238,13 @@ async def get_atp(
             "reorder_point": p.reorder_point,
             "cost_price": float(p.cost_price or 0),
             "atp_value": round(max(atp, 0) * float(p.cost_price or 0), 2),
-            "status": "available" if atp > 0 else ("fully_reserved" if atp == 0 else "overcommitted"),
+            "status": _atp_status(on_hand, reserved, atp),
         })
 
     items.sort(key=lambda x: x["atp"])
     summary = {
         s: {"count": sum(1 for i in items if i["status"] == s)}
-        for s in ("available", "fully_reserved", "overcommitted")
+        for s in ("available", "fully_reserved", "overcommitted", "out_of_stock")
     }
     total = len(items)
     paged = items[offset: offset + limit]

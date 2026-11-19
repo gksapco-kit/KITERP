@@ -7,7 +7,7 @@ export interface YieldProfileLine {
   input_uom?: string | null
   /** Raw input needed for 1 unit of output, in input_uom (1.30 kg or 500 g → 1 kg). */
   input_per_output: number
-  /** How much of this cut comes out of 1 kg of raw chicken. */
+  /** How much of this output comes out of 1 kg of raw stock. */
   part_per_raw?: number | null
   /** Unit of part_per_raw (kg, g, piece). */
   part_uom?: string | null

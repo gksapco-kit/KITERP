@@ -57,6 +57,46 @@ else:
     engine = create_async_engine(TEST_DB_URL, echo=False)
 TestSession = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
+if not USE_POSTGRES:
+    from datetime import datetime as _dt, timedelta as _td
+
+    from sqlalchemy import event
+
+    @event.listens_for(engine.sync_engine, "connect")
+    def _register_postgres_function_shims(dbapi_conn, _record):
+        """Give SQLite the few PostgreSQL scalar functions report queries rely on."""
+
+        def _date_trunc(unit, ts):
+            if ts is None:
+                return None
+            d = _dt.fromisoformat(str(ts)[:19].replace("T", " "))
+            unit = str(unit).lower()
+            if unit == "year":
+                d = d.replace(month=1, day=1, hour=0, minute=0, second=0)
+            elif unit == "quarter":
+                d = d.replace(month=((d.month - 1) // 3) * 3 + 1, day=1, hour=0, minute=0, second=0)
+            elif unit == "month":
+                d = d.replace(day=1, hour=0, minute=0, second=0)
+            elif unit == "week":
+                d = (d - _td(days=d.weekday())).replace(hour=0, minute=0, second=0)
+            elif unit == "day":
+                d = d.replace(hour=0, minute=0, second=0)
+            elif unit == "hour":
+                d = d.replace(minute=0, second=0)
+            return d.strftime("%Y-%m-%d %H:%M:%S")
+
+        def _greatest(*args):
+            vals = [a for a in args if a is not None]
+            return max(vals) if vals else None
+
+        def _least(*args):
+            vals = [a for a in args if a is not None]
+            return min(vals) if vals else None
+
+        dbapi_conn.create_function("date_trunc", 2, _date_trunc)
+        dbapi_conn.create_function("greatest", -1, _greatest)
+        dbapi_conn.create_function("least", -1, _least)
+
 
 @pytest.fixture(scope="session")
 def event_loop():
