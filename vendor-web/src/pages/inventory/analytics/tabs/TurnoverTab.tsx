@@ -7,6 +7,7 @@ import { BarsChart, compactCurrency, type CatDatum } from '@/components/charts/r
 import { Loader2, RefreshCw, Download } from 'lucide-react'
 import { filtersToParams, type AnalyticsFilters } from '../useAnalyticsFilters'
 import { exportCSV } from '../exportUtils'
+import { TabError } from '../TabError'
 
 const INR = '₹'
 function fmt(n: number) {
@@ -22,6 +23,7 @@ interface TurnoverItem {
   group: string
   cogs: number
   inventory_value: number
+  average_inventory_value?: number
   turnover_ratio: number | null
   days_sales_of_inventory: number | null
 }
@@ -36,7 +38,7 @@ export function TurnoverTab({
   refreshKey?: number
 }) {
   const params = filtersToParams(filters, { basis: filters.basis })
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ['vendor', 'inv-analytics-turnover', params, refreshKey],
     queryFn: () => vendorApi.inventoryAnalyticsTurnover(params),
   })
@@ -70,7 +72,9 @@ export function TurnoverTab({
         </div>
       </div>
 
-      {isLoading ? (
+      {isError ? (
+        <TabError title="Turnover report could not be loaded" onRetry={() => refetch()} isFetching={isFetching} />
+      ) : isLoading ? (
         <div className="flex justify-center py-24"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
       ) : (
         <div className="grid lg:grid-cols-2 gap-4">
@@ -91,6 +95,7 @@ export function TurnoverTab({
                     <th className="py-2 px-3 text-left text-xs font-medium text-muted-foreground">Category</th>
                     <th className="py-2 px-3 text-right text-xs font-medium text-muted-foreground">COGS</th>
                     <th className="py-2 px-3 text-right text-xs font-medium text-muted-foreground">Inv. Value</th>
+                    <th className="py-2 px-3 text-right text-xs font-medium text-muted-foreground" title="Average of opening and closing stock value for the period; turnover = COGS / this">Avg. Inv.</th>
                     <th className="py-2 px-3 text-right text-xs font-medium text-muted-foreground">Turnover</th>
                     <th className="py-2 px-3 text-right text-xs font-medium text-muted-foreground">DSI</th>
                   </tr></thead>
@@ -100,6 +105,7 @@ export function TurnoverTab({
                         <td className="py-2 px-3 font-medium">{item.group}</td>
                         <td className="py-2 px-3 text-right font-mono text-xs">{INR}{fmt(item.cogs)}</td>
                         <td className="py-2 px-3 text-right font-mono text-xs">{INR}{fmt(item.inventory_value)}</td>
+                        <td className="py-2 px-3 text-right font-mono text-xs">{INR}{fmt(item.average_inventory_value ?? item.inventory_value)}</td>
                         <td className="py-2 px-3 text-right font-semibold">
                           {item.turnover_ratio != null ? `${item.turnover_ratio}×` : '—'}
                         </td>
@@ -109,7 +115,7 @@ export function TurnoverTab({
                       </tr>
                     ))}
                     {items.length === 0 && (
-                      <tr><td colSpan={5} className="py-12 text-center text-muted-foreground">No outbound movements in the selected period</td></tr>
+                      <tr><td colSpan={6} className="py-12 text-center text-muted-foreground">No outbound movements in the selected period</td></tr>
                     )}
                   </tbody>
                   {items.length > 0 && (
@@ -117,7 +123,7 @@ export function TurnoverTab({
                       <td className="py-2 px-3">Total</td>
                       <td className="py-2 px-3 text-right font-mono text-xs">{INR}{fmt(d.total_cogs ?? 0)}</td>
                       <td className="py-2 px-3 text-right font-mono text-xs">{INR}{fmt(d.total_inventory_value ?? 0)}</td>
-                      <td colSpan={2} />
+                      <td colSpan={3} />
                     </tr></tfoot>
                   )}
                 </table>

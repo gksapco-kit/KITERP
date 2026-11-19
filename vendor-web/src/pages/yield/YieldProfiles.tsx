@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Plus, Scissors, Trash2, Pencil, Loader2, Copy, Calculator } from 'lucide-react'
+import { Plus, Scissors, Trash2, Pencil, Loader2, Calculator } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,9 +9,11 @@ import { ModalOverlay, ModalPanel, ModalHeader, ModalBody, ModalFooter } from '@
 import { Select } from '@/components/ui/select'
 import { askConfirm } from '@/components/common/ConfirmProvider'
 import {
-  useYieldProfiles, useYieldTemplates, useSaveYieldProfile, useDeleteYieldProfile,
+  useYieldProfiles, useSaveYieldProfile, useDeleteYieldProfile,
 } from '@/hooks/useYield'
-import type { YieldProfile, YieldProfileInput, YieldProfileLine, YieldProfileTemplate } from '@/api/yield'
+import { useProducts } from '@/hooks/useVendor'
+import type { YieldProfile, YieldProfileInput, YieldProfileLine } from '@/api/yield'
+import type { Product } from '@/types'
 import { formatQty, yieldPercent } from '@/lib/yieldCalc'
 import { convertWeight } from '@/lib/stockConversion'
 import { UOM_GROUPS, UOM_OPTIONS } from '@/lib/uomOptions'
@@ -27,6 +29,35 @@ const PART_UOM_OPTIONS = [
 ]
 
 const EMPTY_LINE: YieldProfileLine = { cut_name: '', input_uom: 'kg', input_per_output: 1 }
+
+const YIELD_PRODUCT_TYPES = new Set(['physical', 'raw_material', 'semi_finished', ''])
+
+function isYieldEligibleProduct(p: Product) {
+  const type = (p.product_type || 'physical').toLowerCase()
+  return YIELD_PRODUCT_TYPES.has(type) && !p.deleted_at
+}
+
+function profileFromProduct(p: Product): YieldProfileInput {
+  const variants = (p.variants || []).filter((v) => v?.name?.trim() && v.is_active !== false)
+  const lines: YieldProfileLine[] = variants.length
+    ? variants.map((v) => {
+        const yieldCut = (v as { yield_cut?: string | null }).yield_cut
+        const yieldFactor = Number((v as { yield_factor?: number | null }).yield_factor)
+        return {
+          cut_name: (yieldCut || v.name).trim(),
+          input_uom: 'kg',
+          input_per_output: yieldFactor > 0 ? yieldFactor : 1,
+        }
+      })
+    : [{ ...EMPTY_LINE, cut_name: p.name.trim() || '' }]
+  return {
+    name: p.name.trim(),
+    category: (p.category || p.name).trim() || null,
+    input_uom: 'kg',
+    is_active: true,
+    lines,
+  }
+}
 
 function lineUom(line: YieldProfileLine, profileUom?: string | null) {
   return line.input_uom || profileUom || 'kg'
@@ -77,7 +108,7 @@ function ProfileEditor({
         <ModalPanel className="w-[46rem] max-w-[calc(100vw-2rem)]">
         <ModalHeader
           title={id ? 'Edit yield profile' : 'New yield profile'}
-          subtitle={<p className="text-xs text-muted-foreground">Name, unit, and raw amount for 1 kg sold. Boneless 1.3 kg, leg pieces 500 grams.</p>}
+          subtitle={<p className="text-xs text-muted-foreground">Name, unit, and raw amount for 1 kg sold. Example: peeled onion 1.15 kg, boneless 1.3 kg.</p>}
           onClose={onClose}
         />
         <ModalBody className="space-y-3">
@@ -94,13 +125,13 @@ function ProfileEditor({
                     category: !f.category || f.category === f.name ? name : f.category,
                   }))
                 }}
-                placeholder="Chicken"
+                placeholder="Vegetables"
                 className="h-8"
               />
             </label>
             <label className="space-y-1 text-sm">
               <span className="text-xs font-medium text-muted-foreground">Product category</span>
-              <Input value={form.category ?? ''} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="Chicken" className="h-8" />
+              <Input value={form.category ?? ''} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="Vegetables" className="h-8" />
             </label>
           </div>
 
@@ -116,7 +147,7 @@ function ProfileEditor({
               </colgroup>
               <thead className="bg-muted/50 text-xs text-muted-foreground">
                 <tr>
-                  <th className="text-left px-2 py-1.5 font-medium">Cut</th>
+                  <th className="text-left px-2 py-1.5 font-medium">Output</th>
                   <th className="text-left px-2 py-1.5 font-medium">UOM</th>
                   <th className="text-left px-2 py-1.5 font-medium">Raw</th>
                   <th className="text-left px-2 py-1.5 font-medium">In 1 kg raw</th>
@@ -130,7 +161,7 @@ function ProfileEditor({
                   return (
                   <tr key={i} className="border-t border-border">
                     <td className="px-2 py-1">
-                      <Input value={l.cut_name} onChange={(e) => setLine(i, { cut_name: e.target.value })} placeholder="Boneless" className="h-8 w-full" />
+                      <Input value={l.cut_name} onChange={(e) => setLine(i, { cut_name: e.target.value })} placeholder="Peeled onion" className="h-8 w-full" />
                     </td>
                     <td className="px-2 py-1">
                       <Select
@@ -177,7 +208,7 @@ function ProfileEditor({
                       <Button
                         type="button" variant="ghost" size="icon" className="h-8 w-8"
                         onClick={() => setForm((f) => ({ ...f, lines: f.lines.filter((_, j) => j !== i) }))}
-                        aria-label="Remove cut"
+                        aria-label="Remove output"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -194,7 +225,7 @@ function ProfileEditor({
               Active
             </div>
             <Button type="button" variant="outline" size="sm" onClick={() => setForm((f) => ({ ...f, lines: [...f.lines, { ...EMPTY_LINE }] }))}>
-              <Plus className="h-4 w-4 mr-1" /> Add cut
+              <Plus className="h-4 w-4 mr-1" /> Add output
             </Button>
           </div>
         </ModalBody>
@@ -229,16 +260,8 @@ function profilesForCategory(profiles: YieldProfile[], category: string): YieldP
   })
 }
 
-function cutsForCategory(
-  profiles: YieldProfile[],
-  templates: YieldProfileTemplate[],
-  category: string,
-): YieldProfileLine[] {
-  const saved = profilesForCategory(profiles, category)
-  const c = norm(category)
-  const sources = saved.length
-    ? saved
-    : templates.filter((t) => norm(t.category) === c || norm(t.name) === c)
+function cutsForCategory(profiles: YieldProfile[], category: string): YieldProfileLine[] {
+  const sources = profilesForCategory(profiles, category)
   const seen = new Set<string>()
   const lines: YieldProfileLine[] = []
   for (const profile of sources) {
@@ -252,7 +275,7 @@ function cutsForCategory(
   return lines
 }
 
-function categoryNames(profiles: YieldProfile[], templates: YieldProfileTemplate[]): string[] {
+function categoryNames(profiles: YieldProfile[]): string[] {
   const seen = new Set<string>()
   const list: string[] = []
   const add = (name: string | null | undefined) => {
@@ -262,7 +285,6 @@ function categoryNames(profiles: YieldProfile[], templates: YieldProfileTemplate
     seen.add(key)
     list.push(trimmed)
   }
-  for (const template of templates) add(template.name || template.category)
   for (const profile of profiles) add(profile.category || profile.name)
   return list
 }
@@ -272,7 +294,7 @@ function defaultOrderUom(line: YieldProfileLine | undefined): string {
   return 'kg'
 }
 
-/** Raw chicken for this line alone: order in kg × the profile Raw factor. Each cut uses its own bird. */
+/** Raw stock for this line alone: order in kg × the profile Raw factor. */
 function rawKgForLine(line: YieldProfileLine | undefined, orderQty: number, orderUom: string): number | null {
   if (!line || !(orderQty > 0)) return null
   const factorKg = convertWeight(Number(line.input_per_output), line.input_uom || 'kg', 'kg')
@@ -283,8 +305,8 @@ function rawKgForLine(line: YieldProfileLine | undefined, orderQty: number, orde
 
 type CalcRow = { id: string; cut: string; uom: string; order: string }
 
-function rowsForCategory(profiles: YieldProfile[], templates: YieldProfileTemplate[], category: string): CalcRow[] {
-  return cutsForCategory(profiles, templates, category).map((line) => ({
+function rowsForCategory(profiles: YieldProfile[], category: string): CalcRow[] {
+  return cutsForCategory(profiles, category).map((line) => ({
     id: nextCalcRowId(),
     cut: line.cut_name,
     uom: defaultOrderUom(line),
@@ -292,23 +314,23 @@ function rowsForCategory(profiles: YieldProfile[], templates: YieldProfileTempla
   }))
 }
 
-function RawChickenCalculator({
-  profiles, templates, onClose,
-}: { profiles: YieldProfile[]; templates: YieldProfileTemplate[]; onClose: () => void }) {
-  const categories = useMemo(() => categoryNames(profiles, templates), [profiles, templates])
+function RawStockCalculator({
+  profiles, onClose,
+}: { profiles: YieldProfile[]; onClose: () => void }) {
+  const categories = useMemo(() => categoryNames(profiles), [profiles])
 
   const [category, setCategory] = useState(categories[0] ?? '')
-  const cuts = useMemo(() => cutsForCategory(profiles, templates, category), [profiles, templates, category])
+  const cuts = useMemo(() => cutsForCategory(profiles, category), [profiles, category])
   const cutByName = useMemo(() => {
     const map = new Map<string, YieldProfileLine>()
     for (const line of cuts) map.set(norm(line.cut_name), line)
     return map
   }, [cuts])
-  const [rows, setRows] = useState<CalcRow[]>(() => rowsForCategory(profiles, templates, categories[0] ?? ''))
+  const [rows, setRows] = useState<CalcRow[]>(() => rowsForCategory(profiles, categories[0] ?? ''))
 
   const applyCategory = (next: string) => {
     setCategory(next)
-    setRows(rowsForCategory(profiles, templates, next))
+    setRows(rowsForCategory(profiles, next))
   }
 
   const lineRaw = useMemo(
@@ -324,7 +346,7 @@ function RawChickenCalculator({
       <ModalPanel className="w-[52rem] max-w-[calc(100vw-2rem)]">
         <ModalHeader
           title="Raw item calculator"
-          subtitle={<p className="text-xs text-muted-foreground">Pick the category and enter the order. Each cut needs its own raw chicken. Whole with skin uses the whole bird, so boneless and breast are added on top. Raw chicken needed is the total.</p>}
+          subtitle={<p className="text-xs text-muted-foreground">Pick the category and enter the order. Each output uses its own raw stock factor. Raw stock needed is the total across lines.</p>}
           onClose={onClose}
         />
         <ModalBody className="space-y-3">
@@ -339,7 +361,7 @@ function RawChickenCalculator({
             />
           </label>
           {cuts.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No cuts for this category. Add them on the profile first.</p>
+            <p className="text-sm text-muted-foreground">No outputs for this category. Add them on the profile first.</p>
           ) : (
             <div className="rounded-lg border border-border overflow-x-auto">
               <table className="w-full table-fixed text-sm">
@@ -353,7 +375,7 @@ function RawChickenCalculator({
                 </colgroup>
                 <thead className="bg-muted/50 text-xs text-muted-foreground">
                   <tr>
-                    <th className="text-left px-2 py-1.5 font-medium">Cut</th>
+                    <th className="text-left px-2 py-1.5 font-medium">Output</th>
                     <th className="text-left px-2 py-1.5 font-medium">UOM</th>
                     <th className="text-left px-2 py-1.5 font-medium">Order</th>
                     <th className="text-right px-2 py-1.5 font-medium">Raw for this</th>
@@ -436,7 +458,7 @@ function RawChickenCalculator({
               <Plus className="h-3.5 w-3.5 mr-1" /> Add line
             </Button>
             <p className="text-sm">
-              Raw chicken needed:{' '}
+              Raw stock needed:{' '}
               <strong>{totalRaw > 0 ? formatQty(totalRaw, 'kg') : '—'}</strong>
             </p>
           </div>
@@ -449,20 +471,89 @@ function RawChickenCalculator({
   )
 }
 
+function ProductPicker({
+  products, isLoading, onPick, onClose,
+}: {
+  products: Product[]
+  isLoading: boolean
+  onPick: (product: Product) => void
+  onClose: () => void
+}) {
+  const [productId, setProductId] = useState('')
+  const options = products.map((p) => ({
+    value: p.id,
+    label: p.category ? `${p.name} (${p.category})` : p.name,
+  }))
+  const selected = products.find((p) => p.id === productId)
+
+  return (
+    <ModalOverlay onClose={onClose}>
+      <ModalPanel className="w-[28rem] max-w-[calc(100vw-2rem)]">
+        <ModalHeader
+          title="Add yield profile"
+          subtitle={<p className="text-xs text-muted-foreground">Choose one of your products. Its variants become the starting outputs — tune the raw factors next.</p>}
+          onClose={onClose}
+        />
+        <ModalBody className="space-y-3">
+          {isLoading ? (
+            <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+          ) : products.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4">
+              No products yet. Add products under Inventory first, then create a yield profile from them.
+            </p>
+          ) : (
+            <label className="block space-y-1 text-sm">
+              <span className="text-xs font-medium text-muted-foreground">Product *</span>
+              <Select
+                value={productId}
+                onChange={setProductId}
+                options={options}
+                placeholder="Select a product"
+                searchPlaceholder="Search products…"
+                className="w-full"
+              />
+            </label>
+          )}
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button
+            disabled={!selected}
+            onClick={() => selected && onPick(selected)}
+          >
+            Continue
+          </Button>
+        </ModalFooter>
+      </ModalPanel>
+    </ModalOverlay>
+  )
+}
+
 export default function YieldProfilesPage() {
   const { data: profiles = [], isLoading } = useYieldProfiles()
-  const { data: templates = [] } = useYieldTemplates()
+  const { data: productsPage, isLoading: productsLoading } = useProducts({ size: 500, status: 'active' })
   const remove = useDeleteYieldProfile()
   const [editing, setEditing] = useState<{ id?: string; initial: YieldProfileInput } | null>(null)
+  const [pickerOpen, setPickerOpen] = useState(false)
   const [calculatorOpen, setCalculatorOpen] = useState(false)
+
+  const products = useMemo(
+    () => (productsPage?.items ?? []).filter(isYieldEligibleProduct),
+    [productsPage],
+  )
 
   const edit = (p: YieldProfile) =>
     setEditing({ id: p.id, initial: { name: p.name, category: p.category, input_uom: p.input_uom, is_active: p.is_active, lines: p.lines } })
 
   const handleDelete = async (p: YieldProfile) => {
-    if (await askConfirm(`Delete the "${p.name}" yield profile? Products keep the factors already set on their cuts.`)) {
+    if (await askConfirm(`Delete the "${p.name}" yield profile? Products keep the factors already set on their outputs.`)) {
       remove.mutate(p.id)
     }
+  }
+
+  const handlePickProduct = (product: Product) => {
+    setPickerOpen(false)
+    setEditing({ initial: profileFromProduct(product) })
   }
 
   return (
@@ -473,43 +564,25 @@ export default function YieldProfilesPage() {
             <Scissors className="h-6 w-6" /> Yield Profiles
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Raw stock each cut needs per 1 kg sold. Products in the matching category use these factors on their Yield &amp; Cutting tab.
+            Raw stock each output needs per 1 kg sold. Add a record from your products, then tune the factors on the Yield tab.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => setCalculatorOpen(true)} disabled={profiles.length === 0 && templates.length === 0}>
+          <Button variant="outline" onClick={() => setCalculatorOpen(true)} disabled={profiles.length === 0}>
             <Calculator className="h-4 w-4 mr-1" /> Raw item calculator
           </Button>
-          <Button onClick={() => setEditing({ initial: { name: '', input_uom: 'kg', is_active: true, lines: [{ ...EMPTY_LINE }] } })}>
-            <Plus className="h-4 w-4 mr-1" /> New profile
+          <Button onClick={() => setPickerOpen(true)}>
+            <Plus className="h-4 w-4 mr-1" /> Add record
           </Button>
         </div>
       </div>
-
-      {templates.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Start from a template</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
-            {templates.map((t) => (
-              <Button
-                key={t.name} variant="outline" size="sm"
-                onClick={() => setEditing({ initial: { name: t.name, category: t.category, input_uom: t.input_uom, is_active: true, lines: t.lines } })}
-              >
-                <Copy className="h-3.5 w-3.5 mr-1" /> {t.name}
-              </Button>
-            ))}
-          </CardContent>
-        </Card>
-      )}
 
       {isLoading ? (
         <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
       ) : profiles.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-sm text-muted-foreground">
-            No yield profiles yet. Start from a template above, then adjust the factors to what your cutters really get.
+            No yield profiles yet. Click Add record and pick one of your products to start.
           </CardContent>
         </Card>
       ) : (
@@ -539,7 +612,7 @@ export default function YieldProfilesPage() {
                 <table className="w-full text-sm">
                   <thead className="text-xs text-muted-foreground">
                     <tr>
-                      <th className="text-left font-medium py-1">Cut</th>
+                      <th className="text-left font-medium py-1">Output</th>
                       <th className="text-right font-medium py-1">Raw</th>
                       <th className="text-right font-medium py-1">In 1 kg raw</th>
                       <th className="text-right font-medium py-1">Yield</th>
@@ -564,9 +637,17 @@ export default function YieldProfilesPage() {
         </div>
       )}
 
+      {pickerOpen && (
+        <ProductPicker
+          products={products}
+          isLoading={productsLoading}
+          onPick={handlePickProduct}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
       {editing && <ProfileEditor id={editing.id} initial={editing.initial} onClose={() => setEditing(null)} />}
       {calculatorOpen && (
-        <RawChickenCalculator profiles={profiles} templates={templates} onClose={() => setCalculatorOpen(false)} />
+        <RawStockCalculator profiles={profiles} onClose={() => setCalculatorOpen(false)} />
       )}
     </div>
   )

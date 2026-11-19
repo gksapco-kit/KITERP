@@ -12,6 +12,7 @@ import {
 import { CHART_COLORS } from '@/components/charts/reportCharts'
 import { filtersToParams, type AnalyticsFilters } from '../useAnalyticsFilters'
 import { exportCSV } from '../exportUtils'
+import { TabError } from '../TabError'
 
 interface CountRecord {
   count_id: string; reference: string | null; count_date: string | null
@@ -47,7 +48,7 @@ function IraBadge({ pct }: { pct: number | null }) {
 
 export function CountAccuracyTab({ filters, refreshKey = 0 }: { filters: AnalyticsFilters; refreshKey?: number }) {
   const params = filtersToParams(filters)
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ['vendor', 'inv-analytics-count-accuracy', params, refreshKey],
     queryFn: () => vendorApi.inventoryAnalyticsCountAccuracy(params),
   })
@@ -190,7 +191,9 @@ export function CountAccuracyTab({ filters, refreshKey = 0 }: { filters: Analyti
         </div>
       )}
 
-      {isLoading ? (
+      {isError ? (
+        <TabError title="Count accuracy could not be loaded" onRetry={() => refetch()} isFetching={isFetching} />
+      ) : isLoading ? (
         <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
       ) : (
         <div className="rounded-xl border border-border overflow-hidden">

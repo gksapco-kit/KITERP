@@ -1363,7 +1363,7 @@ const pageTitles: Record<string, string> = {
   '/inventory': 'Inventory',
   '/inventory/stock-counts': 'Stock Count & Audit',
   '/inventory/yield-profiles': 'Yield Profiles',
-  '/inventory/day-close': 'Day Close — Cutting Yield',
+  '/inventory/day-close': 'Day Close — Yield',
   '/inventory/expiry': 'Expiry Dashboard',
   '/inventory/reservations': 'Reservations',
   '/inventory/transfer-orders': 'Transfer Orders',

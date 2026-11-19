@@ -1,12 +1,12 @@
 /**
- * Cutting yield maths. A factor is the raw input for 1 unit of output:
- * boneless chicken 1.30 → 1.30 kg raw gives 1 kg to the customer.
+ * Yield maths. A factor is the raw input for 1 unit of output:
+ * peeled onion 1.15 → 1.15 kg raw gives 1 kg to the customer.
  * Mirrors backend/app/services/yield_service.py.
  */
 
 const round4 = (n: number) => Math.round(n * 10000) / 10000
 
-/** Raw input to cut for the output the customer asked for, rounded up to the weigh-out step. */
+/** Raw input needed for the output the customer asked for, rounded up to the weigh-out step. */
 export function rawInputFor(output: number, factor: number, step?: number | null): number {
   if (!(output > 0) || !(factor > 0)) return 0
   const raw = output * factor
@@ -14,7 +14,7 @@ export function rawInputFor(output: number, factor: number, step?: number | null
   return round4(raw)
 }
 
-/** Output the raw stock on hand can give for a cut. */
+/** Output the raw stock on hand can give for a line. */
 export function outputFrom(raw: number, factor: number): number {
   if (!(raw > 0) || !(factor > 0)) return 0
   return round4(raw / factor)
@@ -28,22 +28,22 @@ export function yieldPercent(factor: number | null | undefined): number | null {
 
 export type CarcassOrderLine = {
   cut: string
-  /** Amount of this cut that 1 kg of raw chicken yields. */
+  /** Amount of this output that 1 kg of raw stock yields. */
   perRaw: number
   perRawUom: string
   orderQty: number
 }
 
 export type CarcassOrderResult = {
-  /** Raw chicken required so every ordered cut is covered by the same birds. */
+  /** Raw stock required so every ordered output is covered from the same raw pool. */
   rawKg: number
   limitingCut: string | null
   lines: Array<CarcassOrderLine & { rawKg: number; produced: number; leftover: number }>
 }
 
 /**
- * One carcass supplies every cut. Raw chicken is the largest line
- * (order ÷ yield from 1 kg raw), and the other cuts are leftover from that bird.
+ * One raw unit supplies every output. Raw stock is the largest line
+ * (order ÷ yield from 1 kg raw), and the other outputs are leftover from that pool.
  */
 export function carcassRaw(lines: CarcassOrderLine[]): CarcassOrderResult {
   const detailed = lines.map((line) => {

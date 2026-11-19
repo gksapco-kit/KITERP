@@ -1231,8 +1231,8 @@ export default function POS() {
               </div>
             )}
             {yieldProducts.length > 0 && (
-              <Button variant="outline" size="sm" onClick={() => setShowCuttingSheet(true)} className="h-8 gap-1" title="Raw stock to cut for a customer's order">
-                <Scissors className="w-4 h-4" />Cutting sheet
+              <Button variant="outline" size="sm" onClick={() => setShowCuttingSheet(true)} className="h-8 gap-1" title="Raw stock needed for a customer's order">
+                <Scissors className="w-4 h-4" />Yield sheet
               </Button>
             )}
             <Button variant="outline" size="sm" onClick={() => setShowPosSettings(true)} className="h-8 gap-1" title="Invoice Settings">
@@ -2357,7 +2357,7 @@ export default function POS() {
       {showCuttingSheet && (
         <ModalOverlay onClose={() => setShowCuttingSheet(false)}>
           <ModalPanel className="max-w-2xl w-full">
-            <ModalHeader title="Cutting sheet" onClose={() => setShowCuttingSheet(false)} />
+            <ModalHeader title="Yield sheet" onClose={() => setShowCuttingSheet(false)} />
             <ModalBody><CuttingSheet compact /></ModalBody>
           </ModalPanel>
         </ModalOverlay>

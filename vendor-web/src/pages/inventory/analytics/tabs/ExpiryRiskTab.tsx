@@ -9,6 +9,8 @@ import { Loader2, RefreshCw, Download } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { filtersToParams, type AnalyticsFilters } from '../useAnalyticsFilters'
 import { exportCSV } from '../exportUtils'
+import { TabError } from '../TabError'
+import { Pager, usePaged } from '../Pager'
 
 const INR = '₹'
 function fmt(n: number) {
@@ -39,7 +41,7 @@ interface ExpiryItem {
 export function ExpiryRiskTab({ filters, refreshKey = 0 }: { filters: AnalyticsFilters; refreshKey?: number }) {
   const [bucketFilter, setBucketFilter] = useState('all')
   const params = filtersToParams(filters, { limit: 500 })
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ['vendor', 'inv-analytics-expiry', params, refreshKey],
     queryFn: () => vendorApi.inventoryAnalyticsExpiryRisk(params),
   })
@@ -48,6 +50,7 @@ export function ExpiryRiskTab({ filters, refreshKey = 0 }: { filters: AnalyticsF
   const items: ExpiryItem[] = d.items ?? []
   const summary = d.summary ?? {}
   const visible = bucketFilter === 'all' ? items : items.filter((i) => i.risk_bucket === bucketFilter)
+  const paged = usePaged(visible, `${bucketFilter}:${items.length}`)
 
   const donutData: CatDatum[] = Object.entries(BUCKET_CFG).map(([k, v]) => ({
     label: v.label,
@@ -77,6 +80,12 @@ export function ExpiryRiskTab({ filters, refreshKey = 0 }: { filters: AnalyticsF
         </div>
       </div>
 
+      {filters.store_id && (
+        <p className="text-xs text-amber-600">
+          Batches are matched to a unit through their storage location or plant; batches with neither are hidden while a unit is selected.
+        </p>
+      )}
+
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
         {Object.entries(BUCKET_CFG).map(([k, v]) => {
           const s = summary[k as keyof typeof BUCKET_CFG] ?? {}
@@ -94,7 +103,9 @@ export function ExpiryRiskTab({ filters, refreshKey = 0 }: { filters: AnalyticsF
         })}
       </div>
 
-      {isLoading ? (
+      {isError ? (
+        <TabError title="Expiry risk could not be loaded" onRetry={() => refetch()} isFetching={isFetching} />
+      ) : isLoading ? (
         <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
       ) : (
         <div className="grid lg:grid-cols-3 gap-4 items-start">
@@ -115,7 +126,7 @@ export function ExpiryRiskTab({ filters, refreshKey = 0 }: { filters: AnalyticsF
                     <th className="py-2 px-3 text-right text-xs font-medium text-muted-foreground">Value at Risk</th>
                   </tr></thead>
                   <tbody>
-                    {visible.slice(0, 100).map((item) => {
+                    {paged.rows.map((item) => {
                       const cfg = BUCKET_CFG[item.risk_bucket] ?? BUCKET_CFG['180d_plus']
                       return (
                         <tr key={item.batch_id} className="border-b last:border-0 hover:bg-muted/30">
@@ -140,6 +151,8 @@ export function ExpiryRiskTab({ filters, refreshKey = 0 }: { filters: AnalyticsF
                   </tbody>
                 </table>
               </div>
+              <Pager page={paged.page} pageCount={paged.pageCount} total={paged.total} onChange={paged.setPage}
+                serverTotal={bucketFilter === 'all' ? d.total : undefined} />
             </CardContent>
           </Card>
         </div>

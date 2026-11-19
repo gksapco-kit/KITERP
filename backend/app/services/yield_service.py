@@ -1,14 +1,14 @@
-"""Cutting yield: raw stock needed per unit of finished cut, and the end-of-day yield close.
+"""Yield: raw stock needed per unit of finished output, and the end-of-day yield close.
 
-A cut variant's yield_factor is the raw input for 1 unit of output (boneless chicken
-1.30 → 1.30 kg raw for 1 kg sold). With the product's shared stock counted in the raw
+A variant's yield_factor is the raw input for 1 unit of output (peeled onion
+1.15 → 1.15 kg raw for 1 kg sold). With the product's shared stock counted in the raw
 unit, one sale removes output × factor from that balance via stock_per_sale.
 
 The day close reads the shared-stock movements of one business day:
 
-    opening + purchased − raw cut + returned − wastage ± other = closing (system)
-    closing (system) − closing (physical count)                = variance
-    raw cut (net of returns) − output sold                      = cutting loss
+    opening + purchased − raw used + returned − wastage ± other = closing (system)
+    closing (system) − closing (physical count)                 = variance
+    raw used (net of returns) − output sold                     = processing loss
 """
 from __future__ import annotations
 

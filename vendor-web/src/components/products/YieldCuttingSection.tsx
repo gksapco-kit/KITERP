@@ -5,10 +5,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Select } from '@/components/ui/select'
-import { useYieldProfiles, useYieldTemplates } from '@/hooks/useYield'
+import { useYieldProfiles } from '@/hooks/useYield'
 import { convertWeight, stockUnitsPerSale, uomDimension } from '@/lib/stockConversion'
 import { yieldPercent, costPerOutput, formatQty, formatMoney, rawInputFor } from '@/lib/yieldCalc'
-import type { YieldProfile, YieldProfileLine, YieldProfileTemplate } from '@/api/yield'
+import type { YieldProfile, YieldProfileLine } from '@/api/yield'
 
 export interface YieldVariantRow {
   name?: string
@@ -60,19 +60,7 @@ function factorInPool(
   return convertWeight(Number(line.input_per_output), from, poolUom || 'kg') ?? Number(line.input_per_output)
 }
 
-const isSavedProfile = (id: string | null | undefined) => !!id && !id.startsWith('template:')
-
-function templateProfile(template: YieldProfileTemplate): YieldProfile {
-  return {
-    id: `template:${template.name}`,
-    name: template.name,
-    category: template.category,
-    input_uom: template.input_uom,
-    description: null,
-    is_active: true,
-    lines: template.lines,
-  }
-}
+const isSavedProfile = (id: string | null | undefined) => !!id
 
 function cutChoices(profiles: YieldProfile[]): CutChoice[] {
   const rows: CutChoice[] = []
@@ -96,7 +84,6 @@ export function YieldCuttingSection({
   onToggle, onProfileChange, onVariantYield, onEnableProductStock,
 }: Props) {
   const { data: profiles = [] } = useYieldProfiles()
-  const { data: templates = [] } = useYieldTemplates()
   const active = profiles.filter((p) => p.is_active || p.id === profileId)
   const selectedProfile = active.find((p) => p.id === profileId)
   const poolUom = stockUom || 'kg'
@@ -106,19 +93,12 @@ export function YieldCuttingSection({
     () => profilesForCategory(active, category),
     [active, category],
   )
-  const templateForCategory = useMemo(
-    () => profilesForCategory(templates.map(templateProfile), category),
-    [templates, category],
-  )
-  const categoryProfiles = savedForCategory.length ? savedForCategory : templateForCategory
   const suggested = savedForCategory.length === 1 ? savedForCategory[0] : undefined
   const choices = useMemo(() => {
     if (selectedProfile) return cutChoices([selectedProfile])
-    if (categoryProfiles.length) return cutChoices(categoryProfiles)
-    const saved = cutChoices(active)
-    if (saved.length) return saved
-    return cutChoices(templates.map(templateProfile))
-  }, [selectedProfile, categoryProfiles, active, templates])
+    if (savedForCategory.length) return cutChoices(savedForCategory)
+    return cutChoices(active)
+  }, [selectedProfile, savedForCategory, active])
   const cutNameCounts = useMemo(() => {
     const counts = new Map<string, number>()
     for (const line of choices) counts.set(norm(line.cut_name), (counts.get(norm(line.cut_name)) || 0) + 1)
@@ -147,8 +127,8 @@ export function YieldCuttingSection({
         <div>
           <p className="text-sm font-medium">Sold after cutting / processing</p>
           <p className="text-xs text-muted-foreground">
-            Customers buy the finished cut (1 kg boneless) but your stock is raw (whole chicken).
-            Set how much raw stock each cut needs — every sale then removes the right raw weight.
+            Customers buy the finished output (1 kg peeled, diced, boneless…) but your stock is raw.
+            Set how much raw stock each output needs — every sale then removes the right raw weight.
           </p>
         </div>
       </div>
@@ -159,7 +139,7 @@ export function YieldCuttingSection({
             <div className="flex flex-wrap items-center gap-3 rounded-md bg-amber-50 dark:bg-amber-950/30 p-2.5 text-xs text-amber-800 dark:text-amber-200">
               <AlertTriangle className="h-4 w-4 shrink-0" />
               <span className="flex-1 min-w-[12rem]">
-                Raw stock must be one balance at product level, counted by weight (kg). Each cut variant then draws from it.
+                Raw stock must be one balance at product level, counted by weight (kg). Each output variant then draws from it.
               </span>
               {!readOnly && (
                 <Button type="button" size="sm" variant="outline" onClick={onEnableProductStock}>
@@ -173,9 +153,9 @@ export function YieldCuttingSection({
             {choices.length > 0 ? (
               <p className="text-xs text-muted-foreground">
                 {category ? (
-                  <>Cuts for <span className="font-medium text-foreground">{category}</span>. </>
+                  <>Outputs for <span className="font-medium text-foreground">{category}</span>. </>
                 ) : null}
-                Select a cut and one sale updates from the qty.
+                Select an output and one sale updates from the qty.
               </p>
             ) : <span />}
             <Link to="/inventory/yield-profiles" className="text-xs text-primary inline-flex items-center gap-1 shrink-0">
@@ -185,18 +165,18 @@ export function YieldCuttingSection({
 
           {category && choices.length === 0 && (
             <p className="text-xs text-amber-700 dark:text-amber-300">
-              No cutting profile matches category “{category}”. On Yield Profiles, set Product category to {category} and add the cuts.
+              No yield profile matches category “{category}”. On Yield Profiles, set Product category to {category} and add the outputs.
             </p>
           )}
           {!category && choices.length === 0 && (
             <p className="text-xs text-muted-foreground">
-              Add cuts on Yield Profiles. They show in the Cut list here.
+              Add outputs on Yield Profiles. They show in the Output list here.
             </p>
           )}
 
           {rows.length === 0 ? (
             <p className="text-xs text-muted-foreground">
-              Add a variant with Qty and UOM on the Price &amp; Variants tab, then pick its cut here.
+              Add a variant with Qty and UOM on the Price &amp; Variants tab, then pick its output here.
             </p>
           ) : (
             <div className="rounded-lg border border-border overflow-x-auto">
@@ -204,7 +184,7 @@ export function YieldCuttingSection({
                 <thead className="bg-muted/50 text-xs text-muted-foreground">
                   <tr>
                     <th className="text-left px-3 py-2 font-medium">Qty</th>
-                    <th className="text-left px-3 py-2 font-medium">Cut</th>
+                    <th className="text-left px-3 py-2 font-medium">Output</th>
                     <th className="text-left px-3 py-2 font-medium w-32">Raw per 1 {poolUom}</th>
                     <th className="text-right px-3 py-2 font-medium">Yield</th>
                     <th className="text-right px-3 py-2 font-medium">One sale</th>
@@ -229,7 +209,7 @@ export function YieldCuttingSection({
                     const raw = factor > 0 && saleQty > 0 ? rawInputFor(saleQty, factor, step) : 0
                     const selectValue = chosen ? chosen.key : (v.yield_cut ? `custom::${v.yield_cut}` : '')
                     const cutOptions = [
-                      { value: '', label: 'Select cut' },
+                      { value: '', label: 'Select output' },
                       ...choices.map((line) => ({
                         value: line.key,
                         label: (cutNameCounts.get(norm(line.cut_name)) || 0) > 1
@@ -266,7 +246,7 @@ export function YieldCuttingSection({
                             <Input
                               value={v.yield_cut || ''}
                               onChange={(e) => onVariantYield(index, factor || undefined, e.target.value || undefined)}
-                              placeholder="Boneless"
+                              placeholder="Peeled onion"
                               className="h-8 w-40"
                               disabled={readOnly}
                             />
@@ -287,7 +267,7 @@ export function YieldCuttingSection({
                         </td>
                         <td className="px-3 py-1.5 text-right tabular-nums text-xs">
                           {factor > 0 && saleQty > 0
-                            ? <>sells {formatQty(saleQty, saleUom)} · cuts <strong>{formatQty(raw, poolUom)}</strong> raw</>
+                            ? <>sells {formatQty(saleQty, saleUom)} · uses <strong>{formatQty(raw, poolUom)}</strong> raw</>
                             : saleQty > 0 ? `sells ${formatQty(saleQty, saleUom)}` : <span className="text-amber-600">set Qty + UOM</span>}
                         </td>
                         {rawCost ? (
@@ -301,8 +281,8 @@ export function YieldCuttingSection({
             </div>
           )}
           <p className="text-[0.7rem] text-muted-foreground">
-            Raw per 1 {poolUom}: e.g. boneless 1.30 means 1.30 {poolUom} of raw stock gives 1 {poolUom} to the customer.
-            {rawCost ? ` Cost / ${poolUom} uses the product cost price (₹${rawCost}) as the raw cost.` : ' Set a cost price to see the real cost of each cut.'}
+            Raw per 1 {poolUom}: e.g. peeled onion 1.15 means 1.15 {poolUom} of raw stock gives 1 {poolUom} to the customer.
+            {rawCost ? ` Cost / ${poolUom} uses the product cost price (₹${rawCost}) as the raw cost.` : ' Set a cost price to see the real cost of each output.'}
           </p>
         </>
       )}

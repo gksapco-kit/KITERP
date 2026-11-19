@@ -9,6 +9,8 @@ import { Loader2, RefreshCw, Download } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { filtersToParams, type AnalyticsFilters } from '../useAnalyticsFilters'
 import { exportCSV } from '../exportUtils'
+import { TabError } from '../TabError'
+import { Pager, usePaged } from '../Pager'
 
 const INR = '₹'
 function fmt(n: number) {
@@ -21,6 +23,7 @@ const STATUS_CFG = {
   available:       { label: 'Available',       cls: 'text-green-600 bg-green-100 dark:bg-green-950/30' },
   fully_reserved:  { label: 'Fully Reserved',  cls: 'text-amber-600 bg-amber-100 dark:bg-amber-950/30' },
   overcommitted:   { label: 'Overcommitted',   cls: 'text-red-500 bg-red-100 dark:bg-red-950/30' },
+  out_of_stock:    { label: 'Out of Stock',    cls: 'text-gray-600 bg-gray-100 dark:bg-gray-800/40' },
 } as const
 
 const STATUS_OPTIONS = [
@@ -38,7 +41,7 @@ export function ATPTab({ filters, refreshKey = 0 }: { filters: AnalyticsFilters;
   const [statusFilter, setStatusFilter] = useState('all')
   const params = filtersToParams(filters, { limit: 500 })
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ['vendor', 'inv-analytics-atp', params, refreshKey],
     queryFn: () => vendorApi.inventoryAnalyticsATP(params),
   })
@@ -49,6 +52,7 @@ export function ATPTab({ filters, refreshKey = 0 }: { filters: AnalyticsFilters;
   const totalAtpValue: number = d.total_atp_value ?? 0
 
   const visible = statusFilter === 'all' ? items : items.filter((i) => i.status === statusFilter)
+  const paged = usePaged(visible, `${statusFilter}:${items.length}`)
 
   const donutData: CatDatum[] = Object.entries(STATUS_CFG).map(([k, v]) => ({
     label: v.label,
@@ -80,7 +84,7 @@ export function ATPTab({ filters, refreshKey = 0 }: { filters: AnalyticsFilters;
       </div>
 
       {/* Status pills */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {Object.entries(STATUS_CFG).map(([k, v]) => {
           const s = summary[k as keyof typeof STATUS_CFG] ?? {}
           return (
@@ -96,7 +100,9 @@ export function ATPTab({ filters, refreshKey = 0 }: { filters: AnalyticsFilters;
         })}
       </div>
 
-      {isLoading ? (
+      {isError ? (
+        <TabError title="ATP report could not be loaded" onRetry={() => refetch()} isFetching={isFetching} />
+      ) : isLoading ? (
         <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
       ) : (
         <div className="grid lg:grid-cols-3 gap-4 items-start">
@@ -121,8 +127,8 @@ export function ATPTab({ filters, refreshKey = 0 }: { filters: AnalyticsFilters;
                     </tr>
                   </thead>
                   <tbody>
-                    {visible.slice(0, 100).map((item) => {
-                      const cfg = STATUS_CFG[item.status]
+                    {paged.rows.map((item) => {
+                      const cfg = STATUS_CFG[item.status] ?? STATUS_CFG.out_of_stock
                       return (
                         <tr key={item.product_id} className="border-b last:border-0 hover:bg-muted/30">
                           <td className="py-2 px-3">
@@ -145,6 +151,8 @@ export function ATPTab({ filters, refreshKey = 0 }: { filters: AnalyticsFilters;
                   </tbody>
                 </table>
               </div>
+              <Pager page={paged.page} pageCount={paged.pageCount} total={paged.total} onChange={paged.setPage}
+                serverTotal={statusFilter === 'all' ? d.total : undefined} />
             </CardContent>
           </Card>
         </div>

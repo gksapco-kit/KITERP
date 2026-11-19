@@ -1,7 +1,10 @@
+import { useState } from 'react'
 import { useBalanceSheet } from '@/hooks/useFinance'
 
+/** Signed: negatives (e.g. accumulated depreciation, deficits) are shown in parentheses. */
 function fmt(n: number) {
-  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Math.abs(n))
+  const s = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Math.abs(n))
+  return Math.round(n) < 0 ? `(${s})` : s
 }
 
 function Section({ title, lines, total, color }: { title: string; lines: any[]; total: number; color: string }) {
@@ -23,11 +26,32 @@ function Section({ title, lines, total, color }: { title: string; lines: any[]; 
 }
 
 export default function BalanceSheet() {
-  const { data, isLoading } = useBalanceSheet()
+  const today = new Date().toISOString().slice(0, 10)
+  const [asOf, setAsOf] = useState(today)
+  const [appliedAsOf, setAppliedAsOf] = useState(today)
+  const { data, isLoading } = useBalanceSheet({ as_of: appliedAsOf })
+
+  // Cumulative profit is part of equity but is not a ledger account, so show it as its own row
+  // so that the Equity lines add up to Total Equity.
+  const equityLines = [
+    ...(data?.equity || []),
+    ...(Math.abs(data?.retained_earnings || 0) >= 0.005
+      ? [{ name: 'Retained Earnings (Cumulative Profit / Loss)', amount: data.retained_earnings }]
+      : []),
+  ]
 
   return (
     <div className="p-6 space-y-4">
       <h1 className="text-2xl font-bold text-foreground">Balance Sheet</h1>
+
+      <div className="flex gap-3 items-end">
+        <div>
+          <label className="block text-xs font-medium text-muted-foreground mb-1">As of</label>
+          <input type="date" value={asOf} onChange={e => setAsOf(e.target.value)} className="border border-input rounded-lg px-3 py-2 text-sm bg-background text-foreground" />
+        </div>
+        <button onClick={() => asOf && setAppliedAsOf(asOf)}
+          className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90">Apply</button>
+      </div>
 
       {isLoading ? <p className="text-muted-foreground">Loading…</p> :
        !data ? <p className="text-muted-foreground">No data yet.</p> : (
@@ -52,7 +76,7 @@ export default function BalanceSheet() {
               <tbody>
                 <Section title="Current Liabilities" lines={data.current_liabilities || []} total={data.total_current_liabilities || 0} color="bg-red-50 dark:bg-red-500/10" />
                 <Section title="Non-Current Liabilities" lines={data.non_current_liabilities || []} total={data.total_non_current_liabilities || 0} color="bg-red-50 dark:bg-red-500/10" />
-                <Section title="Equity" lines={data.equity || []} total={data.total_equity || 0} color="bg-accent" />
+                <Section title="Equity" lines={equityLines} total={data.total_equity || 0} color="bg-accent" />
                 <tr className="bg-red-100 dark:bg-red-500/15 border-t-2 border-red-300 dark:border-red-500/30">
                   <td className="px-4 py-3 font-bold text-red-800 dark:text-red-300">Total Liabilities + Equity</td>
                   <td className="px-4 py-3 text-right font-bold font-mono text-red-800 dark:text-red-300">{fmt((data.total_liabilities || 0) + (data.total_equity || 0))}</td>

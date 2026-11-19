@@ -94,7 +94,7 @@ class ProductVariantCreate(BaseModel):
     weight_kg: Optional[float] = None
     # Manual stock rule: stock-UOM units one sale uses (product-level stock). None = automatic.
     stock_per_sale: Optional[float] = Field(None, gt=0)
-    # Cutting yield: raw input per 1 unit of output. Used when the product has yield_enabled.
+    # Yield: raw input per 1 unit of output. Used when the product has yield_enabled.
     yield_factor: Optional[float] = Field(None, gt=0, le=100)
     yield_cut: Optional[str] = Field(None, max_length=100)
     # Lifecycle
