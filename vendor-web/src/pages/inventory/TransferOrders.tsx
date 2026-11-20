@@ -11,13 +11,14 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
-import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@/components/ui/Modal'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay } from '@/components/ui/Modal'
 import {
   ArrowRightLeft, Plus, ArrowLeft, Loader2, RefreshCw,
   ChevronRight, Send, Truck, PackageCheck, XCircle, CheckCircle2,
   Minus, Search, Package, Pencil, Check, X as XIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { dialogPanelClass } from '@/lib/modalUi'
 import { useStores, vendorKeys, useUpdateTransferOrder } from '@/hooks/useVendor'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -131,62 +132,64 @@ function ProductSearchRow({
   }, [index, onUpdate])
 
   return (
-    <div className="flex items-start gap-2">
-      <div className="relative flex-1 min-w-0">
-        <div className="relative">
-          <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-          <Input
-            value={query}
-            onChange={(e) => { setQuery(e.target.value); setOpen(true) }}
-            onFocus={() => setOpen(true)}
-            onBlur={() => setTimeout(() => setOpen(false), 150)}
-            placeholder="Search product by name or SKU…"
-            className="h-9 text-sm pl-8"
-          />
-        </div>
+    <div className="space-y-1.5 rounded-lg border border-border bg-muted/30 p-2">
+      <div className="relative min-w-0">
+        <Search className="pointer-events-none absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
+        <Input
+          value={query}
+          onChange={(e) => { setQuery(e.target.value); setOpen(true) }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setTimeout(() => setOpen(false), 150)}
+          placeholder="Search product or SKU"
+          className="h-8 w-full bg-background pl-8 text-sm"
+        />
         {open && results.length > 0 && (
-          <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-48 overflow-auto rounded-md border border-border bg-popover shadow-lg">
+          <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-40 overflow-auto rounded-md border border-border bg-popover shadow-lg">
             {results.map((item) => (
               <button
                 key={`${item.product_id}-${item.variant_id ?? ''}`}
                 type="button"
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-primary hover:text-primary-foreground"
+                className="flex w-full items-center gap-2 px-2 py-1.5 text-left text-xs hover:bg-primary hover:text-primary-foreground"
                 onMouseDown={() => select(item)}
               >
                 <Package className="h-3.5 w-3.5 shrink-0 opacity-60" />
-                <span className="flex-1 font-medium truncate">{item.product_name}</span>
-                {item.sku && <span className="text-xs opacity-60 font-mono shrink-0">{item.sku}</span>}
-                <span className="text-xs shrink-0 ml-1 opacity-70">({item.current_quantity})</span>
+                <span className="min-w-0 flex-1 truncate font-medium">{item.product_name}</span>
+                <span className="shrink-0 text-[10px] opacity-70">({item.current_quantity})</span>
               </button>
             ))}
           </div>
         )}
-        {line.product_id && (
-          <div className="flex items-center gap-2 mt-0.5">
-            {line.sku && <span className="text-xs text-muted-foreground font-mono">{line.sku}</span>}
-            <span className="text-xs text-muted-foreground">Available: {line.available}</span>
-          </div>
-        )}
       </div>
-      <Input
-        type="number"
-        min={1}
-        max={line.available || undefined}
-        placeholder="Qty"
-        value={line.qty}
-        onChange={(e) => onUpdate(index, { qty: parseInt(e.target.value, 10) || 1 })}
-        className="w-20 h-9 text-sm shrink-0"
-      />
-      {canRemove && (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-9 w-9 text-destructive shrink-0"
-          onClick={() => onRemove(index)}
-        >
-          <Minus className="h-3.5 w-3.5" />
-        </Button>
-      )}
+      {line.product_id ? (
+        <p className="truncate text-[10px] text-muted-foreground">
+          {line.sku ? `${line.sku} · ` : ''}Available {line.available}
+        </p>
+      ) : null}
+      <div className="flex items-center gap-2">
+        <div className="flex flex-1 items-center gap-1.5">
+          <span className="shrink-0 text-[11px] font-medium text-muted-foreground">Qty</span>
+          <Input
+            type="number"
+            min={1}
+            max={line.available || undefined}
+            value={line.qty}
+            onChange={(e) => onUpdate(index, { qty: parseInt(e.target.value, 10) || 1 })}
+            className="h-8 w-16 bg-background text-sm"
+          />
+        </div>
+        {canRemove ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0 text-destructive"
+            onClick={() => onRemove(index)}
+            aria-label="Remove line"
+          >
+            <Minus className="h-3.5 w-3.5" />
+          </Button>
+        ) : null}
+      </div>
     </div>
   )
 }
@@ -251,75 +254,114 @@ function CreateModal({ open, onClose, stores }: {
   if (!open) return null
 
   const validLines = lines.filter((l) => l.product_id && l.qty > 0)
+  const labelCls = 'mb-0.5 block text-[11px] font-medium text-muted-foreground'
+  const fieldGap = 'space-y-0.5'
+  const selectCls = 'h-8 w-full text-sm'
+  const manyLines = lines.length > 2
 
   return (
-    <ModalOverlay onClose={onClose}>
-      <ModalPanel className="max-w-xl max-h-[calc(100dvh-2rem)]">
-        <ModalHeader title="New Stock Transfer Order" onClose={onClose} />
-        <ModalBody className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>From Store *</Label>
-              <Select
-                value={fromStore}
-                onChange={(v) => { setFromStore(v); setLines([{ product_id: '', product_name: '', sku: '', qty: 1, available: 0 }]) }}
-                options={[{ value: '', label: 'Select source…' }, ...storeOptions]}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>To Store *</Label>
-              <Select
-                value={toStore}
-                onChange={setToStore}
-                options={[{ value: '', label: 'Select destination…' }, ...toStoreOptions]}
-                disabled={!fromStore}
-              />
-            </div>
-          </div>
-
-          {/* Product lines */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label>Transfer Lines</Label>
-              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={addLine} disabled={!fromStore}>
-                <Plus className="mr-1 h-3 w-3" /> Add Line
-              </Button>
-            </div>
-            {!fromStore ? (
-              <p className="text-xs text-muted-foreground">Select a source store to search products.</p>
-            ) : inventory.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No inventory found in the selected store.</p>
-            ) : (
-              lines.map((line, i) => (
-                <ProductSearchRow
-                  key={i}
-                  line={line}
-                  index={i}
-                  inventory={inventory}
-                  onUpdate={updateLine}
-                  onRemove={removeLine}
-                  canRemove={lines.length > 1}
-                />
-              ))
+    <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-3">
+      <div
+        className={cn(
+          dialogPanelClass,
+          'w-full max-w-[22rem] shrink-0 sm:max-w-[22rem]',
+          manyLines ? 'max-h-[min(92dvh,calc(100vh-1.5rem))]' : 'max-h-none',
+        )}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <ModalHeader
+          title="New transfer"
+          onClose={onClose}
+          className="shrink-0 border-b border-border px-4 py-2.5 [&>div>h2]:text-base [&>div>h2]:font-semibold [&>div>h2]:leading-none"
+        />
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            create.mutate()
+          }}
+          className="flex min-h-0 flex-1 flex-col"
+        >
+          <ModalBody
+            className={cn(
+              'space-y-3 px-4 py-3',
+              manyLines ? 'min-h-0 flex-1 overflow-y-auto' : 'flex-none overflow-visible',
             )}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Notes (optional)</Label>
-            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
-          </div>
-        </ModalBody>
-        <ModalFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button
-            onClick={() => create.mutate()}
-            disabled={create.isPending || !fromStore || !toStore || validLines.length === 0}
           >
-            {create.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Create Transfer Order
-          </Button>
-        </ModalFooter>
-      </ModalPanel>
+            <div className="space-y-2">
+              <div className={fieldGap}>
+                <Label className={labelCls}>From Store *</Label>
+                <Select
+                  value={fromStore}
+                  onChange={(v) => { setFromStore(v); setLines([{ product_id: '', product_name: '', sku: '', qty: 1, available: 0 }]) }}
+                  className={selectCls}
+                  triggerClassName="h-8"
+                  options={[{ value: '', label: 'Select source…' }, ...storeOptions]}
+                />
+              </div>
+              <div className={fieldGap}>
+                <Label className={labelCls}>To Store *</Label>
+                <Select
+                  value={toStore}
+                  onChange={setToStore}
+                  className={selectCls}
+                  triggerClassName="h-8"
+                  options={[{ value: '', label: 'Select destination…' }, ...toStoreOptions]}
+                  disabled={!fromStore}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <Label className={cn(labelCls, 'mb-0')}>Transfer lines</Label>
+                <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={addLine} disabled={!fromStore}>
+                  <Plus className="mr-1 h-3 w-3" /> Add
+                </Button>
+              </div>
+              {!fromStore ? (
+                <p className="text-[11px] text-muted-foreground">Select a source store to search products.</p>
+              ) : inventory.length === 0 ? (
+                <p className="text-[11px] text-muted-foreground">No inventory found in the selected store.</p>
+              ) : (
+                <div className={cn('space-y-1.5', manyLines && 'max-h-52 overflow-y-auto pr-0.5')}>
+                  {lines.map((line, i) => (
+                    <ProductSearchRow
+                      key={i}
+                      line={line}
+                      index={i}
+                      inventory={inventory}
+                      onUpdate={updateLine}
+                      onRemove={removeLine}
+                      canRemove={lines.length > 1}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className={fieldGap}>
+              <Label className={labelCls}>Notes (optional)</Label>
+              <Textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={2}
+                className="min-h-0 resize-none text-sm"
+              />
+            </div>
+          </ModalBody>
+          <ModalFooter className="shrink-0 grid grid-cols-2 gap-2 border-t border-border bg-muted/20 px-4 py-3">
+            <Button type="button" variant="cancel" className="h-9 w-full text-sm" onClick={onClose}>Cancel</Button>
+            <Button
+              type="submit"
+              className="h-9 w-full text-sm"
+              disabled={create.isPending || !fromStore || !toStore || validLines.length === 0}
+            >
+              {create.isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+              Create transfer
+            </Button>
+          </ModalFooter>
+        </form>
+      </div>
     </ModalOverlay>
   )
 }

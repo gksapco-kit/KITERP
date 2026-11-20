@@ -67,21 +67,21 @@ function ResourceModal({
     })
   }
 
-  const labelCls = 'text-xs leading-none'
-  const fieldGap = 'space-y-1'
+  const labelCls = 'mb-0.5 block text-[11px] font-medium text-muted-foreground'
+  const fieldGap = 'space-y-0.5'
   const inputCls = 'h-8 text-sm'
-  const selectCls = 'h-8 w-full rounded-md border border-input bg-background px-2 text-sm'
+  const selectCls = 'h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm'
 
   return (
     <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-3">
-      <ModalPanel className="max-w-md max-h-[calc(100dvh-1.5rem)] !rounded-lg">
+      <ModalPanel className="max-w-md max-h-none !rounded-lg overflow-hidden">
         <ModalHeader
           title={initial ? 'Edit resource' : 'New resource'}
           onClose={onClose}
-          className="border-0 px-4 py-3 [&>div>h2]:text-base"
+          className="border-0 px-4 py-2.5 [&>div>h2]:text-base [&>div>h2]:leading-none"
         />
-        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
-          <ModalBody className="space-y-2.5 overflow-y-auto px-4 pb-3 pt-0">
+        <form onSubmit={handleSubmit}>
+          <ModalBody className="flex-none space-y-1.5 overflow-visible px-4 py-3">
             <div className={fieldGap}>
               <Label className={labelCls}>Name *</Label>
               <Input className={inputCls} value={name} onChange={e => setName(e.target.value)} required autoFocus placeholder="Studio A — North light" />
@@ -106,7 +106,7 @@ function ResourceModal({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <div className={fieldGap}>
                 <Label className={labelCls}>Price / hour</Label>
                 <Input className={inputCls} type="number" min={0} step="0.01" value={pricePerHour} onChange={e => setPricePerHour(e.target.value)} />
@@ -115,11 +115,10 @@ function ResourceModal({
                 <Label className={labelCls}>Currency</Label>
                 <Input className={inputCls} value={currency} onChange={e => setCurrency(e.target.value)} placeholder="USD" />
               </div>
-            </div>
-
-            <div className={fieldGap}>
-              <Label className={labelCls}>Sort order</Label>
-              <Input className={inputCls} type="number" value={sortOrder} onChange={e => setSortOrder(e.target.value)} />
+              <div className={fieldGap}>
+                <Label className={labelCls}>Sort order</Label>
+                <Input className={inputCls} type="number" value={sortOrder} onChange={e => setSortOrder(e.target.value)} />
+              </div>
             </div>
 
             <div className={fieldGap}>
@@ -127,8 +126,8 @@ function ResourceModal({
               <AiDescriptionTextarea
                 value={description}
                 onChange={setDescription}
-                rows={4}
-                className="min-h-[6rem] w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-sm"
+                rows={2}
+                className="min-h-0 w-full resize-none rounded-md border border-input bg-background px-2.5 py-1.5 text-sm"
                 placeholder="Bright corner studio with 14ft ceilings…"
                 maxLength={1000}
                 context={{
@@ -144,7 +143,7 @@ function ResourceModal({
               <Input className={inputCls} value={features} onChange={e => setFeatures(e.target.value)} placeholder="Natural light, Sound system" />
             </div>
           </ModalBody>
-          <ModalFooter className="flex-wrap items-center justify-between gap-2 border-0 bg-transparent px-4 py-3">
+          <ModalFooter className="flex-wrap items-center justify-between gap-2 border-t border-border bg-card px-4 py-2.5">
             <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
               <CheckboxFieldLabel
                 label="Available now"

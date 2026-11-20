@@ -12,7 +12,6 @@ import { TableToolbar } from '@/components/table/TableToolbar'
 import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
 import { CheckboxFieldLabel, TableColumnLabel } from '@/components/common/FieldLabel'
 import { cn, formatCurrency, isLikelyImageFile, mediaUrl } from '@/lib/utils'
-import { modalWidthLg } from '@/lib/modalUi'
 import { processRows, type SortDir } from '@/lib/tableList'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import {
@@ -67,14 +66,14 @@ function PresetEditor({
         <p className="text-[11px] text-muted-foreground italic">Optional — add Weekly / Monthly options for guests.</p>
       )}
       {presets.map((p, idx) => (
-        <div key={idx} className="grid grid-cols-[1fr_4.5rem_1fr_auto] items-center gap-1.5">
+        <div key={idx} className="flex flex-wrap items-center gap-1.5">
           <Input
-            className="h-8 text-sm"
+            className="h-8 min-w-[5.5rem] flex-1 text-sm"
             value={p.name}
             onChange={e => update(idx, { name: e.target.value })}
             placeholder="Weekly"
           />
-          <div className="flex items-center gap-1">
+          <div className="flex w-14 shrink-0 items-center gap-0.5">
             <Input
               className="h-8 text-sm"
               type="number"
@@ -88,7 +87,7 @@ function PresetEditor({
             <span className="text-[10px] text-muted-foreground shrink-0">%</span>
           </div>
           <Input
-            className="h-8 text-sm"
+            className="h-8 min-w-[6rem] flex-[2] text-sm"
             value={p.description ?? ''}
             onChange={e => update(idx, { description: e.target.value })}
             placeholder="Every week, same day"
@@ -198,23 +197,23 @@ function RecurringPlanModal({
     })
   }
 
-  const labelCls = 'text-xs'
-  const fieldGap = 'space-y-1'
+  const labelCls = 'mb-0.5 block text-[11px] font-medium text-muted-foreground'
+  const fieldGap = 'space-y-0.5'
 
   return (
-    <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-2">
-      <ModalPanel className={cn(modalWidthLg, 'max-h-[calc(100dvh-1rem)]')}>
+    <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-3">
+      <ModalPanel className="max-w-xl max-h-none !rounded-lg overflow-hidden">
         <ModalHeader
           title={initial ? 'Edit recurring plan' : 'New recurring plan'}
           onClose={onClose}
-          className="border-0 px-4 py-2.5 [&>div>h2]:text-base"
+          className="border-0 px-4 py-2.5 [&>div>h2]:text-base [&>div>h2]:leading-none"
         />
-        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
-          <ModalBody className="space-y-2.5 overflow-y-auto px-4 pb-3 pt-0">
-            <div className="grid grid-cols-[5.5rem_1fr] gap-2.5 items-start">
+        <form onSubmit={handleSubmit}>
+          <ModalBody className="flex-none space-y-2 overflow-visible px-4 py-3">
+            <div className="grid grid-cols-[4.75rem_1fr] gap-2 items-start">
               <div className={fieldGap}>
                 <Label className={labelCls}>Banner</Label>
-                <label className="relative flex h-14 w-full cursor-pointer items-center justify-center overflow-hidden rounded-md border border-dashed border-input bg-muted/40 hover:bg-muted/60">
+                <label className="relative flex h-12 w-full cursor-pointer items-center justify-center overflow-hidden rounded-md border border-dashed border-input bg-muted/40 hover:bg-muted/60">
                   {imageUrl ? (
                     <img src={imageUrl.startsWith('blob:') ? imageUrl : mediaUrl(imageUrl)} alt="" className="h-full w-full object-cover" />
                   ) : (
@@ -247,7 +246,7 @@ function RecurringPlanModal({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+            <div className="grid grid-cols-3 gap-2">
               <div className={fieldGap}>
                 <Label className={labelCls}>Start date</Label>
                 <Input className="h-8 text-sm" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
@@ -260,6 +259,9 @@ function RecurringPlanModal({
                 <Label className={labelCls}>Duration (min)</Label>
                 <Input className="h-8 text-sm" type="number" min={0} value={durationMinutes} onChange={e => setDurationMinutes(e.target.value)} />
               </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
               <div className={fieldGap}>
                 <Label className={labelCls}>Price / session</Label>
                 <Input className="h-8 text-sm" type="number" min={0} step="0.01" value={pricePerSession} onChange={e => setPricePerSession(e.target.value)} />
@@ -270,7 +272,7 @@ function RecurringPlanModal({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+            <div className="grid grid-cols-3 gap-2">
               <div className={fieldGap}>
                 <Label className={labelCls}>Default sessions</Label>
                 <Input className="h-8 text-sm" type="number" min={1} value={defaultSessionCount} onChange={e => setDefaultSessionCount(e.target.value)} />
@@ -283,6 +285,9 @@ function RecurringPlanModal({
                 <Label className={labelCls}>Max</Label>
                 <Input className="h-8 text-sm" type="number" min={1} value={maxSessions} onChange={e => setMaxSessions(e.target.value)} />
               </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
               <div className={fieldGap}>
                 <Label className={labelCls}>Confirm label</Label>
                 <Input className="h-8 text-sm" value={ctaLabel} onChange={e => setCtaLabel(e.target.value)} />
@@ -313,7 +318,7 @@ function RecurringPlanModal({
               />
             </div>
           </ModalBody>
-          <ModalFooter className="justify-end gap-2 border-0 bg-transparent px-4 py-2.5">
+          <ModalFooter className="justify-end gap-2 border-t border-border bg-transparent px-4 py-2.5">
             <Button type="button" variant="cancel" className="h-8 px-3 text-sm" onClick={onClose}>Cancel</Button>
             <Button type="submit" className="h-8 px-3 text-sm" disabled={saving || !title.trim()}>
               {saving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}

@@ -14,7 +14,6 @@ import { CheckboxFieldLabel, TableColumnLabel } from '@/components/common/FieldL
 import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
 import { resolveBusinessGalleryDisplayUrl } from '@/data/businessImagePack'
 import { cn, formatCurrency, isLikelyImageFile, mediaUrl } from '@/lib/utils'
-import { modalWidthLg } from '@/lib/modalUi'
 import { processRows, type SortDir } from '@/lib/tableList'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import {
@@ -255,65 +254,70 @@ function EventModal({
     })
   }
 
-  const labelCls = 'text-[10px] leading-none'
+  const labelCls = 'mb-0.5 block text-[11px] font-medium text-muted-foreground'
   const fieldGap = 'space-y-0.5'
-  const inputCls = 'h-7 text-xs'
+  const inputCls = 'h-8 text-sm'
   const checkoutOpen = !!ageNote.trim() || orderTitle !== 'Your order' || ctaLabel !== 'Continue to checkout' || maxPerOrder !== '8'
   const tiersOpen = tiers.length > 0
 
   return (
-    <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-1.5">
-      <ModalPanel className={cn(modalWidthLg, 'max-h-[calc(100dvh-0.75rem)]')}>
+    <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-3">
+      <ModalPanel className="max-w-xl !rounded-lg">
         <ModalHeader
           title={initial ? 'Edit event' : 'New event'}
           onClose={onClose}
-          className="border-0 px-3 py-2 [&>div>h2]:text-sm"
+          className="shrink-0 border-0 px-4 py-2.5 [&>div>h2]:text-base [&>div>h2]:leading-none"
         />
         <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
-          <ModalBody className="space-y-1.5 overflow-y-auto px-3 pb-2 pt-0">
-            <div className="grid grid-cols-[3.75rem_minmax(0,1fr)] gap-1.5 items-end sm:grid-cols-[3.75rem_minmax(0,1.3fr)_minmax(0,1fr)]">
-              <ImageSourcePicker
-                title="Event banner"
-                uploading={imageUploading}
-                onFile={handleImageFile}
-                onUrl={handleImageUrl}
-              >
-                {({ open, uploading }) => (
-                  <button
-                    type="button"
-                    onClick={open}
-                    disabled={uploading}
-                    aria-label="Add event banner"
-                    title="Event banner"
-                    className="flex h-7 w-full cursor-pointer items-center justify-center overflow-hidden rounded-md border border-dashed border-input bg-muted/40 hover:bg-muted/60 disabled:pointer-events-none"
-                  >
-                    {imageUrl ? (
-                      <img
-                        src={
-                          imageUrl.startsWith('blob:')
-                            ? imageUrl
-                            : mediaUrl(resolveBusinessGalleryDisplayUrl(imageUrl))
-                        }
-                        alt=""
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" /> : <ImagePlus className="h-3.5 w-3.5 text-muted-foreground" />
-                    )}
-                  </button>
-                )}
-              </ImageSourcePicker>
+          <ModalBody className="min-h-0 flex-1 space-y-2 overflow-y-auto px-4 py-3">
+            <div className="grid grid-cols-[4.75rem_1fr] gap-2 items-start">
               <div className={fieldGap}>
-                <Label className={labelCls}>Event title *</Label>
-                <Input className={inputCls} value={title} onChange={e => setTitle(e.target.value)} required autoFocus placeholder="Field Notes — A Night of Ambient" />
+                <Label className={labelCls}>Banner</Label>
+                <ImageSourcePicker
+                  title="Event banner"
+                  uploading={imageUploading}
+                  onFile={handleImageFile}
+                  onUrl={handleImageUrl}
+                >
+                  {({ open, uploading }) => (
+                    <button
+                      type="button"
+                      onClick={open}
+                      disabled={uploading}
+                      aria-label="Add event banner"
+                      title="Event banner"
+                      className="flex h-12 w-full cursor-pointer items-center justify-center overflow-hidden rounded-md border border-dashed border-input bg-muted/40 hover:bg-muted/60 disabled:pointer-events-none"
+                    >
+                      {imageUrl ? (
+                        <img
+                          src={
+                            imageUrl.startsWith('blob:')
+                              ? imageUrl
+                              : mediaUrl(resolveBusinessGalleryDisplayUrl(imageUrl))
+                          }
+                          alt=""
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" /> : <ImagePlus className="h-3.5 w-3.5 text-muted-foreground" />
+                      )}
+                    </button>
+                  )}
+                </ImageSourcePicker>
               </div>
-              <div className={cn(fieldGap, 'col-span-2 sm:col-span-1')}>
-                <Label className={labelCls}>Tagline</Label>
-                <Input className={inputCls} value={tagline} onChange={e => setTagline(e.target.value)} placeholder="Live electronic & strings" />
+              <div className="space-y-1.5">
+                <div className={fieldGap}>
+                  <Label className={labelCls}>Event title *</Label>
+                  <Input className={inputCls} value={title} onChange={e => setTitle(e.target.value)} required autoFocus placeholder="Field Notes — A Night of Ambient" />
+                </div>
+                <div className={fieldGap}>
+                  <Label className={labelCls}>Tagline</Label>
+                  <Input className={inputCls} value={tagline} onChange={e => setTagline(e.target.value)} placeholder="Live electronic & strings" />
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-2">
               <div className={fieldGap}>
                 <Label className={labelCls}>Date</Label>
                 <Input className={inputCls} type="date" value={eventDate} onChange={e => setEventDate(e.target.value)} />
@@ -332,15 +336,15 @@ function EventModal({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-[1fr_1fr_5rem_5rem]">
-              <div className={fieldGap}>
-                <Label className={labelCls}>Venue</Label>
-                <Input className={inputCls} value={venue} onChange={e => setVenue(e.target.value)} placeholder="The Greene Room" />
-              </div>
-              <div className={fieldGap}>
-                <Label className={labelCls}>Address</Label>
-                <Input className={inputCls} value={address} onChange={e => setAddress(e.target.value)} placeholder="418 Atlantic Ave, Brooklyn" />
-              </div>
+            <div className={fieldGap}>
+              <Label className={labelCls}>Venue</Label>
+              <Input className={inputCls} value={venue} onChange={e => setVenue(e.target.value)} placeholder="The Greene Room" />
+            </div>
+            <div className={fieldGap}>
+              <Label className={labelCls}>Address</Label>
+              <Input className={inputCls} value={address} onChange={e => setAddress(e.target.value)} placeholder="418 Atlantic Ave, Brooklyn" />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
               <div className={fieldGap}>
                 <Label className={labelCls}>Max seats</Label>
                 <Input className={inputCls} type="number" min={0} value={venueCapacity} onChange={e => setVenueCapacity(e.target.value)} placeholder="500" />
@@ -351,8 +355,8 @@ function EventModal({
               </div>
             </div>
 
-            <details className="rounded-md bg-muted/15 px-2 py-1" open={checkoutOpen}>
-              <summary className="cursor-pointer list-none text-[10px] font-medium text-muted-foreground hover:text-foreground">
+            <details className="rounded-md bg-muted/15 px-2 py-1.5" open={checkoutOpen}>
+              <summary className="cursor-pointer list-none text-[11px] font-medium text-muted-foreground hover:text-foreground">
                 Checkout &amp; seating {checkoutOpen ? '' : '· optional'}
               </summary>
               <div className="mt-1.5 space-y-1.5">
@@ -389,8 +393,8 @@ function EventModal({
               </div>
             </details>
 
-            <details className="rounded-md bg-muted/15 px-2 py-1" open={tiersOpen}>
-              <summary className="cursor-pointer list-none text-[10px] font-medium text-muted-foreground hover:text-foreground">
+            <details className="rounded-md bg-muted/15 px-2 py-1.5" open={tiersOpen}>
+              <summary className="cursor-pointer list-none text-[11px] font-medium text-muted-foreground hover:text-foreground">
                 Ticket tiers {tiersOpen ? `(${tiers.length})` : '· optional'}
               </summary>
               <div className="mt-1.5">
@@ -398,7 +402,7 @@ function EventModal({
               </div>
             </details>
           </ModalBody>
-          <ModalFooter className="items-center justify-between gap-2 border-0 bg-transparent px-3 py-2">
+          <ModalFooter className="shrink-0 items-center justify-between gap-2 border-t border-border bg-card px-4 py-2.5">
             <CheckboxFieldLabel
               label="Active on storefront"
               checked={isActive}
@@ -406,9 +410,9 @@ function EventModal({
               labelClassName="text-xs"
             />
             <div className="flex gap-2">
-              <Button type="button" variant="cancel" className="h-7 px-2.5 text-xs" onClick={onClose}>Cancel</Button>
-              <Button type="submit" className="h-7 px-2.5 text-xs" disabled={saving || !title.trim()}>
-                {saving && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+              <Button type="button" variant="cancel" className="h-8 px-3 text-sm" onClick={onClose}>Cancel</Button>
+              <Button type="submit" className="h-8 px-3 text-sm" disabled={saving || !title.trim()}>
+                {saving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
                 {initial ? 'Save' : 'Create'}
               </Button>
             </div>

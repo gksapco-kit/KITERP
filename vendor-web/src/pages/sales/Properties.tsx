@@ -16,7 +16,6 @@ import { CheckboxFieldLabel, TableColumnLabel } from '@/components/common/FieldL
 import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
 import { resolveBusinessGalleryDisplayUrl } from '@/data/businessImagePack'
 import { cn, formatCurrency, isLikelyImageFile, mediaUrl } from '@/lib/utils'
-import { modalWidthLg } from '@/lib/modalUi'
 import { processRows, type SortDir } from '@/lib/tableList'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import {
@@ -140,21 +139,21 @@ function PropertyModal({
     })
   }
 
-  const labelCls = 'text-xs'
-  const fieldGap = 'space-y-1'
+  const labelCls = 'mb-0.5 block text-[11px] font-medium text-muted-foreground'
+  const fieldGap = 'space-y-0.5'
   const selectCls = 'h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm'
 
   return (
-    <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-2">
-      <ModalPanel className={cn(modalWidthLg, 'max-h-[calc(100dvh-1rem)]')}>
+    <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-3">
+      <ModalPanel className="max-w-xl !rounded-lg">
         <ModalHeader
           title={initial ? 'Edit listing' : 'New listing'}
           onClose={onClose}
-          className="border-0 px-4 py-2.5 [&>div>h2]:text-base"
+          className="shrink-0 border-0 px-4 py-2.5 [&>div>h2]:text-base [&>div>h2]:leading-none"
         />
         <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
-          <ModalBody className="space-y-2.5 overflow-y-auto px-4 pb-3 pt-0">
-            <div className="grid grid-cols-[5.5rem_1fr] gap-2.5 items-start">
+          <ModalBody className="min-h-0 flex-1 space-y-2 overflow-y-auto px-4 py-3">
+            <div className="grid grid-cols-[4.75rem_1fr] gap-2 items-start">
               <div className={fieldGap}>
                 <Label className={labelCls}>Photo</Label>
                 <ImageSourcePicker
@@ -168,7 +167,7 @@ function PropertyModal({
                       type="button"
                       onClick={open}
                       disabled={uploading}
-                      className="flex h-14 w-full cursor-pointer items-center justify-center overflow-hidden rounded-md border border-dashed border-input bg-muted/40 hover:bg-muted/60 disabled:pointer-events-none"
+                      className="flex h-12 w-full cursor-pointer items-center justify-center overflow-hidden rounded-md border border-dashed border-input bg-muted/40 hover:bg-muted/60 disabled:pointer-events-none"
                     >
                       {imageUrl ? (
                         <img
@@ -190,7 +189,7 @@ function PropertyModal({
                   )}
                 </ImageSourcePicker>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <div className={fieldGap}>
                   <Label className={labelCls}>Title *</Label>
                   <Input className="h-8 text-sm" value={title} onChange={e => setTitle(e.target.value)} required autoFocus placeholder="Sunlit Park Slope Brownstone" />
@@ -208,7 +207,7 @@ function PropertyModal({
                 value={description}
                 onChange={setDescription}
                 rows={2}
-                className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-sm"
+                className="min-h-0 w-full resize-none rounded-md border border-input bg-background px-2.5 py-1.5 text-sm"
                 placeholder="About this home…"
                 maxLength={2000}
                 context={{
@@ -220,8 +219,8 @@ function PropertyModal({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-6">
-              <div className={cn(fieldGap, 'sm:col-span-2')}>
+            <div className="grid grid-cols-2 gap-2">
+              <div className={fieldGap}>
                 <Label className={labelCls}>Price</Label>
                 <Input className="h-8 text-sm" type="number" min={0} step="0.01" value={price} onChange={e => setPrice(e.target.value)} />
               </div>
@@ -234,6 +233,9 @@ function PropertyModal({
                   className={selectCls}
                 />
               </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
               <div className={fieldGap}>
                 <Label className={labelCls}>Beds</Label>
                 <Input className="h-8 text-sm" type="number" min={0} value={beds} onChange={e => setBeds(e.target.value)} />
@@ -248,7 +250,7 @@ function PropertyModal({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-2">
               <div className={fieldGap}>
                 <Label className={labelCls}>Type</Label>
                 <ThemeSelect
@@ -280,11 +282,11 @@ function PropertyModal({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              <div className={fieldGap}>
-                <Label className={labelCls}>Listing agent</Label>
-                <Input className="h-8 text-sm" value={agentName} onChange={e => setAgentName(e.target.value)} placeholder="Sasha Reed" />
-              </div>
+            <div className={fieldGap}>
+              <Label className={labelCls}>Listing agent</Label>
+              <Input className="h-8 text-sm" value={agentName} onChange={e => setAgentName(e.target.value)} placeholder="Sasha Reed" />
+            </div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <div className={fieldGap}>
                 <Label className={labelCls}>Agent phone</Label>
                 <PhoneInput
@@ -311,7 +313,7 @@ function PropertyModal({
               labelClassName="text-xs"
             />
           </ModalBody>
-          <ModalFooter className="justify-end gap-2 border-0 bg-transparent px-4 py-2.5">
+          <ModalFooter className="shrink-0 justify-end gap-2 border-t border-border bg-card px-4 py-2.5">
             <Button type="button" variant="cancel" className="h-8 px-3 text-sm" onClick={onClose}>Cancel</Button>
             <Button type="submit" className="h-8 px-3 text-sm" disabled={saving || !title.trim()}>
               {saving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}

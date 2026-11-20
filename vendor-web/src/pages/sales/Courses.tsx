@@ -15,7 +15,6 @@ import { CheckboxFieldLabel, TableColumnLabel } from '@/components/common/FieldL
 import { ImageSourcePicker } from '@/components/common/ImageSourcePicker'
 import { resolveBusinessGalleryDisplayUrl } from '@/data/businessImagePack'
 import { cn, formatCurrency, isLikelyImageFile, mediaUrl } from '@/lib/utils'
-import { modalWidthLg } from '@/lib/modalUi'
 import { processRows, type SortDir } from '@/lib/tableList'
 import { onClickableTableRow } from '@/lib/clickableTableRow'
 import {
@@ -236,65 +235,72 @@ function CourseModal({
     })
   }
 
-  const labelCls = 'text-[10px] leading-none'
+  const labelCls = 'mb-0.5 block text-[11px] font-medium text-muted-foreground'
   const fieldGap = 'space-y-0.5'
-  const selectCls = 'h-7 w-full rounded-md border border-input bg-background px-2 text-xs'
-  const inputCls = 'h-7 text-xs'
+  const selectCls = 'h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm'
+  const inputCls = 'h-8 text-sm'
   const moreOpen = syllabus.length > 0 || perks.length > 0 || !!outcomesText.trim()
 
   return (
-    <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-1.5">
-      <ModalPanel className={cn(modalWidthLg, 'max-h-[calc(100dvh-0.75rem)]')}>
+    <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-3">
+      <ModalPanel className="max-w-xl !rounded-lg">
         <ModalHeader
           title={initial ? 'Edit course' : 'New course'}
           onClose={onClose}
-          className="border-0 px-3 py-2 [&>div>h2]:text-sm"
+          className="shrink-0 border-0 px-4 py-2.5 [&>div>h2]:text-base [&>div>h2]:leading-none"
         />
         <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
-          <ModalBody className="space-y-1.5 overflow-y-auto px-3 pb-2 pt-0">
-            <div className="grid grid-cols-[3.75rem_minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)] gap-1.5 items-end">
-              <ImageSourcePicker
-                title="Course cover image"
-                uploading={imageUploading}
-                onFile={handleImageFile}
-                onUrl={handleImageUrl}
-              >
-                {({ open, uploading }) => (
-                  <button
-                    type="button"
-                    onClick={open}
-                    disabled={uploading}
-                    aria-label="Add cover photo"
-                    title="Cover photo"
-                    className="flex h-7 w-full cursor-pointer items-center justify-center overflow-hidden rounded-md border border-dashed border-input bg-muted/40 hover:bg-muted/60 disabled:pointer-events-none"
-                  >
-                    {imageUrl ? (
-                      <img
-                        src={
-                          imageUrl.startsWith('blob:')
-                            ? imageUrl
-                            : mediaUrl(resolveBusinessGalleryDisplayUrl(imageUrl))
-                        }
-                        alt=""
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" /> : <ImagePlus className="h-3.5 w-3.5 text-muted-foreground" />
-                    )}
-                  </button>
-                )}
-              </ImageSourcePicker>
+          <ModalBody className="min-h-0 flex-1 space-y-2 overflow-y-auto px-4 py-3">
+            <div className="grid grid-cols-[4.75rem_1fr] gap-2 items-start">
               <div className={fieldGap}>
-                <Label className={labelCls}>Title *</Label>
-                <Input className={inputCls} value={title} onChange={e => setTitle(e.target.value)} required autoFocus placeholder="Foundations of Modern Ceramics" />
+                <Label className={labelCls}>Photo</Label>
+                <ImageSourcePicker
+                  title="Course cover image"
+                  uploading={imageUploading}
+                  onFile={handleImageFile}
+                  onUrl={handleImageUrl}
+                >
+                  {({ open, uploading }) => (
+                    <button
+                      type="button"
+                      onClick={open}
+                      disabled={uploading}
+                      aria-label="Add cover photo"
+                      title="Cover photo"
+                      className="flex h-12 w-full cursor-pointer items-center justify-center overflow-hidden rounded-md border border-dashed border-input bg-muted/40 hover:bg-muted/60 disabled:pointer-events-none"
+                    >
+                      {imageUrl ? (
+                        <img
+                          src={
+                            imageUrl.startsWith('blob:')
+                              ? imageUrl
+                              : mediaUrl(resolveBusinessGalleryDisplayUrl(imageUrl))
+                          }
+                          alt=""
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" /> : <ImagePlus className="h-3.5 w-3.5 text-muted-foreground" />
+                      )}
+                    </button>
+                  )}
+                </ImageSourcePicker>
               </div>
-              <div className={fieldGap}>
-                <Label className={labelCls}>Instructor</Label>
-                <Input className={inputCls} value={instructor} onChange={e => setInstructor(e.target.value)} placeholder="Naomi Reyes" />
-              </div>
-              <div className={fieldGap}>
-                <Label className={labelCls}>Category</Label>
-                <Input className={inputCls} value={category} onChange={e => setCategory(e.target.value)} placeholder="Craft" />
+              <div className="space-y-1.5">
+                <div className={fieldGap}>
+                  <Label className={labelCls}>Title *</Label>
+                  <Input className={inputCls} value={title} onChange={e => setTitle(e.target.value)} required autoFocus placeholder="Foundations of Modern Ceramics" />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className={fieldGap}>
+                    <Label className={labelCls}>Instructor</Label>
+                    <Input className={inputCls} value={instructor} onChange={e => setInstructor(e.target.value)} placeholder="Naomi Reyes" />
+                  </div>
+                  <div className={fieldGap}>
+                    <Label className={labelCls}>Category</Label>
+                    <Input className={inputCls} value={category} onChange={e => setCategory(e.target.value)} placeholder="Craft" />
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -303,8 +309,8 @@ function CourseModal({
               <AiDescriptionTextarea
                 value={description}
                 onChange={setDescription}
-                rows={1}
-                className="min-h-[1.75rem] w-full rounded-md border border-input bg-background px-2 py-1 text-xs"
+                rows={2}
+                className="min-h-0 w-full resize-none rounded-md border border-input bg-background px-2.5 py-1.5 text-sm"
                 placeholder="Wheel throwing, hand-building, and your first three glazed pieces."
                 maxLength={2000}
                 context={{
@@ -316,7 +322,7 @@ function CourseModal({
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-6">
+            <div className="grid grid-cols-3 gap-2">
               <div className={fieldGap}>
                 <Label className={labelCls}>Level</Label>
                 <ThemeSelect
@@ -334,6 +340,9 @@ function CourseModal({
                 <Label className={labelCls}>Lessons</Label>
                 <Input className={inputCls} type="number" min={0} value={lessons} onChange={e => setLessons(e.target.value)} />
               </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
               <div className={fieldGap}>
                 <Label className={labelCls}>Price</Label>
                 <Input className={inputCls} type="number" min={0} step="0.01" value={price} onChange={e => setPrice(e.target.value)} />
@@ -348,7 +357,7 @@ function CourseModal({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-5">
+            <div className="grid grid-cols-2 gap-2">
               <div className={fieldGap}>
                 <Label className={labelCls}>Rating</Label>
                 <Input className={inputCls} type="number" min={0} max={5} step="0.1" value={rating} onChange={e => setRating(e.target.value)} />
@@ -365,14 +374,15 @@ function CourseModal({
                 <Label className={labelCls}>Preview button</Label>
                 <Input className={inputCls} value={previewCtaLabel} onChange={e => setPreviewCtaLabel(e.target.value)} />
               </div>
-              <div className={fieldGap}>
-                <Label className={labelCls}>Enrolled note</Label>
-                <Input className={inputCls} value={enrolledLabel} onChange={e => setEnrolledLabel(e.target.value)} placeholder="2,400+ enrolled" />
-              </div>
             </div>
 
-            <details className="rounded-md bg-muted/15 px-2 py-1" open={moreOpen}>
-              <summary className="cursor-pointer list-none text-[10px] font-medium text-muted-foreground hover:text-foreground">
+            <div className={fieldGap}>
+              <Label className={labelCls}>Enrolled note</Label>
+              <Input className={inputCls} value={enrolledLabel} onChange={e => setEnrolledLabel(e.target.value)} placeholder="2,400+ enrolled" />
+            </div>
+
+            <details className="rounded-md bg-muted/15 px-2 py-1.5" open={moreOpen}>
+              <summary className="cursor-pointer list-none text-[11px] font-medium text-muted-foreground hover:text-foreground">
                 Outcomes, syllabus &amp; perks {moreOpen ? '' : '· optional'}
               </summary>
               <div className="mt-1.5 space-y-1.5">
@@ -399,7 +409,7 @@ function CourseModal({
               </div>
             </details>
           </ModalBody>
-          <ModalFooter className="items-center justify-between gap-2 border-0 bg-transparent px-3 py-2">
+          <ModalFooter className="shrink-0 items-center justify-between gap-2 border-t border-border bg-card px-4 py-2.5">
             <CheckboxFieldLabel
               label="Active on storefront"
               checked={isActive}
@@ -407,9 +417,9 @@ function CourseModal({
               labelClassName="text-xs"
             />
             <div className="flex gap-2">
-              <Button type="button" variant="cancel" className="h-7 px-2.5 text-xs" onClick={onClose}>Cancel</Button>
-              <Button type="submit" className="h-7 px-2.5 text-xs" disabled={saving || !title.trim()}>
-                {saving && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+              <Button type="button" variant="cancel" className="h-8 px-3 text-sm" onClick={onClose}>Cancel</Button>
+              <Button type="submit" className="h-8 px-3 text-sm" disabled={saving || !title.trim()}>
+                {saving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
                 {initial ? 'Save' : 'Create'}
               </Button>
             </div>

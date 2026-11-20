@@ -14,7 +14,6 @@ import { ModalBody, ModalFooter, ModalHeader, ModalOverlay, ModalPanel } from '@
 import { vendorApi } from '@/api/vendor'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { cn, formatCurrency, formatDate } from '@/lib/utils'
-import { modalWidthMd } from '@/lib/modalUi'
 import { ResizableTable } from '@/components/table/ResizableTable'
 import { InlineEditCell } from '@/components/table/InlineEditCell'
 import { useInlineFieldPatch, INLINE_EDIT_HINT } from '@/hooks/useInlineFieldPatch'
@@ -433,21 +432,26 @@ function CouponModal({
     setLoading(false)
   }
 
-  const labelCls = 'text-xs'
-  const fieldGap = 'space-y-1'
+  const labelCls = 'mb-0.5 block text-[11px] font-medium text-muted-foreground'
+  const fieldGap = 'space-y-0.5'
 
   return (
-    <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-2">
-      <ModalPanel className={cn(modalWidthMd, 'max-h-[calc(100dvh-1rem)]')}>
+    <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-3">
+      <ModalPanel className="max-w-xl max-h-none !rounded-lg overflow-hidden">
         <ModalHeader
           title={mode === 'create' ? 'New Coupon' : 'Edit Coupon'}
           onClose={onClose}
-          className="border-0 px-4 py-2.5 [&>div>h2]:text-base"
+          className="border-0 px-4 py-2.5 [&>div>h2]:text-base [&>div>h2]:leading-none"
         />
-        <ModalBody className="space-y-2.5 overflow-y-auto px-4 pb-3 pt-0">
+        <ModalBody
+          className={cn(
+            'flex-none space-y-2 px-4 py-3',
+            isSpecific ? 'max-h-[min(70dvh,28rem)] overflow-y-auto' : 'overflow-visible',
+          )}
+        >
           <div className={fieldGap}>
             <Label className={labelCls}>Business unit</Label>
-            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+            <div className="grid grid-cols-2 gap-2">
               <BusinessUnitSelect
                 value={form.store_id}
                 onChange={(id) => { setForm(f => ({ ...f, store_id: id, branch_id: '' })); setApplicableItems([]) }}
@@ -494,7 +498,7 @@ function CouponModal({
             <Input className="h-8 text-sm" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Get 20% off on all products" />
           </div>
 
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2">
             <div className={fieldGap}>
               <Label className={labelCls}>Type</Label>
               <Select
@@ -522,7 +526,7 @@ function CouponModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <div className="grid grid-cols-3 gap-2">
             <div className={fieldGap}>
               <Label className={labelCls}>Usage limit</Label>
               <Input type="number" className="h-8 text-sm" min={0} value={form.usage_limit} onChange={e => setForm({ ...form, usage_limit: Number(e.target.value) })} placeholder="0 = unlimited" />
@@ -565,7 +569,7 @@ function CouponModal({
             <CheckboxFieldLabel label="Visible on store" checked={form.is_public} onChange={(is_public) => setForm({ ...form, is_public })} helpKey="visible on store" labelClassName="text-xs" />
           </div>
         </ModalBody>
-        <ModalFooter className="justify-end gap-2 border-0 bg-transparent px-4 py-2.5">
+        <ModalFooter className="justify-end gap-2 border-t border-border bg-transparent px-4 py-2.5">
           <Button variant="cancel" className="h-8 px-3 text-sm" onClick={onClose}>Cancel</Button>
           <Button onClick={handleSave} disabled={loading || form.code.trim().length < 2 || form.discount_value <= 0} className="h-8 gap-1.5 px-3 text-sm">
             {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Tag className="w-3.5 h-3.5" />}

@@ -159,49 +159,69 @@ function CreateCountModal({
     onError: apiError('Create stock count'),
   })
 
+  const labelCls = 'mb-0.5 block text-[11px] font-medium text-muted-foreground'
+  const fieldGap = 'space-y-0.5'
+  const inputCls = 'h-8 text-sm'
+  const selectCls = 'h-8 w-full text-sm'
+
   if (!open) return null
   return (
-    <ModalOverlay open={open} onClose={onClose}>
-      <ModalPanel size="md">
-        <ModalHeader onClose={onClose}>New Stock Count Session</ModalHeader>
-        <ModalBody className="space-y-4">
-          <div className="space-y-1">
-            <Label>Count Type</Label>
-            <Select value={countType} onChange={(e) => setCountType(e.target.value)}>
-              <option value="cycle_count">Cycle Count</option>
-              <option value="full_count">Full Physical Count</option>
-              <option value="spot_check">Spot Check</option>
-            </Select>
+    <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-3">
+      <ModalPanel className="max-w-md max-h-none !rounded-lg overflow-hidden">
+        <ModalHeader
+          title="New Stock Count Session"
+          onClose={onClose}
+          className="border-0 px-4 py-2.5 [&>div>h2]:text-base [&>div>h2]:leading-none"
+        />
+        <ModalBody className="flex-none space-y-2 overflow-visible px-4 py-3">
+          <div className={fieldGap}>
+            <Label className={labelCls}>Count Type</Label>
+            <Select
+              value={countType}
+              onChange={setCountType}
+              className={selectCls}
+              triggerClassName="h-8"
+              options={[
+                { value: 'cycle_count', label: 'Cycle Count' },
+                { value: 'full_count', label: 'Full Physical Count' },
+                { value: 'spot_check', label: 'Spot Check' },
+              ]}
+            />
           </div>
-          <div className="space-y-1">
-            <Label>Business Unit (optional)</Label>
-            <Select value={storeId} onChange={(e) => setStoreId(e.target.value)}>
-              <option value="">All Locations (Global)</option>
-              {stores.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              When a business unit is selected, the count will be scoped to its inventory only.
+          <div className={fieldGap}>
+            <Label className={labelCls}>Business Unit (optional)</Label>
+            <Select
+              value={storeId}
+              onChange={setStoreId}
+              className={selectCls}
+              triggerClassName="h-8"
+              options={[
+                { value: '', label: 'All Locations (Global)' },
+                ...stores.map((s) => ({ value: s.id, label: s.name })),
+              ]}
+            />
+            <p className="pt-0.5 text-[11px] leading-snug text-muted-foreground">
+              When a business unit is selected, the count is scoped to its inventory only.
             </p>
           </div>
-          <div className="space-y-1">
-            <Label>Count Date</Label>
-            <Input type="date" value={countDate} onChange={(e) => setCountDate(e.target.value)} />
+          <div className={fieldGap}>
+            <Label className={labelCls}>Count Date</Label>
+            <Input type="date" className={inputCls} value={countDate} onChange={(e) => setCountDate(e.target.value)} />
           </div>
-          <div className="space-y-1">
-            <Label>Description (optional)</Label>
+          <div className={fieldGap}>
+            <Label className={labelCls}>Description (optional)</Label>
             <Input
+              className={inputCls}
               placeholder="e.g. Q3 monthly cycle count — electronics shelf"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
           </div>
         </ModalBody>
-        <ModalFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={() => create.mutate()} disabled={create.isPending}>
-            {create.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        <ModalFooter className="justify-end gap-2 border-t border-border bg-card px-4 py-2.5">
+          <Button type="button" variant="cancel" className="h-8 px-3 text-sm" onClick={onClose}>Cancel</Button>
+          <Button type="button" className="h-8 px-3 text-sm" onClick={() => create.mutate()} disabled={create.isPending}>
+            {create.isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
             Create Session
           </Button>
         </ModalFooter>

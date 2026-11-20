@@ -16,7 +16,9 @@ import {
   useProducts, usePlants,
 } from '@/hooks/useVendor'
 import { vendorApi } from '@/api/vendor'
-import { formatDate } from '@/lib/utils'
+import { cn, formatDate } from '@/lib/utils'
+import { dialogPanelClass } from '@/lib/modalUi'
+import { ModalBody, ModalFooter, ModalHeader, ModalOverlay } from '@/components/ui/Modal'
 import { normalizeUom } from '@/lib/procurementProductContext'
 import { variantSelectOption } from '@/lib/productVariants'
 import { toast } from 'sonner'
@@ -247,8 +249,6 @@ function GoodsMovementModal({ onClose }: { onClose: () => void }) {
   const [notes, setNotes] = useState('')
   const [lines, setLines] = useState<MovementLine[]>([emptyMovementLine()])
 
-  useEscapeToClose(onClose, true)
-
   const updateLine = (i: number, patch: Partial<MovementLine>) =>
     setLines(prev => prev.map((l, idx) => idx === i ? { ...l, ...patch } : l))
 
@@ -351,79 +351,100 @@ function GoodsMovementModal({ onClose }: { onClose: () => void }) {
     return base
   }, [lines])
 
+  const labelCls = 'mb-0.5 block text-[11px] font-medium text-muted-foreground'
+  const fieldGap = 'space-y-0.5'
+  const inputCls = 'h-8 text-sm'
+  const selectCls = 'h-8 w-full text-sm'
+  const manyLines = lines.length > 2
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
-      <Card className="max-h-[90vh] w-[min(96vw,90rem)] overflow-y-auto shadow-2xl">
-        <div className="flex items-center justify-between px-6 py-4 border-b">
-          <h2 className="font-semibold flex items-center gap-2">
-            <ArrowRightLeft className="w-4 h-4 text-blue-600" /> Post Goods Movement
-          </h2>
-          <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
-        </div>
-        <CardContent className="p-6 space-y-5">
-          {/* Header fields */}
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <Label className="text-xs">Movement Type *</Label>
+    <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-3">
+      <div
+        className={cn(
+          dialogPanelClass,
+          'w-full max-w-xl shrink-0',
+          manyLines ? 'max-h-[min(92dvh,calc(100vh-1.5rem))]' : 'max-h-none',
+        )}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <ModalHeader
+          title={(
+            <span className="flex items-center gap-2 text-base font-semibold">
+              <ArrowRightLeft className="h-4 w-4 text-primary" />
+              Post Goods Movement
+            </span>
+          )}
+          onClose={onClose}
+          className="shrink-0 border-b border-border px-4 py-2.5"
+        />
+        <ModalBody
+          className={cn(
+            'space-y-3 px-4 py-3',
+            manyLines ? 'min-h-0 flex-1 overflow-y-auto' : 'flex-none overflow-visible',
+          )}
+        >
+          <div className="grid grid-cols-2 gap-2">
+            <div className={fieldGap}>
+              <Label className={labelCls}>Movement type *</Label>
               <Select
                 value={movementType}
                 onChange={setMovementType}
                 options={MOVEMENT_TYPES.map(m => ({ value: m.value, label: m.label }))}
-                className="mt-1 text-sm"
+                className={selectCls}
+                triggerClassName="h-8"
               />
             </div>
-            <div>
-              <Label className="text-xs">Posting Date *</Label>
-              <Input type="date" value={postingDate} onChange={e => setPostingDate(e.target.value)} className="mt-1" />
-            </div>
-            <div>
-              <Label className="text-xs">
-                Plant {needsPlant && <span className="text-red-500">*</span>}
-              </Label>
-              <Select
-                value={plantId}
-                onChange={setPlantId}
-                options={selectOptionsWithBlank(
-                  needsPlant ? 'Select plant…' : 'All plants',
-                  plants.map((p: { id: string; name: string }) => ({ value: p.id, label: p.name })),
-                )}
-                className={`mt-1 text-sm ${needsPlant && !plantId ? 'ring-1 ring-red-300' : ''}`}
-              />
-              {needsPlant && !plantId && (
-                <p className="text-[11px] text-red-500 mt-1">Required — determines which business unit receives the stock</p>
-              )}
-            </div>
-            <div className="col-span-3">
-              <Label className="text-xs">Notes</Label>
-              <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Reason / reference" className="mt-1" />
+            <div className={fieldGap}>
+              <Label className={labelCls}>Posting date *</Label>
+              <Input type="date" value={postingDate} onChange={e => setPostingDate(e.target.value)} className={inputCls} />
             </div>
           </div>
+          <div className={fieldGap}>
+            <Label className={labelCls}>
+              Plant{needsPlant ? ' *' : ' (optional)'}
+            </Label>
+            <Select
+              value={plantId}
+              onChange={setPlantId}
+              options={selectOptionsWithBlank(
+                needsPlant ? 'Select plant…' : 'All plants',
+                plants.map((p: { id: string; name: string }) => ({ value: p.id, label: p.name })),
+              )}
+              className={cn(selectCls, needsPlant && !plantId && 'ring-1 ring-red-300')}
+              triggerClassName="h-8"
+            />
+            {needsPlant && !plantId && (
+              <p className="pt-0.5 text-[11px] text-red-500">Required — determines which business unit receives the stock</p>
+            )}
+          </div>
+          <div className={fieldGap}>
+            <Label className={labelCls}>Notes</Label>
+            <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Reason / reference" className={inputCls} />
+          </div>
 
-          {/* Material lines */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="font-medium text-sm">Material Lines</h3>
-              <Button variant="outline" size="sm" onClick={() => setLines(prev => [...prev, emptyMovementLine()])} className="gap-1 h-7 text-xs">
-                <Plus className="w-3 h-3" /> Add
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <Label className={cn(labelCls, 'mb-0')}>Material lines</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setLines(prev => [...prev, emptyMovementLine()])}
+                className="h-7 gap-1 px-2 text-xs"
+              >
+                <Plus className="h-3 w-3" /> Add
               </Button>
             </div>
 
-            {/* Column headers */}
-            <div className="grid grid-cols-[2.5fr_2fr_1.2fr_1.5fr_1.5fr_2rem] gap-2 mb-1 px-0.5">
-              {['Product', 'Variant', 'Qty', 'UoM', 'Unit Cost (₹)', ''].map(h => (
-                <p key={h} className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{h}</p>
-              ))}
-            </div>
-
-            <div className="space-y-3">
+            <div className={cn('space-y-2', manyLines && 'max-h-56 overflow-y-auto pr-0.5')}>
               {lines.map((l, i) => {
                 const product = products.find(p => p.id === l.product_id)
                 const activeVariants = (product?.variants ?? []).filter((v: any) => v.is_active !== false)
                 const hint = stockHint(product, l.variant_id)
                 return (
-                  <div key={i} className="space-y-1">
-                    <div className="grid grid-cols-[2.5fr_2fr_1.2fr_1.5fr_1.5fr_2rem] gap-2 items-center">
-                      {/* Product */}
+                  <div key={i} className="space-y-1.5 rounded-lg border border-border bg-muted/30 p-2">
+                    <div className={fieldGap}>
+                      <Label className={labelCls}>Product</Label>
                       <Select
                         value={l.product_id}
                         onChange={v => selectProduct(i, v)}
@@ -431,90 +452,107 @@ function GoodsMovementModal({ onClose }: { onClose: () => void }) {
                           'Select product…',
                           products.map((p: any) => ({ value: p.id, label: p.name })),
                         )}
-                        className="text-sm"
+                        className={selectCls}
+                        triggerClassName="h-8"
                       />
-                      {/* Variant */}
-                      {activeVariants.length > 0 ? (
-                        <Select
-                          value={l.variant_id}
-                          onChange={v => selectVariant(i, v)}
-                          options={selectOptionsWithBlank(
-                            '— Product level —',
-                            activeVariants.map((v: any) => variantSelectOption(v)),
-                          )}
-                          className="text-sm"
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className={fieldGap}>
+                        <Label className={labelCls}>Variant</Label>
+                        {activeVariants.length > 0 ? (
+                          <Select
+                            value={l.variant_id}
+                            onChange={v => selectVariant(i, v)}
+                            options={selectOptionsWithBlank(
+                              'Product level',
+                              activeVariants.map((v: any) => variantSelectOption(v)),
+                            )}
+                            className={selectCls}
+                            triggerClassName="h-8"
+                          />
+                        ) : (
+                          <div className="flex h-8 items-center rounded-md border border-input bg-muted/50 px-2 text-xs text-muted-foreground">
+                            {l.product_id ? 'No variants' : '—'}
+                          </div>
+                        )}
+                      </div>
+                      <div className={fieldGap}>
+                        <Label className={labelCls}>Qty</Label>
+                        <Input
+                          type="number"
+                          min={0.001}
+                          step={0.001}
+                          value={l.quantity}
+                          onChange={e => updateLine(i, { quantity: e.target.value })}
+                          className={inputCls}
+                          aria-label="Quantity"
                         />
-                      ) : (
-                        <div className="h-10 flex items-center text-xs text-gray-400 px-2 border rounded-md bg-gray-50">
-                          {l.product_id ? 'No variants' : '—'}
-                        </div>
-                      )}
-                      {/* Qty */}
-                      <Input
-                        type="number"
-                        min={0.001}
-                        step={0.001}
-                        value={l.quantity}
-                        onChange={e => updateLine(i, { quantity: e.target.value })}
-                        className="h-10 text-sm"
-                        aria-label="Quantity"
-                      />
-                      {/* UoM */}
-                      <div className="relative">
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-[1fr_1fr_auto] items-end gap-2">
+                      <div className={fieldGap}>
+                        <Label className={labelCls}>UoM</Label>
                         <Select
                           value={l.uom || 'piece'}
                           onChange={v => updateLine(i, { uom: v })}
                           options={uomOptions}
-                          className="text-sm"
+                          className={selectCls}
+                          triggerClassName="h-8"
                           disabled={loadingLine === i}
                         />
                       </div>
-                      {/* Unit cost */}
-                      <div className="relative">
-                        <Input
-                          type="number"
-                          min={0}
-                          step={0.01}
-                          value={l.unit_cost}
-                          onChange={e => updateLine(i, { unit_cost: e.target.value })}
-                          className="h-10 text-sm"
-                          placeholder="0.00"
-                          aria-label="Unit cost"
-                          disabled={loadingLine === i}
-                        />
-                        {loadingLine === i && (
-                          <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin text-gray-400" />
-                        )}
+                      <div className={fieldGap}>
+                        <Label className={labelCls}>Unit cost (₹)</Label>
+                        <div className="relative">
+                          <Input
+                            type="number"
+                            min={0}
+                            step={0.01}
+                            value={l.unit_cost}
+                            onChange={e => updateLine(i, { unit_cost: e.target.value })}
+                            className={inputCls}
+                            placeholder="0.00"
+                            aria-label="Unit cost"
+                            disabled={loadingLine === i}
+                          />
+                          {loadingLine === i && (
+                            <Loader2 className="absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 animate-spin text-muted-foreground" />
+                          )}
+                        </div>
                       </div>
-                      {/* Remove */}
-                      <div className="flex justify-center">
-                        {lines.length > 1 && (
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={() => setLines(prev => prev.filter((_, idx) => idx !== i))}>
-                            <X className="w-3 h-3" />
-                          </Button>
-                        )}
-                      </div>
+                      {lines.length > 1 ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 shrink-0 text-destructive"
+                          onClick={() => setLines(prev => prev.filter((_, idx) => idx !== i))}
+                          aria-label="Remove line"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      ) : (
+                        <span className="w-8 shrink-0" aria-hidden />
+                      )}
                     </div>
-                    {/* On-hand stock hint + master-data tip */}
-                    {hint && (
-                      <p className={`text-[11px] pl-1 ${hint.cls}`}>{hint.label}</p>
-                    )}
+                    {hint ? (
+                      <p className={cn('text-[10px]', hint.cls)}>{hint.label}</p>
+                    ) : null}
                   </div>
                 )
               })}
             </div>
           </div>
-
-          <div className="flex justify-end gap-2 pt-2 border-t">
-            <Button variant="outline" onClick={onClose}>Cancel</Button>
-            <Button onClick={handleSave} disabled={create.isPending} className="gap-2">
-              {create.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-              Post Movement
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+        </ModalBody>
+        <ModalFooter className="shrink-0 grid grid-cols-2 gap-2 border-t border-border bg-muted/20 px-4 py-3">
+          <Button type="button" variant="cancel" className="h-9 w-full text-sm" onClick={onClose}>Cancel</Button>
+          <Button type="button" onClick={handleSave} disabled={create.isPending} className="h-9 w-full gap-1.5 text-sm">
+            {create.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            Post movement
+          </Button>
+        </ModalFooter>
+      </div>
+    </ModalOverlay>
   )
 }
 
