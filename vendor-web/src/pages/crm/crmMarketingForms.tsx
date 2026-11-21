@@ -76,7 +76,7 @@ export function SegmentFilterBuilder({
   const removeRule = (idx: number) => onChange({ ...value, rules: value.rules.filter((_, i) => i !== idx) })
 
   return (
-    <div className="space-y-2 rounded-lg border p-3 bg-gray-50/50">
+    <div className="space-y-1.5 rounded-lg border p-2 bg-gray-50/50">
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs font-medium text-gray-600">Contact must match</p>
         <ThemeSelect
@@ -90,7 +90,7 @@ export function SegmentFilterBuilder({
         />
       </div>
       {value.rules.length === 0 ? (
-        <p className="text-xs text-gray-400 py-2">No rules — segment includes all contacts.</p>
+        <p className="text-xs text-gray-400 py-0.5">No rules — segment includes all contacts.</p>
       ) : value.rules.map((rule, idx) => {
         const fieldMeta = SEGMENT_FIELDS.find(f => f.id === rule.field)
         const ops = SEGMENT_OPS.filter(o => !o.forTags || fieldMeta?.tagField)
@@ -100,25 +100,25 @@ export function SegmentFilterBuilder({
               value={rule.field}
               onChange={v => updateRule(idx, { field: v })}
               options={SEGMENT_FIELDS.map(f => ({ value: f.id, label: f.label }))}
-              className="h-9 text-sm"
+              className="h-8 text-sm"
             />
             <ThemeSelect
               value={rule.op}
               onChange={v => updateRule(idx, { op: v })}
               options={ops.map(o => ({ value: o.id, label: o.label }))}
               wrapperClassName="min-w-[7rem]"
-              className="h-9 text-sm"
+              className="h-8 text-sm"
             />
             <Input value={rule.value} onChange={e => updateRule(idx, { value: e.target.value })}
               placeholder={rule.field === 'lifecycle_stage' ? 'customer' : 'Value'}
-              className="h-9" />
+              className="h-8 text-sm" />
             <Button type="button" variant="ghost" size="sm" onClick={() => removeRule(idx)} aria-label="Remove rule">
               <Trash2 className="w-4 h-4 text-red-500" />
             </Button>
           </div>
         )
       })}
-      <Button type="button" variant="outline" size="sm" onClick={addRule}>
+      <Button type="button" variant="outline" size="sm" className="h-8 px-2.5 text-xs" onClick={addRule}>
         <Plus className="w-3.5 h-3.5 mr-1" /> Add condition
       </Button>
       <p className="text-[11px] text-gray-400">Rows with an empty value are ignored when saving.</p>

@@ -413,7 +413,7 @@ function GroupFormModal({
           </div>
         </ModalBody>
         <ModalFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button variant="cancel" onClick={onClose}>Cancel</Button>
           <Button onClick={handleSave} disabled={!name.trim() || saving}>
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : isEdit ? 'Save Changes' : 'Create Group'}
           </Button>

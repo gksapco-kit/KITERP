@@ -11,7 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { useLeads, useSaveLead, useConvertLead, useDeleteLead, usePurgeLead, usePurgeTrashedLeads, useRestoreLead } from '@/hooks/useCrm'
 import { crmApi, type Lead } from '@/api/crm'
 import { Plus, Loader2, Target, Sparkles, ArrowRight, Check, GitBranch, XCircle, AlertTriangle, UserRound, Trash2, RotateCcw } from 'lucide-react'
-import { CrmModal, Field, SearchBar, Pager, LoadingRow, EmptyRow } from './_shared'
+import { CrmModal, CrmCancelButton, CrmPrimaryButton, Field, SearchBar, Pager, LoadingRow, EmptyRow } from './_shared'
 import { useAssigneeOptions } from './crmFormShared'
 import { modalWidthMd, modalWidthSm, modalWidthXl } from '@/lib/modalUi'
 import { formatDateTime } from '@/lib/utils'
@@ -299,42 +299,41 @@ function LeadForm({
     <CrmModal
       title="New lead"
       onClose={onClose}
+      compact
       maxW={modalWidthMd}
-      bodyClassName={matches.length ? '[scrollbar-gutter:auto]' : '!overflow-hidden [scrollbar-gutter:auto]'}
+      bodyClassName={matches.length ? '!overflow-y-auto min-h-0 flex-1 [scrollbar-gutter:auto]' : undefined}
       footer={
         <>
-          <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
+          <CrmCancelButton onClick={onClose} />
           {matches.length > 0 ? (
-            <Button type="button" disabled={save.isPending} onClick={persist}>
-              {save.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+            <CrmPrimaryButton type="button" disabled={save.isPending} onClick={persist}>
+              {save.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Plus className="w-3.5 h-3.5 mr-1.5" />}
               Create new anyway
-            </Button>
+            </CrmPrimaryButton>
           ) : (
-            <Button type="submit" form={formId} disabled={save.isPending || checking}>
-              {save.isPending || checking ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+            <CrmPrimaryButton type="submit" form={formId} disabled={save.isPending || checking}>
+              {save.isPending || checking ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Plus className="w-3.5 h-3.5 mr-1.5" />}
               Save lead
-            </Button>
+            </CrmPrimaryButton>
           )}
         </>
       }
     >
-      <form id={formId} onSubmit={submit} className="grid grid-cols-2 gap-x-3 gap-y-2 sm:grid-cols-3">
+      <form id={formId} onSubmit={submit} className="grid grid-cols-2 gap-x-2 gap-y-1.5 sm:grid-cols-3">
         <Field label="First name">
-          <Input className="h-9" value={form.first_name} onChange={e => setForm(p => ({ ...p, first_name: e.target.value }))} />
+          <Input className="h-8 text-sm" value={form.first_name} onChange={e => setForm(p => ({ ...p, first_name: e.target.value }))} />
         </Field>
         <Field label="Last name">
-          <Input className="h-9" value={form.last_name} onChange={e => setForm(p => ({ ...p, last_name: e.target.value }))} />
+          <Input className="h-8 text-sm" value={form.last_name} onChange={e => setForm(p => ({ ...p, last_name: e.target.value }))} />
         </Field>
         <Field label="Title">
-          <Input className="h-9" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} />
+          <Input className="h-8 text-sm" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} />
         </Field>
         <Field label="Company">
-          <Input className="h-9" value={form.company} onChange={e => setForm(p => ({ ...p, company: e.target.value }))} />
+          <Input className="h-8 text-sm" value={form.company} onChange={e => setForm(p => ({ ...p, company: e.target.value }))} />
         </Field>
         <Field label="Email">
-          <Input className="h-9" type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} />
+          <Input className="h-8 text-sm" type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} />
         </Field>
         <Field label="Phone">
           <PhoneInput
@@ -349,11 +348,11 @@ function LeadForm({
           />
         </Field>
         <Field label="Source">
-          <Input className="h-9" value={form.source} onChange={e => setForm(p => ({ ...p, source: e.target.value }))} placeholder="website, ads, referral" />
+          <Input className="h-8 text-sm" value={form.source} onChange={e => setForm(p => ({ ...p, source: e.target.value }))} placeholder="website, ads, referral" />
         </Field>
         <Field label="Status">
           <Select
-            className="h-9"
+            className="h-8 text-sm"
             value={form.status}
             onChange={v => setForm(p => ({ ...p, status: v }))}
             options={STATUS_OPTIONS.filter((o) => o.value !== 'converted')}
@@ -361,7 +360,7 @@ function LeadForm({
         </Field>
         <Field label="Assigned to">
           <Select
-            className="h-9"
+            className="h-8 text-sm"
             value={form.assigned_to}
             onChange={v => setForm(p => ({ ...p, assigned_to: v }))}
             disabled={assigneesLoading}
@@ -374,10 +373,10 @@ function LeadForm({
         </Field>
         <Field label="Notes" className="col-span-2 sm:col-span-3">
           <textarea
-            rows={2}
+            rows={1}
             value={form.notes}
             onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
-            className="flex h-[52px] w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm"
+            className="flex min-h-[2rem] w-full resize-none rounded-md border border-input bg-background px-2.5 py-1 text-sm leading-snug"
           />
         </Field>
         {matches.length > 0 && (
@@ -447,13 +446,11 @@ function ConvertModal({ lead, onClose }: { lead: Lead; onClose: () => void }) {
       maxW={modalWidthMd}
       footer={
         <>
-          <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" form={formId} disabled={convert.isPending}>
-            {convert.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ArrowRight className="w-4 h-4 mr-2" />}
+          <CrmCancelButton onClick={onClose} />
+          <CrmPrimaryButton type="submit" form={formId} disabled={convert.isPending}>
+            {convert.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <ArrowRight className="w-3.5 h-3.5 mr-1.5" />}
             Convert
-          </Button>
+          </CrmPrimaryButton>
         </>
       }
     >
@@ -1011,8 +1008,8 @@ export default function LeadsPage() {
           maxW={modalWidthSm}
           footer={
             <>
-              <Button type="button" variant="outline" onClick={() => setPendingDelete(null)}>Cancel</Button>
-              <Button
+              <CrmCancelButton onClick={() => setPendingDelete(null)} />
+              <CrmPrimaryButton
                 type="button"
                 disabled={removeLead.isPending}
                 onClick={() => {
@@ -1034,9 +1031,9 @@ export default function LeadsPage() {
                   })
                 }}
               >
-                {removeLead.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2 text-red-600" />}
+                {removeLead.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Trash2 className="w-3.5 h-3.5 mr-1.5 text-red-600" />}
                 Move to trash
-              </Button>
+              </CrmPrimaryButton>
             </>
           }
         >
@@ -1057,8 +1054,8 @@ export default function LeadsPage() {
           maxW={modalWidthSm}
           footer={
             <>
-              <Button type="button" variant="outline" disabled={bulkDeleting} onClick={() => setPendingBulkDelete(false)}>Cancel</Button>
-              <Button
+              <CrmCancelButton disabled={bulkDeleting} onClick={() => setPendingBulkDelete(false)} />
+              <CrmPrimaryButton
                 type="button"
                 disabled={bulkDeleting || selectedCount === 0}
                 onClick={async () => {
@@ -1093,9 +1090,9 @@ export default function LeadsPage() {
                   if (fail) toast.error(`Could not delete ${fail} lead${fail === 1 ? '' : 's'}`)
                 }}
               >
-                {bulkDeleting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2 text-red-600" />}
+                {bulkDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Trash2 className="w-3.5 h-3.5 mr-1.5 text-red-600" />}
                 {showDeleted ? 'Delete permanently' : 'Move to trash'}
-              </Button>
+              </CrmPrimaryButton>
             </>
           }
         >
@@ -1117,8 +1114,8 @@ export default function LeadsPage() {
           maxW={modalWidthSm}
           footer={
             <>
-              <Button type="button" variant="outline" disabled={purgeLead.isPending} onClick={() => setPendingPurge(null)}>Cancel</Button>
-              <Button
+              <CrmCancelButton disabled={purgeLead.isPending} onClick={() => setPendingPurge(null)} />
+              <CrmPrimaryButton
                 type="button"
                 disabled={purgeLead.isPending}
                 onClick={() => {
@@ -1131,9 +1128,9 @@ export default function LeadsPage() {
                   })
                 }}
               >
-                {purgeLead.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2 text-red-600" />}
+                {purgeLead.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Trash2 className="w-3.5 h-3.5 mr-1.5 text-red-600" />}
                 Delete permanently
-              </Button>
+              </CrmPrimaryButton>
             </>
           }
         >
@@ -1150,8 +1147,8 @@ export default function LeadsPage() {
           maxW={modalWidthSm}
           footer={
             <>
-              <Button type="button" variant="outline" disabled={purgeTrashed.isPending} onClick={() => setPendingPurgeAll(false)}>Cancel</Button>
-              <Button
+              <CrmCancelButton disabled={purgeTrashed.isPending} onClick={() => setPendingPurgeAll(false)} />
+              <CrmPrimaryButton
                 type="button"
                 disabled={purgeTrashed.isPending}
                 onClick={() => {
@@ -1166,9 +1163,9 @@ export default function LeadsPage() {
                   })
                 }}
               >
-                {purgeTrashed.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2 text-red-600" />}
+                {purgeTrashed.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Trash2 className="w-3.5 h-3.5 mr-1.5 text-red-600" />}
                 Delete all
-              </Button>
+              </CrmPrimaryButton>
             </>
           }
         >

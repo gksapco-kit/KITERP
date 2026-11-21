@@ -71,10 +71,27 @@ const DialogContent = React.forwardRef<
     >
       {children}
       {!hideCloseButton && (
-        <DialogPrimitive.Close className="absolute right-4 top-4 z-30 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
-          <X className="h-4 w-4" />
-          <span className="sr-only">Close</span>
-        </DialogPrimitive.Close>
+        <div className="absolute right-4 top-4 z-30 flex shrink-0 items-center gap-1.5">
+          <DialogPrimitive.Close asChild>
+            <button
+              type="button"
+              data-escape-close
+              aria-label="Close"
+              className="hidden items-center rounded border border-border bg-muted px-1.5 py-0.5 text-[0.65rem] font-medium text-muted-foreground shadow-sm transition-colors hover:bg-muted/80 focus:outline-none focus:ring-2 focus:ring-ring sm:inline-flex"
+            >
+              Esc
+            </button>
+          </DialogPrimitive.Close>
+          <DialogPrimitive.Close
+            type="button"
+            data-escape-close
+            aria-label="Close"
+            className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
+          >
+            <X className="h-4 w-4" />
+            <span className="sr-only">Close</span>
+          </DialogPrimitive.Close>
+        </div>
       )}
     </DialogPrimitive.Content>
   </DialogPortal>

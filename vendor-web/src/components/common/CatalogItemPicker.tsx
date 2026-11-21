@@ -5,6 +5,7 @@ import { vendorApi } from '@/api/vendor'
 import { useProducts, useServices } from '@/hooks/useVendor'
 import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { isDefaultManualVariantName, variantSelectOption } from '@/lib/productVariants'
+import { cn } from '@/lib/utils'
 
 export interface CatalogPickerItem {
   id: string
@@ -49,6 +50,8 @@ interface CatalogItemPickerProps {
   kinds?: Kind[]
   placeholder?: string
   disabled?: boolean
+  /** Shorter control height for dense modals */
+  compact?: boolean
 }
 
 function itemKey(item: Pick<CatalogPickerItem, 'item_type' | 'id' | 'variant_id'>) {
@@ -75,6 +78,7 @@ export function CatalogItemPicker({
   kinds = ['product', 'service'],
   placeholder = 'Search products & services…',
   disabled,
+  compact = false,
 }: CatalogItemPickerProps) {
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
@@ -418,19 +422,27 @@ export function CatalogItemPicker({
       : null
 
   return (
-    <div className="space-y-2" ref={wrapRef}>
-      {!storeId && (
+    <div className={compact ? 'space-y-1' : 'space-y-2'} ref={wrapRef}>
+      {!storeId && !compact && (
         <p className="text-xs text-amber-600">Select a business unit first to load its catalog.</p>
       )}
       <div className="relative" ref={inputWrapRef}>
-        <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+        <Search
+          className={cn(
+            'absolute left-2 top-1/2 -translate-y-1/2 text-gray-400',
+            compact ? 'h-3 w-3' : 'left-2.5 h-4 w-4',
+          )}
+        />
         <input
           value={search}
           disabled={disabled || !storeId}
           onChange={(e) => { setSearch(e.target.value); setOpen(true); setVariantPickFor(null) }}
           onFocus={() => setOpen(true)}
           placeholder={placeholder}
-          className="h-9 w-full rounded-lg border border-gray-200 bg-white pl-8 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:bg-gray-50"
+          className={cn(
+            'w-full rounded-md border border-gray-200 bg-white pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:bg-gray-50',
+            compact ? 'h-8 pl-7' : 'h-9 rounded-lg pl-8',
+          )}
         />
       </div>
       {menu}

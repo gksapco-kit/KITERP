@@ -17,7 +17,7 @@ import {
   Plus, Loader2, Activity as ActivityIcon, CheckCircle2, Calendar, Phone, Mail, Users,
   StickyNote, Bell, ArrowRight, CalendarClock, Ticket, Headphones, Wrench,
 } from 'lucide-react'
-import { CrmModal, Field, Pager, LoadingRow, EmptyRow } from './_shared'
+import { CrmModal, CrmCancelButton, CrmPrimaryButton, Field, Pager, LoadingRow, EmptyRow } from './_shared'
 import { useCrmExtras, CrmScheduleRow } from './crmExtras'
 import {
   inputCls, empDisplayName, findMyEmployee,
@@ -162,17 +162,15 @@ function ActivityForm({ onClose }: { onClose: () => void }) {
       maxW={modalWidthMd}
       footer={
         <>
-          <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
+          <CrmCancelButton onClick={onClose} />
+          <CrmPrimaryButton
             type="submit"
             form={formId}
             disabled={save.isPending || (form.type === 'other' && !form.type_other.trim())}
           >
-            {save.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+            {save.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Plus className="w-3.5 h-3.5 mr-1.5" />}
             Save
-          </Button>
+          </CrmPrimaryButton>
         </>
       }
     >

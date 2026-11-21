@@ -53,7 +53,7 @@ export function RuleBuilder({ rules, onChange }: RuleBuilderProps) {
   const getKey = (r: RuleDraft, i: number) => r._key || r.id || String(i)
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       {rules.map((rule, idx) => {
         const key = getKey(rule, idx)
         const isOpen = expanded === key
@@ -198,9 +198,12 @@ export function RuleBuilder({ rules, onChange }: RuleBuilderProps) {
           </div>
         )
       })}
-      <button type="button" onClick={addRule}
-        className="flex items-center gap-2 text-sm text-primary hover:text-primary/80 font-medium">
-        <Plus className="h-4 w-4" /> Add Rule
+      <button
+        type="button"
+        onClick={addRule}
+        className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80"
+      >
+        <Plus className="h-3.5 w-3.5" /> Add Rule
       </button>
     </div>
   )

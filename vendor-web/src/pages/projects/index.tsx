@@ -123,8 +123,8 @@ function CreateProjectModal({ onClose }: { onClose: () => void }) {
     )
   }
 
-  const labelCls = 'text-xs'
-  const fieldGap = 'space-y-1'
+  const labelCls = 'text-xs leading-tight'
+  const fieldGap = 'space-y-0.5'
 
   return (
     <ModalOverlay onClose={onClose} className="p-2">
@@ -132,13 +132,13 @@ function CreateProjectModal({ onClose }: { onClose: () => void }) {
         <ModalHeader
           title="New Project"
           onClose={onClose}
-          className="border-0 px-4 py-2.5 [&>div>h2]:text-base"
+          className="border-0 px-4 py-2 [&>div>h2]:text-base"
         />
         <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
-          <ModalBody className="space-y-2.5 overflow-y-auto px-4 pb-3 pt-0">
+          <ModalBody className="flex-initial space-y-1.5 overflow-visible px-4 pb-2 pt-0">
             <div className={fieldGap}>
               <Label className={labelCls}>Sales scope</Label>
-              <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-1 sm:grid-cols-3">
                 <BusinessUnitSelect
                   value={storeId}
                   onChange={(id) => { setStoreId(id); setBranchId(''); setSalesAreaId(''); setItems([]) }}
@@ -166,7 +166,7 @@ function CreateProjectModal({ onClose }: { onClose: () => void }) {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-[1fr_8.5rem]">
+            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[1fr_8.5rem]">
               <div className={fieldGap}>
                 <Label htmlFor="proj-name" className={labelCls}>Name *</Label>
                 <Input
@@ -199,15 +199,15 @@ function CreateProjectModal({ onClose }: { onClose: () => void }) {
               <Label htmlFor="proj-desc" className={labelCls}>Description</Label>
               <textarea
                 id="proj-desc"
-                rows={2}
+                rows={1}
                 value={form.description}
                 onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
-                className="w-full resize-none rounded-md border border-input bg-background px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full min-h-[2rem] resize-none rounded-md border border-input bg-background px-2.5 py-1 text-sm leading-snug focus:outline-none focus:ring-2 focus:ring-ring"
                 placeholder="Brief scope or goals"
               />
             </div>
 
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
               <div className={fieldGap}>
                 <Label htmlFor="proj-start" className={labelCls}>Start date</Label>
                 <Input
@@ -240,7 +240,7 @@ function CreateProjectModal({ onClose }: { onClose: () => void }) {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
               <div className={fieldGap}>
                 <Label className={labelCls}>Customer (optional)</Label>
                 <CustomerPicker
@@ -262,11 +262,18 @@ function CreateProjectModal({ onClose }: { onClose: () => void }) {
             </div>
 
             <div className={fieldGap}>
-              <Label className={labelCls}>Products & services (optional)</Label>
-              <CatalogItemPicker storeId={effectiveStoreId} value={items} onChange={setItems} />
+              <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0">
+                <Label className={labelCls}>Products & services (optional)</Label>
+                {!effectiveStoreId ? (
+                  <span className="text-[10px] leading-tight text-amber-600">
+                    Select a business unit first to load its catalog.
+                  </span>
+                ) : null}
+              </div>
+              <CatalogItemPicker compact storeId={effectiveStoreId} value={items} onChange={setItems} />
             </div>
           </ModalBody>
-          <ModalFooter className="justify-end gap-2 border-0 bg-transparent px-4 py-2.5">
+          <ModalFooter className="justify-end gap-2 border-0 bg-transparent px-4 py-2">
             <Button type="button" variant="cancel" className="h-8 px-3 text-sm" onClick={onClose}>Cancel</Button>
             <Button type="submit" className="h-8 px-3 text-sm" disabled={create.isPending || !form.name.trim()}>
               {create.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Plus className="w-3.5 h-3.5 mr-1.5" />}

@@ -173,7 +173,7 @@ function InfoRecordForm({
             Active
           </label>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
+            <Button variant="cancel" size="sm" onClick={onClose}>Cancel</Button>
             <Button size="sm" onClick={handleSave} disabled={busy} className="gap-1.5">
               {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               {initial ? 'Save Changes' : 'Create Record'}
@@ -272,7 +272,7 @@ function SourceListForm({ initial, onClose }: { initial?: SourceList; onClose: (
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-2 border-t">
-            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button variant="cancel" onClick={onClose}>Cancel</Button>
             <Button onClick={handleSave} disabled={busy} className="gap-2">
               {busy && <Loader2 className="w-4 h-4 animate-spin" />}
               {initial ? 'Save Changes' : 'Add Entry'}

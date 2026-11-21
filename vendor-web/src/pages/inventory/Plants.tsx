@@ -273,20 +273,22 @@ export default function PlantsPage() {
       </Card>
 
       {showForm && (
-        <ModalOverlay onClose={resetForm} className="z-[100] bg-black/60 p-3">
-          <ModalPanel className="max-w-md max-h-[calc(100dvh-1.5rem)] !rounded-lg">
+        <ModalOverlay onClose={resetForm} className="z-[100] bg-black/60 p-2">
+          <ModalPanel className="max-w-md max-h-[calc(100dvh-1rem)] !rounded-lg">
             <ModalHeader
               title={editing ? 'Edit Plant' : 'New Plant'}
               onClose={resetForm}
+              className="border-0 px-4 py-2 [&>div>h2]:text-base"
             />
             <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
-              <ModalBody className="space-y-4">
+              <ModalBody className="flex-initial space-y-1.5 overflow-visible px-4 pb-2 pt-0">
                 {!editing && (
-                  <div className="space-y-1.5">
-                    <Label>Business Unit *</Label>
+                  <div className="space-y-0.5">
+                    <Label className="text-xs leading-tight">Business Unit *</Label>
                     <Select
                       value={formStoreId}
                       onChange={setFormStoreId}
+                      className="h-8 text-sm"
                       options={stores.map(s => ({
                         value: s.id,
                         label: `${s.name}${s.code ? ` (${s.code})` : ''}`,
@@ -294,29 +296,35 @@ export default function PlantsPage() {
                     />
                   </div>
                 )}
-                <div className="space-y-1.5">
-                  <Label>Name *</Label>
-                  <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Main Plant, Assembly Unit, North Warehouse" required />
+                <div className="space-y-0.5">
+                  <Label className="text-xs leading-tight">Name *</Label>
+                  <Input
+                    className="h-8 text-sm"
+                    value={name}
+                    onChange={e => setName(e.target.value)}
+                    placeholder="e.g. Main Plant, Assembly Unit, North Warehouse"
+                    required
+                  />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label>Code</Label>
-                    <Input value={code} onChange={e => setCode(e.target.value)} placeholder="PLT-01" />
+                <div className="grid grid-cols-2 gap-1.5">
+                  <div className="space-y-0.5">
+                    <Label className="text-xs leading-tight">Code</Label>
+                    <Input className="h-8 text-sm" value={code} onChange={e => setCode(e.target.value)} placeholder="PLT-01" />
                   </div>
-                  <div className="space-y-1.5">
-                    <Label>Sort order</Label>
-                    <Input type="number" value={sortOrder} onChange={e => setSortOrder(Number(e.target.value))} />
+                  <div className="space-y-0.5">
+                    <Label className="text-xs leading-tight">Sort order</Label>
+                    <Input className="h-8 text-sm" type="number" value={sortOrder} onChange={e => setSortOrder(Number(e.target.value))} />
                   </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Description</Label>
-                  <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional notes" />
+                <div className="space-y-0.5">
+                  <Label className="text-xs leading-tight">Description</Label>
+                  <Input className="h-8 text-sm" value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional notes" />
                 </div>
               </ModalBody>
-              <ModalFooter>
-                <Button type="button" variant="outline" onClick={resetForm}>Cancel</Button>
-                <Button type="submit" disabled={createPlant.isPending || updatePlant.isPending}>
-                  {(createPlant.isPending || updatePlant.isPending) && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              <ModalFooter className="items-center justify-end gap-2 border-0 bg-transparent px-4 py-2">
+                <Button type="button" variant="cancel" className="h-8 px-3 text-sm" onClick={resetForm}>Cancel</Button>
+                <Button type="submit" className="h-8 px-3 text-sm" disabled={createPlant.isPending || updatePlant.isPending}>
+                  {(createPlant.isPending || updatePlant.isPending) && <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />}
                   {editing ? 'Save Changes' : 'Create Plant'}
                 </Button>
               </ModalFooter>

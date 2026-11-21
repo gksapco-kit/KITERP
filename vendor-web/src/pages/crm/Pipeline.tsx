@@ -10,7 +10,7 @@ import type { Deal, Stage } from '@/api/crm'
 import { crmApi } from '@/api/crm'
 import type { EmployeeProfile } from '@/types'
 import { Plus, Loader2, GitBranch, TrendingUp, Paperclip, Trash2, FileText } from 'lucide-react'
-import { CrmModal, Field } from './_shared'
+import { CrmModal, CrmCancelButton, CrmPrimaryButton, Field } from './_shared'
 import { modalWidthSm } from '@/lib/modalUi'
 import { CURRENCIES, currencySymbol, amountInWords, toDatetimeLocalValue } from './crmExtras'
 import { DealDetail } from './DealDetail'
@@ -93,13 +93,11 @@ function DealForm({ pipelineId, stageId, onClose }: { pipelineId: string; stageI
       bodyClassName="!overflow-hidden [scrollbar-gutter:auto]"
       footer={
         <>
-          <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" form={formId} disabled={save.isPending}>
-            {save.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+          <CrmCancelButton onClick={onClose} />
+          <CrmPrimaryButton type="submit" form={formId} disabled={save.isPending}>
+            {save.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Plus className="w-3.5 h-3.5 mr-1.5" />}
             Save deal
-          </Button>
+          </CrmPrimaryButton>
         </>
       }
     >

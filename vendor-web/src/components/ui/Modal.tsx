@@ -42,14 +42,33 @@ function unlockModalScroll() {
   body.style.overflow = prevBodyOverflow
 }
 
-export function ModalEscHint({ className }: { className?: string }) {
+export function ModalEscHint({
+  className,
+  onClick,
+}: {
+  className?: string
+  /** When set, Esc hint is a button that dismisses the surrounding modal */
+  onClick?: () => void
+}) {
+  const labelCls = cn(
+    'items-center rounded border border-border bg-muted px-1.5 py-0.5 text-[0.65rem] font-medium text-muted-foreground shadow-sm',
+    className,
+  )
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        data-escape-close
+        aria-label="Close"
+        className={cn(labelCls, 'inline-flex cursor-pointer transition-colors hover:bg-muted/80')}
+      >
+        Esc
+      </button>
+    )
+  }
   return (
-    <kbd
-      className={cn(
-        'hidden sm:inline-flex items-center rounded border border-border bg-muted px-1.5 py-0.5 text-[0.65rem] font-medium text-muted-foreground shadow-sm',
-        className,
-      )}
-    >
+    <kbd className={cn('hidden sm:inline-flex', labelCls)}>
       Esc
     </kbd>
   )

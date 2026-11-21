@@ -12,7 +12,7 @@ import { useHREmployees, useMyMembership } from '@/hooks/useVendor'
 import { useAuthStore } from '@/stores/authStore'
 import type { EmployeeProfile } from '@/types'
 import { Plus, Loader2, LifeBuoy, AlertTriangle, Eye } from 'lucide-react'
-import { CrmModal, Field, SearchBar, Pager, LoadingRow, EmptyRow } from './_shared'
+import { CrmModal, CrmCancelButton, CrmPrimaryButton, Field, SearchBar, Pager, LoadingRow, EmptyRow } from './_shared'
 import { useCrmExtras, CrmScheduleRow } from './crmExtras'
 import {
   inputCls, empDisplayName, findMyEmployee,
@@ -145,17 +145,15 @@ function TicketForm({ onClose }: { onClose: () => void }) {
       maxW="max-w-5xl"
       footer={
         <>
-          <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
+          <CrmCancelButton onClick={onClose} />
+          <CrmPrimaryButton
             type="submit"
             form={formId}
             disabled={save.isPending || (form.type === 'other' && !form.type_other.trim())}
           >
-            {save.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+            {save.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Plus className="w-3.5 h-3.5 mr-1.5" />}
             Create
-          </Button>
+          </CrmPrimaryButton>
         </>
       }
     >

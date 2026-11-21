@@ -520,7 +520,7 @@ export default function RentalBookingCreateSheet({
         </div>
 
         <SheetFooter className="border-t border-border px-5 py-3">
-          <Button variant="outline" disabled={createBooking.isPending} onClick={onClose}>Cancel</Button>
+          <Button variant="cancel" disabled={createBooking.isPending} onClick={onClose}>Cancel</Button>
           <Button disabled={createBooking.isPending || (!!creditHint && !creditHint.allowed)} onClick={save}>
             {createBooking.isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : null}
             Create Booking

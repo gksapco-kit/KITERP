@@ -22,6 +22,7 @@ import {
   Clock, Truck, RotateCcw, AlertCircle, Printer, Download,
 } from 'lucide-react'
 import { printGRN, downloadGRNPdf } from '@/lib/procurementPrintUtils'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 
 // ─────────────────────────────────────────────────────────────────
 // Status config
@@ -165,6 +166,8 @@ function CreateGRNDialog({ open, onClose }: { open: boolean; onClose: () => void
     onClose()
   }
 
+  useEscapeToClose(handleClose, open)
+
   const activeLinesCount = lineEntries.filter(e => e.include && parseFloat(e.received_qty || '0') > 0).length
 
   return (
@@ -175,7 +178,7 @@ function CreateGRNDialog({ open, onClose }: { open: boolean; onClose: () => void
           selectedPO ? 'max-h-[92vh] w-[min(96vw,56rem)]' : 'w-[min(92vw,28rem)]',
         )}
       >
-        <DialogHeader className="shrink-0 border-b px-4 pb-3 pt-4">
+        <DialogHeader className="shrink-0 space-y-0 border-b px-4 pb-3 pt-4 pr-16">
           <DialogTitle className="text-base">Create Goods Receipt Note</DialogTitle>
         </DialogHeader>
 
@@ -336,7 +339,7 @@ function CreateGRNDialog({ open, onClose }: { open: boolean; onClose: () => void
 
         </div>
         <div className="flex shrink-0 justify-end gap-2 border-t px-4 py-3">
-          <Button variant="outline" size="sm" onClick={handleClose}>Cancel</Button>
+          <Button variant="cancel" size="sm" onClick={handleClose}>Cancel</Button>
           {selectedPO && (
             <Button
               size="sm"
@@ -447,7 +450,7 @@ function QCDialog({
           <div><Label>Notes</Label><Input value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button variant="cancel" onClick={onClose}>Cancel</Button>
           <Button onClick={() => record.mutate()} disabled={qtyMismatch || record.isPending}>
             {record.isPending ? 'Saving…' : 'Record QC'}
           </Button>
@@ -546,7 +549,7 @@ function ReverseGRNDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button variant="cancel" onClick={onClose}>Cancel</Button>
           <Button
             variant="destructive"
             onClick={() => reverse.mutate()}

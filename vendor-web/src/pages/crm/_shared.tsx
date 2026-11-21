@@ -7,7 +7,7 @@ import {
   ModalPanel,
 } from '@/components/ui/Modal'
 import { modalWidthLg } from '@/lib/modalUi'
-import { Button } from '@/components/ui/button'
+import { Button, type ButtonProps } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
@@ -16,7 +16,7 @@ import { Loader2, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function CrmModal({
-  title, onClose, children, footer, maxW = modalWidthLg, headerActions, bodyClassName,
+  title, onClose, children, footer, maxW = modalWidthLg, headerActions, bodyClassName, compact = false,
 }: {
   title: ReactNode
   onClose: () => void
@@ -27,6 +27,8 @@ export function CrmModal({
   headerActions?: ReactNode
   /** Override scroll/layout on the modal body (e.g. `!overflow-hidden` for split panes). */
   bodyClassName?: string
+  /** Tighter header/body/footer padding and shorter default fields in dense forms */
+  compact?: boolean
 }) {
   return (
     <ModalOverlay
@@ -39,7 +41,7 @@ export function CrmModal({
           'my-auto w-full max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-1.5rem)] md:max-h-[calc(100dvh-2rem)] !rounded-lg',
         )}
       >
-        <div className="flex shrink-0 items-center justify-between gap-3 px-4 py-3">
+        <div className={cn('flex shrink-0 items-center justify-between gap-3 px-4', compact ? 'py-2' : 'py-3')}>
           {typeof title === 'string' ? (
             <h2 className="min-w-0 truncate text-base font-semibold leading-none text-foreground">{title}</h2>
           ) : (
@@ -53,20 +55,58 @@ export function CrmModal({
         {/* Scroll appears only when content exceeds the live viewport height */}
         <ModalBody
           className={cn(
-            'min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-3 pt-0',
-            '[scrollbar-gutter:stable]',
+            compact
+              ? 'flex-initial overflow-visible px-4 pb-2 pt-0'
+              : 'min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-3 pt-0 [scrollbar-gutter:stable]',
             bodyClassName,
           )}
         >
           {children}
         </ModalBody>
         {footer ? (
-          <ModalFooter className="justify-end gap-2 border-0 bg-transparent px-4 py-3">
+          <ModalFooter className={cn('items-center justify-end gap-2 border-0 bg-transparent px-4', compact ? 'py-2' : 'py-3')}>
             {footer}
           </ModalFooter>
         ) : null}
       </ModalPanel>
     </ModalOverlay>
+  )
+}
+
+/** Shared modal footer control height (pairs Cancel with primary actions). */
+export const crmModalBtnClass = 'h-8 min-h-8 px-3 text-sm'
+
+/** Amber dismiss — matches app-wide modal Cancel (see Button `variant="cancel"`). */
+export function CrmCancelButton({
+  onClick,
+  className,
+  disabled,
+  children = 'Cancel',
+}: {
+  onClick: () => void
+  className?: string
+  disabled?: boolean
+  children?: ReactNode
+}) {
+  return (
+    <Button
+      type="button"
+      variant="cancel"
+      size="sm"
+      className={cn(crmModalBtnClass, className)}
+      onClick={onClick}
+      disabled={disabled}
+    >
+      {children}
+    </Button>
+  )
+}
+
+export function CrmPrimaryButton({ className, children, ...props }: ButtonProps) {
+  return (
+    <Button size="sm" className={cn(crmModalBtnClass, className)} {...props}>
+      {children}
+    </Button>
   )
 }
 

@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import type { CommissionPlan, CommissionRule } from '@/types/commission'
 import { extractApiError } from '@/lib/errorMessages'
+import { cn } from '@/lib/utils'
 import { commissionTableIconBtn } from '@/pages/commission/commissionUi'
 
 import { askConfirm } from '@/components/common/ConfirmProvider'
@@ -245,29 +246,37 @@ export default function PlansPage() {
       {showForm && (
         <div
           data-kiterp-modal
-          className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto"
+          className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-black/50 p-2 backdrop-blur-sm"
           onClick={closeForm}
         >
           <div
-            className="bg-card border border-border text-foreground rounded-xl w-full max-w-2xl shadow-2xl my-8 max-h-[90vh] overflow-y-auto"
+            className="flex max-h-[calc(100dvh-1rem)] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-border bg-card text-foreground shadow-2xl"
             onClick={e => e.stopPropagation()}
           >
-            <div className="p-5 border-b border-border flex items-start justify-between gap-3">
-              <h2 className="font-semibold text-foreground">{editing ? 'Edit Plan' : 'New Commission Plan'}</h2>
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-2">
+              <h2 className="text-base font-semibold text-foreground">{editing ? 'Edit Plan' : 'New Commission Plan'}</h2>
               <button
                 type="button"
+                data-escape-close
                 onClick={closeForm}
-                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
+                className="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 aria-label="Close"
               >
-                <X className="w-5 h-5" />
+                <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
-              <div className="grid grid-cols-2 gap-4">
+            <div
+              className={cn(
+                'space-y-1.5 px-4 pb-2 pt-2',
+                rules.length > 0
+                  ? 'min-h-0 flex-1 overflow-y-auto overscroll-contain'
+                  : 'overflow-visible',
+              )}
+            >
+              <div className="grid grid-cols-2 gap-1.5">
                 {[{ key: 'code', label: 'Code' }, { key: 'name', label: 'Name' }].map(f => (
-                  <div key={f.key}>
-                    <Label required className={`block mb-1 ${formLabelClass}`}>
+                  <div key={f.key} className="space-y-0.5">
+                    <Label required className={`block leading-tight ${formLabelClass}`}>
                       {f.label}
                     </Label>
                     <Input
@@ -276,68 +285,71 @@ export default function PlansPage() {
                         setForm(p => ({ ...p, [f.key]: e.target.value }))
                         if (f.key === 'code') setCodeError('')
                       }}
-                      className={`h-9${f.key === 'code' && codeError ? ' border-destructive bg-destructive/10' : ''}`}
+                      className={cn(
+                        'h-8 text-sm',
+                        f.key === 'code' && codeError && 'border-destructive bg-destructive/10',
+                      )}
                     />
-                    {f.key === 'code' && codeError && (
-                      <p className="text-xs text-destructive mt-1">{codeError}</p>
-                    )}
+                    {f.key === 'code' && codeError ? (
+                      <p className="text-xs text-destructive">{codeError}</p>
+                    ) : null}
                   </div>
                 ))}
               </div>
-              <div>
-                <Label className={`block mb-1 ${formLabelClass}`}>Description</Label>
+              <div className="space-y-0.5">
+                <Label className={`block leading-tight ${formLabelClass}`}>Description</Label>
                 <textarea
                   value={String(form.description || '')}
                   onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
-                  rows={2}
-                  className={formTextareaClass}
+                  rows={1}
+                  className={cn(formTextareaClass, 'min-h-[2rem] resize-none py-1 text-sm leading-snug')}
                 />
               </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <Label className={`block mb-1 ${formLabelClass}`}>Status</Label>
+              <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
+                <div className="space-y-0.5">
+                  <Label className={`block leading-tight ${formLabelClass}`}>Status</Label>
                   <Select
                     value={String(form.status)}
                     onChange={(v) => setForm(p => ({ ...p, status: v }))}
                     options={['active', 'inactive', 'draft'].map(s => ({ value: s, label: s }))}
                     aria-label="Plan status"
-                    className="w-full"
+                    className="h-8 w-full text-sm"
                   />
                 </div>
-                <div>
-                  <Label className={`block mb-1 ${formLabelClass}`}>Payee Scope</Label>
+                <div className="space-y-0.5">
+                  <Label className={`block leading-tight ${formLabelClass}`}>Payee Scope</Label>
                   <Select
                     value={String(form.payee_scope)}
                     onChange={(v) => setForm(p => ({ ...p, payee_scope: v }))}
                     options={PAYEE_SCOPES.map(s => ({ value: s, label: s }))}
                     aria-label="Payee scope"
-                    className="w-full"
+                    className="h-8 w-full text-sm"
                   />
                 </div>
-                <div>
-                  <Label className={`block mb-1 ${formLabelClass}`}>Priority</Label>
+                <div className="space-y-0.5">
+                  <Label className={`block leading-tight ${formLabelClass}`}>Priority</Label>
                   <Input
                     type="number"
                     value={Number(form.priority)}
                     onChange={e => setForm(p => ({ ...p, priority: parseInt(e.target.value) || 10 }))}
-                    className="h-9"
+                    className="h-8 text-sm"
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-1.5">
                 {[{ key: 'effective_from', label: 'Effective From' }, { key: 'effective_to', label: 'Effective To' }].map(f => (
-                  <div key={f.key}>
-                    <Label className={`block mb-1 ${formLabelClass}`}>{f.label}</Label>
+                  <div key={f.key} className="space-y-0.5">
+                    <Label className={`block leading-tight ${formLabelClass}`}>{f.label}</Label>
                     <Input
                       type="date"
                       value={String(form[f.key] || '')}
                       onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
-                      className="h-9"
+                      className="h-8 text-sm"
                     />
                   </div>
                 ))}
               </div>
-              <div className="flex items-center gap-2">
+              <label htmlFor="stackable" className="flex cursor-pointer items-center gap-2 text-xs leading-tight text-muted-foreground">
                 <input
                   type="checkbox"
                   id="stackable"
@@ -345,18 +357,18 @@ export default function PlansPage() {
                   onChange={e => setForm(p => ({ ...p, stackable: e.target.checked }))}
                   className="rounded border-input"
                 />
-                <label htmlFor="stackable" className="text-sm text-muted-foreground">Stackable (multiple plans can fire on same sale)</label>
-              </div>
+                Stackable (multiple plans can fire on same sale)
+              </label>
 
               <hr className="border-border" />
               <div>
-                <h3 className="text-sm font-semibold text-foreground mb-3">Rules</h3>
+                <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-foreground">Rules</h3>
                 <RuleBuilder rules={rules} onChange={setRules as (r: (Partial<CommissionRule> & { _key?: string })[]) => void} />
               </div>
             </div>
-            <div className="p-4 border-t border-border bg-muted/25 flex gap-3 justify-end">
-              <Button type="button" variant="cancel" onClick={closeForm}>Cancel</Button>
-              <Button onClick={handleSave} disabled={create.isPending || update.isPending}>
+            <div className="flex shrink-0 justify-end gap-2 border-t border-border bg-muted/25 px-4 py-2">
+              <Button type="button" variant="cancel" className="h-8 px-3 text-sm" onClick={closeForm}>Cancel</Button>
+              <Button className="h-8 px-3 text-sm" onClick={handleSave} disabled={create.isPending || update.isPending}>
                 {create.isPending || update.isPending ? 'Saving…' : 'Save Plan'}
               </Button>
             </div>

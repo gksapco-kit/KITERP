@@ -25,6 +25,7 @@ import { printReturn, downloadReturnPdf, printDebitNote, downloadDebitNotePdf } 
 import { toast } from 'sonner'
 import { extractApiError } from '@/lib/errorMessages'
 import { actionDocMessage, createdDocMessage, pickDocNo } from '@/lib/documentToast'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 
 // ─────────────────────────────────────────────────────────────────
 // Status config
@@ -232,6 +233,8 @@ function CreateReturnDialog({ open, onClose, editingReturn }: { open: boolean; o
     onClose()
   }
 
+  useEscapeToClose(handleClose, open)
+
   /** Validates selected lines; populates per-row errors and returns overall validity. */
   function validateAndSubmit() {
     const errors: LineErrors = {}
@@ -313,7 +316,7 @@ function CreateReturnDialog({ open, onClose, editingReturn }: { open: boolean; o
           selectedPO || isEditMode ? 'w-[min(96vw,56rem)]' : 'w-[min(92vw,28rem)]',
         )}
       >
-        <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
+        <DialogHeader className="shrink-0 space-y-0 border-b px-6 pb-4 pt-6 pr-16">
           <DialogTitle>{isEditMode ? `Edit Return — ${editingReturn!.return_number}` : 'Create Purchase Return'}</DialogTitle>
         </DialogHeader>
         <div className="flex-1 overflow-y-auto px-6 py-4">
@@ -611,8 +614,8 @@ function CreateReturnDialog({ open, onClose, editingReturn }: { open: boolean; o
         })()}
 
         </div>
-        <div className="px-6 py-4 border-t bg-white shrink-0 flex justify-end gap-2">
-          <Button variant="outline" onClick={handleClose}>Cancel</Button>
+        <div className="flex shrink-0 justify-end gap-2 border-t bg-white px-6 py-4">
+          <Button variant="cancel" size="sm" className="h-8 px-3 text-sm" onClick={handleClose}>Cancel</Button>
           {(selectedPO || isEditMode) && (
             <Button onClick={validateAndSubmit} disabled={isEditMode ? updateHook.isPending : create.isPending}>
               {isEditMode
@@ -639,6 +642,8 @@ function ReturnDetail({ returnId, onBack, onEdit }: { returnId: string; onBack: 
     queryKey: ['purchase-return', returnId],
     queryFn: () => vendorApi.getPurchaseReturn(returnId) as Promise<PurchaseReturn>,
   })
+
+  useEscapeToClose(() => setShowDispatchDialog(false), showDispatchDialog)
 
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: ['purchase-return', returnId] })
@@ -829,7 +834,7 @@ function ReturnDetail({ returnId, onBack, onEdit }: { returnId: string; onBack: 
             <div><Label>Tracking Number</Label><Input value={dispatch.tracking_number} onChange={e => setDispatch(d => ({ ...d, tracking_number: e.target.value }))} placeholder="Optional" /></div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDispatchDialog(false)}>Cancel</Button>
+            <Button variant="cancel" onClick={() => setShowDispatchDialog(false)}>Cancel</Button>
             <Button onClick={() => dispatchMut.mutate()} disabled={dispatchMut.isPending}>
               {dispatchMut.isPending ? 'Saving…' : 'Confirm Dispatch'}
             </Button>

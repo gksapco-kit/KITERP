@@ -14,7 +14,7 @@ import type { PaymentFollowup } from '@/api/crm'
 import { vendorApi } from '@/api/vendor'
 import { CustomerPicker, type CustomerPickerValue } from '@/components/commission/CustomerPicker'
 import { Plus, Loader2, Banknote, Pencil, Trash2 } from 'lucide-react'
-import { CrmModal, Field, SearchBar, Pager, LoadingRow, EmptyRow } from './_shared'
+import { CrmModal, CrmCancelButton, CrmPrimaryButton, Field, SearchBar, Pager, LoadingRow, EmptyRow } from './_shared'
 import { formatDateTime } from '@/lib/utils'
 import { toast } from 'sonner'
 import { extractApiError } from '@/lib/errorMessages'
@@ -188,11 +188,11 @@ function FollowupForm({
       maxW="max-w-3xl"
       footer={
         <>
-          <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-          <Button type="submit" form={formId} disabled={save.isPending}>
-            {save.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+          <CrmCancelButton onClick={onClose} />
+          <CrmPrimaryButton type="submit" form={formId} disabled={save.isPending}>
+            {save.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Plus className="w-3.5 h-3.5 mr-1.5" />}
             {initial ? 'Save' : 'Create'}
-          </Button>
+          </CrmPrimaryButton>
         </>
       }
     >

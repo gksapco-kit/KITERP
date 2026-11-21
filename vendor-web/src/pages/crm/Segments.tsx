@@ -6,8 +6,9 @@ import { Badge } from '@/components/ui/badge'
 import { useSegments, useSaveSegment } from '@/hooks/useCrm'
 import { crmApi, type Segment } from '@/api/crm'
 import { Plus, Loader2, UsersRound, Edit3, RefreshCw, Trash2, Eye } from 'lucide-react'
-import { CrmModal, Field } from './_shared'
+import { CrmModal, CrmCancelButton, CrmPrimaryButton, Field } from './_shared'
 import { formatDateTime } from '@/lib/utils'
+import { modalWidthSm } from '@/lib/modalUi'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { extractApiError } from '@/lib/errorMessages'
@@ -69,31 +70,31 @@ function SegmentForm({ seg, onClose }: { seg?: Segment; onClose: () => void }) {
     <CrmModal
       title={seg ? 'Edit segment' : 'New segment'}
       onClose={onClose}
-      maxW="max-w-3xl"
+      compact
+      maxW={modalWidthSm}
+      bodyClassName={seg?.id ? '!overflow-y-auto min-h-0 flex-1 [scrollbar-gutter:auto]' : undefined}
       footer={
         <>
-          <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" form={formId} disabled={save.isPending}>
-            {save.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+          <CrmCancelButton onClick={onClose} />
+          <CrmPrimaryButton type="submit" form={formId} disabled={save.isPending}>
+            {save.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Plus className="w-3.5 h-3.5 mr-1.5" />}
             Save segment
-          </Button>
+          </CrmPrimaryButton>
         </>
       }
     >
-      <form id={formId} onSubmit={submit} className="space-y-3 pb-4">
+      <form id={formId} onSubmit={submit} className="space-y-1.5">
         <Field label="Name" required>
-          <Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Active customers" />
+          <Input className="h-8 text-sm" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Active customers" />
         </Field>
         <Field label="Description">
-          <Input value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="Who belongs in this group?" />
+          <Input className="h-8 text-sm" value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="Who belongs in this group?" />
         </Field>
         <Field label="Conditions">
           <SegmentFilterBuilder value={filter} onChange={setFilter} />
         </Field>
         {seg?.id && (
-          <div className="rounded-lg border p-3 space-y-2">
+          <div className="rounded-lg border p-2 space-y-1.5">
             <div className="flex items-center justify-between">
               <p className="text-xs font-medium text-gray-600">Preview matches</p>
               <Button type="button" variant="outline" size="sm" onClick={runPreview} disabled={previewing}>

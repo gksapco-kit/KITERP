@@ -12,9 +12,10 @@ import {
 import { useCustomers } from '@/hooks/useVendor'
 import type { CreditControl } from '@/api/crm'
 import { Plus, Loader2, ShieldCheck, Pencil, Trash2, Search } from 'lucide-react'
-import { CrmModal, Field, SearchBar, Pager, LoadingRow, EmptyRow } from './_shared'
+import { CrmModal, CrmCancelButton, CrmPrimaryButton, Field, SearchBar, Pager, LoadingRow, EmptyRow } from './_shared'
 import { toast } from 'sonner'
 import { extractApiError } from '@/lib/errorMessages'
+import { modalWidthMd } from '@/lib/modalUi'
 
 const STATUSES = ['active', 'watch', 'blocked']
 
@@ -85,21 +86,24 @@ function CreditForm({
     <CrmModal
       title={initial ? `Edit credit — ${initial.party_name}` : 'New credit control'}
       onClose={onClose}
-      maxW="max-w-3xl"
+      compact
+      maxW={modalWidthMd}
+      bodyClassName={form.payment_blocked ? '!overflow-y-auto min-h-0 flex-1 [scrollbar-gutter:auto]' : undefined}
       footer={
         <>
-          <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-          <Button type="submit" form={formId} disabled={save.isPending}>
-            {save.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+          <CrmCancelButton onClick={onClose} />
+          <CrmPrimaryButton type="submit" form={formId} disabled={save.isPending}>
+            {save.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Plus className="w-3.5 h-3.5 mr-1.5" />}
             {initial ? 'Save' : 'Create'}
-          </Button>
+          </CrmPrimaryButton>
         </>
       }
     >
-      <form id={formId} onSubmit={submit} className="space-y-2.5 pb-2">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      <form id={formId} onSubmit={submit} className="space-y-1.5">
+        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
           <Field label="Link customer (outlet)">
             <Select
+              className="h-8 text-sm"
               value={form.customer_id || '__none__'}
               onChange={v => {
                 if (v === '__none__') {
@@ -126,46 +130,48 @@ function CreditForm({
             />
           </Field>
           <Field label="Party name" required>
-            <Input value={form.party_name} onChange={e => set('party_name', e.target.value)} className="h-9" />
+            <Input value={form.party_name} onChange={e => set('party_name', e.target.value)} className="h-8 text-sm" />
           </Field>
           <Field label="Status">
-            <Select value={form.status} onChange={v => set('status', v)} options={STATUSES.map(s => ({ value: s, label: s }))} />
+            <Select className="h-8 text-sm" value={form.status} onChange={v => set('status', v)} options={STATUSES.map(s => ({ value: s, label: s }))} />
           </Field>
           <Field label="Phone">
-            <Input value={form.party_phone} onChange={e => set('party_phone', e.target.value)} className="h-9" />
+            <Input value={form.party_phone} onChange={e => set('party_phone', e.target.value)} className="h-8 text-sm" />
           </Field>
           <Field label="Email">
-            <Input type="email" value={form.party_email} onChange={e => set('party_email', e.target.value)} className="h-9" />
+            <Input type="email" value={form.party_email} onChange={e => set('party_email', e.target.value)} className="h-8 text-sm" />
           </Field>
           <Field label="Credit limit (max outstanding)">
-            <Input type="number" min="0" step="0.01" value={form.credit_limit} onChange={e => set('credit_limit', e.target.value)} className="h-9" />
+            <Input type="number" min="0" step="0.01" value={form.credit_limit} onChange={e => set('credit_limit', e.target.value)} className="h-8 text-sm" />
           </Field>
           <Field label="Max payment amount">
-            <Input type="number" min="0" step="0.01" value={form.max_payment_amount} onChange={e => set('max_payment_amount', e.target.value)} className="h-9" placeholder="Per invoice / payment cap" />
+            <Input type="number" min="0" step="0.01" value={form.max_payment_amount} onChange={e => set('max_payment_amount', e.target.value)} className="h-8 text-sm" placeholder="Per invoice / payment cap" />
           </Field>
           <Field label="Current outstanding">
-            <Input type="number" min="0" step="0.01" value={form.current_outstanding} onChange={e => set('current_outstanding', e.target.value)} className="h-9" />
+            <Input type="number" min="0" step="0.01" value={form.current_outstanding} onChange={e => set('current_outstanding', e.target.value)} className="h-8 text-sm" />
           </Field>
           <Field label="Payment terms (days)">
-            <Input type="number" min="0" value={form.payment_terms_days} onChange={e => set('payment_terms_days', e.target.value)} className="h-9" />
+            <Input type="number" min="0" value={form.payment_terms_days} onChange={e => set('payment_terms_days', e.target.value)} className="h-8 text-sm" />
           </Field>
+          <div className="flex items-end pb-0.5 sm:col-span-1">
+            <label className="flex cursor-pointer items-center gap-2 text-xs leading-tight text-gray-700">
+              <input
+                type="checkbox"
+                checked={form.payment_blocked}
+                onChange={e => set('payment_blocked', e.target.checked)}
+                className="rounded border-gray-300"
+              />
+              Block payments for this party
+            </label>
+          </div>
         </div>
-        <label className="flex items-center gap-2 text-sm text-gray-700 pt-1">
-          <input
-            type="checkbox"
-            checked={form.payment_blocked}
-            onChange={e => set('payment_blocked', e.target.checked)}
-            className="rounded border-gray-300"
-          />
-          Block payments for this party
-        </label>
-        {form.payment_blocked && (
+        {form.payment_blocked ? (
           <Field label="Block reason">
-            <Input value={form.block_reason} onChange={e => set('block_reason', e.target.value)} className="h-9" />
+            <Input value={form.block_reason} onChange={e => set('block_reason', e.target.value)} className="h-8 text-sm" />
           </Field>
-        )}
+        ) : null}
         <Field label="Notes">
-          <Input value={form.notes} onChange={e => set('notes', e.target.value)} className="h-9" />
+          <Input value={form.notes} onChange={e => set('notes', e.target.value)} className="h-8 text-sm" />
         </Field>
       </form>
     </CrmModal>

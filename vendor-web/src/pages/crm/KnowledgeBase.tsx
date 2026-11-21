@@ -8,8 +8,9 @@ import { Select } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { useKbArticles, useSaveKb } from '@/hooks/useCrm'
 import { Plus, Loader2, BookOpen, Eye, ThumbsUp, Edit3 } from 'lucide-react'
-import { CrmModal, Field, SearchBar, Pager, LoadingRow, EmptyRow } from './_shared'
+import { CrmModal, CrmCancelButton, CrmPrimaryButton, Field, SearchBar, Pager, LoadingRow, EmptyRow } from './_shared'
 import { formatDate } from '@/lib/utils'
+import { modalWidthSm } from '@/lib/modalUi'
 import type { KbArticle } from '@/api/crm'
 
 function KbForm({ article, onClose }: { article?: KbArticle; onClose: () => void }) {
@@ -46,27 +47,26 @@ function KbForm({ article, onClose }: { article?: KbArticle; onClose: () => void
     <CrmModal
       title={article ? 'Edit article' : 'New article'}
       onClose={onClose}
-      maxW="max-w-2xl"
-      bodyClassName="!flex-none !overflow-hidden px-5 py-3"
+      compact
+      maxW={modalWidthSm}
       footer={
         <>
-          <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" form={formId} disabled={save.isPending}>
-            {save.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+          <CrmCancelButton onClick={onClose} />
+          <CrmPrimaryButton type="submit" form={formId} disabled={save.isPending}>
+            {save.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Plus className="w-3.5 h-3.5 mr-1.5" />}
             Save
-          </Button>
+          </CrmPrimaryButton>
         </>
       }
     >
-      <form id={formId} onSubmit={submit} className="grid gap-2">
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_9.5rem]">
+      <form id={formId} onSubmit={submit} className="grid gap-1.5">
+        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[minmax(0,1fr)_9.5rem]">
           <Field label="Title" required>
-            <Input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} />
+            <Input className="h-8 text-sm" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} />
           </Field>
           <Field label="Status">
             <Select
+              className="h-8 text-sm"
               value={form.status}
               onChange={v => setForm(p => ({ ...p, status: v }))}
               options={[
@@ -77,12 +77,13 @@ function KbForm({ article, onClose }: { article?: KbArticle; onClose: () => void
             />
           </Field>
         </div>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
           <Field label="Slug">
-            <Input value={form.slug} onChange={e => setForm(p => ({ ...p, slug: e.target.value }))} placeholder="auto from title" />
+            <Input className="h-8 text-sm" value={form.slug} onChange={e => setForm(p => ({ ...p, slug: e.target.value }))} placeholder="auto from title" />
           </Field>
           <Field label="Tags">
             <Input
+              className="h-8 text-sm"
               value={form.tags}
               onChange={e => setForm(p => ({ ...p, tags: e.target.value }))}
               placeholder="comma separated"
@@ -90,14 +91,14 @@ function KbForm({ article, onClose }: { article?: KbArticle; onClose: () => void
           </Field>
         </div>
         <Field label="Summary">
-          <Input value={form.summary} onChange={e => setForm(p => ({ ...p, summary: e.target.value }))} />
+          <Input className="h-8 text-sm" value={form.summary} onChange={e => setForm(p => ({ ...p, summary: e.target.value }))} />
         </Field>
         <Field label="Body (Markdown)">
           <textarea
             value={form.body}
             onChange={e => setForm(p => ({ ...p, body: e.target.value }))}
-            rows={5}
-            className="block h-28 w-full resize-none overflow-y-auto rounded-md border border-input bg-background px-3 py-2 text-sm font-mono"
+            rows={4}
+            className="block h-24 w-full resize-none overflow-y-auto rounded-md border border-input bg-background px-2.5 py-1.5 text-sm font-mono leading-snug"
           />
         </Field>
       </form>

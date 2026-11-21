@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { askConfirm } from '@/components/common/ConfirmProvider'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
 import { cn, formatCurrency, mediaUrl } from '@/lib/utils'
 import { catalogItemPath } from '@/lib/catalogAddons'
 import { getCustomerStorefrontBaseUrl } from '@/lib/storefrontPreviewUrl'
@@ -687,6 +688,20 @@ export default function RestaurantMenuPage() {
     setOpenDrop(null)
   }
 
+  useEscapeToClose(() => {
+    if (openDrop === 'create-zones' && createMenuOpen) {
+      setOpenDrop(null)
+      return
+    }
+    if (createMenuOpen) closeCreateMenu()
+  }, createMenuOpen)
+
+  useEscapeToClose(closeRenameMenu, renameMenuOpen)
+
+  useEscapeToClose(() => {
+    if (createCategoryOpen) closeCreateCategory()
+  }, createCategoryOpen)
+
   async function handleCreateMenu() {
     const name = newMenuName.trim()
     if (!name) { toast.error('Menu name is required'); return }
@@ -1047,7 +1062,7 @@ export default function RestaurantMenuPage() {
           </div>
         </div>
         <DialogFooter className="gap-2 sm:gap-2">
-          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={closeCreateMenu}>Cancel</Button>
+          <Button variant="cancel" size="sm" className="h-7 text-xs" onClick={closeCreateMenu}>Cancel</Button>
           <Button size="sm" className="h-7 text-xs" onClick={handleCreateMenu} disabled={busy}>
             {busy && <Loader2 className="h-3 w-3 animate-spin" />} Create
           </Button>
@@ -1078,7 +1093,7 @@ export default function RestaurantMenuPage() {
           />
         </div>
         <DialogFooter className="gap-2 sm:gap-2">
-          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={closeRenameMenu}>Cancel</Button>
+          <Button variant="cancel" size="sm" className="h-7 text-xs" onClick={closeRenameMenu}>Cancel</Button>
           <Button size="sm" className="h-7 text-xs" onClick={handleRenameMenu} disabled={busy}>
             {busy && <Loader2 className="h-3 w-3 animate-spin" />} Save
           </Button>
@@ -1112,7 +1127,7 @@ export default function RestaurantMenuPage() {
           />
         </div>
         <DialogFooter className="gap-2 sm:gap-2">
-          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={closeCreateCategory}>Cancel</Button>
+          <Button variant="cancel" size="sm" className="h-7 text-xs" onClick={closeCreateCategory}>Cancel</Button>
           <Button size="sm" className="h-7 text-xs" onClick={handleCreateCategory} disabled={busy}>
             {busy && <Loader2 className="h-3 w-3 animate-spin" />} Create
           </Button>
