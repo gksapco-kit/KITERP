@@ -1,7 +1,7 @@
 # FastAPI & Server
-fastapi==0.109.0
-uvicorn[standard]==0.27.0
-python-multipart==0.0.6
+fastapi==0.115.10
+uvicorn[standard]==0.32.1
+python-multipart==0.0.34
 
 # Database - PostgreSQL
 sqlalchemy[asyncio]==2.0.48
@@ -15,10 +15,10 @@ redis==5.0.1
 # Validation & Settings
 pydantic>=2.5.3,<3
 pydantic-settings==2.1.0
-email-validator==2.1.0
+email-validator>=2.2.0
 
 # Authentication
-python-jose[cryptography]==3.3.0
+python-jose[cryptography]==3.4.0
 passlib[bcrypt]==1.7.4
 bcrypt==4.0.1
 
@@ -30,10 +30,10 @@ aioboto3==12.3.0
 aiofiles>=23.2.1
 python-slugify==8.0.1
 python-dateutil==2.8.2
-httpx==0.26.0
-dnspython==2.6.1
+httpx==0.28.1
+dnspython==2.9.2
 pyotp==2.9.0
-aiosmtplib==3.0.1
+aiosmtplib==5.1.2
 
 # Background Tasks
 celery==5.3.6
@@ -46,7 +46,7 @@ twilio>=8.13.0
 
 # PDF Generation
 reportlab==4.2.0
-pillow==12.2.0  # decodes/normalises logo, signature and QR images for the PDF
+pillow==12.3.0  # decodes/normalises logo, signature and QR images for the PDF
 qrcode==8.2  # GST e-invoice signed QR on the printed invoice
 
 # HTML sanitisation for vendor-authored document templates
@@ -56,7 +56,7 @@ nh3==0.3.7
 Jinja2>=3.1.4
 
 # Testing
-pytest==7.4.4
-pytest-asyncio==0.23.3
+pytest==9.0.3
+pytest-asyncio==1.5.0
 aiosqlite==0.20.0
-pypdf==6.20.0  # tests read text back out of generated PDFs
+pypdf==6.21.4  # tests read text back out of generated PDFs
