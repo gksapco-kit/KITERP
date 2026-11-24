@@ -324,7 +324,7 @@ export default function RentalFilledRegistrationsPage() {
               {submitCustomer.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Check className="mr-1.5 h-4 w-4" />}
               Save registration
             </Button>
-            <Button variant="outline" onClick={() => setRegistering(false)}>Cancel</Button>
+            <Button variant="cancel" onClick={() => setRegistering(false)}>Cancel</Button>
           </div>
         </div>
       )}

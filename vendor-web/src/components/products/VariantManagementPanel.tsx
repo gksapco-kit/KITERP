@@ -225,7 +225,7 @@ export function VariantManagementPanel({
           <DialogHeader><DialogTitle>Delete {selected.size} variant{selected.size === 1 ? '' : 's'}?</DialogTitle></DialogHeader>
           <p className="text-sm text-muted-foreground">This cannot be undone.</p>
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setConfirmDeleteOpen(false)}>Cancel</Button>
+            <Button variant="cancel" size="sm" onClick={() => setConfirmDeleteOpen(false)}>Cancel</Button>
             <Button
               variant="destructive" size="sm" disabled={bulkDeleteMutation.isPending}
               onClick={() => bulkDeleteMutation.mutate(Array.from(selected))}
@@ -413,7 +413,7 @@ function PriceAdjustDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="cancel" size="sm" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button size="sm" disabled={pending || value === ''} onClick={() => onApply(field, mode, Number(value) || 0)}>
             {pending && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Apply
           </Button>

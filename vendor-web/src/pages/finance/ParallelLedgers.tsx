@@ -250,7 +250,7 @@ export default function ParallelLedgers() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button variant="cancel" onClick={() => setOpen(false)}>Cancel</Button>
             <Button
               onClick={async () => { await create.mutateAsync(form); setOpen(false) }}
               disabled={!form.code || !form.name}

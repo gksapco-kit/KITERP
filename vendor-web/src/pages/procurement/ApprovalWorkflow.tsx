@@ -362,7 +362,7 @@ function RuleForm({ initial, onSave, onCancel, isSaving }: RuleFormProps) {
       </div>
 
       <div className="flex justify-end gap-2 pt-2 border-t dark:border-gray-700">
-        <Button type="button" variant="outline" size="sm" onClick={onCancel}>Cancel</Button>
+        <Button type="button" variant="cancel" size="sm" onClick={onCancel}>Cancel</Button>
         <Button type="submit" size="sm" disabled={isSaving}>
           {isSaving ? 'Saving…' : 'Save rule'}
         </Button>

@@ -143,7 +143,7 @@ export default function PlatformCrmContacts() {
             <Button type="submit" size="sm" disabled={saveMut.isPending}>
               Save
             </Button>
-            <Button type="button" size="sm" variant="outline" onClick={() => setShowForm(false)}>
+            <Button type="button" size="sm" variant="cancel" onClick={() => setShowForm(false)}>
               Cancel
             </Button>
           </div>

@@ -225,7 +225,7 @@ export default function ReturnAssetModal({ booking, asset, onClose, onDone }: Pr
           </div>
         </ModalBody>
         <ModalFooter>
-          <Button variant="outline" size="sm" disabled={processReturn.isPending} onClick={onClose}>Cancel</Button>
+          <Button variant="cancel" size="sm" disabled={processReturn.isPending} onClick={onClose}>Cancel</Button>
           <Button size="sm" disabled={processReturn.isPending || !form.quantity_returned} onClick={submit}>
             {processReturn.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Confirm Return'}
           </Button>

@@ -1163,7 +1163,7 @@ export default function CreateMessagesPage() {
             <div className="flex shrink-0 justify-end gap-2 px-5 py-4 border-t border-border">
               <Button
                 type="button"
-                variant="outline"
+                variant="cancel"
                 onClick={() => { setEmailModal(null); setPhoneModal(null) }}
               >
                 Cancel
@@ -1322,7 +1322,7 @@ export default function CreateMessagesPage() {
               </Button>
             </div>
             <div className="flex shrink-0 justify-end gap-2 px-5 py-4 border-t border-border">
-              <Button type="button" variant="outline" onClick={() => setTemplateModal(null)}>Cancel</Button>
+              <Button type="button" variant="cancel" onClick={() => setTemplateModal(null)}>Cancel</Button>
               <Button type="button" onClick={saveTemplate}>
                 {templateModal.editing ? 'Update' : 'Add'}
               </Button>

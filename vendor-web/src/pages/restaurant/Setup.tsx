@@ -648,7 +648,7 @@ export default function RestaurantSetupPage() {
                 <Button
                   type="button"
                   size="sm"
-                  variant="outline"
+                  variant="cancel"
                   className="h-8"
                   disabled={saveTimer.isPending}
                   onClick={cancelTimerEdit}

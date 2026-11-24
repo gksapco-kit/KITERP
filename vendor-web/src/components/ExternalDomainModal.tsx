@@ -242,7 +242,7 @@ export function ExternalDomainModal({ vendor, onClose, onSave }: Props) {
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-3">
-          <Button type="button" variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
+          <Button type="button" variant="cancel" size="sm" onClick={onClose}>Cancel</Button>
           <Button size="sm" disabled={onSave.isPending} onClick={handleSubmit as any}>
             {onSave.isPending ? 'Saving…' : 'Save'}
           </Button>

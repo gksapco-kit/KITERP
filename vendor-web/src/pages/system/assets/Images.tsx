@@ -1188,7 +1188,7 @@ export default function AssetImagesPage() {
               )}
               <Button
                 type="button"
-                variant="outline"
+                variant="cancel"
                 size="sm"
                 className="h-9 shrink-0 bg-background"
                 disabled={actionBusy}

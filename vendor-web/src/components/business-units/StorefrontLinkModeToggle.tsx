@@ -136,7 +136,7 @@ export function StorefrontLinkModeToggle({ mode, onConfirm, pending }: Props) {
             </div>
 
             <div className="flex gap-2">
-              <Button type="button" variant="outline" className="flex-1" onClick={closeConfirm}>
+              <Button type="button" variant="cancel" className="flex-1" onClick={closeConfirm}>
                 Cancel
               </Button>
               <Button

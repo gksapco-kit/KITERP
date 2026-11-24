@@ -167,7 +167,7 @@ export default function CreateCalendarModal({
             New fiscal calendar
           </h2>
           <div className="ml-auto flex items-center gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={onClose}>Cancel</Button>
+            <Button type="button" variant="cancel" size="sm" onClick={onClose}>Cancel</Button>
             <Button type="submit" form={formId} size="sm" disabled={createFyMut.isPending}>
               {createFyMut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               {createFyMut.isPending ? 'Saving…' : 'Save'}

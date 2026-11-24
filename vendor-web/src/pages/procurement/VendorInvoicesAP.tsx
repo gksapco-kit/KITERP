@@ -269,7 +269,7 @@ function InvoiceDetailPanel({ invoice, onClose, onCopyDocument, onEdit }: { invo
                   onMessageChange={v => setApprovalForm(f => ({ ...f, approverMessage: v }))}
                 />
                 <div className="flex justify-end gap-2 pt-2 border-t">
-                  <Button variant="outline" onClick={() => setShowApprovalDialog(false)}>Cancel</Button>
+                  <Button variant="cancel" onClick={() => setShowApprovalDialog(false)}>Cancel</Button>
                   <Button
                     onClick={() => {
                       const ids = [approvalForm.primaryApproverId, approvalForm.secondaryApproverId].filter(Boolean)
@@ -307,7 +307,7 @@ function InvoiceDetailPanel({ invoice, onClose, onCopyDocument, onEdit }: { invo
                   />
                 </div>
                 <div className="flex justify-end gap-2 pt-2 border-t">
-                  <Button variant="outline" onClick={() => setShowRejectDialog(false)}>Cancel</Button>
+                  <Button variant="cancel" onClick={() => setShowRejectDialog(false)}>Cancel</Button>
                   <Button
                     variant="destructive"
                     onClick={() => {
@@ -721,7 +721,7 @@ function CreateInvoiceModal({ onClose, copyFrom, editingInvoice }: { onClose: ()
               />
             </div>
           )}
-          <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
+          <Button variant="cancel" size="sm" onClick={onClose}>Cancel</Button>
           <Button size="sm" onClick={handleSave} disabled={isEditMode ? update.isPending : create.isPending} className="gap-1.5">
             {(isEditMode ? update.isPending : create.isPending) && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
             {isEditMode ? 'Save Changes' : 'Create Invoice'}

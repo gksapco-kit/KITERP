@@ -95,7 +95,7 @@ function LeadModal({
       maxW={modalWidthMd}
       footer={
         <>
-          <Button variant="outline" size="sm" onClick={onClose} disabled={mut.isPending}>
+          <Button variant="cancel" size="sm" onClick={onClose} disabled={mut.isPending}>
             Cancel
           </Button>
           <Button size="sm" onClick={() => mut.mutate()} disabled={mut.isPending}>
@@ -269,7 +269,7 @@ function RespondModal({
       maxW={modalWidthMd}
       footer={
         <>
-          <Button variant="outline" size="sm" onClick={onClose} disabled={mut.isPending}>
+          <Button variant="cancel" size="sm" onClick={onClose} disabled={mut.isPending}>
             Cancel
           </Button>
           <Button
@@ -423,7 +423,7 @@ function TicketModal({
       maxW={modalWidthMd}
       footer={
         <>
-          <Button variant="outline" size="sm" onClick={onClose} disabled={mut.isPending}>
+          <Button variant="cancel" size="sm" onClick={onClose} disabled={mut.isPending}>
             Cancel
           </Button>
           <Button

@@ -1408,7 +1408,7 @@ export function VariantFastEditGrid({ productId, search: searchProp, onSearchCha
           </DialogHeader>
           <p className="text-sm text-muted-foreground">This cannot be undone.</p>
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setConfirmDeleteOpen(false)}>Cancel</Button>
+            <Button variant="cancel" size="sm" onClick={() => setConfirmDeleteOpen(false)}>Cancel</Button>
             <Button variant="destructive" size="sm" disabled={bulkPending} onClick={runBulkDelete}>
               {bulkPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Delete
             </Button>
@@ -1613,7 +1613,7 @@ function PriceAdjustDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="cancel" size="sm" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button size="sm" disabled={pending || value === ''} onClick={() => onApply(field, mode, Number(value) || 0)}>
             {pending && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Apply
           </Button>

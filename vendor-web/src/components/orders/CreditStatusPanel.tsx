@@ -93,7 +93,7 @@ function ReleaseModal({ orderId, onClose }: { orderId: string; onClose: () => vo
           />
         </div>
         <div className="flex justify-end gap-2">
-          <Button variant="outline" size="sm" onClick={onClose} disabled={isPending}>Cancel</Button>
+          <Button variant="cancel" size="sm" onClick={onClose} disabled={isPending}>Cancel</Button>
           <Button size="sm" variant="destructive" onClick={() => mutate()} disabled={isPending}>
             {isPending && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
             Release Block

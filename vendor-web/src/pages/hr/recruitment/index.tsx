@@ -376,7 +376,7 @@ function JobModal({
             </div>
           </ModalBody>
           <ModalFooter className="border-0 px-4 py-2.5">
-            <Button type="button" variant="outline" size="sm" className="h-8" onClick={onClose}>Cancel</Button>
+            <Button type="button" variant="cancel" size="sm" className="h-8" onClick={onClose}>Cancel</Button>
             <Button type="submit" size="sm" className="h-8" disabled={create.isPending || update.isPending}>
               {create.isPending || update.isPending ? 'Saving…' : (existing ? 'Save changes' : 'Create job')}
             </Button>
@@ -594,7 +594,7 @@ function CandidateModal({
             </div>
           </ModalBody>
           <ModalFooter className="border-0 px-4 py-2.5">
-            <Button type="button" variant="outline" size="sm" className="h-8" onClick={onClose}>
+            <Button type="button" variant="cancel" size="sm" className="h-8" onClick={onClose}>
               Cancel
             </Button>
             <Button type="submit" size="sm" className="h-8" disabled={busy}>
@@ -696,7 +696,7 @@ function CommonMeetingUrlBar() {
             <Button
               type="button"
               size="sm"
-              variant="outline"
+              variant="cancel"
               className="h-8"
               disabled={updateVendor.isPending}
               onClick={() => {
@@ -1088,7 +1088,7 @@ function AddCandidateToPipelineModal({
             </div>
           </ModalBody>
           <ModalFooter className="border-0 px-4 py-2.5">
-            <Button type="button" variant="outline" size="sm" className="h-8" onClick={onClose}>Cancel</Button>
+            <Button type="button" variant="cancel" size="sm" className="h-8" onClick={onClose}>Cancel</Button>
             <Button type="submit" size="sm" className="h-8" disabled={!jobId || create.isPending}>
               {create.isPending ? 'Adding…' : 'Add to pipeline'}
             </Button>

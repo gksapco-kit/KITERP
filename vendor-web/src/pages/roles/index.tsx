@@ -588,7 +588,7 @@ export default function RolesPage() {
               </div>
             </ModalBody>
             <ModalFooter className="border-0 px-4 py-2.5">
-              <Button type="button" variant="ghost" size="sm" className="h-8" onClick={() => setShowForm(false)}>Cancel</Button>
+              <Button type="button" variant="cancel" size="sm" className="h-8" onClick={() => setShowForm(false)}>Cancel</Button>
               <Button
                 type="button"
                 size="sm"

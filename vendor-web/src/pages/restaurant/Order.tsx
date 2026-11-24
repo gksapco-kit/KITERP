@@ -90,7 +90,7 @@ function TransferTableDialog({
             </li>
           ))}
         </ul>
-        <Button variant="outline" className="w-full" onClick={onClose}>Cancel</Button>
+        <Button variant="cancel" className="w-full" onClick={onClose}>Cancel</Button>
       </div>
     </div>
   )

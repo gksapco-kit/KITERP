@@ -137,7 +137,7 @@ function AddConditionModal({
         </div>
 
         <div className="flex justify-end gap-2">
-          <Button variant="outline" size="sm" onClick={onClose} disabled={isPending}>Cancel</Button>
+          <Button variant="cancel" size="sm" onClick={onClose} disabled={isPending}>Cancel</Button>
           <Button size="sm" onClick={() => mutate()} disabled={isPending || !form.description || !form.value}>
             {isPending && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
             Add

@@ -230,7 +230,7 @@ function ProfileEditor({
           </div>
         </ModalBody>
         <ModalFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button variant="cancel" onClick={onClose}>Cancel</Button>
           <Button onClick={submit} disabled={!valid || save.isPending}>
             {save.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
             Save
@@ -516,7 +516,7 @@ function ProductPicker({
           )}
         </ModalBody>
         <ModalFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button variant="cancel" onClick={onClose}>Cancel</Button>
           <Button
             disabled={!selected}
             onClick={() => selected && onPick(selected)}

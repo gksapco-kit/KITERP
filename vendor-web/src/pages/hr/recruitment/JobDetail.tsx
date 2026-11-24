@@ -223,7 +223,7 @@ function ScheduleInterviewModal({
             </div>
           </div>
           <div className="shrink-0 flex justify-end gap-2 border-t px-5 py-3">
-            <Button type="button" variant="outline" size="sm" onClick={onClose}>Cancel</Button>
+            <Button type="button" variant="cancel" size="sm" onClick={onClose}>Cancel</Button>
             <Button type="submit" size="sm" disabled={create.isPending}>
               {create.isPending ? 'Saving…' : 'Schedule'}
             </Button>

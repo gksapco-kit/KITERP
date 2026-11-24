@@ -547,7 +547,7 @@ export function RuleBuilder({ productId }: Props) {
             <Button size="sm" variant="outline" className="h-8 text-xs" onClick={handleValidate}>
               <CheckCircle2 className="h-3.5 w-3.5" /> Validate rule
             </Button>
-            <Button size="sm" variant="outline" className="h-8 text-xs" onClick={cancelEdit}>Cancel</Button>
+            <Button size="sm" variant="cancel" className="h-8 text-xs" onClick={cancelEdit}>Cancel</Button>
             <Button
               size="sm"
               className="h-8 text-xs"

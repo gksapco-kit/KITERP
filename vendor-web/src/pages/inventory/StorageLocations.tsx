@@ -657,7 +657,7 @@ export default function StorageLocationsPage() {
                 <CustomFieldsEditor fields={customFields} onChange={setCustomFields} />
               </ModalBody>
               <ModalFooter className="px-4 py-2.5">
-                <Button type="button" variant="outline" onClick={resetForm}>Cancel</Button>
+                <Button type="button" variant="cancel" onClick={resetForm}>Cancel</Button>
                 <Button type="submit" disabled={createLocation.isPending || updateLocation.isPending}>
                   {(createLocation.isPending || updateLocation.isPending) && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
                   {editing ? 'Save Changes' : 'Create Location'}

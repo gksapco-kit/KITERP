@@ -210,7 +210,7 @@ function BatchQualityModal({ batch, onClose }: { batch: GoodsBatch; onClose: () 
             <Input value={notes} onChange={e => setNotes(e.target.value)} className="mt-1" />
           </div>
           <div className="flex justify-end gap-2 pt-2 border-t">
-            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button variant="cancel" onClick={onClose}>Cancel</Button>
             <Button
               onClick={() => update.mutate({ id: batch.id, data: { quality_status: quality, notes: notes || undefined } }, { onSuccess: onClose })}
               disabled={update.isPending}

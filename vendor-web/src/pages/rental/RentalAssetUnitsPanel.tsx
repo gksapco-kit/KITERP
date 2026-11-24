@@ -447,7 +447,7 @@ export default function RentalAssetUnitsPanel({
             <Button size="sm" disabled={createUnit.isPending} onClick={submitSingle}>
               {createUnit.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Add Unit'}
             </Button>
-            <Button size="sm" variant="outline" onClick={cancelAdd}>Cancel</Button>
+            <Button size="sm" variant="cancel" onClick={cancelAdd}>Cancel</Button>
           </div>
         </div>
       )}
@@ -508,7 +508,7 @@ export default function RentalAssetUnitsPanel({
                 ? <><Loader2 className="mr-1.5 h-4 w-4 animate-spin" />Creating…</>
                 : `Create ${bulkCount} Unit${bulkCount !== 1 ? 's' : ''}`}
             </Button>
-            <Button size="sm" variant="outline" onClick={cancelAdd}>Cancel</Button>
+            <Button size="sm" variant="cancel" onClick={cancelAdd}>Cancel</Button>
           </div>
         </div>
       )}
@@ -756,7 +756,7 @@ export default function RentalAssetUnitsPanel({
                       >
                         {updateUnit.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save'}
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => setEditing(null)}>Cancel</Button>
+                      <Button size="sm" variant="cancel" onClick={() => setEditing(null)}>Cancel</Button>
                     </div>
                   </div>
                 )}

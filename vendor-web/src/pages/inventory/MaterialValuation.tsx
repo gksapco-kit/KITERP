@@ -85,7 +85,7 @@ function ValuationEditModal({
             </div>
           )}
           <div className="flex justify-end gap-2 pt-2 border-t">
-            <Button variant="outline" onClick={onClose}>
+            <Button variant="cancel" onClick={onClose}>
               Cancel
             </Button>
             <Button

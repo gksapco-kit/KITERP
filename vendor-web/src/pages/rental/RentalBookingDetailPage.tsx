@@ -669,7 +669,7 @@ export default function RentalBookingDetailPage() {
                     >
                       {doReassign.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Confirm Reassign'}
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setReassign(null)}>Cancel</Button>
+                    <Button size="sm" variant="cancel" onClick={() => setReassign(null)}>Cancel</Button>
                   </div>
                 </div>
               )}
@@ -731,7 +731,7 @@ export default function RentalBookingDetailPage() {
                   )}
                   {booking.registration ? 'Save & replace' : 'Save registration'}
                 </Button>
-                <Button size="sm" variant="outline" onClick={cancelEditRegistration} disabled={saveRegistration.isPending}>
+                <Button size="sm" variant="cancel" onClick={cancelEditRegistration} disabled={saveRegistration.isPending}>
                   Cancel
                 </Button>
               </div>

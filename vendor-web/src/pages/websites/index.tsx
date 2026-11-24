@@ -1018,7 +1018,7 @@ function RenameSiteModal({
             />
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={onClose} disabled={saving}>
+            <Button variant="cancel" onClick={onClose} disabled={saving}>
               Cancel
             </Button>
             <Button
@@ -1079,7 +1079,7 @@ function DeleteSiteConfirmModal({
             It stays there for 30 days — restore anytime before then, or delete permanently from Recently deleted.
           </p>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={onClose} disabled={deleting}>
+            <Button variant="cancel" onClick={onClose} disabled={deleting}>
               Cancel
             </Button>
             <Button
@@ -1151,7 +1151,7 @@ function CopySiteSaveAsModal({
             />
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={onClose} disabled={saving}>
+            <Button variant="cancel" onClick={onClose} disabled={saving}>
               Cancel
             </Button>
             <Button

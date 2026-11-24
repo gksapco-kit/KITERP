@@ -499,7 +499,7 @@ function TransferDetail({ orderId, onBack }: { orderId: string; onBack: () => vo
             </Button>
           )}
           {!['received', 'cancelled', 'dispatched'].includes(order.status) && (
-            <Button size="sm" variant="ghost" className="text-destructive" onClick={handleCancel} disabled={cancel.isPending}>
+            <Button size="sm" variant="cancel" className="text-destructive" onClick={handleCancel} disabled={cancel.isPending}>
               <XCircle className="mr-1 h-3.5 w-3.5" />Cancel
             </Button>
           )}

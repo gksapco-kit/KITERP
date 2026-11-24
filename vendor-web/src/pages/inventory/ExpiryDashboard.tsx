@@ -188,7 +188,7 @@ function WriteOffModal({ item, onClose, stores }: {
           </div>
         </ModalBody>
         <ModalFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button variant="cancel" onClick={onClose}>Cancel</Button>
           <Button
             variant="destructive"
             onClick={() => mutation.mutate()}

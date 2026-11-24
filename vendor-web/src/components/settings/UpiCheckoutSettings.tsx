@@ -225,7 +225,7 @@ export function UpiCheckoutSettings({ vendor }: { vendor: Vendor | null }) {
           />
           <Button
             type="button"
-            variant="ghost"
+            variant="cancel"
             size="sm"
             onClick={() => { setPendingAction(null); setPendingMode(null) }}
           >

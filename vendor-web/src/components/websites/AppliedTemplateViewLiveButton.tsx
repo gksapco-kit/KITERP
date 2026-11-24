@@ -121,7 +121,7 @@ export function ViewLiveLinksPickerModal({
               Open all ({links.length} tabs)
             </Button>
           ) : null}
-          <Button type="button" variant="outline" className="w-full" onClick={onClose}>
+          <Button type="button" variant="cancel" className="w-full" onClick={onClose}>
             Cancel
           </Button>
         </div>

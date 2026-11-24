@@ -400,7 +400,7 @@ export function PharmaMbrPage() {
                     <Button size="sm" onClick={saveEdit}>
                       Save draft
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setEditId(null)}>
+                    <Button size="sm" variant="cancel" onClick={() => setEditId(null)}>
                       Cancel
                     </Button>
                   </div>
@@ -719,7 +719,7 @@ export function PharmaBprPage() {
                       <Button size="sm" onClick={submitIpc}>
                         Save IPC
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => setIpcTarget(null)}>
+                      <Button size="sm" variant="cancel" onClick={() => setIpcTarget(null)}>
                         Cancel
                       </Button>
                     </div>
@@ -1170,7 +1170,7 @@ export function PharmaQcSpecsPage() {
                     <Button size="sm" onClick={saveEdit}>
                       Save
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setEditId(null)}>
+                    <Button size="sm" variant="cancel" onClick={() => setEditId(null)}>
                       Cancel
                     </Button>
                   </div>
@@ -1487,7 +1487,7 @@ export function PharmaInspectionsPage() {
                     >
                       Close investigation
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setOosPanel(null)}>Cancel</Button>
+                    <Button size="sm" variant="cancel" onClick={() => setOosPanel(null)}>Cancel</Button>
                   </div>
                 </div>
               ) : null}
@@ -1560,7 +1560,7 @@ export function PharmaInspectionsPage() {
                     <Button size="sm" onClick={saveResults}>
                       Save &amp; submit for release
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>
+                    <Button size="sm" variant="cancel" onClick={() => setEditingId(null)}>
                       Cancel
                     </Button>
                   </div>

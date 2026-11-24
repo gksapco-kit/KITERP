@@ -267,7 +267,7 @@ export default function VendorAppBuilds() {
                     ) : null}
                     Save Configuration
                   </Button>
-                  <Button variant="ghost" onClick={() => setEditMode(false)}>
+                  <Button variant="cancel" onClick={() => setEditMode(false)}>
                     Cancel
                   </Button>
                 </div>

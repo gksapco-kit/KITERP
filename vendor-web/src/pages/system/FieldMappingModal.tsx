@@ -241,7 +241,7 @@ export default function FieldMappingModal({ open, onClose, initial, mode }: Prop
             <span />
           )}
           <div className="flex gap-2">
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="cancel" onClick={onClose}>
               Cancel
             </Button>
             <Button

@@ -1198,7 +1198,7 @@ function AddItemPanel({ onSave, onCancel, saving, prefillProductId, prefillVaria
         <Button size="sm" onClick={handleSave} disabled={saving || !catalogId || !quantity || !unitCost} className="gap-1.5">
           {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />} Add Item
         </Button>
-        <Button size="sm" variant="ghost" onClick={onCancel}>Cancel</Button>
+        <Button size="sm" variant="cancel" onClick={onCancel}>Cancel</Button>
       </div>
     </div>
   )
@@ -1521,7 +1521,7 @@ function ItemExpandPanel({ item, isDraft, canReceive, onSaveEdit, saving }: {
               }}>
               {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Save Changes
             </Button>
-            <Button size="sm" variant="ghost" className="h-7" disabled={saving} onClick={() => setEditing(false)}>
+            <Button size="sm" variant="cancel" className="h-7" disabled={saving} onClick={() => setEditing(false)}>
               Cancel
             </Button>
           </div>

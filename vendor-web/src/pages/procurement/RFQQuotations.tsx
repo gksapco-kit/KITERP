@@ -1022,7 +1022,7 @@ function CreateQuotationDialog({
 
         {/* Sticky footer */}
         <div className="px-6 py-4 border-t bg-white shrink-0 flex justify-end gap-2">
-          <Button variant="outline" onClick={handleClose}>Cancel</Button>
+          <Button variant="cancel" onClick={handleClose}>Cancel</Button>
           <Button
             onClick={() => create.mutate()}
             disabled={!selectedSupplier || validItems.length === 0 || create.isPending}
@@ -1420,7 +1420,7 @@ function RFQDetail({ rfqId, onBack, onEdit }: { rfqId: string; onBack: () => voi
             <Textarea value={closeReason} onChange={e => setCloseReason(e.target.value)} rows={3} />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCloseDialog(false)}>Cancel</Button>
+            <Button variant="cancel" onClick={() => setShowCloseDialog(false)}>Cancel</Button>
             <Button onClick={() => closeBidsMut.mutate()} disabled={closeBidsMut.isPending}>
               {closeBidsMut.isPending ? 'Closing…' : 'Close Bids'}
             </Button>
@@ -1456,7 +1456,7 @@ function RFQDetail({ rfqId, onBack, onEdit }: { rfqId: string; onBack: () => voi
             <div><Label>Notes</Label><Textarea value={awardNotes} onChange={e => setAwardNotes(e.target.value)} rows={2} /></div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAwardDialog(false)}>Cancel</Button>
+            <Button variant="cancel" onClick={() => setShowAwardDialog(false)}>Cancel</Button>
             <Button onClick={() => awardMut.mutate()} disabled={selectedQuoteIds.length === 0 || awardMut.isPending}>
               {awardMut.isPending ? 'Awarding…' : 'Award'}
             </Button>
@@ -1478,7 +1478,7 @@ function RFQDetail({ rfqId, onBack, onEdit }: { rfqId: string; onBack: () => voi
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setShowInviteSupplier(false); setInviteSuppliers([]) }}>Cancel</Button>
+            <Button variant="cancel" onClick={() => { setShowInviteSupplier(false); setInviteSuppliers([]) }}>Cancel</Button>
             <Button onClick={() => inviteMut.mutate()} disabled={inviteSuppliers.length === 0 || inviteMut.isPending}>
               {inviteMut.isPending ? 'Inviting…' : `Invite${inviteSuppliers.length > 0 ? ` (${inviteSuppliers.length})` : ''}`}
             </Button>

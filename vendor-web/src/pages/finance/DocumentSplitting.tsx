@@ -222,7 +222,7 @@ export default function DocumentSplitting() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)} disabled={create.isPending}>Cancel</Button>
+            <Button variant="cancel" onClick={() => setOpen(false)} disabled={create.isPending}>Cancel</Button>
             <Button
               disabled={!form.name || form.base_account_types.length === 0 || create.isPending}
               onClick={async () => {

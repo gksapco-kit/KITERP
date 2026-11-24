@@ -271,7 +271,7 @@ function ReservationRow({
                 <Input value={edit.notes} onChange={e => setEdit(x => ({ ...x, notes: e.target.value }))} className="h-8 text-sm col-span-2" placeholder="Notes" />
               </div>
               <div className="flex gap-2 justify-end">
-                <Button size="sm" variant="outline" onClick={() => setEditing(false)}>Cancel</Button>
+                <Button size="sm" variant="cancel" onClick={() => setEditing(false)}>Cancel</Button>
                 <Button size="sm" disabled={isPending} onClick={() => { onSaveEdit(edit); setEditing(false) }}>Save</Button>
               </div>
             </div>
@@ -292,7 +292,7 @@ function ReservationRow({
               />
               {freeTables.length === 0 && <p className="text-xs text-amber-700">No free tables — clear one on the floor first.</p>}
               <div className="flex gap-2 justify-end">
-                <Button size="sm" variant="outline" onClick={() => setSeatOpen(false)}>Cancel</Button>
+                <Button size="sm" variant="cancel" onClick={() => setSeatOpen(false)}>Cancel</Button>
                 <Button
                   size="sm"
                   disabled={!seatTableId || isPending}
@@ -365,7 +365,7 @@ function NewReservationForm({ onSuccess, onCancel }: { onSuccess: () => void; on
         </div>
       </div>
       <div className="flex gap-2 justify-end">
-        <Button variant="outline" size="sm" onClick={onCancel}>Cancel</Button>
+        <Button variant="cancel" size="sm" onClick={onCancel}>Cancel</Button>
         <Button size="sm" disabled={!form.guest_name || create.isPending} onClick={() => create.mutate()}>
           {create.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
           Save reservation

@@ -1384,7 +1384,7 @@ function ContactChangeRequestPanel({
             />
           </div>
           <div className="flex shrink-0 items-center justify-end gap-1.5">
-            <Button type="button" variant="ghost" size="sm" onClick={onClose} className="h-8 rounded-full px-2.5 text-xs">
+            <Button type="button" variant="cancel" size="sm" onClick={onClose} className="h-8 rounded-full px-2.5 text-xs">
               Cancel
             </Button>
             <Button
@@ -2152,7 +2152,7 @@ function DangerZone() {
                   <div className="flex shrink-0 items-center justify-end gap-1.5">
                     <Button
                       type="button"
-                      variant="ghost"
+                      variant="cancel"
                       size="sm"
                       onClick={closeDeleteForm}
                       disabled={deleteBusy}

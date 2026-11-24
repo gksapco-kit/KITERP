@@ -986,7 +986,7 @@ function AddEmployeeModal({
                     <div className="flex items-center justify-between pt-1">
                       <Button
                         type="button"
-                        variant="outline"
+                        variant="cancel"
                         size="sm"
                         onClick={() => { setShowDocForm(false); setDocFile(null); setDocLabel('') }}
                       >
@@ -1053,7 +1053,7 @@ function AddEmployeeModal({
 
             </ModalBody>
             <ModalFooter className="border-0 px-4 py-2.5">
-              <Button type="button" variant="outline" size="sm" className="h-8" onClick={onClose}>Cancel</Button>
+              <Button type="button" variant="cancel" size="sm" className="h-8" onClick={onClose}>Cancel</Button>
               <Button
                 type="submit"
                 size="sm"

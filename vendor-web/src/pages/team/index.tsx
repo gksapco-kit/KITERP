@@ -715,7 +715,7 @@ export default function TeamPage() {
               </p>
             </ModalBody>
             <ModalFooter className="border-0 px-4 py-2.5">
-              <Button type="button" variant="ghost" size="sm" className="h-8" onClick={() => setShowInvite(false)}>Cancel</Button>
+              <Button type="button" variant="cancel" size="sm" className="h-8" onClick={() => setShowInvite(false)}>Cancel</Button>
               <Button
                 type="button"
                 size="sm"
@@ -1311,7 +1311,7 @@ function EditRoleModal({
           </div>
         </div>
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-xl shrink-0">
-          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button variant="cancel" onClick={onClose}>Cancel</Button>
           <Button
             onClick={() => onSave({
               role,

@@ -155,7 +155,7 @@ function ValidationsTab() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)} disabled={isSaving}>Cancel</Button>
+            <Button variant="cancel" onClick={() => setOpen(false)} disabled={isSaving}>Cancel</Button>
             <Button onClick={handleSave} disabled={!form.name || !form.check_expr || isSaving}>
               {isSaving ? 'Saving…' : 'Save'}
             </Button>
@@ -264,7 +264,7 @@ function SubstitutionsTab() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)} disabled={create.isPending}>Cancel</Button>
+            <Button variant="cancel" onClick={() => setOpen(false)} disabled={create.isPending}>Cancel</Button>
             <Button
               disabled={!form.name || !form.target_field || !form.substitution_expr || create.isPending}
               onClick={async () => {

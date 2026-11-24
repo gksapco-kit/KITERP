@@ -333,7 +333,7 @@ export function SiteInputParametersModal({
         </div>
 
         <div className="flex justify-end gap-2 border-t border-gray-100 bg-gray-50/70 px-5 py-4">
-          <Button variant="outline" onClick={onClose} disabled={saving}>
+          <Button variant="cancel" onClick={onClose} disabled={saving}>
             Cancel
           </Button>
           <Button

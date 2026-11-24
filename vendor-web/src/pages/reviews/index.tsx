@@ -73,7 +73,7 @@ function ReplyForm({ reviewId, existingReply }: { reviewId: string; existingRepl
           {existingReply ? 'Update Reply' : 'Post Reply'}
         </Button>
         {existingReply && (
-          <Button variant="ghost" size="sm" onClick={() => { setEditing(false); setReply(existingReply) }}>
+          <Button variant="cancel" size="sm" onClick={() => { setEditing(false); setReply(existingReply) }}>
             Cancel
           </Button>
         )}

@@ -214,7 +214,7 @@ function DivisionsTab() {
                 <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional notes" />
               </div>
               <div className="flex justify-end gap-2 pt-2">
-                <Button type="button" variant="outline" onClick={resetForm}>Cancel</Button>
+                <Button type="button" variant="cancel" onClick={resetForm}>Cancel</Button>
                 <Button type="submit" disabled={createMut.isPending || updateMut.isPending}>
                   {(createMut.isPending || updateMut.isPending) && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
                   {editing ? 'Save Changes' : 'Create Sales Division'}
@@ -356,7 +356,7 @@ function DistributionChannelsTab() {
                 <input type="checkbox" className={defaultCheckboxClass} checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} /> Set as default
               </label>
               <div className="flex justify-end gap-2 pt-2">
-                <Button type="button" variant="outline" onClick={resetForm}>Cancel</Button>
+                <Button type="button" variant="cancel" onClick={resetForm}>Cancel</Button>
                 <Button type="submit" disabled={createMut.isPending || updateMut.isPending}>
                   {(createMut.isPending || updateMut.isPending) && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
                   {editing ? 'Save Changes' : 'Create Channel'}
@@ -522,7 +522,7 @@ function DeliveryChannelsTab() {
                 <input type="checkbox" className={defaultCheckboxClass} checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} /> Set as default
               </label>
               <div className="flex justify-end gap-2 pt-2">
-                <Button type="button" variant="outline" onClick={resetForm}>Cancel</Button>
+                <Button type="button" variant="cancel" onClick={resetForm}>Cancel</Button>
                 <Button type="submit" disabled={createMut.isPending || updateMut.isPending}>
                   {(createMut.isPending || updateMut.isPending) && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
                   {editing ? 'Save Changes' : 'Create Channel'}
@@ -757,7 +757,7 @@ function SalesAreasTab() {
                 <input type="checkbox" className={defaultCheckboxClass} checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} /> Set as default
               </label>
               <div className="flex justify-end gap-2 pt-2">
-                <Button type="button" variant="outline" onClick={resetForm}>Cancel</Button>
+                <Button type="button" variant="cancel" onClick={resetForm}>Cancel</Button>
                 <Button type="submit" disabled={createMut.isPending || !businessUnitId || !distributionChannelId || !divisionId}>
                   {createMut.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
                   Create Sales Area

@@ -249,7 +249,7 @@ export function VariantGeneratorButton({ productId }: Props) {
 
           <DialogFooter className="items-center sm:justify-between">
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setOpen(false)}>Cancel</Button>
+              <Button variant="cancel" size="sm" className="h-8 text-xs" onClick={() => setOpen(false)}>Cancel</Button>
               {isExclusionMode && (
                 <Button
                   variant="outline"

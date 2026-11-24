@@ -392,7 +392,7 @@ function ScheduleTab({ line, orderId, editable }: { line: OrderLine; orderId: st
                   </select>
                 </div>
                 <div className="col-span-2 flex justify-end gap-2">
-                  <Button size="sm" variant="outline" className="h-6 text-xs px-2" onClick={() => setEditingId(null)}>Cancel</Button>
+                  <Button size="sm" variant="cancel" className="h-6 text-xs px-2" onClick={() => setEditingId(null)}>Cancel</Button>
                   <Button size="sm" className="h-6 text-xs px-2" disabled={updateSchedule.isPending}
                     onClick={() => updateSchedule.mutate(
                       { lineId: line.id, scheduleId: s.id, data: { confirmed_date: editDraft.confirmed_date || undefined, confirmed_qty: parseFloat(editDraft.confirmed_qty) || 0, commitment_source: editDraft.commitment_source, status: editDraft.status } },
@@ -461,7 +461,7 @@ function ScheduleTab({ line, orderId, editable }: { line: OrderLine; orderId: st
               </div>
             </div>
             <div className="flex justify-end gap-2">
-              <Button size="sm" variant="outline" className="h-6 text-xs px-2" onClick={() => setAdding(false)}>Cancel</Button>
+              <Button size="sm" variant="cancel" className="h-6 text-xs px-2" onClick={() => setAdding(false)}>Cancel</Button>
               <Button size="sm" className="h-6 text-xs px-2" disabled={addSchedule.isPending} onClick={saveNew}>
                 {addSchedule.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Add'}
               </Button>
@@ -503,7 +503,7 @@ function WarehouseTab({ line, orderId, editable }: { line: OrderLine; orderId: s
         <div className="flex justify-end">
           {editing ? (
             <div className="flex gap-2">
-              <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => setEditing(false)} disabled={update.isPending}><X className="h-3 w-3" /> Cancel</Button>
+              <Button size="sm" variant="cancel" className="h-7 gap-1 text-xs" onClick={() => setEditing(false)} disabled={update.isPending}><X className="h-3 w-3" /> Cancel</Button>
               <Button size="sm" className="h-7 gap-1 text-xs" onClick={save} disabled={update.isPending}>
                 {update.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />} Save
               </Button>
@@ -573,7 +573,7 @@ function CostTab({ line, orderId, editable }: { line: OrderLine; orderId: string
         <div className="flex justify-end">
           {editing ? (
             <div className="flex gap-2">
-              <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => setEditing(false)} disabled={update.isPending}><X className="h-3 w-3" /> Cancel</Button>
+              <Button size="sm" variant="cancel" className="h-7 gap-1 text-xs" onClick={() => setEditing(false)} disabled={update.isPending}><X className="h-3 w-3" /> Cancel</Button>
               <Button size="sm" className="h-7 gap-1 text-xs" onClick={save} disabled={update.isPending}>
                 {update.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />} Save
               </Button>
@@ -626,7 +626,7 @@ function NotesTab({ line, orderId, editable }: { line: OrderLine; orderId: strin
         <div className="flex justify-end">
           {editing ? (
             <div className="flex gap-2">
-              <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => setEditing(false)} disabled={update.isPending}><X className="h-3 w-3" /> Cancel</Button>
+              <Button size="sm" variant="cancel" className="h-7 gap-1 text-xs" onClick={() => setEditing(false)} disabled={update.isPending}><X className="h-3 w-3" /> Cancel</Button>
               <Button size="sm" className="h-7 gap-1 text-xs" onClick={save} disabled={update.isPending}>
                 {update.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />} Save
               </Button>

@@ -183,7 +183,7 @@ function CreateConsignmentModal({ onClose }: { onClose: () => void }) {
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-2 border-t">
-            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button variant="cancel" onClick={onClose}>Cancel</Button>
             <Button onClick={handleSave} disabled={create.isPending} className="gap-2">
               {create.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
               Add Stock
@@ -242,7 +242,7 @@ function EditConsignmentModal({ record, onClose }: { record: ConsignmentStock; o
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-2 border-t">
-            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button variant="cancel" onClick={onClose}>Cancel</Button>
             <Button onClick={handleSave} disabled={update.isPending} className="gap-2">
               {update.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
               Save Changes
@@ -324,7 +324,7 @@ function WithdrawConsignmentModal({ record, onClose }: { record: ConsignmentStoc
             <Input value={notes} onChange={e => setNotes(e.target.value)} className="mt-1" placeholder="Reason for withdrawal…" />
           </div>
           <div className="flex justify-end gap-2 pt-2 border-t">
-            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button variant="cancel" onClick={onClose}>Cancel</Button>
             <Button onClick={handleWithdraw} disabled={withdraw.isPending} className="gap-2 bg-amber-600 hover:bg-amber-700">
               {withdraw.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
               <ArrowDownToLine className="w-4 h-4" /> Confirm Withdrawal
@@ -505,7 +505,7 @@ function CreateSESModal({ onClose, editingSES }: { onClose: () => void; editingS
           </div>
         </CardContent>
         <div className="flex shrink-0 justify-end gap-2 border-t px-4 py-3">
-          <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
+          <Button variant="cancel" size="sm" onClick={onClose}>Cancel</Button>
           <Button size="sm" onClick={handleSave} disabled={isEditMode ? update.isPending : create.isPending} className="gap-1.5">
             {(isEditMode ? update.isPending : create.isPending) && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
             {isEditMode ? 'Save Changes' : 'Create SES'}
@@ -829,7 +829,7 @@ function CreateSubcontractingModal({ onClose }: { onClose: () => void }) {
         </CardContent>
 
         <div className="flex justify-end gap-2 px-6 py-4 border-t shrink-0">
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button variant="cancel" onClick={onClose}>Cancel</Button>
           <Button onClick={handleSave} disabled={create.isPending} className="gap-2">
             {create.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
             Create Order

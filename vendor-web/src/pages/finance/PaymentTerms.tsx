@@ -566,7 +566,7 @@ function TermDialog({
         </Tabs>
 
         <DialogFooter className="static shrink-0 gap-2 pt-3 sm:space-x-0">
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button variant="cancel" onClick={onClose}>Cancel</Button>
           <Button onClick={handleSave} disabled={!canSave || createMut.isPending || updateMut.isPending}>
             {editing ? 'Save changes' : 'Create'}
           </Button>

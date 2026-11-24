@@ -830,7 +830,7 @@ export default function OrderDetail() {
               onChange={(e) => setDisputeReason(e.target.value)}
             />
             <div className="flex gap-3 mt-4">
-              <Button variant="outline" className="flex-1" onClick={() => { setShowDispute(false); setDisputeReason('') }}>
+              <Button variant="cancel" className="flex-1" onClick={() => { setShowDispute(false); setDisputeReason('') }}>
                 Cancel
               </Button>
               <Button

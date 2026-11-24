@@ -212,7 +212,7 @@ function AnnouncementModal({
           </div>
         </ModalBody>
         <ModalFooter className="border-0 px-4 py-2.5">
-          <Button type="button" variant="outline" size="sm" className="h-8" onClick={onClose}>Cancel</Button>
+          <Button type="button" variant="cancel" size="sm" className="h-8" onClick={onClose}>Cancel</Button>
           <Button type="button" size="sm" className="h-8" onClick={submit} disabled={!form.title.trim() || !form.body.trim() || create.isPending || update.isPending}>
             {item ? 'Save' : 'Publish'}
           </Button>

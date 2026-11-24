@@ -825,7 +825,7 @@ export function PharmaConfirmDialog({
           {description ? <DialogDescription>{description}</DialogDescription> : null}
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" size="sm" onClick={onClose}>
+          <Button variant="cancel" size="sm" onClick={onClose}>
             Cancel
           </Button>
           <Button

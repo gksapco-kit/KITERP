@@ -247,7 +247,7 @@ function AddressForm({ initial, onSave, onCancel, saving }: { initial?: Address;
           />
         </div>
       </div>
-      <div className="flex gap-2"><Button type="submit" size="sm" disabled={saving}>{saving ? "Saving…" : "Save"}</Button><Button type="button" variant="ghost" size="sm" onClick={onCancel} disabled={saving}>Cancel</Button></div>
+      <div className="flex gap-2"><Button type="submit" size="sm" disabled={saving}>{saving ? "Saving…" : "Save"}</Button><Button type="button" variant="cancel" size="sm" onClick={onCancel} disabled={saving}>Cancel</Button></div>
     </form>
   );
 }

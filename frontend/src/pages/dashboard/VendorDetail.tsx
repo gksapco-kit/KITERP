@@ -387,7 +387,7 @@ export default function VendorDetail() {
         <div className="flex flex-wrap items-center gap-2 sm:justify-end">
           {editMode ? (
             <>
-              <Button size="sm" variant="ghost" onClick={handleCancel} disabled={updateVendor.isPending}>
+              <Button size="sm" variant="cancel" onClick={handleCancel} disabled={updateVendor.isPending}>
                 <X className="w-4 h-4 mr-1" /> Cancel
               </Button>
               <Button size="sm" onClick={handleSave} disabled={updateVendor.isPending}

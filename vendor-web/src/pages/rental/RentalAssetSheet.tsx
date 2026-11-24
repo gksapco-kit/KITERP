@@ -1165,7 +1165,7 @@ export default function RentalAssetSheet({
         </div>
 
         <SheetFooter className="border-t border-border px-5 py-3">
-          <Button variant="outline" disabled={saving} onClick={onClose}>Cancel</Button>
+          <Button variant="cancel" disabled={saving} onClick={onClose}>Cancel</Button>
           <Button disabled={!form.name.trim() || saving || !!displayDateLockError} onClick={save}>
             {saving ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : null}
             {isEdit ? 'Update Asset' : 'Save Asset'}

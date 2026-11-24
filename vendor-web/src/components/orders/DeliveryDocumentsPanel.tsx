@@ -143,7 +143,7 @@ function CreateDeliveryModal({ order, onClose, onCreated }: CreateDeliveryModalP
         </div>
 
         <div className="flex justify-end gap-2">
-          <Button variant="outline" size="sm" onClick={onClose} disabled={isPending}>Cancel</Button>
+          <Button variant="cancel" size="sm" onClick={onClose} disabled={isPending}>Cancel</Button>
           <Button size="sm" onClick={() => mutate()} disabled={isPending}>
             {isPending && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
             Create
@@ -217,7 +217,7 @@ function DeliveryRow({ delivery, orderId, isTerminal }: { delivery: OrderDeliver
             </Button>
           )}
           {canCancel && (
-            <Button size="sm" variant="ghost" className="h-6 px-2 text-[11px] text-destructive hover:text-destructive" onClick={() => cancel()} disabled={isCancelling}>
+            <Button size="sm" variant="cancel" className="h-6 px-2 text-[11px] text-destructive hover:text-destructive" onClick={() => cancel()} disabled={isCancelling}>
               Cancel
             </Button>
           )}

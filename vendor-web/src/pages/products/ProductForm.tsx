@@ -2481,7 +2481,7 @@ function AddPriceRuleForm({ ruleType, productId, variants, onSave, onCancel, sav
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
           Create Rule
         </Button>
-        <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
+        <Button type="button" variant="cancel" onClick={onCancel}>Cancel</Button>
       </div>
     </div>
   )
@@ -4804,7 +4804,7 @@ export default function ProductForm() {
                             <Button type="button" size="sm" className="h-6 px-1.5 text-[10px] bg-red-600 hover:bg-red-700 text-white" onClick={(e) => { e.preventDefault(); removeVariant(index); setConfirmDeleteVariant(null) }}>
                               Delete
                             </Button>
-                            <Button type="button" variant="ghost" size="sm" className="h-6 px-1.5 text-[10px]" onClick={(e) => { e.preventDefault(); setConfirmDeleteVariant(null) }}>
+                            <Button type="button" variant="cancel" size="sm" className="h-6 px-1.5 text-[10px]" onClick={(e) => { e.preventDefault(); setConfirmDeleteVariant(null) }}>
                               Cancel
                             </Button>
                           </div>

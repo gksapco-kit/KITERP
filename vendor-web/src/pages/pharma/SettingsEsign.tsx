@@ -620,7 +620,7 @@ function RuleDrawer({
           <Button size="sm" onClick={save} disabled={saving}>
             {saving ? 'Saving…' : 'Save rule'}
           </Button>
-          <Button size="sm" variant="outline" onClick={onClose}>Cancel</Button>
+          <Button size="sm" variant="cancel" onClick={onClose}>Cancel</Button>
         </div>
       </div>
     </div>
@@ -693,7 +693,7 @@ function SignerGroupsCard({
             </div>
             <div className="flex gap-2">
               <Button size="sm" onClick={createGroup} disabled={!newCode || !newName}>Create panel</Button>
-              <Button size="sm" variant="ghost" onClick={() => { setCreating(false); setNewCode(''); setNewName('') }}>Cancel</Button>
+              <Button size="sm" variant="cancel" onClick={() => { setCreating(false); setNewCode(''); setNewName('') }}>Cancel</Button>
             </div>
           </div>
         ) : (
@@ -1907,7 +1907,7 @@ export default function PharmaSettingsEsignPage() {
 
                 <div className="mt-3 flex items-center gap-2">
                   <Button size="sm" onClick={saveNewRule}>Create rule</Button>
-                  <Button size="sm" variant="ghost" onClick={() => setCreatingRule(false)}>Cancel</Button>
+                  <Button size="sm" variant="cancel" onClick={() => setCreatingRule(false)}>Cancel</Button>
                   <button
                     type="button"
                     className="ml-auto text-xs text-muted-foreground hover:text-foreground hover:underline"
@@ -2155,7 +2155,7 @@ export default function PharmaSettingsEsignPage() {
                 </label>
                 <div className="flex gap-2">
                   <Button size="sm" onClick={saveOrgRegion}>Save</Button>
-                  <Button size="sm" variant="ghost" onClick={() => { setAddingRegion(false); setNewRegionId('') }}>Cancel</Button>
+                  <Button size="sm" variant="cancel" onClick={() => { setAddingRegion(false); setNewRegionId('') }}>Cancel</Button>
                 </div>
               </div>
             )}

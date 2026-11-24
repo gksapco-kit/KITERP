@@ -270,7 +270,7 @@ export default function DocumentTypes() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)} disabled={isSaving}>Cancel</Button>
+            <Button variant="cancel" onClick={() => setOpen(false)} disabled={isSaving}>Cancel</Button>
             <Button
               disabled={!form.code.trim() || !form.name.trim() || isSaving}
               onClick={handleSave}

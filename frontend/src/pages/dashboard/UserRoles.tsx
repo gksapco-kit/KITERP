@@ -230,7 +230,7 @@ function RoleFormModal({
         <ModulePermissionPicker modules={modules} perms={perms} onChange={setPerms} />
 
         <div className="flex justify-end gap-2 pt-1">
-          <Button type="button" variant="outline" onClick={onClose} disabled={busy}>
+          <Button type="button" variant="cancel" onClick={onClose} disabled={busy}>
             Cancel
           </Button>
           <Button

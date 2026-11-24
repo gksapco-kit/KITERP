@@ -1192,7 +1192,7 @@ export function ContactsImportModal({ onClose }: { onClose: () => void }) {
 
         <div className="flex shrink-0 justify-end gap-2 border-t px-6 py-4">
           {step === 'upload' ? (
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="cancel" onClick={onClose}>
               Cancel
             </Button>
           ) : null}

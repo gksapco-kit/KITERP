@@ -532,7 +532,7 @@ export function PharmaDeviationsPage() {
                     >
                       Save notes
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setEditId(null)}>
+                    <Button size="sm" variant="cancel" onClick={() => setEditId(null)}>
                       Cancel
                     </Button>
                   </div>
@@ -737,7 +737,7 @@ export function PharmaCapasPage() {
                     >
                       Sign &amp; close
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setEditId(null)}>
+                    <Button size="sm" variant="cancel" onClick={() => setEditId(null)}>
                       Cancel
                     </Button>
                   </div>
@@ -957,7 +957,7 @@ export function PharmaChangeControlPage() {
                     >
                       Save
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setEditId(null)}>
+                    <Button size="sm" variant="cancel" onClick={() => setEditId(null)}>
                       Cancel
                     </Button>
                   </div>

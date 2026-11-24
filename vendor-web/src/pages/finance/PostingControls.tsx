@@ -159,7 +159,7 @@ function PostingKeysTab() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button variant="cancel" onClick={() => setOpen(false)}>Cancel</Button>
             <Button onClick={handleCreate} disabled={!form.code || !form.name || create.isPending}>
               Create
             </Button>
@@ -391,7 +391,7 @@ function ToleranceGroupsTab() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button variant="cancel" onClick={() => setOpen(false)}>Cancel</Button>
             <Button onClick={handleSave} disabled={!form.name || create.isPending || update.isPending}>
               {editing ? 'Save' : 'Create'}
             </Button>

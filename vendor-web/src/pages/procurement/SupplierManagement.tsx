@@ -84,7 +84,7 @@ function ConfirmDialog({
         <DialogHeader><DialogTitle>{title}</DialogTitle></DialogHeader>
         <p className="text-sm text-gray-500 py-1">{description}</p>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="cancel" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button
             onClick={onConfirm}
             disabled={busy}
@@ -322,7 +322,7 @@ function ContactsTab({ supplier }: { supplier: Supplier }) {
           <DialogHeader><DialogTitle>Add Contact</DialogTitle></DialogHeader>
           {ContactFormFields}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAdd(false)}>Cancel</Button>
+            <Button variant="cancel" onClick={() => setShowAdd(false)}>Cancel</Button>
             <Button onClick={() => createMut.mutate({ ...form })} disabled={!form.name || createMut.isPending}>
               {createMut.isPending ? 'Saving…' : 'Add Contact'}
             </Button>
@@ -335,7 +335,7 @@ function ContactsTab({ supplier }: { supplier: Supplier }) {
           <DialogHeader><DialogTitle>Edit Contact</DialogTitle></DialogHeader>
           {ContactFormFields}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditContact(null)}>Cancel</Button>
+            <Button variant="cancel" onClick={() => setEditContact(null)}>Cancel</Button>
             <Button
               onClick={() => editContact && updateMut.mutate({ id: editContact.id, d: { ...form } })}
               disabled={!form.name || updateMut.isPending}
@@ -554,7 +554,7 @@ function DocumentsTab({ supplier }: { supplier: Supplier }) {
             <div><Label>Notes</Label><Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2} /></div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setShowAdd(false); resetForm() }}>Cancel</Button>
+            <Button variant="cancel" onClick={() => { setShowAdd(false); resetForm() }}>Cancel</Button>
             <Button onClick={() => createMut.mutate()} disabled={!form.document_type || createMut.isPending}>
               {createMut.isPending ? 'Saving…' : 'Save'}
             </Button>
@@ -571,7 +571,7 @@ function DocumentsTab({ supplier }: { supplier: Supplier }) {
             <Textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)} rows={3} placeholder="Explain why this document is rejected…" />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setRejectDocId(null); setRejectReason('') }}>Cancel</Button>
+            <Button variant="cancel" onClick={() => { setRejectDocId(null); setRejectReason('') }}>Cancel</Button>
             <Button
               className="bg-red-600 hover:bg-red-700 text-white"
               disabled={!rejectReason.trim() || verifyMut.isPending}
@@ -677,7 +677,7 @@ function OnboardingTab({ supplier }: { supplier: Supplier }) {
             <DialogHeader><DialogTitle>Start Supplier Onboarding</DialogTitle></DialogHeader>
             <p className="text-sm text-gray-500 py-2">This creates a draft qualification record for {supplier.name}.</p>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
+              <Button variant="cancel" onClick={() => setShowCreate(false)}>Cancel</Button>
               <Button onClick={() => createMut.mutate({ currency: 'INR' })} disabled={createMut.isPending}>
                 {createMut.isPending ? 'Creating…' : 'Create Draft'}
               </Button>
@@ -809,7 +809,7 @@ function OnboardingTab({ supplier }: { supplier: Supplier }) {
             <div><Label>Re-evaluation Due</Label><Input type="date" value={editForm.re_evaluation_due} onChange={e => setEditForm(f => ({ ...f, re_evaluation_due: e.target.value }))} /></div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowEdit(false)}>Cancel</Button>
+            <Button variant="cancel" onClick={() => setShowEdit(false)}>Cancel</Button>
             <Button onClick={() => updateMut.mutate({
               payment_terms: editForm.payment_terms || undefined,
               credit_limit: editForm.credit_limit ? Number(editForm.credit_limit) : undefined,
@@ -841,7 +841,7 @@ function OnboardingTab({ supplier }: { supplier: Supplier }) {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowReview(false)}>Cancel</Button>
+            <Button variant="cancel" onClick={() => setShowReview(false)}>Cancel</Button>
             <Button
               onClick={() => reviewMut.mutate({
                 action: reviewAction,
@@ -994,7 +994,7 @@ function PerformanceTab({ supplier }: { supplier: Supplier }) {
             <div><Label>Comments</Label><Textarea value={form.comments} onChange={e => setForm(f => ({ ...f, comments: e.target.value }))} rows={2} /></div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAdd(false)}>Cancel</Button>
+            <Button variant="cancel" onClick={() => setShowAdd(false)}>Cancel</Button>
             <Button
               onClick={() => createMut.mutate({
                 period_type: form.period_type,
@@ -1097,7 +1097,7 @@ function CategoriesTab({ supplier }: { supplier: Supplier }) {
             ))}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowManage(false)}>Cancel</Button>
+            <Button variant="cancel" onClick={() => setShowManage(false)}>Cancel</Button>
             <Button onClick={() => assignMut.mutate(selected)} disabled={assignMut.isPending}>
               {assignMut.isPending ? 'Saving…' : 'Save'}
             </Button>
@@ -1242,7 +1242,7 @@ function AddressesTab({ supplier }: { supplier: Supplier }) {
           <DialogHeader><DialogTitle>Add Address</DialogTitle></DialogHeader>
           {AddressFormFields}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAdd(false)}>Cancel</Button>
+            <Button variant="cancel" onClick={() => setShowAdd(false)}>Cancel</Button>
             <Button onClick={() => createMut.mutate({ ...form })} disabled={!form.line1 || createMut.isPending}>
               {createMut.isPending ? 'Saving…' : 'Add Address'}
             </Button>
@@ -1255,7 +1255,7 @@ function AddressesTab({ supplier }: { supplier: Supplier }) {
           <DialogHeader><DialogTitle>Edit Address</DialogTitle></DialogHeader>
           {AddressFormFields}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditAddr(null)}>Cancel</Button>
+            <Button variant="cancel" onClick={() => setEditAddr(null)}>Cancel</Button>
             <Button
               onClick={() => editAddr && updateMut.mutate({ id: editAddr.id, d: { ...form } })}
               disabled={!form.line1 || updateMut.isPending}

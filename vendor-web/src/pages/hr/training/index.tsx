@@ -336,7 +336,7 @@ function ProgramModal({
           </div>
         </div>
         <div className="flex shrink-0 justify-end gap-2 border-t border-border px-4 py-2.5">
-          <Button type="button" variant="outline" size="sm" className="h-8" onClick={onClose}>Cancel</Button>
+          <Button type="button" variant="cancel" size="sm" className="h-8" onClick={onClose}>Cancel</Button>
           <Button type="button" size="sm" className="h-8" onClick={submit} disabled={!form.name.trim() || create.isPending || update.isPending}>
             {program ? 'Save' : 'Create'}
           </Button>
@@ -635,7 +635,7 @@ function EnrollModal({
           </Field>
         </div>
         <div className="shrink-0 flex justify-end gap-2 border-t border-border p-4">
-          <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+          <Button type="button" variant="cancel" onClick={onClose}>Cancel</Button>
           <Button type="button" onClick={submit} disabled={!programId || employeeIds.length === 0 || enroll.isPending}>
             {enroll.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
             Enroll {employeeIds.length} {employeeIds.length === 1 ? 'employee' : 'employees'}

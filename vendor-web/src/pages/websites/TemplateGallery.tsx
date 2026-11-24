@@ -476,7 +476,7 @@ function StoreTemplatePicker({
           </div>
 
           <div className="flex gap-2 border-t border-border px-5 py-4">
-            <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
+            <Button type="button" variant="cancel" className="flex-1" onClick={onClose}>
               Cancel
             </Button>
             <Button
@@ -622,7 +622,7 @@ function UseForAllStoresConfirmModal({
           </button>
         </div>
         <div className="flex gap-2 px-5 py-4">
-          <Button type="button" variant="outline" className="flex-1" disabled={applying} onClick={onClose}>
+          <Button type="button" variant="cancel" className="flex-1" disabled={applying} onClick={onClose}>
             Cancel
           </Button>
           <Button type="button" className="flex-1" disabled={applying} onClick={onConfirm}>

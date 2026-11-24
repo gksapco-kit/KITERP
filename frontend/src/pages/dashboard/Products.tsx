@@ -184,7 +184,7 @@ export default function Products() {
           <h1 className="text-xl font-bold sm:text-2xl">
             {view === 'create' ? 'Add Product' : `Edit: ${editingProduct?.name}`}
           </h1>
-          <Button variant="ghost" onClick={() => setView('list')} className="w-full sm:w-auto"><X className="w-4 h-4 mr-1" /> Cancel</Button>
+          <Button variant="cancel" onClick={() => setView('list')} className="w-full sm:w-auto"><X className="w-4 h-4 mr-1" /> Cancel</Button>
         </div>
 
         <Card>

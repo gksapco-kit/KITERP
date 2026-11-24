@@ -947,7 +947,7 @@ export function PurchaseOrderForm({ editingPO, onSuccess, onCancel }: PurchaseOr
               suggestionsLoading={copyDocsLoading}
             />
           )}
-          <Button type="button" variant="outline" size="sm" onClick={handleClose} className="h-8 rounded-full border-gray-300 px-4 text-xs font-medium text-gray-600">
+          <Button type="button" variant="cancel" size="sm" onClick={handleClose} className="h-8 rounded-full border-gray-300 px-4 text-xs font-medium text-gray-600">
             Cancel
           </Button>
           <Button

@@ -189,7 +189,7 @@ export default function ControllingProductCostsPage() {
           </div>
           <div className="flex flex-wrap gap-2 pt-1">
             <Button type="button" onClick={onCreate} disabled={createCost.isPending}>Create</Button>
-            <Button type="button" variant="outline" onClick={() => setShowNew(false)}>Cancel</Button>
+            <Button type="button" variant="cancel" onClick={() => setShowNew(false)}>Cancel</Button>
           </div>
         </div>
       )}

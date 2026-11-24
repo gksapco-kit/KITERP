@@ -317,7 +317,7 @@ export default function NumberRanges() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)} disabled={isSaving}>Cancel</Button>
+            <Button variant="cancel" onClick={() => setOpen(false)} disabled={isSaving}>Cancel</Button>
             <Button disabled={!form.document_type || isSaving} onClick={handleSave}>
               {isSaving ? 'Saving…' : 'Save'}
             </Button>

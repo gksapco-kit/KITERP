@@ -292,7 +292,7 @@ function ExchangeRatesTab() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button variant="cancel" onClick={() => setOpen(false)}>Cancel</Button>
             <Button onClick={handleSave} disabled={!canSave}>
               Save
             </Button>
@@ -392,7 +392,7 @@ function FxRevalTab() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button variant="cancel" onClick={() => setOpen(false)}>Cancel</Button>
             <Button onClick={handleRun} disabled={!form.currency || simulate.isPending}>Run</Button>
           </DialogFooter>
         </DialogContent>
@@ -487,7 +487,7 @@ function CarryForwardTab() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button variant="cancel" onClick={() => setOpen(false)}>Cancel</Button>
             <Button onClick={handleRun} disabled={run.isPending}>
               {run.isPending ? 'Running…' : 'Execute'}
             </Button>

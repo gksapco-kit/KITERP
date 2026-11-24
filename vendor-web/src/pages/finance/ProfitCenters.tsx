@@ -172,7 +172,7 @@ function ProfitCentersTab() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button variant="cancel" onClick={() => setOpen(false)}>Cancel</Button>
             <Button onClick={handleSave} disabled={!form.code || !form.name}>
               {editing ? 'Save' : 'Create'}
             </Button>
@@ -280,7 +280,7 @@ function SegmentsTab() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button variant="cancel" onClick={() => setOpen(false)}>Cancel</Button>
             <Button onClick={async () => { await createMut.mutateAsync(form); setOpen(false) }}
               disabled={!form.code || !form.name}>
               Create

@@ -715,7 +715,7 @@ export function PurchaseRequisitionForm({
               suggestions={copySuggestions}
               suggestionsLoading={copyDocsLoading}
             />
-            <Button type="button" variant="outline" size="sm" onClick={handleClose} disabled={saving}
+            <Button type="button" variant="cancel" size="sm" onClick={handleClose} disabled={saving}
               className="h-8 rounded-full border-gray-300 px-4 text-xs font-medium text-gray-600">
               Cancel
             </Button>
@@ -839,7 +839,7 @@ export function PurchaseRequisitionForm({
               suggestionsLoading={copyDocsLoading}
             />
           )}
-          <Button variant="outline" onClick={handleClose} disabled={saving}>Cancel</Button>
+          <Button variant="cancel" onClick={handleClose} disabled={saving}>Cancel</Button>
           <Button variant="secondary" onClick={handleSaveDraft} disabled={saving} className="gap-2">
             {saving && <Loader2 className="w-4 h-4 animate-spin" />}
             Save Draft
