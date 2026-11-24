@@ -15,12 +15,8 @@ const VARIANT_ICON: Record<ConfirmVariant, { bg: string; icon: ReactNode }> = {
   success: { bg: 'bg-green-100', icon: <CheckCircle2 className="w-5 h-5 text-green-600" /> },
 }
 
-const CONFIRM_BTN: Record<ConfirmVariant, string> = {
-  default: 'bg-primary hover:bg-primary/90 text-primary-foreground',
-  warning: 'bg-amber-600 hover:bg-amber-700 text-white',
-  danger:  'bg-red-600 hover:bg-red-700 text-white',
-  success: 'bg-green-600 hover:bg-green-700 text-white',
-}
+const CONFIRM_BTN_WARNING =
+  'bg-amber-600 hover:bg-amber-700 text-white border-transparent'
 
 type Props = {
   open: boolean
@@ -63,6 +59,9 @@ export function ConfirmDialog({
   const phraseOk = !phrase || typed.trim().toLowerCase() === phrase.toLowerCase()
   const canConfirm = phraseOk && !busy
 
+  const confirmBtnVariant =
+    variant === 'danger' ? 'destructive' : variant === 'warning' ? undefined : 'default'
+
   return (
     <ModalOverlay onClose={busy ? () => {} : onCancel} className={confirmOverlayClass}>
       <ModalPanel className="max-w-sm w-full p-6">
@@ -103,12 +102,13 @@ export function ConfirmDialog({
         ) : null}
 
         <div className="flex gap-3 border-t border-border pt-4 mt-1">
-          <Button type="button" variant="outline" className="flex-1" disabled={busy} onClick={onCancel}>
+          <Button type="button" variant="cancel" className="flex-1" disabled={busy} onClick={onCancel}>
             {cancelLabel}
           </Button>
           <Button
             type="button"
-            className={cn('flex-1', CONFIRM_BTN[variant])}
+            variant={confirmBtnVariant}
+            className={cn('flex-1', variant === 'warning' && CONFIRM_BTN_WARNING)}
             disabled={!canConfirm}
             onClick={onConfirm}
           >

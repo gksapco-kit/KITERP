@@ -715,7 +715,7 @@ function CreateRFQDialog({ open, onClose, editingRFQ }: { open: boolean; onClose
           )}
           {(!submitAttempted || canSubmit) && <span />}
           <div className="flex shrink-0 gap-2">
-            <Button variant="outline" size="sm" onClick={handleClose}>Cancel</Button>
+            <Button variant="cancel" size="sm" onClick={handleClose}>Cancel</Button>
             <Button
               size="sm"
               onClick={() => {
