@@ -356,14 +356,16 @@ function GoodsMovementModal({ onClose }: { onClose: () => void }) {
   const inputCls = 'h-8 text-sm'
   const selectCls = 'h-8 w-full text-sm'
   const manyLines = lines.length > 2
+  const compactModal = !manyLines
 
   return (
     <ModalOverlay onClose={onClose} className="z-[100] bg-black/60 p-3">
       <div
         className={cn(
-          dialogPanelClass,
-          'w-full max-w-xl shrink-0',
-          manyLines ? 'max-h-[min(92dvh,calc(100vh-1.5rem))]' : 'max-h-none',
+          'w-full max-w-xl shrink-0 rounded-xl border border-border bg-card text-foreground shadow-2xl',
+          compactModal
+            ? 'my-auto flex flex-col overflow-visible'
+            : cn(dialogPanelClass, 'flex flex-col'),
         )}
         onClick={(e) => e.stopPropagation()}
       >
@@ -379,8 +381,8 @@ function GoodsMovementModal({ onClose }: { onClose: () => void }) {
         />
         <ModalBody
           className={cn(
-            'space-y-3 px-4 py-3',
-            manyLines ? 'min-h-0 flex-1 overflow-y-auto' : 'flex-none overflow-visible',
+            'px-4',
+            compactModal ? 'space-y-2 py-2 flex-none grow-0 min-h-min overflow-visible' : 'min-h-0 flex-1 space-y-3 overflow-y-auto py-2.5',
           )}
         >
           <div className="grid grid-cols-2 gap-2">
@@ -422,7 +424,7 @@ function GoodsMovementModal({ onClose }: { onClose: () => void }) {
             <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Reason / reference" className={inputCls} />
           </div>
 
-          <div className="space-y-2">
+          <div className={compactModal ? 'space-y-1.5' : 'space-y-2'}>
             <div className="flex items-center justify-between gap-2">
               <Label className={cn(labelCls, 'mb-0')}>Material lines</Label>
               <Button
@@ -442,7 +444,7 @@ function GoodsMovementModal({ onClose }: { onClose: () => void }) {
                 const activeVariants = (product?.variants ?? []).filter((v: any) => v.is_active !== false)
                 const hint = stockHint(product, l.variant_id)
                 return (
-                  <div key={i} className="space-y-1.5 rounded-lg border border-border bg-muted/30 p-2">
+                  <div key={i} className={cn('rounded-lg border border-border bg-muted/30', compactModal ? 'space-y-1 p-1.5' : 'space-y-1.5 p-2')}>
                     <div className={fieldGap}>
                       <Label className={labelCls}>Product</Label>
                       <Select
@@ -544,9 +546,9 @@ function GoodsMovementModal({ onClose }: { onClose: () => void }) {
             </div>
           </div>
         </ModalBody>
-        <ModalFooter className="shrink-0 grid grid-cols-2 gap-2 border-t border-border bg-muted/20 px-4 py-3">
-          <Button type="button" variant="cancel" className="h-9 w-full text-sm" onClick={onClose}>Cancel</Button>
-          <Button type="button" onClick={handleSave} disabled={create.isPending} className="h-9 w-full gap-1.5 text-sm">
+        <ModalFooter className="px-4 py-2.5">
+          <Button type="button" variant="cancel" size="sm" className="h-8" onClick={onClose}>Cancel</Button>
+          <Button type="button" size="sm" className="h-8 gap-1.5" onClick={handleSave} disabled={create.isPending}>
             {create.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
             Post movement
           </Button>

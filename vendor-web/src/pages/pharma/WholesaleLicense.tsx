@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
-import { CheckCircle2, History, Paperclip, Pencil, Search, Trash2, Upload, X } from 'lucide-react'
+import { AlertCircle, CheckCircle2, History, Paperclip, Pencil, Search, Trash2, Upload, X } from 'lucide-react'
 import { MasterDataPicker, type PickerOption } from '@/components/commission/MasterDataPicker'
 import { pharmaApi } from '@/api/pharma'
 import { vendorApi } from '@/api/vendor'
@@ -15,7 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { formatDateTime, mediaUrl } from '@/lib/utils'
+import { cn, formatDateTime, mediaUrl } from '@/lib/utils'
 import {
   PharmaCard,
   PharmaEmpty,
@@ -67,6 +67,27 @@ function formatBytes(n?: number | null) {
 
 function customerName(c: any) {
   return c.company_name || c.full_name || c.id
+}
+
+function SelectedCustomerHint({
+  customer,
+  hasLicense,
+}: {
+  customer: PickerOption
+  hasLicense: boolean
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md border border-dashed border-border/80 bg-background/80 px-2.5 py-2 text-xs">
+      <span className="font-medium text-foreground">{customer.label}</span>
+      {customer.sub ? <span className="max-w-[14rem] truncate text-muted-foreground">{customer.sub}</span> : null}
+      <span className="hidden text-muted-foreground/50 sm:inline" aria-hidden>
+        ·
+      </span>
+      <span className={cn(hasLicense ? 'text-emerald-700' : 'text-muted-foreground')}>
+        {hasLicense ? 'License on file — update below or run Check' : 'No license on file yet'}
+      </span>
+    </div>
+  )
 }
 
 function licenseValidity(
@@ -409,110 +430,149 @@ export default function PharmaWholesaleLicensePage() {
         subtitle="Add and maintain customer wholesale distributor licenses before shipping."
       />
 
-      <PharmaCard>
-        <p className="mb-4 text-xs text-muted-foreground">
-          Find a customer, enter their wholesale license, then check validity. Enable the gate in{' '}
-          <Link to="/pharma/settings" className="text-primary hover:underline">
-            Foundations
-          </Link>{' '}
-          to block shipments when a license is expired or missing.
-        </p>
+      <PharmaCard className="space-y-4">
+        <div>
+          <h2 className="text-sm font-semibold text-foreground">Record license</h2>
+          <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">
+            Search for a customer, enter their wholesale license, then validate before shipping. Enable
+            the gate in{' '}
+            <Link to="/pharma/settings" className="font-medium text-primary hover:underline">
+              Foundations
+            </Link>{' '}
+            to block shipments when a license is expired or missing.
+          </p>
+        </div>
 
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="min-w-[14rem] flex-[1.4] space-y-1.5 sm:min-w-[16rem]">
-            <Label>Customer</Label>
-            <MasterDataPicker
-              compact
-              placeholder="Search by name, email, or phone…"
-              selected={selectedCustomer}
-              onSearch={searchCustomersForPicker}
-              onSelect={onSelectCustomer}
-              disabled={formBusy}
-            />
-          </div>
-          <div className="min-w-[10rem] flex-1 space-y-1.5 sm:max-w-[14rem]">
-            <Label htmlFor="add-license-number">License number</Label>
-            <Input
-              id="add-license-number"
-              value={addNumber}
-              disabled={formBusy || !selectedCustomer}
-              onChange={(e) => {
-                setAddNumber(e.target.value)
-                setFormCheckResult(null)
-              }}
-              placeholder="License #"
-              maxLength={80}
-              className="h-10"
-            />
-          </div>
-          <div className="w-[9.5rem] shrink-0 space-y-1.5">
-            <Label htmlFor="add-license-expires">Expires</Label>
-            <Input
-              id="add-license-expires"
-              type="date"
-              value={addExpires}
-              disabled={formBusy || !selectedCustomer}
-              onChange={(e) => {
-                setAddExpires(e.target.value)
-                setFormCheckResult(null)
-              }}
-              className="h-10"
-            />
-          </div>
-          <div className="flex shrink-0 gap-2">
-            <Button
-              className="h-10"
-              disabled={formBusy || !selectedCustomer || !addNumber.trim()}
-              onClick={addLicense}
-            >
-              {adding ? 'Saving…' : selectedHasLicense ? 'Update license' : 'Add license'}
-            </Button>
-            <Button
-              variant="outline"
-              className="h-10"
-              disabled={formBusy || !selectedCustomer}
-              onClick={checkSelected}
-            >
-              {checkingId === selectedId ? (
-                'Checking…'
-              ) : (
-                <>
-                  <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
-                  Check
-                </>
+        <div className="rounded-lg border border-border/80 bg-muted/25 p-3 sm:p-4">
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Customer</Label>
+              <MasterDataPicker
+                compact
+                placeholder="Search by name, email, or phone…"
+                selected={selectedCustomer}
+                onSearch={searchCustomersForPicker}
+                onSelect={onSelectCustomer}
+                disabled={formBusy}
+              />
+            </div>
+
+            {selectedCustomer ? (
+              <SelectedCustomerHint customer={selectedCustomer} hasLicense={selectedHasLicense} />
+            ) : (
+              <p className="text-[11px] text-muted-foreground">
+                Choose a customer to unlock license fields and actions.
+              </p>
+            )}
+
+            <div
+              className={cn(
+                'grid gap-3 border-t border-border/60 pt-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(7.5rem,10rem)_auto]',
+                !selectedCustomer && 'pointer-events-none opacity-50',
               )}
-            </Button>
+            >
+              <div className="space-y-1 sm:col-span-2 lg:col-span-1">
+                <Label htmlFor="add-license-number" className="text-xs text-muted-foreground">
+                  License number
+                </Label>
+                <Input
+                  id="add-license-number"
+                  value={addNumber}
+                  disabled={formBusy || !selectedCustomer}
+                  onChange={(e) => {
+                    setAddNumber(e.target.value)
+                    setFormCheckResult(null)
+                  }}
+                  placeholder="e.g. WH-2024-00123"
+                  maxLength={80}
+                  className="h-9 text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="add-license-expires" className="text-xs text-muted-foreground">
+                  Expires
+                </Label>
+                <Input
+                  id="add-license-expires"
+                  type="date"
+                  value={addExpires}
+                  disabled={formBusy || !selectedCustomer}
+                  onChange={(e) => {
+                    setAddExpires(e.target.value)
+                    setFormCheckResult(null)
+                  }}
+                  className="h-9 text-sm"
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-2 sm:col-span-2 lg:col-span-1 lg:justify-end">
+                <Button
+                  size="sm"
+                  className="h-9 min-w-[7.5rem] flex-1 sm:flex-none"
+                  disabled={formBusy || !selectedCustomer || !addNumber.trim()}
+                  onClick={addLicense}
+                >
+                  {adding ? 'Saving…' : selectedHasLicense ? 'Update license' : 'Add license'}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 min-w-[5.5rem] flex-1 sm:flex-none"
+                  disabled={formBusy || !selectedCustomer}
+                  onClick={checkSelected}
+                >
+                  {checkingId === selectedId ? (
+                    'Checking…'
+                  ) : (
+                    <>
+                      <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                      Check
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
 
         {formCheckResult ? (
           <div
-            className={`mt-3 rounded-md border px-4 py-3 text-sm ${
+            className={cn(
+              'flex gap-3 rounded-lg border px-3 py-2.5 text-sm sm:px-4 sm:py-3',
               formCheckResult.ok
-                ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-                : 'border-red-200 bg-red-50 text-red-800'
-            }`}
+                ? 'border-emerald-200 bg-emerald-50/80 text-emerald-900'
+                : 'border-red-200 bg-red-50/80 text-red-900',
+            )}
           >
-            <div className="font-medium">
-              {formCheckResult.ok ? 'License valid' : 'License invalid or missing'}
+            {formCheckResult.ok ? (
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+            ) : (
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+            )}
+            <div className="min-w-0 space-y-1">
+              <p className="font-medium">
+                {formCheckResult.ok ? 'License valid' : 'License invalid or missing'}
+              </p>
+              {formCheckResult.license_number ? (
+                <p className="text-xs text-muted-foreground">
+                  {formCheckResult.license_number}
+                  {formCheckResult.license_expires
+                    ? ` · expires ${formCheckResult.license_expires}`
+                    : ''}
+                </p>
+              ) : null}
+              {!formCheckResult.ok && formCheckResult.detail ? (
+                <p className="text-xs text-muted-foreground">{formCheckResult.detail}</p>
+              ) : null}
+              {!formCheckResult.enforced ? (
+                <p className="text-[11px] italic text-muted-foreground">
+                  Gate not enforced — enable &quot;Block ship without valid wholesale license&quot; in{' '}
+                  <Link to="/pharma/settings" className="text-primary hover:underline">
+                    Foundations
+                  </Link>
+                  .
+                </p>
+              ) : null}
             </div>
-            {formCheckResult.license_number ? (
-              <div className="mt-1 text-xs opacity-80">
-                License: {formCheckResult.license_number}
-                {formCheckResult.license_expires
-                  ? ` · expires ${formCheckResult.license_expires}`
-                  : ''}
-              </div>
-            ) : null}
-            {!formCheckResult.ok && formCheckResult.detail ? (
-              <div className="mt-1 text-xs opacity-80">{formCheckResult.detail}</div>
-            ) : null}
-            {!formCheckResult.enforced ? (
-              <div className="mt-1 text-xs opacity-60 italic">
-                Gate not enforced — enable &quot;Block ship without valid wholesale license&quot; in
-                Foundations.
-              </div>
-            ) : null}
           </div>
         ) : null}
       </PharmaCard>

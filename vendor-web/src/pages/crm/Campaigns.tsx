@@ -12,7 +12,7 @@ import { useCampaigns, useSaveCampaign, useEmailTemplates, useSegments, useCampa
 import { useMessageDeliveryStatus } from '@/hooks/useVendor'
 import { crmApi, type Campaign, type CampaignStep, type EmailTemplate, type Contact } from '@/api/crm'
 import { Plus, Loader2, Megaphone, Play, Pause, Send, MousePointerClick, AlertCircle, Edit3, Users, ChevronDown, ChevronUp } from 'lucide-react'
-import { CrmModal, Field, Pager, LoadingRow, EmptyRow } from './_shared'
+import { CrmModal, CrmCancelButton, CrmPrimaryButton, Field, Pager, LoadingRow, EmptyRow } from './_shared'
 import { formatDateTime } from '@/lib/utils'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -264,9 +264,24 @@ function CampaignForm({
     }
   }
 
+  const formId = campaign ? `campaign-form-${campaign.id}` : 'campaign-form-new'
+
   return (
-    <CrmModal title={campaign ? 'Edit campaign' : template ? 'New campaign from template' : 'New campaign'} onClose={onClose} maxW="max-w-2xl">
-      <form onSubmit={submit} className="space-y-3">
+    <CrmModal
+      title={campaign ? 'Edit campaign' : template ? 'New campaign from template' : 'New campaign'}
+      onClose={onClose}
+      maxW="max-w-2xl"
+      footer={(
+        <>
+          <CrmCancelButton onClick={onClose} />
+          <CrmPrimaryButton type="submit" form={formId} disabled={save.isPending}>
+            {save.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Plus className="w-3.5 h-3.5 mr-1.5" />}
+            {campaign ? 'Save changes' : 'Create campaign'}
+          </CrmPrimaryButton>
+        </>
+      )}
+    >
+      <form id={formId} onSubmit={submit} className="space-y-3">
         {template && (
           <div className="rounded-lg border bg-emerald-50/50 px-3 py-2 text-sm text-emerald-800">
             Using template: <span className="font-medium">{template.name}</span>
@@ -456,13 +471,6 @@ function CampaignForm({
           </Field>
         </div>
         <p className="text-[11px] text-gray-400 -mt-1">Set when this campaign should run. Leave blank to send manually when you start it.</p>
-        <div className="flex gap-3 pt-2">
-          <Button type="button" variant="cancel" className="flex-1" onClick={onClose}>Cancel</Button>
-          <Button type="submit" className="flex-1" disabled={save.isPending}>
-            {save.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
-            {campaign ? 'Save changes' : 'Create campaign'}
-          </Button>
-        </div>
       </form>
     </CrmModal>
   )
