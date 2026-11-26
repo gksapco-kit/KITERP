@@ -11,6 +11,7 @@ import { LandingFooter } from '@/components/landing/LandingFooter'
 import { LandingChatbot } from '@/components/landing/LandingChatbot'
 import { PlatformAnalyticsBeacon } from '@/components/landing/PlatformAnalyticsBeacon'
 import type { StorefrontVendor } from '@/components/landing/landingData'
+import { filterCommunityListedVendors } from '@/lib/communityDirectory'
 import { PLATFORM_SEO, useDocumentSeo } from '@/lib/documentSeo'
 import { compactJsonLd, organizationJsonLd, websiteJsonLd } from '@/lib/catalogSeo'
 import '@/styles/kiterp-landing.css'
@@ -42,7 +43,7 @@ export default function Landing() {
     apiClient
       .get<{ items: StorefrontVendor[] }>('/catalog/vendors', { params: { limit: 100 } })
       .then((res) => {
-        if (!cancelled) setDirectory(res.data.items || [])
+        if (!cancelled) setDirectory(filterCommunityListedVendors(res.data.items || []))
       })
       .catch(() => {
         if (!cancelled) {
@@ -72,7 +73,9 @@ export default function Landing() {
   const handleGo = (e: React.FormEvent) => {
     e.preventDefault()
     const trimmed = slug.trim().toLowerCase()
-    if (trimmed) navigate(`/${trimmed}`)
+    if (!trimmed) return
+    const match = directory.find((v) => v.slug.toLowerCase() === trimmed)
+    if (match) navigate(`/${match.slug}`)
   }
 
   const visitStore = (storeSlug: string) => navigate(`/${storeSlug}`)

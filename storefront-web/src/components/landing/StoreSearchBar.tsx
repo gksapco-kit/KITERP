@@ -23,7 +23,7 @@ export function StoreSearchBar({
   const hint = useMemo(() => {
     if (dirLoading) return 'Loading stores…'
     if (dirError) return dirError
-    if (directory.length === 0) return 'No approved vendors yet.'
+    if (directory.length === 0) return 'No Community-listed stores yet. Enable Community in admin for a business.'
     return 'Type a store name to visit a live storefront.'
   }, [dirLoading, dirError, directory.length])
 

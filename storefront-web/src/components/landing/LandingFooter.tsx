@@ -1,9 +1,30 @@
 import { Store } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { vendorAppUrl, adminAppUrl } from '@/lib/appUrls'
 import { VENDOR_SIGNUP_PATH } from '@/lib/vendorSignupPaths'
 
+function scrollPageToTop() {
+  window.scrollTo({ top: 0, left: 0, behavior: 'smooth' })
+}
+
 export function LandingFooter() {
+  const { pathname } = useLocation()
+  const onPartnersPage = pathname === '/partners' || pathname.startsWith('/partners/')
+
+  const ourPartnersLink =
+    onPartnersPage ? (
+      <button
+        type="button"
+        onClick={scrollPageToTop}
+        className="text-gray-400 hover:text-white transition-colors text-left bg-transparent border-0 p-0 cursor-pointer text-sm font-normal"
+      >
+        Our Partners
+      </button>
+    ) : (
+      <Link to="/partners" className="hover:text-white transition-colors">
+        Our Partners
+      </Link>
+    )
   return (
     <footer id="help" className="bg-[#1e3d34] text-gray-400 py-12 sm:py-16">
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
@@ -35,7 +56,7 @@ export function LandingFooter() {
           <div>
             <p className="text-white text-sm font-semibold mb-3">Community</p>
             <ul className="space-y-2 text-sm">
-              <li><Link to="/partners" className="hover:text-white transition-colors">Our Partners</Link></li>
+              <li>{ourPartnersLink}</li>
               <li><Link to="/#community" className="hover:text-white transition-colors">Vendor community</Link></li>
               <li><Link to="/careers" className="hover:text-white transition-colors">Careers</Link></li>
               <li><Link to="/lead" className="hover:text-white transition-colors">Add new lead</Link></li>

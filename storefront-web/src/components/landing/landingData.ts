@@ -191,6 +191,8 @@ export type StorefrontVendor = {
   display_name: string
   business_name: string
   logo_url?: string | null
+  /** When true, admin listed this business on Community / Our Partners. */
+  show_in_community?: boolean
 }
 
 export function vendorInitials(name: string): string {

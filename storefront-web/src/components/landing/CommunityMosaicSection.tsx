@@ -17,6 +17,7 @@ import {
   type StorefrontVendor,
 } from './landingData'
 import { StoreSearchBar } from './StoreSearchBar'
+import { filterCommunityListedVendors } from '@/lib/communityDirectory'
 
 type MosaicCell = {
   kind: 'avatar' | 'shape'
@@ -320,15 +321,26 @@ function MosaicCellView({
     )
   }
 
-  const av = isBrand ? MOSAIC_BRAND_AVATAR : MOSAIC_AVATARS[cell.avatarIdx ?? 0]
+  if (isBrand) {
+    const av = MOSAIC_BRAND_AVATAR
+    return (
+      <div
+        className={`${classes} kiterp-mosaic-shape--avatar kiterp-mosaic-shape--placeholder kiterp-mosaic-shape--brand flex items-center justify-center font-medium text-sm sm:text-base tracking-wide`}
+        style={{ background: av.bg, color: av.ink }}
+        aria-hidden
+      >
+        {av.initials}
+      </div>
+    )
+  }
+
+  const paletteColor = MOSAIC_PALETTE[cell.colorIdx ?? 0]
   return (
     <div
-      className={`${classes} kiterp-mosaic-shape--avatar kiterp-mosaic-shape--placeholder${isBrand ? ' kiterp-mosaic-shape--brand' : ''} flex items-center justify-center font-medium text-sm sm:text-base tracking-wide`}
-      style={{ background: av.bg, color: av.ink }}
+      className={`${classes} kiterp-mosaic-shape--soft`}
+      style={{ background: paletteColor }}
       aria-hidden
-    >
-      {av.initials}
-    </div>
+    />
   )
 }
 
@@ -416,7 +428,7 @@ export function CommunityMosaicSection({
     apiClient
       .get<{ items: StorefrontVendor[] }>('/catalog/vendors', { params: { limit: 100 } })
       .then((res) => {
-        if (!cancelled) setLocalVendors(res.data.items || [])
+        if (!cancelled) setLocalVendors(filterCommunityListedVendors(res.data.items || []))
       })
       .catch(() => {
         if (!cancelled) setLocalVendors([])
@@ -426,7 +438,10 @@ export function CommunityMosaicSection({
     }
   }, [vendorsProp.length])
 
-  const vendors = vendorsProp.length > 0 ? vendorsProp : localVendors
+  const vendors = useMemo(
+    () => filterCommunityListedVendors(vendorsProp.length > 0 ? vendorsProp : localVendors),
+    [vendorsProp, localVendors],
+  )
   const sectionRef = useRef<HTMLElement>(null)
   const sectionInView = useSectionInView(sectionRef)
   const hoverCountRef = useRef(0)

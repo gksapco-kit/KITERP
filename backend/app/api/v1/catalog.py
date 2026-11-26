@@ -289,6 +289,7 @@ def _partner_directory_item(vendor, store=None) -> dict:
         },
         "business_hours": vendor.business_hours or {},
         "visit_count": _vendor_visit_count(vendor),
+        "show_in_community": bool(getattr(vendor, "show_in_community", False)),
     }
 
 

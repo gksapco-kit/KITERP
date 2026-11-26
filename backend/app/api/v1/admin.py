@@ -777,6 +777,15 @@ async def update_vendor(
             db, update_data["relationship_manager_user_id"]
         )
 
+    if update_data.get("show_in_community") is True and vendor.status not in (
+        "approved",
+        "active",
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only approved or active businesses can appear in Community.",
+        )
+
     for field, value in update_data.items():
         setattr(vendor, field, value)
 

@@ -18,6 +18,7 @@ import {
 } from '@/lib/partnerDirectory'
 import { mediaUrl } from '@/lib/utils'
 import { useDocumentSeo } from '@/lib/documentSeo'
+import { filterCommunityListedVendors } from '@/lib/communityDirectory'
 import { compactJsonLd, organizationJsonLd } from '@/lib/catalogSeo'
 import '@/styles/kiterp-landing.css'
 
@@ -74,7 +75,7 @@ export default function Partners() {
     apiClient
       .get<{ items: PartnerVendor[] }>('/catalog/vendors', { params: { limit: 100 } })
       .then((res) => {
-        if (!cancelled) setVendors(res.data.items || [])
+        if (!cancelled) setVendors(filterCommunityListedVendors(res.data.items || []))
       })
       .catch(() => {
         if (!cancelled) {
