@@ -26,7 +26,43 @@
   width: 100%;
   max-width: 100%;
   background-color: var(--kiterp-page);
-  /* Do not set overflow-x here — it breaks position:sticky on the header. */
+  overflow-x: clip;
+}
+
+/* Single document scroll — native wheel (no smooth-scroll fight), slim thumb. */
+html:has(.kiterp-landing) {
+  overflow-x: hidden;
+  overflow-y: scroll;
+  scroll-behavior: auto;
+  scrollbar-gutter: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 195, 160, 0.42) transparent;
+}
+
+html:has(.kiterp-landing) body {
+  overflow-x: hidden;
+  overflow-y: visible;
+  max-width: 100%;
+}
+
+html:has(.kiterp-landing)::-webkit-scrollbar {
+  width: 7px;
+  height: 0;
+}
+
+html:has(.kiterp-landing)::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+html:has(.kiterp-landing)::-webkit-scrollbar-thumb {
+  background-color: rgba(100, 195, 160, 0.38);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+html:has(.kiterp-landing)::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(61, 154, 122, 0.55);
 }
 
 /* Fixed landing header — stays pinned while scrolling (sticky breaks with overflow ancestors). */
@@ -238,6 +274,50 @@
 
 .kiterp-reveal {
   animation: kiterp-float-up 0.75s ease-out both;
+}
+
+.kiterp-landing-scroll-main {
+  overflow-x: clip;
+  max-width: 100%;
+}
+
+.kiterp-value-item-3d,
+.kiterp-pricing-card-3d {
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.kiterp-value-item-3d:hover,
+.kiterp-pricing-card-3d:hover {
+  transform: translateY(-3px);
+}
+
+/* Nested panes: hide scrollbar until hover so only the page track shows while scrolling. */
+html:has(.kiterp-landing) .kiterp-scroll-fade {
+  scrollbar-width: none;
+}
+
+html:has(.kiterp-landing) .kiterp-scroll-fade::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+html:has(.kiterp-landing) .kiterp-scroll-fade:hover,
+html:has(.kiterp-landing) .kiterp-scroll-fade:focus-within {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 195, 160, 0.38) transparent;
+}
+
+html:has(.kiterp-landing) .kiterp-scroll-fade:hover::-webkit-scrollbar,
+html:has(.kiterp-landing) .kiterp-scroll-fade:focus-within::-webkit-scrollbar {
+  width: 5px;
+}
+
+html:has(.kiterp-landing) .kiterp-scroll-fade:hover::-webkit-scrollbar-thumb,
+html:has(.kiterp-landing) .kiterp-scroll-fade:focus-within::-webkit-scrollbar-thumb {
+  background-color: rgba(100, 195, 160, 0.35);
+  border-radius: 999px;
 }
 
 .kiterp-app-tile {
@@ -541,8 +621,7 @@
 /* Scroll-triggered zoom-in when the orbit enters the viewport. */
 .kiterp-orbit-scroll-target {
   opacity: 0;
-  transform: scale(0.86);
-  will-change: transform, opacity;
+  transform: scale(0.92) translateY(12px);
 }
 
 .kiterp-orbit-scroll-target--in {
@@ -557,11 +636,11 @@
 @keyframes kiterp-orbit-zoom-in {
   from {
     opacity: 0;
-    transform: scale(0.86);
+    transform: scale(0.92) translateY(12px);
   }
   to {
     opacity: 1;
-    transform: scale(1);
+    transform: scale(1) translateY(0);
   }
 }
 
@@ -644,8 +723,28 @@
   }
 }
 
+.kiterp-scrollbar-modern {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 195, 160, 0.38) transparent;
+}
+
+.kiterp-scrollbar-modern::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.kiterp-scrollbar-modern::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.kiterp-scrollbar-modern::-webkit-scrollbar-thumb {
+  background-color: rgba(100, 195, 160, 0.35);
+  border-radius: 999px;
+}
+
 .kiterp-module-preview-panel {
   max-height: min(24rem, 72vh);
+  overflow-x: hidden;
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: rgba(100, 195, 160, 0.35) transparent;
@@ -1305,6 +1404,11 @@
 @media (prefers-reduced-motion: reduce) {
   .kiterp-hero-blob {
     animation: none;
+    transform: none;
+  }
+
+  .kiterp-value-item-3d:hover,
+  .kiterp-pricing-card-3d:hover {
     transform: none;
   }
 }
@@ -5336,7 +5440,8 @@
 }
 
 .kiterp-chatbot-panel {
-  width: min(22.5rem, calc(100dvw - 2.5rem));
+  /* svw avoids 100dvw + gutter forcing a horizontal page scrollbar */
+  width: min(22.5rem, calc(100svw - 2.5rem - env(safe-area-inset-right, 0px)));
   max-width: 100%;
   max-height: min(32rem, calc(100dvh - 6.5rem));
   display: flex;
@@ -5386,7 +5491,9 @@
 .kiterp-chatbot-messages {
   flex: 1;
   min-height: 10rem;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 0.85rem;
   display: flex;
   flex-direction: column;

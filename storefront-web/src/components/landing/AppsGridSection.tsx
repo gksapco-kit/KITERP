@@ -5,6 +5,7 @@ import { moduleCampaignPath } from './moduleCampaignContent'
 import { ModulesOrbitPanel } from './ModulesOrbitPanel'
 import { ModulePreviewPanel } from './ModulePreviewPanel'
 import { useModuleHoverPreview } from './useModuleHoverPreview'
+import { LandingScrollReveal } from './LandingScrollReveal'
 
 export function AppsGridSection() {
   const interactiveRef = useRef<HTMLDivElement>(null)
@@ -51,7 +52,7 @@ export function AppsGridSection() {
   return (
     <section id="apps" className="pt-2 pb-6 sm:pt-4 sm:pb-8 scroll-mt-20">
       <div className="kiterp-apps-shell max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="text-center mb-6 sm:mb-8">
+        <LandingScrollReveal variant="card" className="text-center mb-6 sm:mb-8">
           <h2 className="font-kiterp-script text-4xl sm:text-5xl text-[#1e3d34] leading-tight">
             Everything your business needs, in one orbit
           </h2>
@@ -61,7 +62,7 @@ export function AppsGridSection() {
           <Link to="/apps" className="kiterp-apps-view-all-link">
             View all modules in a grid →
           </Link>
-        </div>
+        </LandingScrollReveal>
 
         <div ref={interactiveRef} className="kiterp-apps-interactive" onMouseLeave={leaveInteractive}>
           <div
@@ -95,9 +96,11 @@ export function AppsGridSection() {
           })}
         </div>
 
-        <p className="mt-8 sm:mt-10 text-center font-kiterp-script text-2xl sm:text-3xl text-[#1e3d34] max-w-2xl mx-auto">
-          We simplify everything, so you can achieve anything
-        </p>
+        <LandingScrollReveal variant="tilt" delay={0.1} className="mt-8 sm:mt-10 text-center max-w-2xl mx-auto">
+          <p className="font-kiterp-script text-2xl sm:text-3xl text-[#1e3d34]">
+            We simplify everything, so you can achieve anything
+          </p>
+        </LandingScrollReveal>
       </div>
     </section>
   )

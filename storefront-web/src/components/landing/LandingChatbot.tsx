@@ -103,7 +103,7 @@ export function LandingChatbot() {
             </button>
           </header>
 
-          <div className="kiterp-chatbot-messages" ref={listRef}>
+          <div className="kiterp-chatbot-messages kiterp-scroll-fade" ref={listRef}>
             {messages.map((m) => (
               <div
                 key={m.id}

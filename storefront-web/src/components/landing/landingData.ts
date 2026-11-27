@@ -502,6 +502,7 @@ export const MOSAIC_BRAND_AVATAR = {
   bg: 'linear-gradient(135deg, #90D4B8 0%, #64C3A0 100%)',
   ink: '#2d6854',
   glow: 'rgba(100, 195, 160, 0.3)',
+  initials: 'K',
 }
 export const MOSAIC_BRAND_GLOW = 'rgba(100, 195, 160, 0.28)'
 

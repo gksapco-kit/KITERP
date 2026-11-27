@@ -1,5 +1,6 @@
 import { Zap, Bot, Shield } from 'lucide-react'
 import { LandingDemoVideo } from './LandingDemoVideo'
+import { LandingScrollReveal } from './LandingScrollReveal'
 
 const PROPS = [
   {
@@ -26,19 +27,24 @@ export function ValuePropSection() {
   return (
     <section className="pt-4 pb-16 sm:pt-6 sm:pb-24 kiterp-value-section scroll-mt-24">
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
-        <h2 className="font-kiterp-script text-3xl sm:text-4xl text-center leading-tight text-[#1e3d34] mb-8 sm:mb-10">
-          Do More with Less Effort
-          <br />
-          <span className="text-[#64C3A0]">Work Faster. Work Smarter.</span>
-        </h2>
+        <LandingScrollReveal variant="card">
+          <h2 className="font-kiterp-script text-3xl sm:text-4xl text-center leading-tight text-[#1e3d34] mb-8 sm:mb-10">
+            Do More with Less Effort
+            <br />
+            <span className="text-[#64C3A0]">Work Faster. Work Smarter.</span>
+          </h2>
+        </LandingScrollReveal>
 
-        <LandingDemoVideo />
+        <LandingScrollReveal variant="pop" delay={0.08}>
+          <LandingDemoVideo />
+        </LandingScrollReveal>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-8 mt-12 sm:mt-14">
-          {PROPS.map((item) => {
+          {PROPS.map((item, index) => {
             const Icon = item.icon
             return (
-              <article key={item.title} className="kiterp-reveal kiterp-value-item">
+              <LandingScrollReveal key={item.title} variant="card" delay={0.12 + index * 0.1}>
+              <article className="kiterp-value-item kiterp-value-item-3d h-full">
                 <h3 className="flex items-center gap-2.5 text-base sm:text-lg font-bold text-[#1e3d34] leading-snug">
                   <span
                     className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
@@ -50,6 +56,7 @@ export function ValuePropSection() {
                 </h3>
                 <p className="mt-2.5 text-sm text-[#1e3d34]/65 leading-relaxed">{item.body}</p>
               </article>
+              </LandingScrollReveal>
             )
           })}
         </div>

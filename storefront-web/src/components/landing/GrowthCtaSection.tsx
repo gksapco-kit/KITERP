@@ -1,5 +1,6 @@
 import { Check } from 'lucide-react'
 import { saasSignupHref } from '@/components/landing/saasPlans'
+import { LandingScrollReveal } from '@/components/landing/LandingScrollReveal'
 import { usePublicSaasPlans } from '@/components/landing/usePublicSaasPlans'
 
 function SparkleBurst() {
@@ -35,21 +36,23 @@ export function GrowthCtaSection() {
   const { plans } = usePublicSaasPlans()
   return (
     <section id="pricing" className="py-20 sm:py-28 kiterp-growth-cta text-center">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 kiterp-reveal">
-        <SparkleBurst />
+      <div className="max-w-6xl mx-auto px-4 sm:px-6">
+        <LandingScrollReveal variant="card">
+          <SparkleBurst />
 
-        <h2 className="font-kiterp-script text-[2rem] sm:text-4xl lg:text-5xl leading-tight">
+          <h2 className="font-kiterp-script text-[2rem] sm:text-4xl lg:text-5xl leading-tight">
           <span className="text-[#1e3d34]">Simple plans</span>
           <br />
           <span className="text-[#64C3A0]">pay for the apps you need</span>
         </h2>
-        <p className="mt-4 max-w-2xl mx-auto text-sm sm:text-base text-[#1e3d34]/70">
-          My Kit is always included. Install more sidebar apps up to your plan limit —
-          upgrade anytime when you need more modules.
-        </p>
+          <p className="mt-4 max-w-2xl mx-auto text-sm sm:text-base text-[#1e3d34]/70">
+            My Kit is always included. Install more sidebar apps up to your plan limit —
+            upgrade anytime when you need more modules.
+          </p>
+        </LandingScrollReveal>
 
         <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-3 md:items-stretch text-left">
-          {plans.map((plan) => {
+          {plans.map((plan, planIndex) => {
             const appsText = plan.appsLabel.replace(/^My Kit \+ /, '')
             const highlights = [
               'My Kit workspace always included',
@@ -57,9 +60,9 @@ export function GrowthCtaSection() {
               'Upgrade or cancel anytime',
             ]
             return (
+              <LandingScrollReveal key={plan.slug} variant="card" delay={0.08 + planIndex * 0.12}>
               <article
-                key={plan.slug}
-                className={`group relative flex h-full flex-col overflow-hidden rounded-3xl border bg-white p-7 transition-all duration-300 hover:-translate-y-1 ${
+                className={`group relative flex h-full flex-col overflow-hidden rounded-3xl border bg-white p-7 kiterp-pricing-card-3d transition-all duration-300 hover:-translate-y-1 ${
                   plan.featured
                     ? 'border-[#64C3A0] shadow-[0_18px_50px_-18px_rgba(100,195,160,0.55)] ring-2 ring-[#64C3A0]/40 md:scale-[1.03]'
                     : 'border-[#1e3d34]/10 shadow-sm hover:shadow-lg'
@@ -107,6 +110,7 @@ export function GrowthCtaSection() {
                   {plan.cta}
                 </a>
               </article>
+              </LandingScrollReveal>
             )
           })}
         </div>

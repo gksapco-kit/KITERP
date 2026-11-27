@@ -37,7 +37,7 @@ export function ModulePreviewPanel({ module }: { module: LandingModule }) {
   return (
     <div
       key={module.id}
-      className="kiterp-module-preview-panel kiterp-module-apps-panel p-3 sm:p-4 kiterp-module-apps-panel--themed"
+      className="kiterp-module-preview-panel kiterp-module-apps-panel kiterp-scroll-fade p-3 sm:p-4 kiterp-module-apps-panel--themed"
       style={modulePanelStyle(module)}
       role="region"
       aria-label={`${module.title} apps`}

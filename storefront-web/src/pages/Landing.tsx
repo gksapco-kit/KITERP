@@ -14,6 +14,7 @@ import type { StorefrontVendor } from '@/components/landing/landingData'
 import { filterCommunityListedVendors } from '@/lib/communityDirectory'
 import { PLATFORM_SEO, useDocumentSeo } from '@/lib/documentSeo'
 import { compactJsonLd, organizationJsonLd, websiteJsonLd } from '@/lib/catalogSeo'
+import { LandingScrollReveal } from '@/components/landing/LandingScrollReveal'
 import '@/styles/kiterp-landing.css'
 
 type StoreDirectoryItem = StorefrontVendor
@@ -84,22 +85,24 @@ export default function Landing() {
     <div className="kiterp-landing font-kiterp-body min-h-screen kiterp-page-shell">
       <PlatformAnalyticsBeacon />
       <LandingHeader />
-      <main>
+      <main className="kiterp-landing-scroll-main">
         <LandingHero />
         <AppsGridSection />
         <ValuePropSection />
-        <CommunityMosaicSection
-          vendors={directory}
-          slug={slug}
-          setSlug={setSlug}
-          onSubmit={handleGo}
-          directory={directory}
-          matchingStores={matchingStores}
-          dirLoading={dirLoading}
-          dirError={dirError}
-          slugNeedle={slugNeedle}
-          onVisitStore={visitStore}
-        />
+        <LandingScrollReveal variant="pop">
+          <CommunityMosaicSection
+            vendors={directory}
+            slug={slug}
+            setSlug={setSlug}
+            onSubmit={handleGo}
+            directory={directory}
+            matchingStores={matchingStores}
+            dirLoading={dirLoading}
+            dirError={dirError}
+            slugNeedle={slugNeedle}
+            onVisitStore={visitStore}
+          />
+        </LandingScrollReveal>
         <GrowthCtaSection />
       </main>
       <LandingFooter />
