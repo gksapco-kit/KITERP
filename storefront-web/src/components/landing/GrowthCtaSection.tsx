@@ -110,9 +110,6 @@ export function GrowthCtaSection() {
             )
           })}
         </div>
-        <p className="mt-8 text-xs sm:text-sm text-[#1e3d34]/55 font-medium">
-          Secure checkout with Razorpay · Cancel or upgrade anytime from Billing &amp; Plans
-        </p>
       </div>
     </section>
   )

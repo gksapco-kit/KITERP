@@ -83,6 +83,18 @@ function shuffle<T>(items: T[]): T[] {
   return arr
 }
 
+function dedupeVendorsBySlug(vendors: StorefrontVendor[]): StorefrontVendor[] {
+  const seen = new Set<string>()
+  const out: StorefrontVendor[] = []
+  for (const v of vendors) {
+    const key = v.slug.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(v)
+  }
+  return out
+}
+
 function vendorsWithLogosFirst(vendors: StorefrontVendor[]): StorefrontVendor[] {
   return [...vendors].sort((a, b) => {
     const aLogo = Boolean(a.logo_url?.trim())
@@ -121,7 +133,7 @@ const MOBILE_AVATAR_SHUFFLE_ORDER = permute(MOBILE_AVATAR_INDICES.length, 29)
 const DESKTOP_AVATAR_SHUFFLE_RANK = rankFromOrder(DESKTOP_AVATAR_SHUFFLE_ORDER, DESKTOP_AVATAR_INDICES.length)
 const MOBILE_AVATAR_SHUFFLE_RANK = rankFromOrder(MOBILE_AVATAR_SHUFFLE_ORDER, MOBILE_AVATAR_INDICES.length)
 
-/** One avatar slot advances per step — vendors shuffle one bubble at a time. */
+/** At most one visible logo per vendor; remaining avatar cells stay decorative. */
 function buildVendorMap(
   pool: StorefrontVendor[],
   avatarIndices: readonly number[],
@@ -129,17 +141,21 @@ function buildVendorMap(
   step: number,
 ): Map<number, StorefrontVendor> {
   const map = new Map<number, StorefrontVendor>()
-  if (pool.length === 0 || avatarIndices.length === 0) return map
+  const unique = dedupeVendorsBySlug(pool)
+  if (unique.length === 0 || avatarIndices.length === 0) return map
 
   const slotCount = avatarIndices.length
-  const lap = Math.floor(step / slotCount)
-  const wave = step % slotCount
+  const showCount = Math.min(unique.length, slotCount)
+  const offset = unique.length > 0 ? step % unique.length : 0
 
-  avatarIndices.forEach((cellIdx, i) => {
-    const pos = rank[i] ?? i
-    const advances = lap + (pos < wave ? 1 : 0)
-    map.set(cellIdx, pool[(i + advances) % pool.length])
-  })
+  const slotsByRank = avatarIndices
+    .map((cellIdx, i) => ({ cellIdx, pos: rank[i] ?? i }))
+    .sort((a, b) => a.pos - b.pos)
+
+  for (let j = 0; j < showCount; j++) {
+    const vendor = unique[(offset + j) % unique.length]
+    map.set(slotsByRank[j].cellIdx, vendor)
+  }
   return map
 }
 
@@ -149,7 +165,7 @@ function useVendorPool(vendors: StorefrontVendor[]): StorefrontVendor[] {
   const prevKeyRef = useRef('')
   if (poolKey !== prevKeyRef.current) {
     prevKeyRef.current = poolKey
-    orderRef.current = shuffle(vendorsWithLogosFirst(vendors)).map((v) => v.slug)
+    orderRef.current = shuffle(vendorsWithLogosFirst(dedupeVendorsBySlug(vendors))).map((v) => v.slug)
   }
 
   return useMemo(() => {
